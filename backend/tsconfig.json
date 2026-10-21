@@ -3,8 +3,10 @@
   "compilerOptions": {
     "types": ["node", "jest"],
     "rootDir": ".",
+    "allowJs": true,
+    "checkJs": true,
     "noEmit": true
   },
-  "include": ["functions/src", "test"],
+  "include": ["functions/src", "scripts", "test"],
   "exclude": ["node_modules", "functions/lib"]
 }
