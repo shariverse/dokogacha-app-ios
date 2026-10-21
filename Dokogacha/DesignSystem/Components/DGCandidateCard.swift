@@ -102,16 +102,12 @@ struct DGCandidateCard: View {
     @ScaledMetric(relativeTo: .caption) private var popularTopPadding = DGSpacing.popularCardTopPadding
     /// ピンのアイコンを Dynamic Type に合わせて大きくする倍率
     @ScaledMetric(relativeTo: .caption) private var iconScale: CGFloat = 1
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Self.cornerRadius)
         VStack(alignment: .leading, spacing: DGSpacing.s12) {
-            HStack(alignment: .top, spacing: DGSpacing.s12) {
-                DGCategoryTile(category: category, size: .large)
-                details
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                DGLikeButton(state: likeStatus, action: onLike)
-            }
+            header
             DGLikeRow(likers: likers, isPopular: highlight != nil, cardBackground: background)
             DGDashedLine()
             DGProbabilityMeter(level: level, percent: percent, maxPercent: maxPercent)
@@ -127,6 +123,30 @@ struct DGCandidateCard: View {
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// カテゴリタイル・候補の情報・いいねボタン。
+    ///
+    /// アクセシビリティの文字サイズでは、横に 3 つ並べると候補の情報の列が細くなりすぎるので、
+    /// タイルといいねボタンを上の行に置き、候補の情報をカードの幅いっぱいに出す。
+    @ViewBuilder private var header: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: DGSpacing.s12) {
+                HStack(alignment: .top, spacing: DGSpacing.s12) {
+                    DGCategoryTile(category: category, size: .large)
+                    Spacer(minLength: 0)
+                    DGLikeButton(state: likeStatus, action: onLike)
+                }
+                details
+            }
+        } else {
+            HStack(alignment: .top, spacing: DGSpacing.s12) {
+                DGCategoryTile(category: category, size: .large)
+                details
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                DGLikeButton(state: likeStatus, action: onLike)
+            }
+        }
     }
 
     /// カードの背景（人気カードは `surface.highlight`）
@@ -214,8 +234,12 @@ struct DGCandidateCard: View {
         .padding(.horizontal, DGSpacing.s10)
         .padding(.vertical, Self.ribbonVerticalPadding)
         .background(Color.dgInk, in: RoundedRectangle(cornerRadius: Self.ribbonCornerRadius))
-        .alignmentGuide(.top) { dimensions in dimensions.height / 2 }
         .padding(.leading, Self.ribbonLeading)
+        // リボンの縦の中心をカードの上の縁にそろえる（04 の §4「y−13」。文字が大きくなっても縁にかかる位置を保つ）。
+        // overlay の中では alignmentGuide が効かなかったので、自分の高さの半分だけ上にずらす
+        .visualEffect { content, proxy in
+            content.offset(y: -proxy.size.height / 2)
+        }
     }
 }
 
