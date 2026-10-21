@@ -23,6 +23,10 @@ struct AppErrorTests {
         ("owner-cannot-leave", "作成者はルームから退出できません"),
         ("cannot-remove-owner", "作成者は削除できません"),
         ("member-not-found", "このメンバーはもうルームにいません"),
+        ("post-limit-reached", "投稿できる数の上限に達しています"),
+        ("room-candidates-full", "このルームの候補は上限に達しています（最大200件）"),
+        ("candidate-not-found", "候補が見つかりません"),
+        ("not-candidate-owner", "投稿した人と作成者だけが削除できます"),
         ("invite-code-unavailable", "通信できませんでした"),
         ("internal", "通信できませんでした")
     ]

@@ -155,11 +155,11 @@ final class InMemoryServer {
             .invalidArgument
         case .profileRequired, .roomAlreadyDecided, .ownerCannotLeave, .cannotRemoveOwner:
             .failedPrecondition
-        case .inviteCodeNotFound, .roomNotFound, .memberNotFound:
+        case .inviteCodeNotFound, .roomNotFound, .memberNotFound, .candidateNotFound:
             .notFound
-        case .roomFull:
+        case .roomFull, .postLimitReached, .roomCandidatesFull:
             .resourceExhausted
-        case .notRoomMember, .notRoomOwner, .permissionDenied:
+        case .notRoomMember, .notRoomOwner, .notCandidateOwner, .permissionDenied:
             .permissionDenied
         case .inviteCodeUnavailable, .network, .serverUnavailable:
             .unavailable
