@@ -114,3 +114,5 @@ backend/**/node_modules/
 backend/functions/lib/
 .firebase/
 *-debug.log
+# Emulator のポートをずらして書き出す設定ファイル（backend/scripts/emulator-config.cjs）
+backend/firebase.emulators.local.json

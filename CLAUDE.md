@@ -37,6 +37,29 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - ビルド構成は 3 つ: **Debug**（開発・テスト。Firebase は Emulator）/ **Stg**（TestFlight 用。`develop` の Upload。Firebase は dev）/ **Release**（App Store 用。Firebase は prod）。
   Stg は Release と同じ最適化。構成ごとの値は `Configs/<構成>.xcconfig` に書く
 
+### backend（Firebase）
+
+Node 22 と Java 21（Firestore の Emulator に要る）を使う。`firebase-tools` は devDependencies に入っているので `npx firebase` で使い、グローバルに入れない。
+`backend/` は npm workspaces（`functions/` を含む）で、`package-lock.json` は `backend/` に 1 つだけある。
+
+```bash
+cd backend
+npm ci                  # 依存を lock ファイルどおりに入れ直す（functions/ の分も入る）
+npm run typecheck       # tsc --noEmit（Functions のビルド設定と、テストを含む全体）
+npm run lint            # ESLint（警告も失敗にする）
+npm test                # 単体テスト（Jest。Functions と scripts/ のコード。Emulator を使わない）
+npm run test:emulator   # Emulator を起動してルールと Functions のテストを流す（Functions をビルドしてから）
+npm run build           # Functions を functions/lib/ にビルドする
+```
+
+- Emulator のポートは `firebase.json`（auth 9099・firestore 8080（WebSocket 9150）・functions 5001・hosting 5002・hub 4400・logging 4600・eventarc 9299・tasks 9499。UI は無効）。
+  `DG_EMULATOR_PORT_OFFSET`（既定 0）を付けると各ポートに足して起動する（例: `DG_EMULATOR_PORT_OFFSET=100 npm run test:emulator`）。2 つの作業スロットで同時に流すときにずらす（スロット b は 100）。
+  ずらした後のポートが、ずらし 0 のどれかのポートと重なると設定の書き出しで失敗する。ポートを足すときは、100 ずらしても重ならない値にする（logging を既定の 4500 にしないのは、100 ずらした hub と重なるため）
+- ずらした設定は `scripts/emulator-config.cjs` が `backend/firebase.emulators.local.json`（git 管理外）に書き出し、`scripts/test-emulator.sh` がそれを `emulators:exec --config` に渡す。
+  テストは `emulators:exec` が渡す `FIRESTORE_EMULATOR_HOST`・`FIREBASE_EMULATOR_HUB` などの環境変数で接続先を読むので、ポートを直接書かない
+- プロジェクトは Emulator 専用の `demo-dokogacha`（`.firebaserc`）。`firebase deploy`・`firebase login` は人間がする
+- CI は `.github/workflows/backend.yml`（ubuntu）。`backend/**` だけの変更では iOS の Build（macOS）は動かない
+
 ## プロジェクトの決まり
 
 - **`project.pbxproj` を編集しない。** フォルダ同期グループ（objectVersion 77）なので、`Dokogacha/`・`DokogachaTests/`・`DokogachaUITests/` にファイルを足すだけでターゲットに入る。

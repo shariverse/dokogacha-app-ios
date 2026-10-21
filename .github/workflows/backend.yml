@@ -1,0 +1,68 @@
+name: Backend
+
+# backend/（Cloud Functions・Firestore のルール・Hosting）の型検査・lint・単体テスト・Emulator のテスト。
+# iOS の Build（macOS）とは分け、ubuntu で動かす（macOS の同時実行の枠を使わないため）。
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # 同じリポジトリのブランチは push で実行済みなので、PR では Fork からのものだけ実行する（同じコミットを二重に流さない）
+    if: >-
+      github.event_name == 'push'
+      || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # Firestore の Emulator は Java で動く
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # firebase-tools がダウンロードする Emulator の jar を、firebase-tools のバージョン（lock ファイル）ごとに使い回す
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - run: npm ci
+
+      - name: 型検査
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: 単体テスト（Jest）
+        run: npm test
+
+      - name: Emulator のテスト（ルール・Functions）
+        run: npm run test:emulator

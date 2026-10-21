@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// ドコガチャの Firestore のセキュリティルール。
+// まずはすべての読み書きを拒否する。コレクションごとの許可は、機能を作るタスクで
+// 05_architecture.md の §4 の方針（整合性が要る書き込みは Callable Functions を通し、
+// クライアントが直接書くのは「自分の準備OK」「いいね」「lastSeenAt」だけ）に沿って足していく。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
