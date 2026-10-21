@@ -25,6 +25,17 @@ struct CandidateRulesTests {
         )
     }
 
+    /// 経度だけを `deltaLongitude` 度ずらした場所（距離の式の経度の項を確かめる）
+    static func shiftedEast(_ place: Place, _ deltaLongitude: Double) -> Place {
+        Place(
+            name: place.name,
+            area: place.area,
+            latitude: place.latitude,
+            longitude: place.longitude + deltaLongitude,
+            mapItemId: place.mapItemId
+        )
+    }
+
     /// 識別子を付けた場所
     static func withID(_ place: Place, _ mapItemId: String?) -> Place {
         Place(name: place.name, area: place.area, latitude: place.latitude, longitude: place.longitude, mapItemId: mapItemId)
@@ -56,6 +67,20 @@ struct CandidateRulesTests {
         #expect(abs(CandidateRules.distanceMeters(Self.enoshima, Self.shifted(Self.enoshima, 0.0009)) - 100.075) < 0.005)
     }
 
+    /// 北緯 35.3 度で経度 0.0011 度（約 99.83m）と 0.00111 度（約 100.73m）
+    @Test
+    func distanceAlongLongitude() {
+        #expect(abs(CandidateRules.distanceMeters(Self.enoshima, Self.shiftedEast(Self.enoshima, 0.0011)) - 99.825) < 0.005)
+        #expect(abs(CandidateRules.distanceMeters(Self.enoshima, Self.shiftedEast(Self.enoshima, 0.00111)) - 100.733) < 0.005)
+    }
+
+    /// 江の島から東京駅までは約 49.73km（球面の余弦定理で検算した値）
+    @Test
+    func distanceFromEnoshimaToTokyoStation() {
+        let tokyo = Place(name: "東京駅", area: "", latitude: 35.681236, longitude: 139.767125)
+        #expect(abs(CandidateRules.distanceMeters(Self.enoshima, tokyo) - 49_727.08) < 0.05)
+    }
+
     // MARK: 同じ場所か（candidate.test.ts の isSamePlace）
 
     /// 場所名が同じで 100m 以内なら同じ・100m を超えたら別
@@ -63,6 +88,13 @@ struct CandidateRulesTests {
     func sameNameWithinHundredMeters() {
         #expect(CandidateRules.isSamePlace(Self.enoshima, Self.shifted(Self.enoshima, 0.000899)))
         #expect(!CandidateRules.isSamePlace(Self.enoshima, Self.shifted(Self.enoshima, 0.0009)))
+    }
+
+    /// 経度だけずらしても、100m 以内なら同じ・100m を超えたら別（北緯 35.3 度）
+    @Test
+    func sameNameWithinHundredMetersAlongLongitude() {
+        #expect(CandidateRules.isSamePlace(Self.enoshima, Self.shiftedEast(Self.enoshima, 0.0011)))
+        #expect(!CandidateRules.isSamePlace(Self.enoshima, Self.shiftedEast(Self.enoshima, 0.00111)))
     }
 
     /// 場所名が違えば、近くても別（前後の空白は取り除いた後の名前で比べる）

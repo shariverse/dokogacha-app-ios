@@ -19,6 +19,11 @@ function shifted(place: PlaceIdentity, deltaLatitude: number, overrides: Partial
   return { ...place, latitude: place.latitude + deltaLatitude, ...overrides };
 }
 
+/** 経度だけを `deltaLongitude` 度ずらした場所（距離の式の経度の項を確かめる） */
+function shiftedEast(place: PlaceIdentity, deltaLongitude: number): PlaceIdentity {
+  return { ...place, longitude: place.longitude + deltaLongitude };
+}
+
 describe("distanceMeters", () => {
   it("同じ点は 0m、緯度 1 度は約 111,195m（地球の半径 6,371km の球）", () => {
     expect(EARTH_RADIUS_METERS).toBe(6_371_000);
@@ -35,12 +40,27 @@ describe("distanceMeters", () => {
     expect(distanceMeters(enoshima, shifted(enoshima, 0.000899))).toBeCloseTo(99.964, 2);
     expect(distanceMeters(enoshima, shifted(enoshima, 0.0009))).toBeCloseTo(100.075, 2);
   });
+
+  it("北緯 35.3 度で経度 0.0011 度（約 99.83m）と 0.00111 度（約 100.73m）", () => {
+    expect(distanceMeters(enoshima, shiftedEast(enoshima, 0.0011))).toBeCloseTo(99.825, 2);
+    expect(distanceMeters(enoshima, shiftedEast(enoshima, 0.00111))).toBeCloseTo(100.733, 2);
+  });
+
+  it("江の島から東京駅までは約 49.73km（球面の余弦定理で検算した値）", () => {
+    const tokyo = { latitude: 35.681236, longitude: 139.767125 };
+    expect(distanceMeters(enoshima, tokyo)).toBeCloseTo(49_727.08, 1);
+  });
 });
 
 describe("isSamePlace（02 の F-10 の重複）", () => {
   it("場所名が同じで 100m 以内なら同じ・100m を超えたら別", () => {
     expect(isSamePlace(enoshima, shifted(enoshima, 0.000899))).toBe(true);
     expect(isSamePlace(enoshima, shifted(enoshima, 0.0009))).toBe(false);
+  });
+
+  it("経度だけずらしても、100m 以内なら同じ・100m を超えたら別（北緯 35.3 度）", () => {
+    expect(isSamePlace(enoshima, shiftedEast(enoshima, 0.0011))).toBe(true);
+    expect(isSamePlace(enoshima, shiftedEast(enoshima, 0.00111))).toBe(false);
   });
 
   it("場所名が違えば、近くても別（前後の空白は取り除いた後の名前で比べる）", () => {
