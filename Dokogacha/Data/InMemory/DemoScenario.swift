@@ -1,0 +1,164 @@
+//
+//  DemoScenario.swift
+//  Dokogacha
+//
+
+import Foundation
+
+/// 擬似のサーバーに入れるデモのデータ。UI テストは `-uiTesting -demo-scenario <rawValue>` で選ぶ。
+///
+/// 最小限から始め、画面のタスクと UI テスト（タスク 44）で要るものを足す。
+/// どのシナリオでも、この端末のユーザー（`DemoScenario.myUserID`）はサインイン済みで始まる。
+nonisolated enum DemoScenario: String, CaseIterable, Sendable {
+    /// 表示名をまだ登録していない（初回起動。S-01 を出す）
+    case firstLaunch = "first-launch"
+    /// 表示名を登録済みで、ルームが無い
+    case empty
+    /// 自分が作った `open` のルームが 1 つあり、ほかのメンバーが 3 人いる。候補は無い
+    case oneRoom = "one-room"
+    /// `one-room` に、ほかのメンバーの候補（いいね付き）と自分の候補がある
+    case roomWithCandidates = "room-with-candidates"
+
+    /// 起動引数でシナリオを選ぶときの名前（`-demo-scenario <rawValue>`）
+    static let argument = "-demo-scenario"
+    /// 起動引数で選ばなかったとき・知らない名前のときのシナリオ
+    static let fallback: Self = .empty
+
+    /// この端末のユーザーの uid
+    static let myUserID = "demo-me"
+    /// デモのルームの ID
+    static let roomID = "demo-room"
+    /// デモのルームの招待コード（`DK7-29Q`）
+    static let inviteCode = "DK729Q"
+
+    /// 起動引数から選ぶ（`-demo-scenario` の次の値。無い・知らないなら `fallback`）
+    static func from(arguments: [String]) -> Self {
+        guard let index = arguments.firstIndex(of: argument), arguments.indices.contains(index + 1) else {
+            return fallback
+        }
+        return Self(rawValue: arguments[index + 1]) ?? fallback
+    }
+}
+
+extension InMemoryServer {
+    /// デモのメンバー（uid・表示名・アバターの色の位置）
+    private struct DemoPerson {
+        let id: String
+        let name: String
+        let colorIndex: Int
+    }
+
+    /// 自分とほかのメンバー（参加順）
+    private static let demoPeople = [
+        DemoPerson(id: DemoScenario.myUserID, name: "たくみ", colorIndex: 2),
+        DemoPerson(id: "demo-haruka", name: "はるか", colorIndex: 0),
+        DemoPerson(id: "demo-sota", name: "そうた", colorIndex: 1),
+        DemoPerson(id: "demo-mio", name: "みお", colorIndex: 3)
+    ]
+
+    /// シナリオのデータを入れた擬似のサーバーを作る。日時は `clock` の今からの相対で決める
+    static func demo(_ scenario: DemoScenario, clock: @escaping () -> Date = { Date() }) -> InMemoryServer {
+        let server = InMemoryServer(clock: clock, signedInUserID: DemoScenario.myUserID)
+        let now = clock()
+        if scenario != .firstLaunch {
+            for (offset, person) in demoPeople.enumerated() {
+                server.users[person.id] = UserProfile(
+                    displayName: person.name,
+                    avatarColor: AvatarPalette.colors[person.colorIndex],
+                    adFree: false,
+                    fcmTokens: [],
+                    createdAt: now.addingTimeInterval(-Double(offset + 1) * 86_400)
+                )
+            }
+        }
+        if scenario == .oneRoom || scenario == .roomWithCandidates {
+            server.rooms[DemoScenario.roomID] = demoRoom(now: now)
+            let codeEntry = InviteCodeEntry(roomId: DemoScenario.roomID, createdAt: now.addingTimeInterval(-7_200))
+            server.inviteCodes[DemoScenario.inviteCode] = codeEntry
+        }
+        if scenario == .roomWithCandidates {
+            server.rooms[DemoScenario.roomID]?.candidates = demoCandidates(now: now)
+            server.rooms[DemoScenario.roomID]?.room.candidateCount = 3
+        }
+        return server
+    }
+
+    /// 自分が作った `open` のルーム（全員OKで解禁・投稿数 3・共感ブースト）
+    private static func demoRoom(now: Date) -> RoomRecord {
+        let createdAt = now.addingTimeInterval(-7_200)
+        var record = RoomRecord(room: Room(
+            name: "年末の旅行",
+            ownerId: DemoScenario.myUserID,
+            inviteCode: DemoScenario.inviteCode,
+            status: .open,
+            settings: RoomSettings(postLimit: DomainConstants.Limits.defaultPostLimit, unlockRule: .all, deadlineAt: nil, likeMode: .boost),
+            forcedUnlock: false,
+            memberIds: demoPeople.map(\.id),
+            memberCount: demoPeople.count,
+            readyCount: 0,
+            candidateCount: 0,
+            adFreeSponsor: nil,
+            currentDrawId: nil,
+            winnerCandidateId: nil,
+            excludedCandidateIds: [],
+            reroll: .initial,
+            createdAt: createdAt,
+            drawnAt: nil,
+            closedAt: nil
+        ))
+        for (offset, person) in demoPeople.enumerated() {
+            let joinedAt = createdAt.addingTimeInterval(Double(offset) * 60)
+            record.members[person.id] = Member(
+                displayName: person.name,
+                avatarColor: AvatarPalette.colors[person.colorIndex],
+                role: offset == 0 ? .owner : .member,
+                ready: false,
+                joinedAt: joinedAt,
+                lastSeenAt: joinedAt
+            )
+        }
+        return record
+    }
+
+    /// 候補 3 件（はるかの水族館・そうたの寺社・自分の海）
+    private static func demoCandidates(now: Date) -> [String: Candidate] {
+        [
+            "demo-candidate-1": Candidate(
+                place: Place(name: "サンシャイン水族館", area: "東京・豊島区", latitude: 35.728_9, longitude: 139.719_7, mapItemId: nil),
+                category: .aquarium,
+                note: "ペンギンが空を飛ぶ水槽が見たい",
+                url: nil,
+                postedBy: "demo-haruka",
+                postedByName: "はるか",
+                colorIndex: 0,
+                likedBy: [DemoScenario.myUserID, "demo-sota"],
+                fromPastIdeaId: nil,
+                createdAt: now.addingTimeInterval(-3_600)
+            ),
+            "demo-candidate-2": Candidate(
+                place: Place(name: "明治神宮", area: "東京・渋谷区", latitude: 35.6764, longitude: 139.6993, mapItemId: nil),
+                category: .shrine,
+                note: "",
+                url: nil,
+                postedBy: "demo-sota",
+                postedByName: "そうた",
+                colorIndex: 1,
+                likedBy: [],
+                fromPastIdeaId: nil,
+                createdAt: now.addingTimeInterval(-1_800)
+            ),
+            "demo-candidate-3": Candidate(
+                place: Place(name: "江の島", area: "神奈川・藤沢市", latitude: 35.2994, longitude: 139.4800, mapItemId: nil),
+                category: .sea,
+                note: "しらす丼を食べたい",
+                url: nil,
+                postedBy: DemoScenario.myUserID,
+                postedByName: "たくみ",
+                colorIndex: 2,
+                likedBy: ["demo-haruka"],
+                fromPastIdeaId: nil,
+                createdAt: now.addingTimeInterval(-300)
+            )
+        ]
+    }
+}

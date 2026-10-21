@@ -22,12 +22,15 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let isUITesting: Bool
     /// 撮影モード（`-screenshot-demo`）で起動されたか
     let isScreenshotDemo: Bool
+    /// 擬似のサーバーに入れるデモのデータ（`-demo-scenario <名前>`。`-uiTesting`・撮影モードのときに使う）
+    let demoScenario: DemoScenario
 
     /// 起動引数と環境変数から作る
     init(arguments: [String], environment: [String: String]) {
         isUnitTestHost = Self.unitTestHostEnvironmentKeys.contains { environment[$0] != nil }
         isUITesting = arguments.contains(Self.uiTestingArgument)
         isScreenshotDemo = arguments.contains(ScreenshotDemo.argument)
+        demoScenario = DemoScenario.from(arguments: arguments)
     }
 
     /// いまのプロセスの起動のしかた

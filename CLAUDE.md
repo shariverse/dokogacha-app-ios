@@ -50,6 +50,16 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - 構成に合わない plist はアプリに入れない（xcconfig の `EXCLUDED_SOURCE_FILE_NAMES`。Release に Dev の plist は入らない。Debug にはどちらも入らない）
 - plist が無い・読めないときは落とさずに起動し、`ServerSession.connection` が `.unavailable` になる（サーバーに接続できない状態）
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化しない（`.disabled`）
+  - そのときはメモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動く。UI テストはデモのデータを `-uiTesting -demo-scenario <名前>` で選ぶ
+    （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`。`DemoScenario`。画面のタスクで要るシナリオを足す）
+  - データ層は `AuthService`・`RoomRepository`・`FunctionsClient` の protocol の後ろにあり、起動時に `DataServices.make` が実装を選んで
+    `ServerSession.services` で渡す。画面の Model は protocol だけを受け取る。backend に Callable を足したら、擬似のサーバーにも同じ検証を足す
+  - Callable のエラーの文言は `Dokogacha/Data/AppError.swift` の 1 か所（`details.reason` で引く。backend の `errors.ts` と鍵をそろえる）。
+    `isCancellation`（画面を閉じて `Task` を cancel した）のときはトーストを出さない
+  - 擬似のサーバーでほかのメンバーの操作（Callable・準備OK・いいね・lastSeenAt）を再現するときは `server.device(of: uid)` から呼ぶ（同じ検証と数え直しを通る）
+  - 直接の書き込み（`RoomRepository` の `setReady`・`setLike`・`markSeen`）は送った時点で返り、ルールで拒まれても投げない（購読に元の値が流れる）。
+    擬似のサーバーでは拒まれた書き込みが `rejectedWrites` に残る
+  - 表示名・ルーム名の検証は `Domain/Logic/NameValidation.swift`（backend の `domain/text.ts`・`validation.ts` と同じ規則。片方を変えたら両方を変える）
 - Debug のアプリを Emulator に繋いで動かすときは、`backend/` で `npm run build && npx --no firebase emulators:start --only auth,firestore,functions --project demo-dokogacha` を起動しておく（ずらし 0 のポートだけに繋ぐ。Functions の Emulator は `functions/lib/` を読むので先にビルドする）
 
 ### backend（Firebase）
