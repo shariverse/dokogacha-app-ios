@@ -16,10 +16,32 @@ extension InMemoryServer: FunctionsClient {
     /// 参加できる状態（02 の F-04）
     static let joinableStatuses: Set<RoomStatus> = [.open, .unlocked]
 
-    // MARK: ユーザー
+    // MARK: この端末（サインインしている人）からの呼び出し
 
     func saveProfile(_ request: SaveProfileRequest) async throws -> SaveProfileResponse {
-        let userID = try callerID()
+        try saveProfile(request, by: signedInUserID)
+    }
+
+    func createRoom(_ request: CreateRoomRequest) async throws -> CreateRoomResponse {
+        try createRoom(request, by: signedInUserID)
+    }
+
+    func joinRoom(_ request: JoinRoomRequest) async throws -> JoinRoomResponse {
+        try joinRoom(request, by: signedInUserID)
+    }
+
+    func leaveRoom(_ request: RoomRequest) async throws {
+        try leaveRoom(request, by: signedInUserID)
+    }
+
+    func removeMember(_ request: RemoveMemberRequest) async throws {
+        try removeMember(request, by: signedInUserID)
+    }
+
+    // MARK: ユーザー（呼んだ人の uid を `callerID` で受け取る。ほかのメンバーの端末 `Device` からも呼ぶ）
+
+    func saveProfile(_ request: SaveProfileRequest, by callerID: String?) throws -> SaveProfileResponse {
+        let userID = try Self.requireCaller(callerID)
         let displayName = try Self.trimmedText(request.displayName, length: DomainConstants.Limits.displayNameLength)
         if var existing = users[userID] {
             existing.displayName = displayName
@@ -33,8 +55,8 @@ extension InMemoryServer: FunctionsClient {
 
     // MARK: ルーム
 
-    func createRoom(_ request: CreateRoomRequest) async throws -> CreateRoomResponse {
-        let userID = try callerID()
+    func createRoom(_ request: CreateRoomRequest, by callerID: String?) throws -> CreateRoomResponse {
+        let userID = try Self.requireCaller(callerID)
         let now = clock()
         let name = try Self.trimmedText(request.name, length: DomainConstants.Limits.roomNameLength)
         guard DomainConstants.Limits.postLimitRange.contains(request.postLimit) else {
@@ -76,8 +98,8 @@ extension InMemoryServer: FunctionsClient {
         return CreateRoomResponse(roomId: roomID, inviteCode: code)
     }
 
-    func joinRoom(_ request: JoinRoomRequest) async throws -> JoinRoomResponse {
-        let userID = try callerID()
+    func joinRoom(_ request: JoinRoomRequest, by callerID: String?) throws -> JoinRoomResponse {
+        let userID = try Self.requireCaller(callerID)
         guard let code = InviteCode(request.inviteCode) else {
             throw Self.error(.inviteCodeNotFound)
         }
@@ -105,8 +127,8 @@ extension InMemoryServer: FunctionsClient {
         return JoinRoomResponse(roomId: roomID, alreadyMember: false)
     }
 
-    func leaveRoom(_ request: RoomRequest) async throws {
-        let userID = try callerID()
+    func leaveRoom(_ request: RoomRequest, by callerID: String?) throws {
+        let userID = try Self.requireCaller(callerID)
         let roomID = try Self.documentID(request.roomId)
         guard var record = rooms[roomID] else {
             throw Self.error(.roomNotFound)
@@ -118,8 +140,8 @@ extension InMemoryServer: FunctionsClient {
         rooms[roomID] = record
     }
 
-    func removeMember(_ request: RemoveMemberRequest) async throws {
-        let userID = try callerID()
+    func removeMember(_ request: RemoveMemberRequest, by callerID: String?) throws {
+        let userID = try Self.requireCaller(callerID)
         let roomID = try Self.documentID(request.roomId)
         let memberID = try Self.documentID(request.memberId)
         guard var record = rooms[roomID] else {

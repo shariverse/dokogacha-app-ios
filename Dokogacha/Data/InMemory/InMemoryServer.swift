@@ -12,8 +12,8 @@ import Foundation
 /// 状態（`users`・`rooms`・`inviteCodes`・`signedInUserID`）を変えると、購読しているストリームに新しい値が流れる。
 ///
 /// - 時刻（`clock`）・乱数（`randomIndex`）・ID（`makeID`）は注入する（テストで結果を決めるため）
-/// - `signedInUserID` はこの端末でサインインしている人。Callable はこの人が呼んだものとして扱う。
-///   ほかのメンバーの操作は、`perform(as:)` の中で Callable を呼ぶと再現できる
+/// - `signedInUserID` はこの端末でサインインしている人。protocol の Callable と直接の書き込みは、この人がしたものとして扱う。
+///   ほかのメンバーの操作（Callable・準備OK・いいね・lastSeenAt）は `device(of:)` の端末から行うと、同じ検証と数え直しを通る
 /// - まだ backend に無い Callable（`addCandidate` など）は `AppError(.notImplemented)` を投げる。backend のタスクで足すときに、ここにも足す
 final class InMemoryServer {
     /// ルーム 1 つ分の状態（`rooms/{roomId}` とその下の `members`・`candidates`）
@@ -60,8 +60,6 @@ final class InMemoryServer {
 
     /// 購読ごとの、新しい値を流し直す処理
     private var subscribers: [UUID: () -> Void] = [:]
-    /// `perform(as:)` の中で Callable を呼ぶ人
-    private var actingUserID: String?
 
     /// 購読している数（購読をやめたら減る。テストでリスナーが外れたことを確かめる）
     var subscriberCount: Int {
@@ -81,20 +79,15 @@ final class InMemoryServer {
         self.signedInUserID = signedInUserID
     }
 
-    /// ほかの人（`userID`）が Callable を呼んだものとして `body` を実行する（テスト・デモのデータを作るとき）
-    func perform<Result>(as userID: String, _ body: () async throws -> Result) async rethrows -> Result {
-        let previous = actingUserID
-        actingUserID = userID
-        defer { actingUserID = previous }
-        return try await body()
-    }
-
-    /// Callable を呼んだ人（`perform(as:)` の中ならその人、そうでなければサインインしている人）。いなければ `unauthenticated`
-    func callerID() throws -> String {
-        guard let userID = actingUserID ?? signedInUserID else {
-            throw Self.error(.unauthenticated)
+    /// Callable を呼んだ人の uid（`request.auth.uid`）。いなければ `unauthenticated`。
+    ///
+    /// 呼んだ人は引数で受け取る（状態として持たない）。状態で持つと、`await` で中断している間に
+    /// ほかの呼び出しへ別の人の uid が漏れるため
+    static func requireCaller(_ callerID: String?) throws -> String {
+        guard let callerID else {
+            throw error(.unauthenticated)
         }
-        return userID
+        return callerID
     }
 
     // MARK: 購読

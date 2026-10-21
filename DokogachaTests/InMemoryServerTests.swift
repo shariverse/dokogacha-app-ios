@@ -212,9 +212,7 @@ struct InMemoryServerTests {
         #expect(server.rooms[room.roomId]?.room.adFreeSponsor == AdFreeSponsor(uid: "buyer", displayName: "buyer"))
 
         // 購入者が抜けたら、残りのメンバーから参加の早い順に探し直す
-        try await server.perform(as: "buyer") {
-            try await server.leaveRoom(RoomRequest(roomId: room.roomId))
-        }
+        try await server.device(of: "buyer").leaveRoom(RoomRequest(roomId: room.roomId))
         #expect(server.rooms[room.roomId]?.room.adFreeSponsor?.uid == "buyer2")
     }
 
@@ -230,9 +228,7 @@ struct InMemoryServerTests {
             _ = try await Self.join(server, userID, code: room.inviteCode)
         }
         #expect(server.rooms[room.roomId]?.room.adFreeSponsor?.uid == "buyer")
-        try await server.perform(as: "buyer") {
-            try await server.leaveRoom(RoomRequest(roomId: room.roomId))
-        }
+        try await server.device(of: "buyer").leaveRoom(RoomRequest(roomId: room.roomId))
         #expect(server.rooms[room.roomId]?.room.adFreeSponsor?.uid == "amy")
     }
 
@@ -252,9 +248,7 @@ struct InMemoryServerTests {
         server.rooms[room.roomId]?.candidates["c1"] = Self.candidate(postedBy: "guest", likedBy: ["owner"])
         server.rooms[room.roomId]?.candidates["c2"] = Self.candidate(postedBy: "owner", likedBy: ["guest"])
 
-        try await server.perform(as: "guest") {
-            try await server.leaveRoom(RoomRequest(roomId: room.roomId))
-        }
+        try await server.device(of: "guest").leaveRoom(RoomRequest(roomId: room.roomId))
         let record = try #require(server.rooms[room.roomId])
         #expect(record.members["guest"] == nil)
         #expect(record.room.memberIds == ["owner"])
@@ -267,9 +261,7 @@ struct InMemoryServerTests {
 
         // もうメンバーではない
         await #expect(throws: InMemoryServer.error(.notRoomMember)) {
-            try await server.perform(as: "guest") {
-                try await server.leaveRoom(RoomRequest(roomId: room.roomId))
-            }
+            try await server.device(of: "guest").leaveRoom(RoomRequest(roomId: room.roomId))
         }
     }
 
@@ -298,9 +290,7 @@ struct InMemoryServerTests {
             _ = try await Self.join(server, userID, code: room.inviteCode)
         }
         await #expect(throws: InMemoryServer.error(.notRoomOwner)) {
-            try await server.perform(as: "a") {
-                try await server.removeMember(RemoveMemberRequest(roomId: room.roomId, memberId: "b"))
-            }
+            try await server.device(of: "a").removeMember(RemoveMemberRequest(roomId: room.roomId, memberId: "b"))
         }
         await #expect(throws: InMemoryServer.error(.cannotRemoveOwner)) {
             try await server.removeMember(RemoveMemberRequest(roomId: room.roomId, memberId: "owner"))
@@ -339,9 +329,7 @@ extension InMemoryServerTests {
 
     /// 表示名を登録したユーザーを作る
     static func addUser(_ server: InMemoryServer, _ userID: String, adFree: Bool = false) async throws {
-        _ = try await server.perform(as: userID) {
-            try await server.saveProfile(SaveProfileRequest(displayName: userID))
-        }
+        _ = try await server.device(of: userID).saveProfile(SaveProfileRequest(displayName: userID))
         server.users[userID]?.adFree = adFree
     }
 
@@ -357,9 +345,7 @@ extension InMemoryServerTests {
     }
 
     static func join(_ server: InMemoryServer, _ userID: String, code: String) async throws -> JoinRoomResponse {
-        try await server.perform(as: userID) {
-            try await server.joinRoom(JoinRoomRequest(inviteCode: code))
-        }
+        try await server.device(of: userID).joinRoom(JoinRoomRequest(inviteCode: code))
     }
 
     static func candidate(postedBy: String, likedBy: [String]) -> Candidate {

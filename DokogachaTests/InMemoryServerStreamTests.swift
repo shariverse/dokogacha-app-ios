@@ -38,9 +38,7 @@ struct InMemoryServerStreamTests {
         #expect(Set(await iterator.next()?.value?.map(\.id) ?? []) == ["owner", "guest"])
 
         // 作成者に削除されたら、読めなくなって購読が終わる（Firestore のリスナーと同じ）
-        try await server.perform(as: "owner") {
-            try await server.removeMember(RemoveMemberRequest(roomId: room.roomId, memberId: "guest"))
-        }
+        try await server.device(of: "owner").removeMember(RemoveMemberRequest(roomId: room.roomId, memberId: "guest"))
         #expect(await iterator.next() == .failure(InMemoryServer.permissionDenied))
         #expect(await iterator.next() == nil)
     }
