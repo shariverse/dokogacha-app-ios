@@ -14,12 +14,7 @@ import Observation
 @Observable
 final class OnboardingModel {
     /// 入力が正しくない理由（空のときは理由を出さず、ボタンを無効にするだけ）
-    enum InputIssue: Equatable {
-        /// 文字数が上限を超えた（値は上限）
-        case tooLong(limit: Int)
-        /// 改行などの使えない文字が入っている
-        case forbiddenCharacter
-    }
+    typealias InputIssue = NameInputCheck.Issue
 
     /// 表示名の文字数の範囲（02 の §1「1〜10文字、必須」）
     static let lengthRange = DomainConstants.Limits.displayNameLength
@@ -48,32 +43,29 @@ final class OnboardingModel {
         submitTask?.cancel()
     }
 
+    /// 入力の検証の結果（`NameValidation` の規則。文字数の表示とエラーの文言にも使う）
+    var check: NameInputCheck {
+        NameInputCheck(displayName, length: Self.lengthRange)
+    }
+
     /// 送る表示名（前後の空白を取り除いたもの）。受け付けない入力なら nil
     var validatedName: String? {
-        NameValidation.validated(displayName, length: Self.lengthRange)
+        check.validatedName
     }
 
     /// 文字数（検証と同じ数え方。前後の空白を除き、見えない文字だけなら 0）
     var characterCount: Int {
-        let trimmed = NameValidation.trimWhitespace(displayName)
-        return NameValidation.isInvisibleOnly(trimmed) ? 0 : trimmed.count
+        check.characterCount
     }
 
     /// 文字数の上限
     var characterLimit: Int {
-        Self.lengthRange.upperBound
+        check.limit
     }
 
     /// 入力が正しくない理由。正しいとき・空のときは nil
     var inputIssue: InputIssue? {
-        guard validatedName == nil, characterCount > 0 else {
-            return nil
-        }
-        if characterCount > characterLimit {
-            return .tooLong(limit: characterLimit)
-        }
-        // 上限の範囲で通らないのは、使えない文字（制御文字など）か、長すぎる結合文字のとき
-        return .forbiddenCharacter
+        check.issue
     }
 
     /// 「はじめる」を押せるか（入力が空・正しくないとき、送っている途中・登録済みのときは押せない）

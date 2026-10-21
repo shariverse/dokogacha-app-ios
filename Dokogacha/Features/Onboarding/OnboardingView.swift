@@ -48,16 +48,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: DGSpacing.s24) {
                 DGLogo()
                 featureList
-                DGTextField(
-                    label: "表示名",
-                    placeholder: "例：ゆい",
-                    text: $model.displayName,
-                    count: model.characterCount,
-                    limit: model.characterLimit,
-                    hint: "ルームのメンバーに表示されます",
-                    errorMessage: issueMessage,
-                    identifier: Identifier.displayName
-                )
+                DisplayNameField(text: $model.displayName, check: model.check, identifier: Identifier.displayName)
                 .submitLabel(.done)
                 .onSubmit { model.submitTapped() }
                 .disabled(model.isSubmitting || model.didRegister)
@@ -108,18 +99,6 @@ struct OnboardingView: View {
         .overlay {
             RoundedRectangle(cornerRadius: DGRadius.lg)
                 .strokeBorder(Color.dgInk, lineWidth: DGBorder.regular)
-        }
-    }
-
-    /// 入力が正しくないときの文言
-    private var issueMessage: LocalizedStringKey? {
-        switch model.inputIssue {
-        case let .tooLong(limit):
-            "\(limit)文字以内で入力してください"
-        case .forbiddenCharacter:
-            "使えない文字が含まれています"
-        case nil:
-            nil
         }
     }
 }
