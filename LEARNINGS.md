@@ -9,6 +9,9 @@
 
 - Google Mobile Ads をリンクすると、Info.plist に `GADApplicationIdentifier` が無いアプリは起動直後に `GADApplicationVerifyPublisherInitializedCorrectly` の例外で落ちる（UI テストは `crashed in <external symbol>` とだけ出る）。値は `Configs/Project.xcconfig` の `DG_GAD_APPLICATION_IDENTIFIER`（2026-10-22）
 - `-ObjC` を付けると、コードで `import GoogleMobileAds` していなくても SDK のすべてのオブジェクトが読み込まれ、`JSContext` などが未定義でリンクに失敗する。モジュールの `link framework` は import したときにしか効かないので、`OTHER_LDFLAGS` に `-framework JavaScriptCore` を足してある（2026-10-22）
+- コードで `FirebaseOptions` を作るとき、API キーが `A` で始まる 39 文字でないと、Firebase Installations が起動直後に `com.firebase.installations` の例外で落とす（Emulator に繋ぐだけでも）。demo の値も形をそろえる。`AIza…` で始めると GitHub の秘密情報の検出に掛かりうるので避ける（2026-10-22）
+- フォルダ同期グループのリソースも、xcconfig の `EXCLUDED_SOURCE_FILE_NAMES`（ファイル名）で構成ごとにアプリから外せる（pbxproj を触らずに、Release に Dev の plist を入れない）。ただし差分ビルドは前にコピーしたファイルを消さないので、確かめるときは `Build/Products/<構成>-iphonesimulator` を消してからビルドする（2026-10-22）
+- Emulator の Auth のユーザー一覧は `POST http://localhost:9099/identitytoolkit.googleapis.com/v1/projects/demo-dokogacha/accounts:query`（ヘッダー `Authorization: Bearer owner`・本文 `{}`）で取れる（2026-10-22）
 
 ## テスト
 
