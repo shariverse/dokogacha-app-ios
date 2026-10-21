@@ -61,6 +61,14 @@ final class RootModel {
         session.services.auth
     }
 
+    /// サインインしているユーザーの uid（サインインしていなければ nil。ホームの購読に使う）
+    var signedInUserID: String? {
+        if case let .signedIn(userID) = session.authState {
+            return userID
+        }
+        return nil
+    }
+
     /// いま出す画面
     var route: LaunchRoute {
         LaunchRoute.resolve(connection: session.connection, authState: session.authState, profile: profile)

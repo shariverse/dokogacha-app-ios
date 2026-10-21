@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// アプリの根元の画面。起動の流れ（`RootModel`）の判定に合わせて、起動中・失敗・S-01・ホームを切り替える。
+/// アプリの根元の画面。起動の流れ（`RootModel`）の判定に合わせて、起動中・失敗・S-01・ホーム（`MainNavigationView`）を切り替える。
 ///
 /// トーストの窓口（`DGToastCenter`）をここで 1 つ持ち、画面の根元に重ねる（どの画面のトーストも同じ位置に出す）。
 /// 後の画面は `@Environment(DGToastCenter.self)` で受け取れる。
@@ -50,9 +50,12 @@ struct RootView: View {
             }
         case .onboarding:
             OnboardingView(model: OnboardingModel(auth: model.auth, toasts: toasts))
-        case let .home(profile):
-            // S-02 ホームはタスク 13 で作る。それまでは仮の画面
-            HomePlaceholderView(profile: profile)
+        case .home:
+            if let userID = model.signedInUserID {
+                MainNavigationView(userID: userID, services: model.session.services, toasts: toasts)
+                    // ユーザーが替わったら、ホームの購読と積んだ画面を作り直す
+                    .id(userID)
+            }
         }
     }
 }
