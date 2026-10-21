@@ -91,6 +91,60 @@ struct ServerSessionTests {
         func linkWithApple(_ credential: AppleIDCredential) async throws {}
     }
 
+    /// ユーザーの ID の変化を、テストが 1 件ずつ手で流す擬似の認証。
+    ///
+    /// 購読している側が次の値を取りに来た回数（`pullCount`）を数える。取りに来たら、その前に流した値は処理し終わっている
+    /// （`ServerSession` は 1 件ずつ MainActor で処理してから次を取りに来る）ので、時間で待たずに「処理した後」を確かめられる
+    final class ManualStreamAuth: AuthService {
+        let server = InMemoryServer()
+        var currentUserID: String?
+        /// 購読している側が次の値を取りに来た回数
+        private(set) var pullCount = 0
+        private var waiting: CheckedContinuation<String??, Never>?
+
+        func userIDChanges() -> AsyncStream<String?> {
+            AsyncStream(unfolding: { [weak self] in
+                guard let self else {
+                    return nil
+                }
+                return await pull()
+            })
+        }
+
+        /// 次の値を待つ（`send` か `finish` で返る）
+        private func pull() async -> String?? {
+            pullCount += 1
+            return await withCheckedContinuation { waiting = $0 }
+        }
+
+        /// 購読している側に値を 1 件流す（取りに来ている間だけ呼ぶ）
+        func send(_ userID: String?) {
+            waiting?.resume(returning: .some(userID))
+            waiting = nil
+        }
+
+        /// 購読を終える
+        func finish() {
+            waiting?.resume(returning: nil)
+            waiting = nil
+        }
+
+        func signInAnonymously() async throws -> String {
+            currentUserID = "new-user"
+            return "new-user"
+        }
+
+        func profile(userID: String) -> AsyncStream<LiveUpdate<UserProfile?>> {
+            server.profile(userID: userID)
+        }
+
+        func saveDisplayName(_ displayName: String) async throws -> SaveProfileResponse {
+            try await server.saveDisplayName(displayName)
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+    }
+
     /// 擬似の認証を使う窓口
     static func services(_ auth: CountingAuth) -> DataServices {
         DataServices(backend: .firebase, auth: auth, rooms: auth.server, functions: auth.server, inMemoryServer: nil)
@@ -226,5 +280,34 @@ struct ServerSessionTests {
         #expect(await AsyncTestSupport.eventually { session.authState == .signedIn(userID: "first") })
         auth.server.signedInUserID = "second"
         #expect(await AsyncTestSupport.eventually { session.authState == .signedIn(userID: "second") })
+    }
+
+    /// 購読を始めた直後の「まだいない」が、サインインの完了より後に届いても、`.signedIn` のままにする
+    /// （今の Auth にユーザーがいれば古い通知として無視する分岐）
+    @Test
+    func staleSignedOutNotificationAfterSignInIsIgnored() async {
+        let auth = ManualStreamAuth()
+        let session = ServerSession()
+        session.start(
+            connection: .firebase(.emulator),
+            services: DataServices(backend: .firebase, auth: auth, rooms: auth.server, functions: auth.server, inMemoryServer: nil)
+        )
+        // 購読が最初の値を取りに来るのを待つ（まだ何も流さない）
+        #expect(await AsyncTestSupport.eventually { auth.pullCount == 1 })
+
+        await session.signInIfNeeded()
+        #expect(session.authState == .signedIn(userID: "new-user"))
+
+        // サインインより前の時点の「まだいない」が遅れて届く
+        auth.send(nil)
+        // 次の値を取りに来た = 流した nil を処理し終わった
+        #expect(await AsyncTestSupport.eventually { auth.pullCount == 2 })
+        #expect(session.authState == .signedIn(userID: "new-user"))
+
+        // 今の Auth にもユーザーがいなくなってからの nil は、サインアウトとして映す（無視する分岐と区別できている）
+        auth.currentUserID = nil
+        auth.send(nil)
+        #expect(await AsyncTestSupport.eventually { session.authState == .signedOut })
+        auth.finish()
     }
 }
