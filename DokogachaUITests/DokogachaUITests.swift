@@ -83,4 +83,29 @@ final class DokogachaUITests: XCTestCase {
         app.buttons["戻る"].tap()
         XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
     }
+
+    /// ナビゲーションバーを隠した画面でも、画面の左端からのスワイプで戻れる（`InteractivePopGesture`）
+    @MainActor
+    func testEdgeSwipeGoesBack() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "one-room"]
+        app.launch()
+
+        let card = app.buttons[Self.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        card.tap()
+        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+
+        swipeFromLeftEdge(app)
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.otherElements[Self.pendingRoom].exists)
+    }
+
+    /// 画面の左端から右へスワイプする（端からの戻る操作。`swipeRight()` は端から始まらないので座標で動かす）
+    @MainActor
+    private func swipeFromLeftEdge(_ app: XCUIApplication) {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
+    }
 }
