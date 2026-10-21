@@ -64,7 +64,18 @@ struct InMemoryServerTests {
         #expect(server.users["owner"]?.adFree == false)
     }
 
-    @Test(arguments: ["", "   ", "12345678901"])
+    /// 見えない文字が混ざっていても、見える文字があれば受け付ける（ZWJ の絵文字など）
+    @Test
+    func saveProfileAcceptsVisibleNameWithFormatCharacters() async throws {
+        let response = try await Self.makeServer().saveProfile(SaveProfileRequest(displayName: "👨‍👩‍👧たくみ"))
+        #expect(response.displayName == "👨‍👩‍👧たくみ")
+    }
+
+    /// 空・長すぎる・途中に改行や制御文字・見えない文字だけ・結合文字を重ねすぎた名前は拒む
+    @Test(arguments: [
+        "", "   ", "12345678901", "た\nくみ", "た\u{07}くみ", "\u{200B}\u{2060}", "\u{FEFF}",
+        "e" + String(repeating: "\u{0301}", count: 80)
+    ])
     func saveProfileRejectsInvalidName(name: String) async {
         await #expect(throws: InMemoryServer.error(.invalidArgument)) {
             try await Self.makeServer().saveProfile(SaveProfileRequest(displayName: name))
@@ -243,7 +254,8 @@ struct InMemoryServerTests {
         try await Self.addUser(server, "guest")
         _ = try await Self.join(server, "guest", code: room.inviteCode)
         server.rooms[room.roomId]?.members["guest"]?.ready = true
-        server.rooms[room.roomId]?.room.readyCount = 1
+        server.rooms[room.roomId]?.members["owner"]?.ready = true
+        server.rooms[room.roomId]?.room.readyCount = 2
         server.rooms[room.roomId]?.room.reroll.votesFor = ["owner", "guest"]
         server.rooms[room.roomId]?.candidates["c1"] = Self.candidate(postedBy: "guest", likedBy: ["owner"])
         server.rooms[room.roomId]?.candidates["c2"] = Self.candidate(postedBy: "owner", likedBy: ["guest"])
@@ -255,7 +267,8 @@ struct InMemoryServerTests {
         #expect(record.members["guest"] == nil)
         #expect(record.room.memberIds == ["owner"])
         #expect(record.room.memberCount == 1)
-        #expect(record.room.readyCount == 0)
+        // onMemberWrite に当たる数え直しで、残った人の準備OKだけを数える
+        #expect(record.room.readyCount == 1)
         #expect(record.room.reroll.votesFor == ["owner"])
         #expect(record.candidates["c1"]?.likedBy == ["owner"])
         #expect(record.candidates["c2"]?.likedBy.isEmpty == true)

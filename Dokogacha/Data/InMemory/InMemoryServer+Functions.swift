@@ -192,10 +192,23 @@ private extension InMemoryServer {
     /// 前後の空白とみなす文字（backend の `WHITESPACE_CODE_POINTS` に当たる。Unicode の White_Space と U+FEFF）
     static let trimmedCharacters = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{FEFF}"))
 
-    /// 前後の空白を取り除き、文字数（書記素）が範囲に入るか確かめる（backend の `requireTrimmedText`）
+    /// UTF-16 のコード単位の上限を、書記素の上限の何倍にするか（backend の `validation.ts` に合わせる。仮の値）
+    static let utf16UnitsPerCharacter = 8
+
+    /// 前後の空白を取り除き、名前として受け付けるか確かめる（backend の `requireTrimmedText`）。
+    ///
+    /// - 文字数（書記素）が範囲に入る。結合文字を重ねた巨大な 1 文字を拒むため、UTF-16 のコード単位も上限 × 8 まで
+    /// - 途中に改行・制御文字（`\p{Cc}`）を含まない（取り除かずに拒否する）
+    /// - 見えない文字（`\p{Cf}`。U+200B〜U+200D・U+2060・U+FEFF を含む）だけでできていない
     static func trimmedText(_ text: String, length: ClosedRange<Int>) throws -> String {
         let trimmed = text.trimmingCharacters(in: trimmedCharacters)
-        guard length.contains(trimmed.count) else {
+        let scalars = trimmed.unicodeScalars
+        let hasControl = scalars.contains { $0.properties.generalCategory == .control }
+        let invisibleOnly = scalars.allSatisfy { $0.properties.generalCategory == .format }
+        guard length.contains(trimmed.count),
+              trimmed.utf16.count <= length.upperBound * utf16UnitsPerCharacter,
+              !hasControl,
+              !invisibleOnly else {
             throw error(.invalidArgument)
         }
         return trimmed
@@ -255,17 +268,17 @@ private extension InMemoryServer {
 
     /// メンバーをルームから外す（退出と削除で共通。backend の `removeFromRoom`）。
     ///
-    /// メンバーを消し、`memberIds`・`memberCount`（準備OKだったら `readyCount` も）を更新し、その人のいいねと
+    /// メンバーを消し、`memberIds`・`memberCount`・`readyCount`（onMemberWrite の数え直しに当たる）を更新し、その人のいいねと
     /// 引き直しの投票を取り除き、広告非表示の購入者だったら残りのメンバーから参加の早い順に探し直す。候補は残す
     func remove(_ memberID: String, from record: inout RoomRecord, notMember: AppError.Reason) throws {
-        guard let member = record.members.removeValue(forKey: memberID) else {
+        guard record.members.removeValue(forKey: memberID) != nil else {
             throw Self.error(notMember)
         }
         record.room.memberIds.removeAll { $0 == memberID }
         record.room.memberCount -= 1
-        if member.ready {
-            record.room.readyCount -= 1
-        }
+        // backend の leaveRoom・removeMember は readyCount に触らず、onMemberWrite（タスク 23）が数え直す。
+        // 擬似のサーバーにはトリガーが無いので、その数え直しをここで行う
+        record.room.readyCount = record.members.values.filter(\.ready).count
         record.room.reroll.votesFor.removeAll { $0 == memberID }
         record.room.reroll.votesAgainst.removeAll { $0 == memberID }
         for (candidateID, candidate) in record.candidates where candidate.likedBy.contains(memberID) {
