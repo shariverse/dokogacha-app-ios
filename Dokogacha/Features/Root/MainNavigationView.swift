@@ -29,6 +29,8 @@ struct MainNavigationView: View {
             HomeView(model: homeModel) { route in
                 open(route)
             }
+            // ナビゲーションバーを隠しても、端からのスワイプで戻れるようにする
+            .background(InteractivePopGesture())
             .navigationDestination(for: AppRoute.self) { route in
                 destination(route)
             }
