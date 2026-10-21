@@ -18,8 +18,9 @@ struct MainNavigationView: View {
     /// シートで出している行き先
     @State private var sheet: AppRoute?
     @State private var homeModel: HomeModel
-
-    /// データ層の窓口
+    /// 自分の uid
+    private let userID: String
+    /// データ層の窓口（行き先の画面の Model に渡す）
     private let services: DataServices
     /// 通信エラーを出すトーストの窓口
     private let toasts: DGToastCenter
@@ -29,9 +30,10 @@ struct MainNavigationView: View {
     ///   - services: データ層の窓口
     ///   - toasts: 通信エラーを出すトーストの窓口
     init(userID: String, services: DataServices, toasts: DGToastCenter) {
+        _homeModel = State(initialValue: HomeModel(userID: userID, repository: services.rooms, toasts: toasts))
+        self.userID = userID
         self.services = services
         self.toasts = toasts
-        _homeModel = State(initialValue: HomeModel(userID: userID, repository: services.rooms, toasts: toasts))
     }
 
     var body: some View {
@@ -71,8 +73,10 @@ struct MainNavigationView: View {
             InviteView(model: InviteModel(destination: created, toasts: toasts)) {
                 path = AppRoute.pathOpeningRoom(from: path)
             }
-        case .joinByCode, .room, .settings:
+        case .joinByCode, .room:
             PendingScreenView(route: route)
+        case .settings:
+            SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
         }
     }
 }
