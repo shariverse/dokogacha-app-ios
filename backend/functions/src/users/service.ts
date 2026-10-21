@@ -26,7 +26,7 @@ export interface SaveProfileResult {
 
 /**
  * 表示名を保存する。ユーザーがまだ無ければ作る（02 の F-01 の初回の表示名の入力）。
- * 参加中のルームのメンバーの表示名（参加時点のコピー）は、ここでは変えない（05 の §5 の `onUserProfileUpdate`）。
+ * 参加中のルームのメンバーの表示名（参加時点のコピー）は、ここでは変えない（`users/{uid}` の更新で動く `onUserProfileUpdate` が反映する。05 の §5）。
  * @param deps 外部のもの
  * @param uid 呼んだ人
  * @param data `request.data`（`{ displayName }`）

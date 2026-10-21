@@ -5,7 +5,8 @@
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { setGlobalOptions } from "firebase-functions/v2";
+import { logger, setGlobalOptions } from "firebase-functions/v2";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall } from "firebase-functions/v2/https";
 
 import { runCallable } from "./callable";
@@ -13,6 +14,8 @@ import * as candidates from "./candidates/service";
 import { FUNCTIONS_REGION } from "./config";
 import { defaultDeps } from "./deps";
 import * as rooms from "./rooms/service";
+import { profileCopyChanged, type ProfileCopy } from "./users/logic";
+import { syncProfileCopies } from "./users/profileSync";
 import * as users from "./users/service";
 
 // すべての関数のリージョンを東京にそろえる。関数ごとに指定し忘れて us-central1 に配置されるのを防ぐ
@@ -27,6 +30,21 @@ const deps = () => defaultDeps(getFirestore());
 export const saveProfile = onCall((request) =>
   runCallable("saveProfile", request, (uid, data) => users.saveProfile(deps(), uid, data)),
 );
+
+/**
+ * プロフィールの表示名・アバターの色が変わったら、参加中のルームの複製（メンバー・自分の候補の投稿者名・広告の購入者）に反映する
+ * （05 の §5。Firestore のトリガー）。通知のトークンだけの更新などでは何もしない。
+ */
+export const onUserProfileUpdate = onDocumentUpdated("users/{uid}", async (event) => {
+  const before = event.data?.before.data() as Partial<ProfileCopy> | undefined;
+  const after = event.data?.after.data() as Partial<ProfileCopy> | undefined;
+  if (!profileCopyChanged(before, after)) {
+    return;
+  }
+  const uid = event.params.uid;
+  const result = await syncProfileCopies(getFirestore(), uid);
+  logger.info("プロフィールをルームの複製に反映した", { uid, ...result });
+});
 
 /** ルームを作る（02 の F-02） */
 export const createRoom = onCall((request) =>
