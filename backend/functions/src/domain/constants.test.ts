@@ -12,6 +12,11 @@ describe("02 の上限・入力の範囲", () => {
     expect(constants.MAX_CANDIDATES).toBe(200);
     expect(constants.NOTE_MAX_LENGTH).toBe(40);
     expect(constants.DUPLICATE_DISTANCE_METERS).toBe(100);
+    expect(constants.PLACE_NAME_LENGTH).toEqual({ min: 1, max: 100 });
+    expect(constants.PLACE_AREA_LENGTH).toEqual({ min: 0, max: 50 });
+    expect(constants.NOTE_LENGTH).toEqual({ min: 0, max: 40 });
+    expect(constants.CANDIDATE_URL_MAX_LENGTH).toBe(2048);
+    expect(constants.MAP_ITEM_ID_MAX_LENGTH).toBe(256);
     expect(constants.DEADLINE_EARLIEST_FROM_NOW_MS).toBe(3_600_000);
     expect(constants.DEADLINE_LATEST_FROM_NOW_MS).toBe(30 * 86_400_000);
     expect(constants.DEFAULT_DEADLINE_DAYS_LATER).toBe(3);
