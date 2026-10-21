@@ -12,8 +12,9 @@ import SwiftUI
 /// 部品を状態ごとに並べた見本の画面。
 ///
 /// 基本の部品（Button・StatusChip・Avatar・TabSwitch・SegmentedChoice・Stepper・Toast・PlaceRow）を 3 つのページに、
-/// カードと表示の部品（CandidateCard・ProbabilityMeter・RoomTagCard・DestinationBoard・TicketStub・Stamp・AdFreeNotice）を 2 つのページに分け、
-/// 上の選択肢（基本の部品とカード・表示の 2 段）で切り替える。部品の名前は翻訳の対象ではないので `Text(verbatim:)` で出す。
+/// カードと表示の部品（CandidateCard・ProbabilityMeter・RoomTagCard・DestinationBoard・TicketStub・Stamp・AdFreeNotice）を 2 つのページに、
+/// ガチャの筐体と行き先きっぷ（GachaMachine・DestinationTicket）を 2 つのページに分け、
+/// 上の選択肢（基本の部品・カードと表示・ガチャときっぷの 3 段）で切り替える。部品の名前は翻訳の対象ではないので `Text(verbatim:)` で出す。
 struct ComponentGallery: View {
     /// 見本のページ
     enum Page: Hashable, CaseIterable {
@@ -27,6 +28,10 @@ struct ComponentGallery: View {
         case cards
         /// RoomTagCard・DestinationBoard・TicketStub・Stamp・AdFreeNotice（`DisplayComponentsPage`）
         case displays
+        /// GachaMachine（`GachaComponentsPage`）
+        case gacha
+        /// DestinationTicket（`TicketComponentsPage`）
+        case ticket
     }
 
     /// 選んでいるページ
@@ -67,12 +72,21 @@ struct ComponentGallery: View {
                         DGChoiceOption("表示", value: .displays)
                     ]
                 )
+                DGSegmentedChoice(
+                    selection: $page,
+                    options: [
+                        DGChoiceOption("ガチャ", value: .gacha),
+                        DGChoiceOption("きっぷ", value: .ticket)
+                    ]
+                )
                 switch page {
                 case .buttons: buttonsPage
                 case .choices: choicesPage
                 case .rows: rowsPage
                 case .cards: CardComponentsPage()
                 case .displays: DisplayComponentsPage()
+                case .gacha: GachaComponentsPage()
+                case .ticket: TicketComponentsPage()
                 }
             }
             .padding(.horizontal, DGSpacing.screenX)
