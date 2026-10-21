@@ -1,4 +1,4 @@
-# IOSTemplateApp
+# Dokogacha
 
 iOS Application Template (SwiftUI)
 
@@ -27,13 +27,13 @@ SwiftUI のプロジェクト一式と、ビルド・テスト・Archive・TestF
       <tr>
         <td style="border:2px double #000080;text-align:left;">main</td>
         <td style="border:2px double #000080;text-align:center;">
-          <a href="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/build.yml?query=branch%3Amain">
-            <img src="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/build.yml/badge.svg?branch=main" alt="Build">
+          <a href="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml?query=branch%3Amain">
+            <img src="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml/badge.svg?branch=main" alt="Build">
           </a>
         </td>
         <td style="border:2px double #000080;text-align:center;">
-          <a href="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/archive.yml?query=branch%3Amain">
-            <img src="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/archive.yml/badge.svg?branch=main" alt="Archive">
+          <a href="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/archive.yml?query=branch%3Amain">
+            <img src="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/archive.yml/badge.svg?branch=main" alt="Archive">
           </a>
         </td>
         <td style="border:2px double #000080;text-align:center;">
@@ -42,15 +42,15 @@ SwiftUI のプロジェクト一式と、ビルド・テスト・Archive・TestF
       <tr>
         <td style="border:2px double #000080;text-align:left;">develop</td>
         <td style="border:2px double #000080;text-align:center;">
-          <a href="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/build.yml?query=branch%3Adevelop">
-            <img src="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/build.yml/badge.svg?branch=develop" alt="Build">
+          <a href="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml?query=branch%3Adevelop">
+            <img src="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml/badge.svg?branch=develop" alt="Build">
           </a>
         </td>
         <td style="border:2px double #000080;text-align:center;">
         </td>
         <td style="border:2px double #000080;text-align:center;">
-          <a href="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/upload.yml?query=branch%3Adevelop">
-            <img src="https://github.com/shilokuma-inc/template-app-ios/actions/workflows/upload.yml/badge.svg?branch=develop" alt="Upload">
+          <a href="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/upload.yml?query=branch%3Adevelop">
+            <img src="https://github.com/shariverse/dokogacha-app-ios/actions/workflows/upload.yml/badge.svg?branch=develop" alt="Upload">
           </a>
         </td>
       </tr>
@@ -66,7 +66,7 @@ GitHub の「Use this template」からリポジトリを作成し、clone し�
 
 ### 2. プロジェクト名を変更する
 
-`IOSTemplateApp` を新しいアプリ名に一括変更するスクリプトを用意しています。
+`Dokogacha` を新しいアプリ名に一括変更するスクリプトを用意しています。
 ディレクトリ・`.xcodeproj`・スキーム・ソース内の識別子・README のバッジ URL をまとめて置換し、GitHub リポジトリの Discussions を有効にします。
 
 ```bash
@@ -182,8 +182,8 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 
 **スクリーンショット**
 
-- 撮影はアプリの撮影モード（[IOSTemplateApp/Screenshot/ScreenshotDemo.swift](IOSTemplateApp/Screenshot/ScreenshotDemo.swift)）で行います。`Tools/capture_screenshots.sh` が `-screenshot-demo -screenshot-scene <名前>` と言語を起動引数で渡し、アプリはデモデータで目的の画面を開きます
-- 画面を足すときは、`ScreenshotDemo.Scene` に case を足し、`IOSTemplateApp.swift` の `rootView` で開く画面を返し、`AppStore/screenshots.json` の `scenes` に同じ名前を足します（1 表示サイズにつき 10 枚まで）
+- 撮影はアプリの撮影モード（[Dokogacha/Screenshot/ScreenshotDemo.swift](Dokogacha/Screenshot/ScreenshotDemo.swift)）で行います。`Tools/capture_screenshots.sh` が `-screenshot-demo -screenshot-scene <名前>` と言語を起動引数で渡し、アプリはデモデータで目的の画面を開きます
+- 画面を足すときは、`ScreenshotDemo.Scene` に case を足し、`Dokogacha.swift` の `rootView` で開く画面を返し、`AppStore/screenshots.json` の `scenes` に同じ名前を足します（1 表示サイズにつき 10 枚まで）
 - App Store Connect で必須なのは iPhone 6.1 / 6.3 inch（`APP_IPHONE_61`、1206x2622 か 1179x2556）と iPhone Duo（`APP_IPHONE_DUO`）です。iPad に対応するアプリは iPad 13 inch も必須です。大型ディスプレイ（6.5 / 6.7 / 6.9 inch、`APP_IPHONE_67`）は任意ですが、6.3 inch の元になるので必ず撮ります（反映だけ外すなら `display_types` に `APP_IPHONE_61,APP_IPHONE_DUO` のように必要なものだけ書きます）
 - 撮るのはリリースのときだけです。`release/**` ブランチを選んで手動実行します（それ以外のブランチでは止まります）
 - macOS ランナーの枠を開発のビルドと取り合わないよう、撮影は 1 本ずつ流します。6.3 inch（`deriveFrom`）は撮らずに 6.9 inch を ubuntu で縮めて作り、App Store Connect への反映も ubuntu で行います
@@ -208,10 +208,10 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 ```
 .
 ├── Configs/                 # xcconfig（署名情報・バージョン・Deployment Target）
-├── IOSTemplateApp/          # アプリ本体（SwiftUI）
-├── IOSTemplateAppTests/     # Unit テスト（Swift Testing）
-├── IOSTemplateAppUITests/   # UI テスト（XCTest）
-├── IOSTemplateApp.xcodeproj # 共有スキーム IOSTemplateApp を含む
+├── Dokogacha/          # アプリ本体（SwiftUI）
+├── DokogachaTests/     # Unit テスト（Swift Testing）
+├── DokogachaUITests/   # UI テスト（XCTest）
+├── Dokogacha.xcodeproj # 共有スキーム Dokogacha を含む
 ├── AppStore/                # App Store の掲載情報（言語・撮る画面・説明文・クリエイティブアセット）
 ├── Tools/                   # スクリーンショットの撮影と App Store Connect への反映
 ├── docs/                    # ExportOptions.plist のサンプル
@@ -234,7 +234,7 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 - プロジェクトはフォルダ同期グループ（Xcode 16 以降の形式）で管理しているため、ファイルの追加・削除で pbxproj は変わりません
 - SwiftLint は Build Tool Plugin として全ターゲットに適用され、CI では `swiftlint lint --strict` としても実行されます。ルールは [.swiftlint.yml](.swiftlint.yml) で管理します
 - CI のワークフローは `*.xcodeproj` の名前と同名の共有スキームが存在することを前提にしています
-- [IOSTemplateApp/PrivacyInfo.xcprivacy](IOSTemplateApp/PrivacyInfo.xcprivacy) はプライバシーマニフェストです。UserDefaults（`@AppStorage`）の利用だけを申告しています。データの収集・トラッキング・ほかの理由の申告が必要な API を足したら、ここと App Store Connect の「App のプライバシー」を更新してください
+- [Dokogacha/PrivacyInfo.xcprivacy](Dokogacha/PrivacyInfo.xcprivacy) はプライバシーマニフェストです。UserDefaults（`@AppStorage`）の利用だけを申告しています。データの収集・トラッキング・ほかの理由の申告が必要な API を足したら、ここと App Store Connect の「App のプライバシー」を更新してください
 
 ## License
 

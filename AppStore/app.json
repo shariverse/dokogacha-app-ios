@@ -7,10 +7,10 @@
     "screenshotDemoSource: 撮影モードの Swift ファイル。screenshots.json の scene が ScreenshotDemo.Scene にあるかを突き合わせる。",
     "appIcon: クリエイティブアセットに載せるアプリアイコン。"
   ],
-  "project": "IOSTemplateApp.xcodeproj",
-  "scheme": "IOSTemplateApp",
+  "project": "Dokogacha.xcodeproj",
+  "scheme": "Dokogacha",
   "configuration": "Release",
-  "simulatorPrefix": "IOSTemplateApp",
-  "screenshotDemoSource": "IOSTemplateApp/Screenshot/ScreenshotDemo.swift",
-  "appIcon": "IOSTemplateApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+  "simulatorPrefix": "Dokogacha",
+  "screenshotDemoSource": "Dokogacha/Screenshot/ScreenshotDemo.swift",
+  "appIcon": "Dokogacha/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
 }
