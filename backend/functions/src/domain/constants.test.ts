@@ -20,6 +20,13 @@ describe("02 の上限・入力の範囲", () => {
   });
 });
 
+describe("02 の §4.3 の出やすさのレベルの境目", () => {
+  it("比 1.2・0.85 を百分率で持つ", () => {
+    expect(constants.LEVEL_HIGH_RATIO_PERCENT).toBe(120);
+    expect(constants.LEVEL_MID_RATIO_PERCENT).toBe(85);
+  });
+});
+
 describe("06 の §4 の仮決め", () => {
   it("資料どおり", () => {
     expect(constants.REMOVE_ADS_PRODUCT_ID).toBe("remove_ads");
