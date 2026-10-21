@@ -216,7 +216,7 @@ struct ComponentGallery: View {
     // MARK: 部品
 
     /// カテゴリタイルの見本に並べるカテゴリ（9 種）
-    private static let categories: [DGCategoryStyle] = [.aquarium, .nature, .art, .food, .activity, .park, .town, .shrine, .sea]
+    private static let categories = PlaceCategory.allCases.map(DGCategoryStyle.of)
 
     /// セクションの見出し（部品の名前）
     private func sectionTitle(_ name: String) -> some View {

@@ -141,18 +141,13 @@ struct DesignTokensTests {
     /// tokens.json の `level` の鍵と、アプリの出やすさのレベル
     static let levels: [String: DGLevelStyle] = ["high": .high, "mid": .mid, "low": .low, "flat": .flat]
 
-    /// tokens.json の `category` の鍵と、アプリのカテゴリタイル
-    static let categories: [String: DGCategoryStyle] = [
-        "aquarium": .aquarium,
-        "nature": .nature,
-        "art": .art,
-        "food": .food,
-        "activity": .activity,
-        "park": .park,
-        "town": .town,
-        "shrine": .shrine,
-        "sea": .sea
-    ]
+    /// tokens.json の `category` の鍵と、アプリのカテゴリタイル。
+    ///
+    /// 鍵はアプリのカテゴリ（`PlaceCategory`）の `rawValue` から作るので、保存する値が tokens.json の鍵と
+    /// 一致すること・カテゴリごとの見た目（`DGCategoryStyle.of(_:)`）の対応が正しいことも一緒に確かめる。
+    static let categories: [String: DGCategoryStyle] = Dictionary(
+        uniqueKeysWithValues: PlaceCategory.allCases.map { ($0.rawValue, DGCategoryStyle.of($0)) }
+    )
 
     /// tokens.json の `typeScale` の鍵と、アプリのタイプスケール
     static let typeScales: [String: DGTypeScale] = [
