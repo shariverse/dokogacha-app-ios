@@ -218,6 +218,24 @@ struct InMemoryServerTests {
         #expect(server.rooms[room.roomId]?.room.adFreeSponsor?.uid == "buyer2")
     }
 
+    /// 購入者を探し直すとき、参加の日時が同じなら uid の順（backend の `orderBy("joinedAt")` と同じ）
+    @Test
+    func adFreeSponsorTieBreaksByUserID() async throws {
+        // 時計を止めているので、全員の joinedAt が同じになる
+        let server = Self.makeServer()
+        let room = try await Self.makeRoom(server)
+        // 参加の順（memberIds の順）と uid の順を逆にする
+        for userID in ["buyer", "zed", "amy"] {
+            try await Self.addUser(server, userID, adFree: true)
+            _ = try await Self.join(server, userID, code: room.inviteCode)
+        }
+        #expect(server.rooms[room.roomId]?.room.adFreeSponsor?.uid == "buyer")
+        try await server.perform(as: "buyer") {
+            try await server.leaveRoom(RoomRequest(roomId: room.roomId))
+        }
+        #expect(server.rooms[room.roomId]?.room.adFreeSponsor?.uid == "amy")
+    }
+
     // MARK: leaveRoom・removeMember
 
     /// 退出すると、その人のいいね・引き直しの投票・準備OKの数を取り除き、候補は残す（F-05）

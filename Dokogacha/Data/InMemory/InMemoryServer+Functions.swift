@@ -254,7 +254,7 @@ private extension InMemoryServer {
     /// メンバーをルームから外す（退出と削除で共通。backend の `removeFromRoom`）。
     ///
     /// メンバーを消し、`memberIds`・`memberCount`・`readyCount`（onMemberWrite の数え直しに当たる）を更新し、その人のいいねと
-    /// 引き直しの投票を取り除き、広告非表示の購入者だったら残りのメンバーから参加の早い順に探し直す。候補は残す
+    /// 引き直しの投票を取り除き、広告非表示の購入者だったら残りのメンバーから参加の早い順（同着は uid の順）に探し直す。候補は残す
     func remove(_ memberID: String, from record: inout RoomRecord, notMember: AppError.Reason) throws {
         guard record.members.removeValue(forKey: memberID) != nil else {
             throw Self.error(notMember)
@@ -270,8 +270,9 @@ private extension InMemoryServer {
             record.candidates[candidateID]?.likedBy.removeAll { $0 == memberID }
         }
         if record.room.adFreeSponsor?.uid == memberID {
+            // backend の `orderBy("joinedAt")` と同じ順（同着は Firestore が暗黙に付けるドキュメントの ID の順）
             let next = record.members
-                .sorted { $0.value.joinedAt < $1.value.joinedAt }
+                .sorted { ($0.value.joinedAt, $0.key) < ($1.value.joinedAt, $1.key) }
                 .first { users[$0.key]?.adFree == true }
             record.room.adFreeSponsor = next.map { AdFreeSponsor(uid: $0.key, displayName: $0.value.displayName) }
         }
