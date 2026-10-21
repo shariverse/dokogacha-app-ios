@@ -17,4 +17,6 @@ module.exports = {
   transformIgnorePatterns: JOSE_TRANSFORM_IGNORE_PATTERNS,
   // Emulator への接続は Mac が混んでいると遅くなるので、既定の 5 秒より長く待つ
   testTimeout: 30000,
+  // テストのファイルどうしで同じ Emulator のデータを消し合わないよう、1 つずつ流す
+  maxWorkers: 1,
 };
