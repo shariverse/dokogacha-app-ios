@@ -130,6 +130,11 @@ final class DGToastCenter {
         self.sleep = sleep
     }
 
+    /// 窓口が解放されたら、消すまでの待ちを止める（持ち主の寿命より長く Task を残さない）
+    deinit {
+        dismissTask?.cancel()
+    }
+
     /// トーストを出す（出しているものがあれば、その後に出す）。
     /// - Parameter message: 出す文言（03 の表記）
     func show(_ message: LocalizedStringResource) {

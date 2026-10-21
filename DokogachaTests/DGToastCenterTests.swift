@@ -117,4 +117,25 @@ struct DGToastCenterTests {
         await secondTask?.value
         #expect(center.current == nil)
     }
+
+    /// 窓口が解放されると、消すまでの待ちを止める
+    @Test
+    func releasingCenterCancelsWait() async throws {
+        let sleeper = FakeSleeper()
+        var center: DGToastCenter? = DGToastCenter(sleep: sleeper.sleep)
+        weak let released = center
+        var started = sleeper.started.makeAsyncIterator()
+
+        center?.show(text: "候補に追加しました")
+        _ = try #require(await started.next())
+        let task = try #require(center?.dismissTask)
+        #expect(!task.isCancelled)
+
+        center = nil
+        #expect(released == nil)
+        #expect(task.isCancelled)
+
+        sleeper.finish(0)
+        await task.value
+    }
 }
