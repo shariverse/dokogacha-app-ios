@@ -165,6 +165,8 @@ final class InMemoryServer {
             .unavailable
         case .internal, .unreadableData, .notImplemented:
             .internal
+        case .cancelled:
+            .cancelled
         }
     }
 }

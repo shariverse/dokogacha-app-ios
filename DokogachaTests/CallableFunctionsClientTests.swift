@@ -123,6 +123,18 @@ struct CallableFunctionsClientTests {
         #expect(FirebaseCallableTransport.failure(from: DecodeFailure()).code == .internal)
     }
 
+    /// cancel（`Task` の cancel・URL の読み込みの cancel・SDK の `cancelled`）は、通信の失敗と見分けられる
+    @Test
+    func firebaseCancellationIsNotNetworkFailure() {
+        let urlCancelled = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
+        let sdkCancelled = NSError(domain: FunctionsErrorDomain, code: FunctionsErrorCode.cancelled.rawValue)
+        for error in [CancellationError(), urlCancelled, sdkCancelled] as [any Error] {
+            let failure = FirebaseCallableTransport.failure(from: error)
+            #expect(failure.code == .cancelled)
+            #expect(AppError.server(failure).isCancellation)
+        }
+    }
+
     /// `FunctionsErrorCode` と `ServerErrorCode` の番号が同じ（SDK の番号からそのまま作るため）
     @Test
     func functionsErrorCodesMatchGRPC() {

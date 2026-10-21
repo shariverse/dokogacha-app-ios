@@ -79,6 +79,20 @@ struct AppErrorTests {
         #expect(!AppError.server(ServerFailure(code: .resourceExhausted, reason: "room-full")).isRetryable)
     }
 
+    /// cancel は通信の失敗と見分ける（画面はトーストを出さない）。再試行の対象にもしない
+    @Test
+    func cancellationIsDistinguishedFromNetworkFailure() {
+        let wrapped = AppError.wrapping(CancellationError())
+        #expect(wrapped.isCancellation)
+        #expect(wrapped.reason == .cancelled)
+        #expect(!wrapped.isRetryable)
+        #expect(AppError.server(ServerFailure(code: .cancelled)).isCancellation)
+        // サーバーから `app/cancelled` を送られても受け付けない
+        #expect(AppError.Reason(serverReason: "app/cancelled") == nil)
+        #expect(!AppError(.network).isCancellation)
+        #expect(!AppError.server(ServerFailure(code: .unavailable)).isCancellation)
+    }
+
     @Test
     func wrapsAnyError() {
         struct Other: Error {}

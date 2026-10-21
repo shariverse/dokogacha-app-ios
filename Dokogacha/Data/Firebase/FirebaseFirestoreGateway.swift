@@ -109,7 +109,7 @@ final class FirebaseFirestoreGateway: FirestoreGateway {
             return ServerFailure(code: ServerErrorCode(grpcCode: error.code))
         }
         if error.domain == NSURLErrorDomain {
-            return ServerFailure(code: .unavailable)
+            return ServerFailure(code: error.code == NSURLErrorCancelled ? .cancelled : .unavailable)
         }
         return ServerFailure(code: .unknown)
     }

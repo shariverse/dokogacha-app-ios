@@ -47,6 +47,9 @@ nonisolated struct ServerFailure: Error, Equatable, Sendable {
 
 /// データ層の操作が失敗したときのエラー。画面は `message` をトーストなどにそのまま出す。
 ///
+/// **`isCancellation` のときはトーストを出さない。** 画面を閉じた・操作をやめたので `Task` を cancel した結果で、
+/// 通信の失敗ではない（`CancellationError`・SDK の cancel（gRPC の `cancelled`・`NSURLErrorCancelled`）がここに入る）。
+///
 /// Callable Functions の `HttpsError`（`code` と `details.reason`）・Firestore の購読と書き込みの失敗・
 /// サーバーに接続できない状態を、**ここ 1 か所で**アプリの文言（03 の表記。無いものはこのファイルで決める）に対応付ける。
 /// 文言は `reason` で引く。同じ `code` に別の理由が複数ある（例: `failed-precondition` に「作成者は退出できません」と
@@ -68,7 +71,12 @@ nonisolated struct AppError: Error, Equatable, Sendable {
         reason.message
     }
 
-    /// 通信の問題で、同じ操作をもう一度すれば通るかもしれないか
+    /// cancel した結果か（画面を閉じた・操作をやめた）。true なら画面はトーストを出さずに捨てる
+    var isCancellation: Bool {
+        reason == .cancelled
+    }
+
+    /// 通信の問題で、同じ操作をもう一度すれば通るかもしれないか（cancel は含めない）
     var isRetryable: Bool {
         switch code {
         case .unavailable, .deadlineExceeded, .aborted:
@@ -98,7 +106,7 @@ nonisolated struct AppError: Error, Equatable, Sendable {
         case let failure as ServerFailure:
             server(failure)
         case is CancellationError:
-            Self(.network, code: .cancelled)
+            Self(.cancelled, code: .cancelled)
         default:
             Self(.internal)
         }
@@ -113,7 +121,9 @@ nonisolated struct AppError: Error, Equatable, Sendable {
             .unauthenticated
         case .permissionDenied:
             .permissionDenied
-        case .unavailable, .deadlineExceeded, .cancelled, .aborted:
+        case .cancelled:
+            .cancelled
+        case .unavailable, .deadlineExceeded, .aborted:
             .network
         case .ok, .unknown, .notFound, .alreadyExists, .resourceExhausted, .failedPrecondition,
              .unimplemented, .internal, .dataLoss:
@@ -172,6 +182,8 @@ extension AppError {
         case unreadableData = "app/unreadable-data"
         /// 擬似のサーバーにまだ無い操作（後続のタスクで足す）
         case notImplemented = "app/not-implemented"
+        /// cancel した（`Task` の cancel・SDK の cancel）。通信の失敗ではないので、画面はトーストを出さない（`isCancellation`）
+        case cancelled = "app/cancelled"
 
         /// サーバーの理由（`app/` で始まらないもの）
         static let serverReasons: [Self] = allCases.filter { !$0.rawValue.hasPrefix("app/") }
@@ -212,7 +224,7 @@ extension AppError {
             case .permissionDenied:
                 String(localized: "この操作はできません")
             case .unauthenticated, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,
-                 .unreadableData, .notImplemented:
+                 .unreadableData, .notImplemented, .cancelled:
                 String(localized: "通信できませんでした")
             }
         }

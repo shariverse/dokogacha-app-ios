@@ -32,15 +32,19 @@ final class FirebaseCallableTransport: CallableTransport {
     ///
     /// `HttpsError` は `FunctionsErrorDomain` のエラーで、`code` が gRPC の番号、`userInfo` の `details` に
     /// backend が入れた `{ reason }` が入る。通信できないとき（オフラインなど）は `NSURLErrorDomain` のエラーが来る。
+    /// cancel（`Task` の cancel・`NSURLErrorCancelled`）は `cancelled` にして、通信の失敗と見分ける（`AppError.isCancellation`）。
     /// 戻り値をモデルにできなかったとき（`DecodingError`）は `internal` にする
     static func failure(from error: any Error) -> ServerFailure {
+        if error is CancellationError {
+            return ServerFailure(code: .cancelled)
+        }
         let error = error as NSError
         switch error.domain {
         case FunctionsErrorDomain:
             let details = error.userInfo[FunctionsErrorDetailsKey] as? [String: Any]
             return ServerFailure(code: ServerErrorCode(grpcCode: error.code), reason: details?["reason"] as? String)
         case NSURLErrorDomain:
-            return ServerFailure(code: .unavailable)
+            return ServerFailure(code: error.code == NSURLErrorCancelled ? .cancelled : .unavailable)
         default:
             return ServerFailure(code: .internal)
         }
