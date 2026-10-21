@@ -41,3 +41,16 @@ nonisolated struct AppleIDCredential: Equatable, Sendable {
     var fullName: PersonNameComponents?
 }
 
+/// 匿名認証（F-01）の入口。
+///
+/// 既にサインインしていれば（再起動したときなど）そのユーザーを使い回し、サインインし直さない。
+/// 「アプリを削除せず再起動しても同じユーザーとして扱われる」（F-01 の AC）ため。
+enum AnonymousSignIn {
+    /// サインイン済みのユーザーの ID を返す。まだなら匿名でサインインする
+    static func ensureSignedIn(using service: any AuthService) async throws -> String {
+        if let userID = service.currentUserID {
+            return userID
+        }
+        return try await service.signInAnonymously()
+    }
+}

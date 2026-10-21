@@ -15,10 +15,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         let connection = FirebaseBootstrap.configure(plan: FirebaseBootstrap.currentPlan())
-        serverSession.start(
-            connection: connection,
-            authClient: connection.isFirebaseConfigured ? FirebaseAuthClient() : nil
-        )
+        let authService: (any AuthService)? = if connection.isFirebaseConfigured {
+            FirebaseAuthService(
+                gateway: FirebaseFirestoreGateway(),
+                functions: CallableFunctionsClient(transport: FirebaseCallableTransport())
+            )
+        } else {
+            nil
+        }
+        serverSession.start(connection: connection, authService: authService)
         return true
     }
 }
