@@ -27,4 +27,7 @@ jobs:
     uses: ./.github/workflows/_archive.yml
     with:
       upload: true
+      # TestFlight 用の develop（と手動実行した作業ブランチ）は Stg（Firebase は dev）、
+      # App Store 用の release/**（と main）は Release（Firebase は prod）で Archive する（Discussion #5 の Q4）
+      configuration: ${{ (startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/main') && 'Release' || 'Stg' }}
     secrets: inherit

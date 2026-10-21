@@ -17,6 +17,10 @@ on:
         description: Export した IPA を App Store Connect へアップロードするか
         type: boolean
         default: false
+      configuration:
+        description: Archive するビルド構成（Stg = TestFlight 用で Firebase は dev / Release = App Store 用で Firebase は prod）
+        type: string
+        default: Release
     secrets:
       EXPORT_OPTIONS:
         description: ExportOptions.plist の内容（destination と、アップロード時の manageAppVersionAndBuildNumber はワークフロー側で上書きする）
@@ -53,15 +57,24 @@ jobs:
         # ExportOptions.plist と API 秘密鍵はリポジトリ配下ではなく RUNNER_TEMP に置く
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          CONFIGURATION: ${{ inputs.configuration }}
         run: |
+          case "$CONFIGURATION" in
+            Stg | Release) ;;
+            *)
+              echo "::error::configuration は Stg か Release を指定してください（指定: ${CONFIGURATION}）" >&2
+              exit 1
+              ;;
+          esac
           project=$(basename -s .xcodeproj ./*.xcodeproj)
           {
             echo "PROJECT_NAME=$project"
             echo "SCHEME=$project"
+            echo "CONFIGURATION=$CONFIGURATION"
             echo "EXPORT_OPTIONS_PATH=$RUNNER_TEMP/ExportOptions.plist"
             echo "API_KEY_PATH=$RUNNER_TEMP/private_keys/AuthKey_$APPLE_API_KEY_ID.p8"
           } >> "$GITHUB_ENV"
-          echo "project=$project scheme=$project"
+          echo "project=$project scheme=$project configuration=$CONFIGURATION"
 
       - name: Archive
         run: |
@@ -69,7 +82,7 @@ jobs:
             -project "$PROJECT_NAME.xcodeproj" \
             -scheme "$SCHEME" \
             -sdk iphoneos \
-            -configuration Release \
+            -configuration "$CONFIGURATION" \
             -archivePath "$RUNNER_TEMP/build.xcarchive" \
             CODE_SIGNING_ALLOWED=NO
 
