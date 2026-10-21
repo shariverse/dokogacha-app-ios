@@ -239,10 +239,10 @@
 				};
 			};
 			buildConfigurationList = 4FC9E1E42BF1049B00F630AB /* Build configuration list for PBXProject "Dokogacha" */;
-			developmentRegion = en;
+			developmentRegion = ja;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				ja,
 				Base,
 			);
 			mainGroup = 4FC9E1E02BF1049B00F630AB;
