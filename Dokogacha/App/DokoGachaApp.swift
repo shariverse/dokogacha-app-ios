@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// アプリの入口。Firebase の初期化は `AppDelegate` で行い、画面が出たら匿名でサインインする
+/// アプリの入口。Firebase の初期化は `AppDelegate` で行い、サインインと最初の画面の選択は `RootView`（起動の流れ）が行う
 @main
 struct DokoGachaApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -16,10 +16,6 @@ struct DokoGachaApp: App {
         WindowGroup {
             rootView
                 .environment(appDelegate.serverSession)
-                // 画面の寿命に合わせてサインインする（接続できないとき・テストでは何もしない）
-                .task {
-                    await appDelegate.serverSession.signInIfNeeded()
-                }
         }
     }
 
@@ -27,7 +23,9 @@ struct DokoGachaApp: App {
     @ViewBuilder private var rootView: some View {
         switch ScreenshotDemo.scene {
         case .home, nil:
-            ContentView()
+            RootView(session: appDelegate.serverSession)
+        case .onboarding:
+            ScreenshotDemo.OnboardingScene(auth: appDelegate.serverSession.services.auth)
         }
     }
 }
