@@ -11,45 +11,6 @@ import Testing
 struct InMemoryServerTests {
     nonisolated static let now = Date(timeIntervalSince1970: 1_790_000_000)
 
-    /// ID を順に振る擬似のサーバー。`signedInUserID` は "owner"
-    static func makeServer(randomIndex: @escaping (Int) -> Int = { _ in 0 }) -> InMemoryServer {
-        var counter = 0
-        return InMemoryServer(
-            clock: { now },
-            randomIndex: randomIndex,
-            makeID: {
-                counter += 1
-                return "id-\(counter)"
-            },
-            signedInUserID: "owner"
-        )
-    }
-
-    /// 表示名を登録したユーザーを作る
-    static func addUser(_ server: InMemoryServer, _ userID: String, adFree: Bool = false) async throws {
-        _ = try await server.perform(as: userID) {
-            try await server.saveProfile(SaveProfileRequest(displayName: userID))
-        }
-        server.users[userID]?.adFree = adFree
-    }
-
-    /// 作成者 "owner" のルームを作る
-    static func makeRoom(_ server: InMemoryServer) async throws -> CreateRoomResponse {
-        try await addUser(server, "owner")
-        return try await server.createRoom(simpleRoom(name: "年末の旅行"))
-    }
-
-    /// 全員OK・投稿数 3・共感ブーストのルームの入力
-    static func simpleRoom(name: String = "a") -> CreateRoomRequest {
-        CreateRoomRequest(name: name, postLimit: 3, unlockRule: .all, deadline: nil, likeMode: .boost)
-    }
-
-    static func join(_ server: InMemoryServer, _ userID: String, code: String) async throws -> JoinRoomResponse {
-        try await server.perform(as: userID) {
-            try await server.joinRoom(JoinRoomRequest(inviteCode: code))
-        }
-    }
-
     // MARK: saveProfile
 
     @Test
@@ -71,10 +32,19 @@ struct InMemoryServerTests {
         #expect(response.displayName == "👨‍👩‍👧たくみ")
     }
 
-    /// 空・長すぎる・途中に改行や制御文字・見えない文字だけ・結合文字を重ねすぎた名前は拒む
+    /// 結合文字を重ねた 1 文字は、UTF-16 の上限（表示名は 10 × 16 = 160 単位）までなら受け付ける（backend と同じ境目）
+    @Test
+    func saveProfileAcceptsCombiningMarksUpToUTF16Limit() async throws {
+        let atLimit = "e" + String(repeating: "\u{0301}", count: 159)
+        let response = try await Self.makeServer().saveProfile(SaveProfileRequest(displayName: atLimit))
+        #expect(response.displayName == atLimit)
+    }
+
+    /// 空・長すぎる・途中に改行や制御文字や行区切り・見えない文字だけ・UTF-16 の上限を超えた名前は拒む（判定は `NameValidation`）
     @Test(arguments: [
-        "", "   ", "12345678901", "た\nくみ", "た\u{07}くみ", "\u{200B}\u{2060}", "\u{FEFF}",
-        "e" + String(repeating: "\u{0301}", count: 80)
+        "", "   ", "12345678901", "た\nくみ", "た\u{07}くみ", "た\u{2028}くみ", "\u{200B}\u{2060}", "\u{FEFF}",
+        "\u{200B} \u{200B}", "\u{3164}", "\u{FE0F}",
+        "e" + String(repeating: "\u{0301}", count: 160)
     ])
     func saveProfileRejectsInvalidName(name: String) async {
         await #expect(throws: InMemoryServer.error(.invalidArgument)) {
@@ -120,6 +90,10 @@ struct InMemoryServerTests {
     @Test(arguments: [
         CreateRoomRequest(name: "", postLimit: 3, unlockRule: .all, deadline: nil, likeMode: .boost),
         CreateRoomRequest(name: String(repeating: "あ", count: 21), postLimit: 3, unlockRule: .all, deadline: nil, likeMode: .boost),
+        // ルーム名の UTF-16 の上限は 20 × 16 = 320 単位
+        CreateRoomRequest(
+            name: "e" + String(repeating: "\u{0301}", count: 320), postLimit: 3, unlockRule: .all, deadline: nil, likeMode: .boost
+        ),
         CreateRoomRequest(name: "a", postLimit: 0, unlockRule: .all, deadline: nil, likeMode: .boost),
         CreateRoomRequest(name: "a", postLimit: 11, unlockRule: .all, deadline: nil, likeMode: .boost),
         CreateRoomRequest(name: "a", postLimit: 3, unlockRule: .deadline, deadline: nil, likeMode: .boost),
@@ -324,6 +298,49 @@ struct InMemoryServerTests {
     func laterCallablesAreNotImplementedYet() async {
         await #expect(throws: AppError(.notImplemented)) {
             try await Self.makeServer().drawGacha(RoomRequest(roomId: "r1"))
+        }
+    }
+}
+
+// MARK: - テストの道具
+
+extension InMemoryServerTests {
+    /// ID を順に振る擬似のサーバー。`signedInUserID` は "owner"
+    static func makeServer(randomIndex: @escaping (Int) -> Int = { _ in 0 }) -> InMemoryServer {
+        var counter = 0
+        return InMemoryServer(
+            clock: { now },
+            randomIndex: randomIndex,
+            makeID: {
+                counter += 1
+                return "id-\(counter)"
+            },
+            signedInUserID: "owner"
+        )
+    }
+
+    /// 表示名を登録したユーザーを作る
+    static func addUser(_ server: InMemoryServer, _ userID: String, adFree: Bool = false) async throws {
+        _ = try await server.perform(as: userID) {
+            try await server.saveProfile(SaveProfileRequest(displayName: userID))
+        }
+        server.users[userID]?.adFree = adFree
+    }
+
+    /// 作成者 "owner" のルームを作る
+    static func makeRoom(_ server: InMemoryServer) async throws -> CreateRoomResponse {
+        try await addUser(server, "owner")
+        return try await server.createRoom(simpleRoom(name: "年末の旅行"))
+    }
+
+    /// 全員OK・投稿数 3・共感ブーストのルームの入力
+    static func simpleRoom(name: String = "a") -> CreateRoomRequest {
+        CreateRoomRequest(name: name, postLimit: 3, unlockRule: .all, deadline: nil, likeMode: .boost)
+    }
+
+    static func join(_ server: InMemoryServer, _ userID: String, code: String) async throws -> JoinRoomResponse {
+        try await server.perform(as: userID) {
+            try await server.joinRoom(JoinRoomRequest(inviteCode: code))
         }
     }
 

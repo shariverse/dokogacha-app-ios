@@ -189,26 +189,11 @@ extension InMemoryServer: FunctionsClient {
 // MARK: - 検証と状態の変更
 
 private extension InMemoryServer {
-    /// 前後の空白とみなす文字（backend の `WHITESPACE_CODE_POINTS` に当たる。Unicode の White_Space と U+FEFF）
-    static let trimmedCharacters = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{FEFF}"))
-
-    /// UTF-16 のコード単位の上限を、書記素の上限の何倍にするか（backend の `validation.ts` に合わせる。仮の値）
-    static let utf16UnitsPerCharacter = 8
-
     /// 前後の空白を取り除き、名前として受け付けるか確かめる（backend の `requireTrimmedText`）。
     ///
-    /// - 文字数（書記素）が範囲に入る。結合文字を重ねた巨大な 1 文字を拒むため、UTF-16 のコード単位も上限 × 8 まで
-    /// - 途中に改行・制御文字（`\p{Cc}`）を含まない（取り除かずに拒否する）
-    /// - 見えない文字（`\p{Cf}`。U+200B〜U+200D・U+2060・U+FEFF を含む）だけでできていない
+    /// 規則は `NameValidation`（入力欄と同じ判定）。受け付けなければ `invalid-argument`
     static func trimmedText(_ text: String, length: ClosedRange<Int>) throws -> String {
-        let trimmed = text.trimmingCharacters(in: trimmedCharacters)
-        let scalars = trimmed.unicodeScalars
-        let hasControl = scalars.contains { $0.properties.generalCategory == .control }
-        let invisibleOnly = scalars.allSatisfy { $0.properties.generalCategory == .format }
-        guard length.contains(trimmed.count),
-              trimmed.utf16.count <= length.upperBound * utf16UnitsPerCharacter,
-              !hasControl,
-              !invisibleOnly else {
+        guard let trimmed = NameValidation.validated(text, length: length) else {
             throw error(.invalidArgument)
         }
         return trimmed
