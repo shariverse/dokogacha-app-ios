@@ -11,7 +11,7 @@ import SwiftUI
 ///
 /// 白・線 2・角丸 14・内側 8。−／＋ は 44×44（角丸 12・線 2・`bg.base`）。中央は数値（見出し 22）＋単位（本文 Black 14）。
 /// 範囲の端ではボタンを無効にする（S-12 の「現在値未満は選べない」は、範囲の下限を現在値にして渡す）。
-/// VoiceOver では、数値と単位を 1 つの要素として読み、上下のスワイプでも増減できる。
+/// VoiceOver では、中央を「何の値か」の名前（`valueLabel`）と「3件まで」の値を持つ 1 つの調整可能な要素として読み、上下のスワイプでも増減できる。
 struct DGStepper: View {
     /// 外枠の角丸
     private static let containerRadius: CGFloat = 14
@@ -26,6 +26,8 @@ struct DGStepper: View {
     let range: ClosedRange<Int>
     /// 数値の後ろに付ける単位（「件まで」）
     let unit: LocalizedStringKey
+    /// 中央の値の VoiceOver の名前（何の値か。「1人あたりの投稿数」）
+    let valueLabel: LocalizedStringKey
     /// − のボタンの VoiceOver の名前（「投稿数を減らす」）
     let decrementLabel: LocalizedStringKey
     /// ＋ のボタンの VoiceOver の名前（「投稿数を増やす」）
@@ -45,7 +47,9 @@ struct DGStepper: View {
             .foregroundStyle(Color.dgInk)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(valueLabel))
+            .accessibilityValue(Text(value, format: .number) + Text(unit))
             .accessibilityAdjustableAction { direction in
                 switch direction {
                 case .increment: value = DGStepperRule.incremented(value, in: range)
@@ -120,11 +124,39 @@ nonisolated enum DGStepperRule {
     @Previewable @State var lower = 1
     @Previewable @State var upper = 10
     VStack(spacing: DGSpacing.s16) {
-        DGStepper(value: $middle, range: 1...10, unit: "件まで", decrementLabel: "投稿数を減らす", incrementLabel: "投稿数を増やす")
-        DGStepper(value: $lower, range: 1...10, unit: "件まで", decrementLabel: "投稿数を減らす", incrementLabel: "投稿数を増やす")
-        DGStepper(value: $upper, range: 1...10, unit: "件まで", decrementLabel: "投稿数を減らす", incrementLabel: "投稿数を増やす")
-        DGStepper(value: $middle, range: 1...10, unit: "件まで", decrementLabel: "投稿数を減らす", incrementLabel: "投稿数を増やす")
-            .dynamicTypeSize(.accessibility5)
+        DGStepper(
+            value: $middle,
+            range: 1...10,
+            unit: "件まで",
+            valueLabel: "1人あたりの投稿数",
+            decrementLabel: "投稿数を減らす",
+            incrementLabel: "投稿数を増やす"
+        )
+        DGStepper(
+            value: $lower,
+            range: 1...10,
+            unit: "件まで",
+            valueLabel: "1人あたりの投稿数",
+            decrementLabel: "投稿数を減らす",
+            incrementLabel: "投稿数を増やす"
+        )
+        DGStepper(
+            value: $upper,
+            range: 1...10,
+            unit: "件まで",
+            valueLabel: "1人あたりの投稿数",
+            decrementLabel: "投稿数を減らす",
+            incrementLabel: "投稿数を増やす"
+        )
+        DGStepper(
+            value: $middle,
+            range: 1...10,
+            unit: "件まで",
+            valueLabel: "1人あたりの投稿数",
+            decrementLabel: "投稿数を減らす",
+            incrementLabel: "投稿数を増やす"
+        )
+        .dynamicTypeSize(.accessibility5)
     }
     .padding(DGSpacing.screenX)
     .frame(maxHeight: .infinity)

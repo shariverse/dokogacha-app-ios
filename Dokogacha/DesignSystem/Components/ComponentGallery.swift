@@ -121,8 +121,22 @@ struct ComponentGallery: View {
                 options: [DGChoiceOption("共感ブースト", value: 0), DGChoiceOption("みんな平等", value: 1)]
             )
             sectionTitle("Stepper")
-            DGStepper(value: $limit, range: 1...10, unit: "件まで", decrementLabel: "投稿数を減らす", incrementLabel: "投稿数を増やす")
-            DGStepper(value: $lowerLimit, range: 1...10, unit: "件まで", decrementLabel: "投稿数を減らす", incrementLabel: "投稿数を増やす")
+            DGStepper(
+                value: $limit,
+                range: 1...10,
+                unit: "件まで",
+                valueLabel: "1人あたりの投稿数",
+                decrementLabel: "投稿数を減らす",
+                incrementLabel: "投稿数を増やす"
+            )
+            DGStepper(
+                value: $lowerLimit,
+                range: 1...10,
+                unit: "件まで",
+                valueLabel: "1人あたりの投稿数",
+                decrementLabel: "投稿数を減らす",
+                incrementLabel: "投稿数を増やす"
+            )
             sectionTitle("Avatar")
             HStack(spacing: DGSpacing.s8) {
                 DGAvatar(name: "ゆい", color: .dgAvatar(at: 0), readiness: .ready)
