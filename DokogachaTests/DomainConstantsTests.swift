@@ -35,6 +35,7 @@ struct DomainConstantsTests {
     func provisionalValues() {
         #expect(DomainConstants.RemoveAds.productID == "remove_ads")
         #expect(DomainConstants.RemoveAds.priceYen == 480)
+        #expect(DomainConstants.Web.scheme == "https")
         #expect(DomainConstants.Web.domain == "dokogacha.app")
         #expect(DomainConstants.Web.inviteLinkPathPrefix == "/r/")
         #expect(DomainConstants.Web.ogpTitle == "ドコガチャに招待されました")
