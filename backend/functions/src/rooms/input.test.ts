@@ -31,7 +31,10 @@ describe("parseCreateRoomInput（02 の F-02）", () => {
 
   it("ルーム名は 1〜20 文字（空は受け付けない）", () => {
     expect(parseCreateRoomInput({ ...valid, name: "あ".repeat(20) }, NOW).name).toHaveLength(20);
-    for (const name of ["", "　", "あ".repeat(21), undefined, 1]) {
+    // 1 文字でも UTF-16 で 320 を超える長さ（結合文字をつないだ 1 文字）は受け付けない
+    const longest = `あ${"\u{3099}".repeat(319)}`;
+    expect(parseCreateRoomInput({ ...valid, name: longest }, NOW).name).toBe(longest);
+    for (const name of ["", "　", "あ".repeat(21), `${longest}\u{3099}`, undefined, 1]) {
       expectReason(() => parseCreateRoomInput({ ...valid, name }, NOW), "invalid-argument");
     }
   });

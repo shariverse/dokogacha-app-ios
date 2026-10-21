@@ -9,6 +9,15 @@ import { appError } from "./errors";
 export const MAX_ID_LENGTH = 128;
 
 /**
+ * 名前（表示名・ルーム名）の 1 文字（書記素クラスタ）あたりに許す UTF-16 のコード単位の数。
+ * 書記素の数だけで数えると、結合文字を何万個もつないだ 1 文字が通り、Firestore に巨大な文字列が書かれる
+ * （表示名は参加のたびに members にコピーされる）。そこで文字列の長さにも「書記素の上限 × この値」の上限を設ける。
+ * 16 にするのは、絵文字で最も長い RGI の並び（肌の色付きのキスする 2 人 👩🏻‍❤️‍💋‍👨🏼 が 15、イングランドの旗 🏴󠁧󠁢󠁥󠁮󠁧󠁿 が 14）でも
+ * 上限の文字数まで入れられるようにするため。Swift 側は `String.utf16.count` で同じ上限を確かめる。
+ */
+export const MAX_UTF16_UNITS_PER_CHARACTER = 16;
+
+/**
  * 入力がオブジェクト（配列・null でない）か確かめる。
  * @param data `request.data`
  * @returns キーで値を引けるオブジェクト
@@ -45,6 +54,7 @@ export function requireDocumentId(value: unknown): string {
 
 /**
  * 前後の空白を取り除いた文字数（書記素クラスタ）が範囲に入る文字列か確かめる。
+ * 取り除いた後の UTF-16 のコード単位の数も `length.max × MAX_UTF16_UNITS_PER_CHARACTER` 以下であること。
  * @param value 入力の値
  * @param length 文字数の範囲（両端を含む）
  * @returns 前後の空白を取り除いた文字列
@@ -55,6 +65,10 @@ export function requireTrimmedText(value: unknown, length: { min: number; max: n
     throw appError("invalid-argument");
   }
   const trimmed = trimWhitespace(value);
+  // 書記素に分ける前に長さを見て、巨大な文字列を分けずに断る
+  if (trimmed.length > length.max * MAX_UTF16_UNITS_PER_CHARACTER) {
+    throw appError("invalid-argument");
+  }
   const count = characters(trimmed).length;
   if (count < length.min || count > length.max) {
     throw appError("invalid-argument");

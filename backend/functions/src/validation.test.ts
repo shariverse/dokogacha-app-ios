@@ -1,4 +1,10 @@
-import { requireDocumentId, requireIntegerInRange, requireObject, requireTrimmedText } from "./validation";
+import {
+  MAX_UTF16_UNITS_PER_CHARACTER,
+  requireDocumentId,
+  requireIntegerInRange,
+  requireObject,
+  requireTrimmedText,
+} from "./validation";
 
 /** 関数が invalid-argument の HttpsError を投げることを確かめる */
 function expectInvalid(run: () => unknown): void {
@@ -36,6 +42,23 @@ describe("requireTrimmedText", () => {
   it("範囲の外・空白だけ・文字列でないものは受け付けない", () => {
     for (const value of ["", " \u{3000}\u{0085}\u{FEFF} ", "あいうえおかきくけこさ", 1, null, undefined, ["ゆい"]]) {
       expectInvalid(() => requireTrimmedText(value, range));
+    }
+  });
+
+  it("書記素の数が範囲内でも、UTF-16 の長さが上限を超えたら受け付けない", () => {
+    const limit = range.max * MAX_UTF16_UNITS_PER_CHARACTER;
+    // 結合文字（U+0301）を大量につないだ 1 文字
+    expectInvalid(() => requireTrimmedText(`a${"\u{0301}".repeat(50_000)}`, range));
+    const atLimit = `a${"\u{0301}".repeat(limit - 1)}`;
+    expect(requireTrimmedText(atLimit, range)).toBe(atLimit);
+    expectInvalid(() => requireTrimmedText(`${atLimit}\u{0301}`, range));
+    // 前後の空白は取り除いてから数える
+    expect(requireTrimmedText(`  ${atLimit}  `, range)).toBe(atLimit);
+  });
+
+  it("最も長い絵文字でも上限の文字数まで入れられる", () => {
+    for (const emoji of ["👩🏻‍❤️‍💋‍👨🏼", "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "👨‍👩‍👧‍👦"]) {
+      expect(requireTrimmedText(emoji.repeat(range.max), range)).toBe(emoji.repeat(range.max));
     }
   });
 });
