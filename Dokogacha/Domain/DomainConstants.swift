@@ -48,6 +48,19 @@ nonisolated enum DomainConstants {
         static let rerollsPerRoom = 1
     }
 
+    // MARK: 出やすさ（02 の §4.3）
+
+    /// 出やすさのレベル（F-22）の境目。
+    ///
+    /// 02 の §4.3 は「比 = 表示% ÷ 平均%」を 1.2・0.85 と比べる。比を浮動小数点で作ると、`100 / 候補数` の割り算の誤差で
+    /// 「1.2 ちょうど」が下に落ちうるので、比を百分率の整数（比 × 100 = 表示% × 候補数）で持って整数どうしで比べる。
+    nonisolated enum Odds {
+        /// 「出やすい」になる比の下限（百分率。比 ≥ 1.2）
+        static let highRatioPercent = 120
+        /// 「ふつう」になる比の下限（百分率。0.85 ≤ 比。これより下は「レア」）
+        static let midRatioPercent = 85
+    }
+
     // MARK: 仮決め（06 の §4）
 
     /// 広告非表示の買い切り（F-51）。
