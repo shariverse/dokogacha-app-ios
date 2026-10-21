@@ -5,6 +5,7 @@
  * 保存する形はハイフンなしの 6 文字（`rooms.inviteCode`・`inviteCodes/{code}`）、表示は 3 文字ずつハイフンで区切る（`DK7-29Q`）。
  */
 import { cryptoRandomInt, pickOne, type RandomInt } from "./random";
+import { characters, WHITESPACE_CODE_POINTS } from "./text";
 
 /** 使う文字（英大文字 24 文字と数字 8 文字の 32 文字）。紛らわしい `0 O 1 I` を除く */
 export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -16,24 +17,25 @@ export const INVITE_CODE_GROUP_LENGTH = 3;
 export const INVITE_CODE_SEPARATOR = "-";
 
 /**
- * 入力から取り除く文字（空白と、ハイフン・ダッシュ・マイナス・長音記号）。
- * 日本語の入力では、ハイフンのつもりで全角のハイフン・長音記号（ー）を打つことが多いため含める。
- * Swift 側の `InviteCode.ignoredSeparators` と `Character.isWhitespace` に合わせる。
+ * 入力から取り除く空白（Unicode のコードポイント）。共通の空白の一覧（`WHITESPACE_CODE_POINTS`）と同じ。
+ * Swift 側の `InviteCode.ignoredWhitespaces` と同じ一覧。片方を変えたら両方を変える。
  */
-const IGNORED_CHARACTERS = /[\s\-‐‑‒–—―−ー]/gu;
-
-/** 文字（書記素クラスタ）に分ける道具。Swift の `Character` と同じ単位で数える */
-const graphemeSegmenter = new Intl.Segmenter("ja", { granularity: "grapheme" });
+export const INVITE_CODE_IGNORED_WHITESPACES: readonly number[] = WHITESPACE_CODE_POINTS;
 
 /**
- * 文字列を文字（書記素クラスタ）の一覧にする。
- * Swift 側は `String` の `count`・`prefix` が書記素クラスタで数えるので、文字数の判定と切り詰めをそろえるために使う。
- * @param text 分ける文字列
- * @returns 文字の一覧
+ * 入力から取り除く区切りの文字（ハイフン・ダッシュ・マイナス・長音記号。Unicode のコードポイント）。
+ * 日本語の入力では、ハイフンのつもりで全角のハイフン・長音記号（ー）を打つことが多いため含める。
+ * Swift 側の `InviteCode.ignoredSeparators` と同じ一覧。片方を変えたら両方を変える。
  */
-function characters(text: string): string[] {
-  return Array.from(graphemeSegmenter.segment(text), (segment) => segment.segment);
-}
+export const INVITE_CODE_IGNORED_SEPARATORS: readonly number[] = [
+  0x002d, 0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212, 0x30fc,
+];
+
+/** 入力から取り除く文字（空白と区切り）のコードポイントの集合 */
+const IGNORED_CODE_POINTS: ReadonlySet<number> = new Set([
+  ...INVITE_CODE_IGNORED_WHITESPACES,
+  ...INVITE_CODE_IGNORED_SEPARATORS,
+]);
 
 /**
  * 招待コードを作る（32 文字から 1 文字ずつ、6 回選ぶ）。
@@ -49,13 +51,17 @@ export function generateInviteCode(random: RandomInt = cryptoRandomInt): string 
 /**
  * 入力の文字列を、招待コードの形に正規化する（検証はしない）。
  * 1. 全角の英数字・記号・空白を半角にする（NFKC）
- * 2. 空白と区切りの文字を取り除く
+ * 2. 空白と区切りの文字（`INVITE_CODE_IGNORED_WHITESPACES`・`INVITE_CODE_IGNORED_SEPARATORS`）を取り除く
  * 3. 英字を大文字にする
  * @param input 入力された文字列
  * @returns 正規化した文字列（使えない文字はそのまま残す）
  */
 export function normalizeInviteCode(input: string): string {
-  return input.normalize("NFKC").replace(IGNORED_CHARACTERS, "").toUpperCase();
+  // コードポイントごとに見る（Swift 側も `unicodeScalars` で取り除くので、書記素クラスタの切れ目の違いに左右されない）
+  const kept = Array.from(input.normalize("NFKC")).filter(
+    (character) => !IGNORED_CODE_POINTS.has(character.codePointAt(0) ?? -1),
+  );
+  return kept.join("").toUpperCase();
 }
 
 /**

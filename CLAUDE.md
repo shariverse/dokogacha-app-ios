@@ -50,7 +50,7 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - 構成に合わない plist はアプリに入れない（xcconfig の `EXCLUDED_SOURCE_FILE_NAMES`。Release に Dev の plist は入らない。Debug にはどちらも入らない）
 - plist が無い・読めないときは落とさずに起動し、`ServerSession.connection` が `.unavailable` になる（サーバーに接続できない状態）
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化しない（`.disabled`）
-- Debug のアプリを Emulator に繋いで動かすときは、`backend/` で `npx --no firebase emulators:start --only auth,firestore --project demo-dokogacha` を起動しておく（ずらし 0 のポートだけに繋ぐ）
+- Debug のアプリを Emulator に繋いで動かすときは、`backend/` で `npm run build && npx --no firebase emulators:start --only auth,firestore,functions --project demo-dokogacha` を起動しておく（ずらし 0 のポートだけに繋ぐ。Functions の Emulator は `functions/lib/` を読むので先にビルドする）
 
 ### backend（Firebase）
 
@@ -73,6 +73,9 @@ npm run build           # Functions を functions/lib/ にビルドする
 - ずらした設定は `scripts/emulator-config.cjs` が `backend/firebase.emulators.local.json`（git 管理外）に書き出し、`scripts/test-emulator.sh` がそれを `emulators:exec --config` に渡す。
   テストは `emulators:exec` が渡す `FIRESTORE_EMULATOR_HOST`・`FIREBASE_EMULATOR_HUB` などの環境変数で接続先を読むので、ポートを直接書かない
 - プロジェクトは Emulator 専用の `demo-dokogacha`（`.firebaserc`）。`firebase deploy`・`firebase login` は人間がする
+- Functions は `functions/src/index.ts` で Callable に包むだけにし、処理は `rooms/`・`users/` の `service.ts`（Firestore）・`logic.ts`（判定）・`input.ts`（入力の検証）に置く。
+  Emulator のテストは処理を Admin SDK で直接呼ぶもの（乱数を差し替えられる。`test/emulator/rooms-service.test.ts`）と、client SDK の `httpsCallable` で Functions の Emulator を呼ぶもの（`rooms-callable.test.ts`）の 2 種類
+- Callable のエラーは `functions/src/errors.ts` の `APP_ERRORS`（理由 → gRPC のコードとアプリの文言）にまとめる。アプリは `HttpsError` の `details.reason` で文言を選ぶ
 - CI は `.github/workflows/backend.yml`（ubuntu）。`backend/**` だけの変更では iOS の Build（macOS）は動かない
 
 ## プロジェクトの決まり

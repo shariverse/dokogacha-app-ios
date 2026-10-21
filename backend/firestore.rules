@@ -1,11 +1,83 @@
 rules_version = '2';
 
-// ドコガチャの Firestore のセキュリティルール。
-// まずはすべての読み書きを拒否する。コレクションごとの許可は、機能を作るタスクで
-// 05_architecture.md の §4 の方針（整合性が要る書き込みは Callable Functions を通し、
-// クライアントが直接書くのは「自分の準備OK」「いいね」「lastSeenAt」だけ）に沿って足していく。
+// ドコガチャの Firestore のセキュリティルール（05_architecture.md の §4）。
+// 整合性が要る書き込みは Callable Functions（Admin SDK。ルールを通らない）で行い、
+// クライアントが直接書けるのは「自分の準備OK」「いいね」「lastSeenAt」（と自分の通知トークン）だけにする。
+// まだ作っていないコレクション（candidates・draws・pastIdeas・inviteCodes・reports など）は、
+// 最後の match ですべて拒否する。機能を作るタスクで許可を足していく。
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function room(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId)).data;
+    }
+
+    // ルームのメンバーか（rooms.memberIds で判定する。Functions が members と同じトランザクションで更新する）
+    function isMember(roomId) {
+      return signedIn() && request.auth.uid in room(roomId).memberIds;
+    }
+
+    // 更新で変わったフィールドが keys だけか
+    function changesOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // 1 人が持てる通知トークンの数の上限。トークンは端末（入れ直し）ごとに 1 つ増え、無効になったものは送るときに消す。
+    // 1 人が同時に使う iPhone は数台なので、消し損ねた古いトークンが残っても 10 で足りる。
+    // 上限が無いと、1 人が巨大な一覧を書いて、通知を送るたびの読み取りと送信の数を増やせる
+    function maxFcmTokens() {
+      return 10;
+    }
+
+    // 通知トークンの一覧の i 番目が、無いか、空でない 4096 文字以下の文字列か
+    // （ルールには一覧を繰り返す式が無いので、上限の数だけ番号で確かめる。FCM のトークンは 200 文字ほど）
+    function validFcmTokenAt(tokens, i) {
+      return tokens.size() <= i
+        || (tokens[i] is string && tokens[i].size() > 0 && tokens[i].size() <= 4096);
+    }
+
+    // 通知トークンの一覧として正しいか（一覧・数の上限・要素がすべて文字列）
+    function validFcmTokens(tokens) {
+      return tokens is list
+        && tokens.size() <= maxFcmTokens()
+        && validFcmTokenAt(tokens, 0) && validFcmTokenAt(tokens, 1) && validFcmTokenAt(tokens, 2)
+        && validFcmTokenAt(tokens, 3) && validFcmTokenAt(tokens, 4) && validFcmTokenAt(tokens, 5)
+        && validFcmTokenAt(tokens, 6) && validFcmTokenAt(tokens, 7) && validFcmTokenAt(tokens, 8)
+        && validFcmTokenAt(tokens, 9);
+    }
+
+    // users/{uid}: 本人だけが読める。作成・表示名の変更は Callable の saveProfile（色・adFree をサーバーで決める）。
+    // 直接変えられるのは通知トークン（fcmTokens）だけ。adFree は verifyPurchase だけが書く
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid
+        && changesOnly(['fcmTokens'])
+        && validFcmTokens(request.resource.data.fcmTokens);
+    }
+
+    // rooms/{roomId}: メンバーだけが読める（ホームの memberIds array-contains の一覧も、この条件で許可される）。
+    // 書き込みはすべて Callable
+    match /rooms/{roomId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
+
+      // members/{uid}: メンバーだけが読める。直接変えられるのは自分の ready と lastSeenAt だけ。
+      // ready は open・unlocked のときだけ（F-30）。lastSeenAt はサーバーの時刻（serverTimestamp）だけを受け付ける
+      match /members/{uid} {
+        allow read: if isMember(roomId);
+        allow update: if signedIn() && request.auth.uid == uid
+          && changesOnly(['ready', 'lastSeenAt'])
+          && request.resource.data.ready is bool
+          && (!('ready' in request.resource.data.diff(resource.data).affectedKeys())
+              || room(roomId).status in ['open', 'unlocked'])
+          && (!('lastSeenAt' in request.resource.data.diff(resource.data).affectedKeys())
+              || request.resource.data.lastSeenAt == request.time);
+      }
+    }
+
+    // ここまでで許可していないものは、すべて拒否する
     match /{document=**} {
       allow read, write: if false;
     }
