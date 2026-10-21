@@ -60,8 +60,13 @@ final class FirebaseAuthService: AuthService {
         }
     }
 
+    /// 自分のプロフィールを購読する。
+    ///
+    /// キャッシュから届いた「ドキュメントが無い」は流さない（読み込み中のまま）。登録済みのユーザーがオフラインで起動し、
+    /// キャッシュが空のときに S-01 を出すと、表示名を入れ直してオンラインに戻ったときに元の表示名を上書きしてしまうため。
+    /// サーバーから「無い」が届いて初めて nil（未登録）を流す
     func profile(userID: String) -> AsyncStream<LiveUpdate<UserProfile?>> {
-        FirestoreSubscription.document(FirestorePath.user(userID), gateway: gateway) { document in
+        FirestoreSubscription.document(FirestorePath.user(userID), gateway: gateway, waitsForServerWhenMissing: true) { document in
             try document.map(FirestoreDecoding.userProfile)
         }
     }

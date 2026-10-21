@@ -76,15 +76,23 @@ final class FirestoreRoomRepository: RoomRepository {
 /// - 購読が失敗したら `.failure` を流して終わる（SDK はリスナーを外している）
 /// - 読む側が `Task` を cancel する・ストリームを捨てると、`onTermination` で MainActor に戻ってリスナーを外す
 enum FirestoreSubscription {
-    /// ドキュメントを購読する。`transform` が投げたら（読めないドキュメント）`.failure(.unreadableData)` を流して購読は続ける
+    /// ドキュメントを購読する。`transform` が投げたら（読めないドキュメント）`.failure(.unreadableData)` を流して購読は続ける。
+    ///
+    /// `waitsForServerWhenMissing` が true なら、キャッシュから届いた「無い」は流さず、サーバーの返事を待つ
+    /// （オフラインでキャッシュが空のとき、まだ確かめていない「無い」を「本当に無い」と取り違えないため。プロフィールで使う）
     static func document<Value: Sendable>(
         _ path: String,
         gateway: any FirestoreGateway,
+        waitsForServerWhenMissing: Bool = false,
         transform: @escaping (FirestoreDocument?) throws -> Value
     ) -> AsyncStream<LiveUpdate<Value>> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveUpdate<Value>.self, bufferingPolicy: .bufferingNewest(1))
-        let token = gateway.listenDocument(path: path) { result in
-            deliver(result, to: continuation, transform: transform)
+        // キャッシュの「無い」の後にサーバーの「無い」が来ても中身は変わらないので、メタデータの変化も受け取る
+        let token = gateway.listenDocument(path: path, includeMetadataChanges: waitsForServerWhenMissing) { result in
+            if waitsForServerWhenMissing, case let .success(snapshot) = result, snapshot.document == nil, snapshot.isFromCache {
+                return
+            }
+            deliver(result.map(\.document), to: continuation, transform: transform)
         }
         continuation.onTermination = { _ in
             Task { @MainActor in token.remove() }

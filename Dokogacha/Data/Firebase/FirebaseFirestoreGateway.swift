@@ -23,14 +23,19 @@ final class FirebaseFirestoreGateway: FirestoreGateway {
 
     func listenDocument(
         path: String,
-        handler: @escaping (Result<FirestoreDocument?, ServerFailure>) -> Void
+        includeMetadataChanges: Bool,
+        handler: @escaping (Result<FirestoreDocumentSnapshot, ServerFailure>) -> Void
     ) -> any FirestoreListenerToken {
-        let registration = firestore.document(path).addSnapshotListener { snapshot, error in
+        let reference = firestore.document(path)
+        let registration = reference.addSnapshotListener(includeMetadataChanges: includeMetadataChanges) { snapshot, error in
             guard let snapshot else {
                 handler(.failure(Self.failure(from: error)))
                 return
             }
-            handler(.success(snapshot.exists ? Self.document(snapshot) : nil))
+            handler(.success(FirestoreDocumentSnapshot(
+                document: snapshot.exists ? Self.document(snapshot) : nil,
+                isFromCache: snapshot.metadata.isFromCache
+            )))
         }
         return FirebaseListenerToken(registration: registration)
     }
