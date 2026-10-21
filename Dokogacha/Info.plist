@@ -7,5 +7,14 @@
 	<string>$(DG_GAD_APPLICATION_IDENTIFIER)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- 同梱フォント（Dokogacha/Resources/Fonts/。フォルダ同期グループのリソースは .app の直下にコピーされるのでファイル名だけを書く） -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>MochiyPopOne-Regular.ttf</string>
+		<string>ZenMaruGothic-Regular.ttf</string>
+		<string>ZenMaruGothic-Medium.ttf</string>
+		<string>ZenMaruGothic-Bold.ttf</string>
+		<string>ZenMaruGothic-Black.ttf</string>
+	</array>
 </dict>
 </plist>
