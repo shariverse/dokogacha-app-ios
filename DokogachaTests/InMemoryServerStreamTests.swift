@@ -125,6 +125,66 @@ struct InMemoryServerStreamTests {
         #expect(server.rejectedWrites == [InMemoryServer.permissionDenied])
     }
 
+    /// 購読に流れたルームの準備OKの数（ルームが流れていなければ nil）
+    static func readyCount(_ update: LiveUpdate<Identified<Room>?>?) -> Int? {
+        guard case let .value(room?)? = update else {
+            return nil
+        }
+        return room.value.readyCount
+    }
+
+    /// ほかのメンバーの準備OK・いいね・lastSeenAt も、この端末と同じ検証と数え直しを通り、購読に流れる
+    @Test
+    func otherMembersDirectWritesGoThroughSameRules() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        try await InMemoryServerTests.addUser(server, "guest")
+        _ = try await InMemoryServerTests.join(server, "guest", code: room.inviteCode)
+        server.rooms[room.roomId]?.candidates["mine"] = InMemoryServerTests.candidate(postedBy: "owner", likedBy: [])
+        var rooms = server.room(id: room.roomId).makeAsyncIterator()
+        #expect(Self.readyCount(await rooms.next()) == 0)
+
+        let guest = server.device(of: "guest")
+        await guest.setReady(true, roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == true)
+        // 数え直した readyCount が、作成者の端末の購読に流れる
+        #expect(Self.readyCount(await rooms.next()) == 1)
+
+        await guest.setLike(true, candidateID: "mine", roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.candidates["mine"]?.likedBy == ["guest"])
+        await guest.markSeen(roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.members["guest"]?.lastSeenAt == InMemoryServerTests.now)
+
+        // ほかの人の端末でも、ルールで拒まれるものは拒まれる（自分の投稿へのいいね・引いた後の準備OK）
+        server.rooms[room.roomId]?.candidates["theirs"] = InMemoryServerTests.candidate(postedBy: "guest", likedBy: [])
+        await guest.setLike(true, candidateID: "theirs", roomID: room.roomId)
+        server.rooms[room.roomId]?.room.status = .drawn
+        await guest.setReady(false, roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy.isEmpty == true)
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == true)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied, InMemoryServer.permissionDenied])
+    }
+
+    /// ほかのメンバーの操作の後も、この端末の呼び出しはサインインしている人のものとして扱う（呼んだ人が漏れない）
+    @Test
+    func deviceDoesNotChangeCallerOfThisDevice() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        try await InMemoryServerTests.addUser(server, "guest")
+        _ = try await InMemoryServerTests.join(server, "guest", code: room.inviteCode)
+
+        // ほかの端末の呼び出しと、この端末の呼び出しを交互に並べても、それぞれの uid で通る
+        _ = try await server.device(of: "guest").saveProfile(SaveProfileRequest(displayName: "ゲスト"))
+        _ = try await server.saveProfile(SaveProfileRequest(displayName: "オーナー"))
+        #expect(server.users["guest"]?.displayName == "ゲスト")
+        #expect(server.users["owner"]?.displayName == "オーナー")
+
+        // この端末の準備OKは owner の分だけ。guest の分を書こうとしても拒まれる
+        try await server.setReady(true, roomID: room.roomId, userID: "guest")
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == false)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied])
+    }
+
     @Test
     func markSeenUsesServerClock() async throws {
         var now = InMemoryServerTests.now
