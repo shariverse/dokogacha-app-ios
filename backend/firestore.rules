@@ -83,6 +83,8 @@ service cloud.firestore {
       // - likedBy 以外のフィールドは変えられない
       // - 変わるのは自分の uid だけ（他人の uid を足す・消すことはできない）。同じ uid を重ねない
       //   （arrayUnion・arrayRemove の結果と同じ形だけを受け付ける。付いているのに付ける・無いのに外す書き込みは、何も変えないので通す）
+      // - 集合と件数で比べるので、他人の uid の並び順は変わり得る。並びはアバターを並べる順にしか効かず、
+      //   他人のいいねを足す・消す・重ねることはできないので許す（順序まで縛るとルールが複雑になる）
       match /candidates/{candidateId} {
         allow read: if isMember(roomId);
         allow update: if isMember(roomId)
