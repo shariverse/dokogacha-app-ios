@@ -51,6 +51,13 @@ struct DomainConstantsTests {
         #expect(DomainConstants.Popularity.allLikedMinOtherMembers == 2)
     }
 
+    /// 出やすさのレベルの境目は 02 の §4.3 の比 1.2・0.85（百分率で持つ）
+    @Test
+    func oddsLevelThresholds() {
+        #expect(DomainConstants.Odds.highRatioPercent == 120)
+        #expect(DomainConstants.Odds.midRatioPercent == 85)
+    }
+
     /// 場所検索の範囲に、日本の端（与那国島・宗谷岬・根室）と主な都市が入る
     @Test
     func searchRegionCoversJapan() {
