@@ -73,6 +73,8 @@ nonisolated enum DGMotion {
     static let toast = DGMotionSpec(duration: 0.25, curve: nil)
     /// トーストを出しておく時間（秒。`motion.toast.visibleFor`）
     static let toastVisibleFor: Double = 2.2
+    /// ボタンを押したときの縮みと影の変化（04 の §4 の Button「0.1秒」。tokens.json には無い）
+    static let press = DGMotionSpec(duration: 0.1, curve: .easeOut)
 
     /// きっぷが出てくるばね（04 の §5 の `pop` の「SwiftUI では」の値）。
     ///
