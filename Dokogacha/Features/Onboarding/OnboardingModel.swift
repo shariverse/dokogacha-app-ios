@@ -81,14 +81,27 @@ final class OnboardingModel {
         validatedName != nil && !isSubmitting && !didRegister
     }
 
-    /// 「はじめる」が押された・キーボードの完了が押された。登録を始める（送っている途中なら何もしない）
+    /// 「はじめる」が押された・キーボードの完了が押された。登録を始める（送っている途中なら何もしない）。
+    ///
+    /// `isSubmitting` は Task が動き出してから立つので、Task が始まる前に続けて押されたときのために、
+    /// 始めた Task が残っている間も押せないことにする（2 つ目の Task を作って 1 つ目を cancel できなくしない）
     func submitTapped() {
-        guard canSubmit else {
+        guard canSubmit, submitTask == nil else {
             return
         }
         submitTask = Task { [weak self] in
             await self?.submit()
+            // cancel された Task は `cancelSubmit` が外し済み（その後に始めた Task を外さない）
+            if !Task.isCancelled {
+                self?.submitTask = nil
+            }
         }
+    }
+
+    /// 画面が消えたとき、送っている途中の登録を止める（結果を待つ相手がいないため。cancel ではトーストを出さない）
+    func cancelSubmit() {
+        submitTask?.cancel()
+        submitTask = nil
     }
 
     /// 表示名を登録する。押せない状態なら何もしない。
