@@ -63,7 +63,7 @@ struct DGCategoryTile: View {
 }
 
 #Preview("CategoryTile") {
-    let categories: [DGCategoryStyle] = [.aquarium, .nature, .art, .food, .activity, .park, .town, .shrine, .sea]
+    let categories = PlaceCategory.allCases.map(DGCategoryStyle.of)
     VStack(spacing: DGSpacing.s16) {
         HStack(spacing: DGSpacing.s6) {
             ForEach(categories.indices, id: \.self) { index in

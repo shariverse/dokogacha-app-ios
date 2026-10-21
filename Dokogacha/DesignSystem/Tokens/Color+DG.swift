@@ -210,8 +210,8 @@ nonisolated struct DGLevelStyle: Sendable {
 
 /// カテゴリタイル（`color.category`）の表示名・色・アイコン。
 ///
-/// MapKit のカテゴリからアプリのカテゴリへの対応（`Domain/Category.swift`）は別のタスクで作り、
-/// ここは見た目のトークンだけを持つ。
+/// 表示名・アイコン名の正本はここに置く。アプリのカテゴリ（`Domain/Category.swift` の `PlaceCategory`）は
+/// 保存する値と MapKit からの対応だけを持ち、見た目は `DGCategoryStyle.of(_:)` で引く。
 nonisolated struct DGCategoryStyle: Sendable {
     /// カテゴリの表示名（03 の表記）
     let label: LocalizedStringResource
