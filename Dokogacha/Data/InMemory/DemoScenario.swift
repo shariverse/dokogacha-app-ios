@@ -18,21 +18,30 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     case oneRoom = "one-room"
     /// `one-room` に、ほかのメンバーの候補（いいね付き）と自分の候補がある
     case roomWithCandidates = "room-with-candidates"
+    /// 進行中のルームが 3 つある（ホームの撮影・プレビュー用）。`room-with-candidates` のルームに、解禁済みのルームと、
+    /// ほかの人が作ったルームを足したもの
+    case severalRooms = "several-rooms"
 
     /// 起動引数でシナリオを選ぶときの名前（`-demo-scenario <rawValue>`）
     static let argument = "-demo-scenario"
     /// 起動引数で選ばなかったとき・知らない名前のときのシナリオ
     static let fallback: Self = .empty
+    /// 撮影モードで起動引数で選ばなかったときのシナリオ（App Store のホームの画面にルームを並べる）
+    static let screenshotFallback: Self = .severalRooms
 
     /// この端末のユーザーの uid
     static let myUserID = "demo-me"
     /// デモのルームの ID
     static let roomID = "demo-room"
+    /// `several-rooms` の解禁済みのルームの ID
+    static let unlockedRoomID = "demo-room-unlocked"
+    /// `several-rooms` のほかの人が作ったルームの ID
+    static let othersRoomID = "demo-room-others"
     /// デモのルームの招待コード（`DK7-29Q`）
     static let inviteCode = "DK729Q"
 
     /// 起動引数から選ぶ（`-demo-scenario` の次の値。無い・知らないなら `fallback`）
-    static func from(arguments: [String]) -> Self {
+    static func from(arguments: [String], fallback: Self = fallback) -> Self {
         guard let index = arguments.firstIndex(of: argument), arguments.indices.contains(index + 1) else {
             return fallback
         }
@@ -71,16 +80,77 @@ extension InMemoryServer {
                 )
             }
         }
-        if scenario == .oneRoom || scenario == .roomWithCandidates {
+        if [.oneRoom, .roomWithCandidates, .severalRooms].contains(scenario) {
             server.rooms[DemoScenario.roomID] = demoRoom(now: now)
             let codeEntry = InviteCodeEntry(roomId: DemoScenario.roomID, createdAt: now.addingTimeInterval(-7_200))
             server.inviteCodes[DemoScenario.inviteCode] = codeEntry
         }
-        if scenario == .roomWithCandidates {
+        if scenario == .roomWithCandidates || scenario == .severalRooms {
             server.rooms[DemoScenario.roomID]?.candidates = demoCandidates(now: now)
             server.rooms[DemoScenario.roomID]?.room.candidateCount = 3
         }
+        if scenario == .severalRooms {
+            server.rooms[DemoScenario.unlockedRoomID] = unlockedRoom(now: now)
+            server.rooms[DemoScenario.othersRoomID] = othersRoom(now: now)
+            server.inviteCodes["HN48PX"] = InviteCodeEntry(
+                roomId: DemoScenario.unlockedRoomID,
+                createdAt: now.addingTimeInterval(-3_600)
+            )
+            server.inviteCodes["MR36TW"] = InviteCodeEntry(
+                roomId: DemoScenario.othersRoomID,
+                createdAt: now.addingTimeInterval(-86_400)
+            )
+        }
         return server
+    }
+
+    /// `several-rooms` の解禁済みのルーム（自分・はるか・そうたの全員が準備OK。候補 3 件）。いちばん新しい
+    private static func unlockedRoom(now: Date) -> RoomRecord {
+        var record = demoRoom(now: now)
+        let createdAt = now.addingTimeInterval(-3_600)
+        let people = Array(demoPeople.prefix(3))
+        record.room.name = "週末のランチ"
+        record.room.inviteCode = "HN48PX"
+        record.room.status = .unlocked
+        record.room.memberIds = people.map(\.id)
+        record.room.memberCount = people.count
+        record.room.readyCount = people.count
+        record.room.candidateCount = 3
+        record.room.createdAt = createdAt
+        record.members = record.members.filter { people.map(\.id).contains($0.key) }
+        for userID in record.members.keys {
+            record.members[userID]?.ready = true
+        }
+        record.candidates = demoCandidates(now: now)
+        return record
+    }
+
+    /// `several-rooms` の、はるかが作ったルーム（自分・はるか・みお。候補なし）。いちばん古い
+    private static func othersRoom(now: Date) -> RoomRecord {
+        var record = demoRoom(now: now)
+        let createdAt = now.addingTimeInterval(-86_400)
+        let haruka = demoPeople[1]
+        let people = [haruka, demoPeople[0], demoPeople[3]]
+        record.room.name = "春のお花見"
+        record.room.inviteCode = "MR36TW"
+        record.room.ownerId = haruka.id
+        record.room.memberIds = people.map(\.id)
+        record.room.memberCount = people.count
+        record.room.readyCount = 1
+        record.room.createdAt = createdAt
+        record.members = [:]
+        for (offset, person) in people.enumerated() {
+            let joinedAt = createdAt.addingTimeInterval(Double(offset) * 60)
+            record.members[person.id] = Member(
+                displayName: person.name,
+                avatarColor: AvatarPalette.colors[person.colorIndex],
+                role: offset == 0 ? .owner : .member,
+                ready: offset == 0,
+                joinedAt: joinedAt,
+                lastSeenAt: joinedAt
+            )
+        }
+        return record
     }
 
     /// 自分が作った `open` のルーム（全員OKで解禁・投稿数 3・共感ブースト）

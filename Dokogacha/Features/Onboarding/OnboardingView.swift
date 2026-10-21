@@ -79,6 +79,8 @@ struct OnboardingView: View {
             .background(Color.dgBgBase)
         }
         .background(Color.dgBgBase.ignoresSafeArea())
+        // ホームに進んだ・画面が消えたら、送っている途中の登録を止める
+        .onDisappear { model.cancelSubmit() }
     }
 
     /// 説明 3 行を白いカードに並べる

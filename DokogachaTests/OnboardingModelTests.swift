@@ -171,6 +171,40 @@ struct OnboardingModelTests {
         #expect(auth.savedNames == ["ゆい"])
     }
 
+    /// Task が動き出す前に続けて 2 回押しても、送るのは 1 回だけ
+    @Test
+    func doubleTapBeforeTaskStartsSubmitsOnce() async {
+        let auth = ControlledAuth(behavior: .suspend)
+        let model = OnboardingModel(auth: auth, toasts: Self.makeToasts())
+        model.displayName = "ゆい"
+
+        // 間に await を挟まない（1 回目の Task はまだ動いていないので、isSubmitting は立っていない）
+        model.submitTapped()
+        model.submitTapped()
+        #expect(!model.isSubmitting)
+
+        #expect(await AsyncTestSupport.eventually { auth.isWaiting })
+        auth.finishSave()
+        #expect(await AsyncTestSupport.eventually { model.didRegister })
+        #expect(auth.savedNames == ["ゆい"])
+    }
+
+    /// 画面が消えたら送っている途中の登録を止め、cancel ではトーストを出さない
+    @Test
+    func cancelSubmitStopsWithoutToast() async {
+        let auth = ControlledAuth(behavior: .fail(CancellationError()))
+        let toasts = Self.makeToasts()
+        let model = OnboardingModel(auth: auth, toasts: toasts)
+        model.displayName = "ゆい"
+
+        model.submitTapped()
+        model.cancelSubmit()
+        // 止めた後は、もう一度押せる（入力はそのまま）
+        #expect(await AsyncTestSupport.eventually { model.canSubmit && !model.isSubmitting })
+        #expect(toasts.current == nil)
+        #expect(model.displayName == "ゆい")
+    }
+
     /// 通信エラーではトースト（AppError の文言）を出し、入力を残してもう一度押せる
     @Test
     func networkFailureShowsToastAndAllowsRetry() async {

@@ -11,10 +11,15 @@ import Foundation
 /// スナップショットを流したときの変換と、購読をやめたときにリスナーが外れることを確かめる。
 /// 値は SDK のまま（`[String: Any]`）渡し、モデルへの変換（`Timestamp` → `Date` を含む）は `FirestoreDecoding` が行う。
 protocol FirestoreGateway {
-    /// ドキュメントを購読する。ドキュメントが無いときは nil を渡す。失敗したら `ServerFailure` を渡す（SDK はその後リスナーを外す）
+    /// ドキュメントを購読する。スナップショットには、ドキュメント（無いときは nil）と、キャッシュから読んだかを入れて渡す。
+    /// 失敗したら `ServerFailure` を渡す（SDK はその後リスナーを外す）。
+    ///
+    /// `includeMetadataChanges` が true なら、中身が同じでもキャッシュからサーバーの値に替わったとき（`isFromCache` だけの変化）にも渡す。
+    /// キャッシュの「無い」の後にサーバーの「無い」を待つ購読（プロフィール）は、これを true にしないと 2 回目が届かない
     func listenDocument(
         path: String,
-        handler: @escaping (Result<FirestoreDocument?, ServerFailure>) -> Void
+        includeMetadataChanges: Bool,
+        handler: @escaping (Result<FirestoreDocumentSnapshot, ServerFailure>) -> Void
     ) -> any FirestoreListenerToken
 
     /// クエリを購読する。失敗したら `ServerFailure` を渡す
@@ -47,6 +52,14 @@ struct FirestoreDocument {
     let id: String
     /// ドキュメントの中身
     let data: [String: Any]
+}
+
+/// ドキュメントの購読で届いた 1 回分（SDK の `DocumentSnapshot` から取り出したもの）
+struct FirestoreDocumentSnapshot {
+    /// ドキュメント。無いときは nil
+    let document: FirestoreDocument?
+    /// 端末のキャッシュから読んだ値か（オフライン・サーバーの返事の前）。サーバーで確かめた値なら false
+    let isFromCache: Bool
 }
 
 /// Firestore のクエリの条件（このアプリで使う形だけ）

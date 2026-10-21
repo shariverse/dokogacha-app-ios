@@ -22,16 +22,20 @@ struct FirestoreRoomRepositoryTests {
 
     /// 登録されたリスナーと書き込みを覚える擬似の SDK の窓口
     final class FakeGateway: FirestoreGateway {
-        var documentHandlers: [String: (Result<FirestoreDocument?, ServerFailure>) -> Void] = [:]
+        var documentHandlers: [String: (Result<FirestoreDocumentSnapshot, ServerFailure>) -> Void] = [:]
+        /// ドキュメントの購読で、メタデータの変化も受け取るよう頼まれたか（パスごと）
+        var includesMetadataChanges: [String: Bool] = [:]
         var queryHandlers: [(query: FirestoreQuerySpec, handler: (Result<[FirestoreDocument], ServerFailure>) -> Void)] = []
         var tokens: [FakeToken] = []
         var updates: [(path: String, fields: [String: FirestoreFieldUpdate])] = []
 
         func listenDocument(
             path: String,
-            handler: @escaping (Result<FirestoreDocument?, ServerFailure>) -> Void
+            includeMetadataChanges: Bool,
+            handler: @escaping (Result<FirestoreDocumentSnapshot, ServerFailure>) -> Void
         ) -> any FirestoreListenerToken {
             documentHandlers[path] = handler
+            includesMetadataChanges[path] = includeMetadataChanges
             return makeToken()
         }
 
@@ -46,6 +50,11 @@ struct FirestoreRoomRepositoryTests {
         /// 送ったものを覚えるだけ（本物の SDK と同じく、サーバーの完了は待たない）
         func update(path: String, fields: [String: FirestoreFieldUpdate]) {
             updates.append((path, fields))
+        }
+
+        /// ドキュメントの購読にスナップショットを渡す（`isFromCache` が false ならサーバーの値）
+        func sendDocument(_ document: FirestoreDocument?, path: String, isFromCache: Bool = false) {
+            documentHandlers[path]?(.success(FirestoreDocumentSnapshot(document: document, isFromCache: isFromCache)))
         }
 
         private func makeToken() -> FakeToken {
@@ -147,13 +156,15 @@ struct FirestoreRoomRepositoryTests {
     func roomStreamReportsUnreadableAndMissing() async throws {
         let gateway = FakeGateway()
         var iterator = FirestoreRoomRepository(gateway: gateway).room(id: "r1").makeAsyncIterator()
-        let handler = try #require(gateway.documentHandlers["rooms/r1"])
+        #expect(gateway.documentHandlers["rooms/r1"] != nil)
+        // ルームはキャッシュの「無い」もそのまま流す（メタデータだけの変化は要らない）
+        #expect(gateway.includesMetadataChanges["rooms/r1"] == false)
 
-        handler(.success(FirestoreDocument(id: "r1", data: Self.roomData(status: "archived"))))
+        gateway.sendDocument(FirestoreDocument(id: "r1", data: Self.roomData(status: "archived")), path: "rooms/r1")
         #expect(await iterator.next() == .failure(AppError(.unreadableData)))
-        handler(.success(nil))
+        gateway.sendDocument(nil, path: "rooms/r1", isFromCache: true)
         #expect(await iterator.next() == .value(nil))
-        handler(.success(FirestoreDocument(id: "r1", data: Self.roomData(status: "unlocked"))))
+        gateway.sendDocument(FirestoreDocument(id: "r1", data: Self.roomData(status: "unlocked")), path: "rooms/r1")
         guard case let .value(room?) = try #require(await iterator.next()) else {
             Issue.record("ルームが流れていない")
             return

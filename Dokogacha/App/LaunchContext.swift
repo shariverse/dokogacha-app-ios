@@ -22,7 +22,8 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let isUITesting: Bool
     /// 撮影モード（`-screenshot-demo`）で起動されたか
     let isScreenshotDemo: Bool
-    /// 擬似のサーバーに入れるデモのデータ（`-demo-scenario <名前>`。`-uiTesting`・撮影モードのときに使う）
+    /// 擬似のサーバーに入れるデモのデータ（`-demo-scenario <名前>`。`-uiTesting`・撮影モードのときに使う。
+    /// 指定が無ければ、撮影モードでは `DemoScenario.screenshotFallback`、それ以外では `DemoScenario.fallback`）
     let demoScenario: DemoScenario
 
     /// 起動引数と環境変数から作る
@@ -30,7 +31,11 @@ nonisolated struct LaunchContext: Equatable, Sendable {
         isUnitTestHost = Self.unitTestHostEnvironmentKeys.contains { environment[$0] != nil }
         isUITesting = arguments.contains(Self.uiTestingArgument)
         isScreenshotDemo = arguments.contains(ScreenshotDemo.argument)
-        demoScenario = DemoScenario.from(arguments: arguments)
+        // 撮影モード（App Store の画面）は、シナリオを指定しなければルームが並んだ状態で撮る
+        demoScenario = DemoScenario.from(
+            arguments: arguments,
+            fallback: isScreenshotDemo ? DemoScenario.screenshotFallback : DemoScenario.fallback
+        )
     }
 
     /// いまのプロセスの起動のしかた
