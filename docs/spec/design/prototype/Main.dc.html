@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ドコガチャ プロトタイプ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&amp;family=Zen+Maru+Gothic:wght@400;500;700;900&amp;display=swap">
+<style>
+body{margin:0;font-synthesis:none}
+a{color:#B8321A}a:hover{color:#8F2412}
+button{font-family:inherit}
+input{font-family:inherit}
+@keyframes dgShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-4deg)}40%{transform:rotate(4deg)}60%{transform:rotate(-3deg)}80%{transform:rotate(3deg)}}
+@keyframes dgTurn{to{transform:rotate(720deg)}}
+@keyframes dgDrop{0%{transform:translateY(-90px);opacity:0}55%{transform:translateY(6px);opacity:1}75%{transform:translateY(-8px)}100%{transform:translateY(0)}}
+@keyframes dgPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes dgOpen{0%{transform:scale(1)}100%{transform:scale(1.6);opacity:0}}
+@keyframes dgPop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes dgStamp{0%{transform:scale(2.2) rotate(-14deg);opacity:0}70%{transform:scale(.92) rotate(-14deg);opacity:1}100%{transform:scale(1) rotate(-14deg);opacity:1}}
+@keyframes dgToast{0%{transform:translate(-50%,12px);opacity:0}100%{transform:translate(-50%,0);opacity:1}}
+@media (prefers-reduced-motion: no-preference){
+.dg-shake{animation:dgShake .4s ease-in-out 4}
+.dg-turn{animation:dgTurn 1.6s cubic-bezier(.4,0,.2,1)}
+.dg-drop{animation:dgDrop .7s ease-out, dgPulse 1.2s ease-in-out .8s infinite}
+.dg-opening{animation:dgOpen .5s ease-in forwards}
+.dg-pop{animation:dgPop .45s cubic-bezier(.2,.9,.3,1.3)}
+.dg-stamp{animation:dgStamp .5s cubic-bezier(.2,.9,.3,1.2) .5s both}
+.dg-toast{animation:dgToast .25s ease-out}
+.dg-bar{transition:width .35s ease}
+}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #FFF7EE; color: #2B2118; font-family: 'Zen Maru Gothic', system-ui, sans-serif;">
+
+<!-- ===== ホーム ===== -->
+<sc-if value="{{isHome}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+  <div style="flex: 1; overflow-y: auto; padding: 28px 16px 16px; display: flex; flex-direction: column; gap: 24px;">
+    <div style="position: relative; display: flex; flex-direction: column; gap: 6px; padding-top: 6px;">
+      <svg aria-hidden="true" width="150" height="74" viewBox="0 0 150 74" fill="none" style="position: absolute; right: -4px; top: -8px;">
+        <circle cx="10" cy="62" r="6" fill="#FFC93C" stroke="#2B2118" stroke-width="2.5"></circle>
+        <path d="M18 58c22-10 30-34 56-30s30 26 52-6" stroke="#2B2118" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round"></path>
+        <path d="M134 6c-6 0-10 4.5-10 10 0 7.5 10 16 10 16s10-8.5 10-16c0-5.5-4-10-10-10Z" fill="{{accent}}" stroke="#2B2118" stroke-width="2.5" stroke-linejoin="round"></path>
+        <circle cx="134" cy="16" r="3.5" fill="#ffffff"></circle>
+      </svg>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div aria-hidden="true" style="width: 34px; height: 34px; border-radius: 17px; border: 3px solid #2B2118; box-sizing: border-box; background: linear-gradient(180deg, {{accent}} 50%, #ffffff 50%);"></div>
+        <h1 style="margin: 0; font-family: 'Mochiy Pop One', sans-serif; font-weight: 400; font-size: 32px; letter-spacing: 0.02em;">ドコガチャ</h1>
+      </div>
+      <p style="margin: 0; font-size: 13px; font-weight: 700; color: #6E5E50;">友達旅行・おでかけの行き先ガチャ</p>
+    </div>
+
+    <section style="display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-family: 'Mochiy Pop One', sans-serif; font-weight: 400; font-size: 16px;">進行中のルーム</h2>
+      <button onClick="{{openRoom}}" style="position: relative; text-align: left; border: 2.5px solid #2B2118; background: #ffffff; border-radius: 20px; padding: 16px 16px 16px 18px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; color: #2B2118; box-shadow: 0 4px 0 #2B2118;">
+        <span aria-hidden="true" style="position: absolute; right: 16px; top: 16px; width: 14px; height: 14px; border-radius: 7px; border: 2.5px solid #2B2118; background: #FFF7EE; box-sizing: border-box;"></span>
+        <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: {{statusBg}}; color: {{statusFg}};">{{statusLabel}}</span>
+        <span style="font-size: 18px; font-weight: 800;">{{roomName}}</span>
+        <div style="display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #2B2118; color: #FFC93C; width: 100%; box-sizing: border-box;">
+          <span style="font-size: 11px; font-weight: 700; color: #F3E3CF;">行き先</span>
+          <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 20px; letter-spacing: 0.2em;">？？？</span>
+          <span style="font-size: 11px; color: #F3E3CF; margin-left: auto;">カプセル {{poolCount}}個</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <sc-for list="{{avatars}}" as="m" hint-placeholder-count="5">
+            <span style="width: 28px; height: 28px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: {{m.bg}}; color: {{m.fg}};">{{m.initial}}</span>
+          </sc-for>
+          <span style="font-size: 12px; color: #6E5E50; margin-left: 6px;">準備OK {{okCount}}/{{memberCount}}人</span>
+        </div>
+      </button>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-family: 'Mochiy Pop One', sans-serif; font-weight: 400; font-size: 16px;">思い出のきっぷ</h2>
+      <div style="position: relative; background: #ffffff; border: 2px solid #2B2118; border-radius: 16px; display: flex; overflow: hidden;">
+        <div style="flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; color: #6E5E50;">夏の日帰り · 8/24</span>
+          <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 20px;">城ヶ島 <span style="font-size: 13px;">ゆき</span></span>
+          <span style="font-size: 12px; color: #6E5E50;">外れた候補 4件は次のルームで使えます</span>
+        </div>
+        <div style="width: 78px; border-left: 2px dashed #CDB9A4; display: flex; align-items: center; justify-content: center;">
+          <span aria-hidden="true" style="width: 50px; height: 50px; border-radius: 25px; border: 2.5px solid #B8321A; color: #B8321A; display: flex; align-items: center; justify-content: center; font-family: 'Mochiy Pop One', sans-serif; font-size: 18px; transform: rotate(-14deg);">済</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;">
+    <button onClick="{{goCreate}}" style="height: 56px; border: 2.5px solid #2B2118; border-radius: 18px; background: {{accent}}; color: #ffffff; font-size: 17px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 0 #2B2118;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      ルームを作る
+    </button>
+    <button onClick="{{joinByCode}}" style="height: 48px; border: 2px solid #2B2118; border-radius: 16px; background: #ffffff; color: #2B2118; font-size: 15px; font-weight: 700; cursor: pointer;">招待コードで参加</button>
+  </div>
+  <sc-if value="{{showAd}}" hint-placeholder-val="{{true}}">
+    <div style="height: 56px; flex-shrink: 0; margin: 0 16px 14px; border: 1.5px dashed #CDB9A4; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #6E5E50; background: #FBF1E6;"><span style="font-size: 10px; font-weight: 700; border: 1px solid #6E5E50; border-radius: 4px; padding: 1px 4px;">広告</span>バナー広告枠（320×50）</div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ===== ルーム作成 ===== -->
+<sc-if value="{{isCreate}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+  <div style="height: 60px; display: flex; align-items: center; gap: 4px; padding: 8px 8px 0; flex-shrink: 0;">
+    <button onClick="{{goHome}}" aria-label="戻る" style="width: 44px; height: 44px; border: none; background: transparent; border-radius: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #2B2118;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+    <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 18px;">ルームを作る</span>
+  </div>
+  <div style="flex: 1; overflow-y: auto; padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 22px;">
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <label for="dg-room-name" style="font-size: 14px; font-weight: 800;">どんなおでかけ？</label>
+      <input id="dg-room-name" value="{{draftName}}" onChange="{{onDraftName}}" placeholder="例：年末の旅行" style="height: 52px; border: 2px solid #2B2118; border-radius: 14px; padding: 0 16px; font-size: 16px; background: #ffffff; color: #2B2118; box-sizing: border-box;">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <span style="font-size: 14px; font-weight: 800;">1人あたりの投稿数</span>
+      <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border-radius: 14px; padding: 8px; border: 2px solid #2B2118;">
+        <button onClick="{{decLimit}}" aria-label="投稿数を減らす" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid #2B2118; background: #FFF7EE; font-size: 22px; font-weight: 800; cursor: pointer; color: #2B2118;">−</button>
+        <span style="flex: 1; text-align: center; font-family: 'Mochiy Pop One', sans-serif; font-size: 22px;">{{draftLimit}}<span style="font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 14px;"> 件まで</span></span>
+        <button onClick="{{incLimit}}" aria-label="投稿数を増やす" style="width: 44px; height: 44px; border-radius: 12px; border: 2px solid #2B2118; background: #FFF7EE; font-size: 22px; font-weight: 800; cursor: pointer; color: #2B2118;">＋</button>
+      </div>
+      <span style="font-size: 12px; color: #6E5E50;">1〜10件。作成後は引き上げのみできます</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <span style="font-size: 14px; font-weight: 800;">ガチャ解禁の条件</span>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <sc-for list="{{condOptions}}" as="o" hint-placeholder-count="3">
+          <button onClick="{{o.pick}}" style="height: 48px; border-radius: 12px; border: 2px solid #2B2118; font-size: 13px; font-weight: 800; cursor: pointer; background: {{o.bg}}; color: {{o.fg}};">{{o.label}}</button>
+        </sc-for>
+      </div>
+      <span style="font-size: 12px; color: #6E5E50;">作成者はいつでも強制解禁できます</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <span style="font-size: 14px; font-weight: 800;">いいねの効き方</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+        <sc-for list="{{modeOptions}}" as="o" hint-placeholder-count="2">
+          <button onClick="{{o.pick}}" style="height: 48px; border-radius: 12px; border: 2px solid #2B2118; font-size: 14px; font-weight: 800; cursor: pointer; background: {{o.bg}}; color: {{o.fg}};">{{o.label}}</button>
+        </sc-for>
+      </div>
+      <span style="font-size: 12px; color: #6E5E50;">{{modeHelp}}</span>
+    </div>
+  </div>
+  <div style="padding: 12px 16px 20px; flex-shrink: 0;">
+    <button onClick="{{createRoom}}" style="width: 100%; height: 56px; border: 2.5px solid #2B2118; border-radius: 18px; background: {{accent}}; color: #ffffff; font-size: 17px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 0 #2B2118;">ルームを作成</button>
+  </div>
+</div>
+</sc-if>
+
+<!-- ===== 招待 ===== -->
+<sc-if value="{{isInvite}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column; padding: 56px 16px 20px; gap: 24px; box-sizing: border-box;">
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;">
+    <span style="font-size: 14px; color: #6E5E50;">ルームを作成しました</span>
+    <h2 style="margin: 0; font-family: 'Mochiy Pop One', sans-serif; font-weight: 400; font-size: 24px;">{{roomName}}</h2>
+  </div>
+  <div style="background: #ffffff; border: 2.5px solid #2B2118; border-radius: 20px; padding: 24px 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 4px 0 #2B2118;">
+    <span style="font-size: 13px; color: #6E5E50;">招待コード</span>
+    <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 36px; letter-spacing: 0.12em;">DK7-29Q</span>
+    <span style="font-size: 12px; color: #6E5E50;">最大20人まで参加できます</span>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <button onClick="{{sendInvite}}" style="height: 56px; border: 2.5px solid #2B2118; border-radius: 18px; background: {{accent}}; color: #ffffff; font-size: 16px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 0 #2B2118;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M16 6l-4-4-4 4"></path><path d="M12 2v13"></path></svg>
+      招待リンクを送る
+    </button>
+    <button onClick="{{inviteLast}}" style="height: 52px; border: 2px solid #2B2118; border-radius: 16px; background: #ffffff; color: #2B2118; font-size: 15px; font-weight: 700; cursor: pointer;">前回のメンバー（夏の日帰り・4人）を招待</button>
+  </div>
+  <div style="flex: 1;"></div>
+  <button onClick="{{openRoom}}" style="height: 52px; border: none; border-radius: 16px; background: #2B2118; color: #ffffff; font-size: 16px; font-weight: 800; cursor: pointer;">ルームへ進む</button>
+</div>
+</sc-if>
+
+<!-- ===== ルーム ===== -->
+<sc-if value="{{isRoom}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+  <div style="height: 60px; display: flex; align-items: center; gap: 4px; padding: 8px 8px 0; flex-shrink: 0;">
+    <button onClick="{{goHome}}" aria-label="ホームへ戻る" style="width: 44px; height: 44px; border: none; background: transparent; border-radius: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #2B2118;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+    <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 18px; flex: 1;">{{roomName}}</span>
+    <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; margin-right: 8px; background: {{statusBg}}; color: {{statusFg}};">{{statusLabel}}</span>
+  </div>
+
+  <div style="flex: 1; overflow-y: auto; padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 14px;">
+    <!-- 行き先表示＋準備OK -->
+    <div style="background: #ffffff; border: 2.5px solid #2B2118; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 0 #2B2118;">
+      <div style="background: #2B2118; color: #FFC93C; padding: 12px 16px; display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 11px; font-weight: 700; color: #F3E3CF;">行き先</span>
+        <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 22px; letter-spacing: 0.2em; flex: 1;">？？？</span>
+        <span style="font-size: 12px; color: #F3E3CF;">カプセル <strong style="color: #FFC93C; font-size: 15px;">{{poolCount}}</strong>個</span>
+      </div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: baseline; gap: 8px;">
+          <span style="font-size: 14px; font-weight: 800; flex: 1;">準備OK</span>
+          <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 20px;">{{okCount}}<span style="font-size: 13px; color: #6E5E50;">/{{memberCount}}</span></span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <sc-for list="{{avatars}}" as="m" hint-placeholder-count="5">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px;">
+              <div style="position: relative; width: 44px; height: 44px;">
+                <span style="width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; background: {{m.bg}}; color: {{m.fg}};">{{m.initial}}</span>
+                <sc-if value="{{m.ok}}" hint-placeholder-val="{{true}}">
+                  <span style="position: absolute; right: -3px; bottom: -3px; width: 20px; height: 20px; border-radius: 10px; background: #FFC93C; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; color: #2B2118;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></span>
+                </sc-if>
+              </div>
+              <span style="font-size: 11px; color: #6E5E50;">{{m.name}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <span style="font-size: 13px; color: #6E5E50;">{{condHint}}</span>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button onClick="{{toggleReady}}" style="height: 44px; padding: 0 18px; border-radius: 14px; border: 2px solid #2B2118; font-size: 14px; font-weight: 800; cursor: pointer; background: {{readyBg}}; color: {{readyFg}};">{{readyLabel}}</button>
+          <sc-if value="{{canForce}}" hint-placeholder-val="{{true}}">
+            <button onClick="{{forceUnlock}}" style="height: 44px; padding: 0 12px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #B8321A; cursor: pointer; text-decoration: underline;">強制解禁（作成者）</button>
+          </sc-if>
+        </div>
+        <span style="font-size: 12px; color: #6E5E50;">あなたの投稿 {{myCount}}/{{limit}}件 · {{modeLabel}}</span>
+      </div>
+    </div>
+
+    <!-- 候補 -->
+    <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+      <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 17px;">候補</span>
+      <span style="font-size: 12px; color: #6E5E50; flex: 1;">{{poolCount}}件 · 新しい順</span>
+      <button onClick="{{goAdd}}" style="height: 40px; padding: 0 14px; border-radius: 12px; border: 2px solid #2B2118; background: #FFC93C; color: #2B2118; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        候補を追加
+      </button>
+    </div>
+    <sc-if value="{{hasNew}}" hint-placeholder-val="{{true}}">
+      <span style="font-size: 12px; font-weight: 800; color: #B8321A;">前回見たあとに {{newCount}}件の候補が増えました</span>
+    </sc-if>
+    <sc-for list="{{candList}}" as="c" hint-placeholder-count="5">
+      <div style="position: relative; border-radius: 18px; padding: {{c.pad}}; display: flex; flex-direction: column; gap: 12px; background: {{c.cardBg}}; border: {{c.cardBorder}}; box-shadow: {{c.cardShadow}};">
+        <sc-if value="{{c.popular}}" hint-placeholder-val="{{false}}">
+          <span style="position: absolute; top: -13px; left: 14px; display: flex; align-items: center; gap: 4px; font-family: 'Mochiy Pop One', sans-serif; font-size: 12px; padding: 3px 10px; border-radius: 8px; background: #2B2118; color: #FFC93C;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7.1L12 17.3 5.8 21l1.6-7.1L2 9.2l7.1-.6Z"></path></svg>
+            {{c.popLabel}}
+          </span>
+        </sc-if>
+        <div style="display: flex; gap: 12px; align-items: flex-start;">
+          <span aria-hidden="true" style="width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: {{c.catBg}}; color: {{c.catFg}};">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.icon}}"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}">
+                <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 11px; padding: 1px 7px; border-radius: 6px; background: #B8321A; color: #ffffff; letter-spacing: 0.06em;">NEW</span>
+              </sc-if>
+              <span style="font-size: 16px; font-weight: 800;">{{c.name}}</span>
+            </div>
+            <span style="font-size: 12px; color: #6E5E50; display: flex; align-items: center; gap: 3px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              {{c.meta}}
+            </span>
+            <sc-if value="{{c.hasNote}}" hint-placeholder-val="{{true}}">
+              <span style="font-size: 13px; background: #FFF7EE; border-radius: 4px 12px 12px 12px; padding: 6px 10px; align-self: flex-start;">{{c.note}}</span>
+            </sc-if>
+            <span style="font-size: 12px; color: #6E5E50;">{{c.byLabel}} · {{c.ago}}</span>
+          </div>
+          <button onClick="{{c.toggleLike}}" disabled="{{c.isMine}}" aria-label="{{c.likeAria}}" style="min-width: 52px; height: 52px; border-radius: 14px; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; font-size: 13px; font-weight: 800; cursor: pointer; background: {{c.likeBg}}; color: {{c.heartColor}};">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="{{c.heartFill}}" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
+            <span style="font-size: 11px;">{{c.likeBtnLabel}}</span>
+          </button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; min-height: 26px;">
+          <sc-if value="{{c.hasLikes}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; padding-left: 6px;">
+              <sc-for list="{{c.likerAvatars}}" as="a" hint-placeholder-count="3">
+                <span style="width: 26px; height: 26px; margin-left: -6px; border-radius: 13px; border: 2px solid {{c.cardBgSolid}}; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; background: {{a.color}}; color: #ffffff;">{{a.initial}}</span>
+              </sc-for>
+            </div>
+            <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 20px; color: {{c.likeNumColor}};">{{c.likes}}</span>
+            <span style="font-size: 13px; font-weight: 800; margin-left: -4px;">人がいいね</span>
+          </sc-if>
+          <sc-if value="{{c.noLikes}}" hint-placeholder-val="{{false}}">
+            <span style="font-size: 12px; color: #6E5E50;">まだいいねはありません</span>
+          </sc-if>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 2px dashed #E3D3C2;">
+          <span style="font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 8px; white-space: nowrap; min-width: 56px; text-align: center; box-sizing: border-box; background: {{c.lvBg}}; color: {{c.lvFg}};">{{c.lvLabel}}</span>
+          <div style="flex: 1; height: 12px; border-radius: 6px; background: #F1E4D6; overflow: hidden;">
+            <div class="dg-bar" style="height: 100%; border-radius: 6px; width: {{c.barW}}%; background: {{c.barColor}};"></div>
+          </div>
+          <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 24px; min-width: 58px; text-align: right; color: {{c.pctColor}};">{{c.pct}}<span style="font-size: 13px;">%</span></span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="padding: 10px 16px; flex-shrink: 0; border-top: 2px solid #2B2118; background: #FFF7EE;">
+    <button onClick="{{goGacha}}" disabled="{{ctaDisabled}}" style="width: 100%; height: 56px; border-radius: 18px; font-size: 17px; font-weight: 800; cursor: pointer; border: 2.5px solid {{ctaBorder}}; background: {{ctaBg}}; color: {{ctaFg}};">{{ctaLabel}}</button>
+  </div>
+  <sc-if value="{{showAd}}" hint-placeholder-val="{{true}}">
+    <div style="height: 56px; flex-shrink: 0; margin: 0 16px 14px; border: 1.5px dashed #CDB9A4; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #6E5E50; background: #FBF1E6;"><span style="font-size: 10px; font-weight: 700; border: 1px solid #6E5E50; border-radius: 4px; padding: 1px 4px;">広告</span>バナー広告枠（320×50）</div>
+  </sc-if>
+  <sc-if value="{{adFree}}" hint-placeholder-val="{{false}}">
+    <div style="height: 40px; flex-shrink: 0; margin: 0 16px 14px; border-radius: 20px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 700; background: #FFF0C2; color: #5C4600;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5L3 7z"></path></svg>
+      けんたさんのおかげで、このルームは広告なし
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ===== 候補を追加 ===== -->
+<sc-if value="{{isAdd}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+  <div style="height: 60px; display: flex; align-items: center; gap: 4px; padding: 8px 8px 0; flex-shrink: 0;">
+    <button onClick="{{openRoom}}" aria-label="ルームへ戻る" style="width: 44px; height: 44px; border: none; background: transparent; border-radius: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #2B2118;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+    <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 18px; flex: 1;">行きたい場所を追加</span>
+    <span style="font-size: 13px; color: #6E5E50; margin-right: 12px;"><strong style="color: #2B2118;">{{myCount}}/{{limit}}</strong></span>
+  </div>
+  <div style="padding: 4px 16px 12px; flex-shrink: 0;">
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; background: #F1E4D6; border-radius: 14px; padding: 4px;">
+      <sc-for list="{{addTabs}}" as="t" hint-placeholder-count="2">
+        <button onClick="{{t.pick}}" style="height: 40px; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; color: #2B2118; border: {{t.border}}; background: {{t.bg}};">{{t.label}}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <sc-if value="{{isSearchTab}}" hint-placeholder-val="{{true}}">
+  <div style="flex: 1; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px;">
+    <label for="dg-search" style="font-size: 12px; color: #6E5E50;">場所を検索（MapKit の検索結果を想定）</label>
+    <div style="display: flex; align-items: center; gap: 8px; height: 48px; border: 2px solid #2B2118; border-radius: 14px; padding: 0 14px; background: #ffffff;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E5E50" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input id="dg-search" value="{{query}}" onChange="{{onQuery}}" placeholder="水族館、高尾山 など" style="flex: 1; border: none; outline: none; font-size: 16px; background: transparent; color: #2B2118;">
+    </div>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <sc-for list="{{quickCats}}" as="q" hint-placeholder-count="5">
+        <button onClick="{{q.pick}}" style="height: 34px; padding: 0 12px; border-radius: 10px; border: 1.5px solid #2B2118; font-size: 12px; font-weight: 800; cursor: pointer; background: {{q.bg}}; color: {{q.fg}};">{{q.label}}</button>
+      </sc-for>
+    </div>
+    <sc-for list="{{searchResults}}" as="p" hint-placeholder-count="5">
+      <div style="background: #ffffff; border-radius: 16px; padding: 10px 12px 10px 10px; display: flex; align-items: center; gap: 12px; border: 2px solid #2B2118;">
+        <span aria-hidden="true" style="width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: {{p.catBg}}; color: {{p.catFg}};">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="{{p.icon}}"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 15px; font-weight: 800;">{{p.name}}</span>
+          <span style="font-size: 12px; color: #6E5E50;">{{p.meta}}</span>
+        </div>
+        <button onClick="{{p.add}}" disabled="{{p.disabled}}" style="height: 40px; min-width: 72px; padding: 0 12px; border-radius: 12px; border: 2px solid #2B2118; font-size: 13px; font-weight: 800; cursor: pointer; background: {{p.bg}}; color: {{p.fg}};">{{p.label}}</button>
+      </div>
+    </sc-for>
+    <sc-if value="{{noResults}}" hint-placeholder-val="{{false}}">
+      <span style="font-size: 13px; color: #6E5E50; text-align: center; padding: 24px 0;">見つかりませんでした</span>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{isPastTab}}" hint-placeholder-val="{{false}}">
+  <div style="flex: 1; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: #2B2118; color: #ffffff;">
+      <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 15px; flex: 1;">夏の日帰り <span style="font-size: 12px; color: #F3E3CF;">8/24</span></span>
+      <span style="font-size: 12px; color: #FFC93C; font-weight: 700;">城ヶ島 ゆき</span>
+    </div>
+    <span style="font-size: 12px; color: #6E5E50;">このとき当たらなかった候補です。今回もう一度入れられます</span>
+    <sc-for list="{{pastList}}" as="p" hint-placeholder-count="4">
+      <div style="background: #ffffff; border-radius: 16px; padding: 10px 12px 10px 10px; display: flex; align-items: center; gap: 12px; border: 2px solid #2B2118;">
+        <span aria-hidden="true" style="width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: {{p.catBg}}; color: {{p.catFg}};">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="{{p.icon}}"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 15px; font-weight: 800;">{{p.name}}</span>
+            <sc-if value="{{p.close}}" hint-placeholder-val="{{true}}">
+              <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: #FFF0C2; color: #5C4600;">前回惜しかった</span>
+            </sc-if>
+          </div>
+          <span style="font-size: 12px; color: #6E5E50;">{{p.meta}} · 前回 {{p.prevLikes}}いいね</span>
+        </div>
+        <button onClick="{{p.add}}" disabled="{{p.disabled}}" style="height: 40px; min-width: 72px; padding: 0 12px; border-radius: 12px; border: 2px solid #2B2118; font-size: 13px; font-weight: 800; cursor: pointer; background: {{p.bg}}; color: {{p.fg}};">{{p.label}}</button>
+      </div>
+    </sc-for>
+  </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ===== ガチャ ===== -->
+<sc-if value="{{isGacha}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+  <div style="height: 60px; display: flex; align-items: center; gap: 4px; padding: 8px 8px 0; flex-shrink: 0;">
+    <button onClick="{{openRoom}}" aria-label="ルームへ戻る" style="width: 44px; height: 44px; border: none; background: transparent; border-radius: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #2B2118;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+    <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 18px; flex: 1;">{{roomName}}</span>
+  </div>
+  <div style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 16px 24px; gap: 18px;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;">
+      <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 24px;">{{gachaTitle}}</span>
+      <span style="font-size: 13px; color: #6E5E50;">{{gachaSub}}</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; align-items: center;">
+      <div class="{{domeClass}}" style="width: 250px; height: 250px; border-radius: 125px; border: 5px solid #2B2118; background: #FFFDF9; position: relative; overflow: hidden; box-sizing: border-box; z-index: 1;">
+        <sc-for list="{{bigCapsules}}" as="k" hint-placeholder-count="8">
+          <span style="position: absolute; width: 40px; height: 40px; border-radius: 20px; border: 3px solid #2B2118; box-sizing: border-box; left: {{k.x}}px; top: {{k.y}}px; transform: rotate({{k.r}}deg); background: linear-gradient(180deg, {{k.color}} 50%, #ffffff 50%);"></span>
+        </sc-for>
+        <span style="position: absolute; left: 40px; top: 28px; width: 46px; height: 18px; border-radius: 9px; background: #ffffff; opacity: 0.9; transform: rotate(-30deg);"></span>
+      </div>
+      <div style="width: 280px; height: 210px; margin-top: -14px; border: 5px solid #2B2118; border-radius: 14px 14px 30px 30px; box-sizing: border-box; background: {{accent}}; position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 22px; gap: 14px;">
+        <span style="background: #ffffff; color: #2B2118; font-family: 'Mochiy Pop One', sans-serif; font-size: 15px; padding: 4px 14px; border-radius: 8px; border: 2.5px solid #2B2118;">ドコガチャ</span>
+        <button onClick="{{spin}}" disabled="{{spinDisabled}}" aria-label="レバーを回す" style="position: absolute; left: 30px; top: 70px; width: 96px; height: 96px; border-radius: 48px; border: 5px solid #2B2118; background: #FFC93C; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;">
+          <span class="{{handleClass}}" style="width: 72px; height: 18px; border-radius: 9px; background: #ffffff; border: 3px solid #2B2118; box-sizing: border-box; display: block;"></span>
+        </button>
+        <div style="position: absolute; right: 26px; bottom: 26px; width: 96px; height: 76px; border-radius: 16px; background: #2B2118; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; box-sizing: border-box; overflow: visible;">
+          <sc-if value="{{showCapsule}}" hint-placeholder-val="{{false}}">
+            <button onClick="{{openCapsule}}" aria-label="カプセルを開ける" class="{{capsuleClass}}" style="width: 60px; height: 60px; border-radius: 30px; border: 4px solid #ffffff; box-sizing: border-box; padding: 0; cursor: pointer; background: linear-gradient(180deg, {{winnerColor}} 50%, #ffffff 50%);"></button>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <span style="font-size: 13px; color: #6E5E50;">カプセル {{poolCount}}個 · {{modeLabel}}</span>
+  </div>
+</div>
+</sc-if>
+
+<!-- ===== 結果（行き先きっぷ） ===== -->
+<sc-if value="{{isResult}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+  <div style="flex: 1; overflow-y: auto; padding: 44px 16px 16px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+    <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 22px;">行き先が決まりました</span>
+    <sc-if value="{{winnerRare}}" hint-placeholder-val="{{false}}">
+      <span style="font-size: 13px; font-weight: 800; padding: 4px 14px; border-radius: 8px; background: #2B2118; color: #FFC93C; letter-spacing: 0.08em;">レア当選</span>
+    </sc-if>
+
+    <div class="dg-pop" style="position: relative; width: 100%; background: #ffffff; border: 2.5px solid #2B2118; border-radius: 18px; overflow: hidden; box-shadow: 0 5px 0 #2B2118;">
+      <div style="background: {{accent}}; color: #ffffff; padding: 10px 16px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 15px; flex: 1;">行き先きっぷ</span>
+        <span style="font-size: 12px; font-weight: 700;">{{roomName}}</span>
+      </div>
+      <div style="padding: 20px 86px 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+        <span aria-hidden="true" style="width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: {{winnerCatBg}}; color: {{winnerCatFg}};">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="{{winnerIcon}}"></path></svg>
+        </span>
+        <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 27px; line-height: 1.3;">{{winnerName}} <span style="font-size: 15px;">ゆき</span></span>
+        <span style="font-size: 13px; color: #6E5E50;">{{winnerMeta}}</span>
+        <sc-if value="{{winnerHasNote}}" hint-placeholder-val="{{true}}">
+          <span style="font-size: 13px; background: #FFF7EE; border-radius: 4px 12px 12px 12px; padding: 6px 10px; align-self: flex-start;">{{winnerNote}}</span>
+        </sc-if>
+      </div>
+      <div style="position: relative; height: 22px;">
+        <span style="position: absolute; left: -13px; top: 0; width: 22px; height: 22px; border-radius: 11px; background: #FFF7EE; border: 2.5px solid #2B2118; box-sizing: border-box;"></span>
+        <span style="position: absolute; left: 18px; right: 18px; top: 10px; border-top: 2px dashed #CDB9A4;"></span>
+        <span style="position: absolute; right: -13px; top: 0; width: 22px; height: 22px; border-radius: 11px; background: #FFF7EE; border: 2.5px solid #2B2118; box-sizing: border-box;"></span>
+      </div>
+      <div style="padding: 8px 18px 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: #6E5E50;">投稿</span><span style="font-size: 14px; font-weight: 800;">{{winnerBy}}</span></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: #6E5E50;">いいね</span><span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 17px;">{{winnerLikes}}</span></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; color: #6E5E50;">当選確率</span><span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 17px;">{{winnerPct}}%</span></div>
+      </div>
+      <span aria-hidden="true" class="dg-stamp" style="position: absolute; right: 12px; top: 54px; width: 70px; height: 70px; border-radius: 35px; border: 3px solid #B8321A; color: #B8321A; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(-14deg); background: rgba(255,255,255,0.85);">
+        <span style="font-family: 'Mochiy Pop One', sans-serif; font-size: 19px; line-height: 1;">決定</span>
+        <span style="font-size: 9px; font-weight: 800; margin-top: 3px;">10.21</span>
+      </span>
+    </div>
+
+    <div style="width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 4px;">
+      <button onClick="{{openMap}}" style="height: 52px; border: 2.5px solid #2B2118; border-radius: 16px; background: {{accent}}; color: #ffffff; font-size: 15px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 3px 0 #2B2118;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        マップで開く
+      </button>
+      <button onClick="{{shareResult}}" style="height: 52px; border: 2px solid #2B2118; border-radius: 16px; background: #ffffff; color: #2B2118; font-size: 15px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M16 6l-4-4-4 4"></path><path d="M12 2v13"></path></svg>
+        きっぷを共有
+      </button>
+    </div>
+    <button onClick="{{proposeReroll}}" disabled="{{rerollDisabled}}" style="width: 100%; height: 48px; border: 2px dashed #2B2118; border-radius: 16px; background: transparent; color: #2B2118; font-size: 14px; font-weight: 700; cursor: pointer;">{{rerollLabel}}</button>
+  </div>
+  <div style="padding: 10px 16px 20px; flex-shrink: 0;">
+    <button onClick="{{finishRoom}}" style="width: 100%; height: 52px; border: none; border-radius: 16px; background: #2B2118; color: #ffffff; font-size: 16px; font-weight: 800; cursor: pointer;">この行き先で決定</button>
+  </div>
+</div>
+</sc-if>
+
+<!-- トースト -->
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+  <div role="status" class="dg-toast" style="position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); background: #2B2118; color: #ffffff; font-size: 14px; font-weight: 700; padding: 12px 18px; border-radius: 14px; white-space: nowrap; z-index: 10;">{{toast}}</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#D93A1F","options":["#D93A1F","#2F6FD0","#23775D","#7A55D9"]},"adFree":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+const COLORS = ['#FF7A59', '#FFC93C', '#3CC9A0', '#4DA3FF', '#FF8FC7', '#9B7BFF'];
+
+const CAT_STYLE = {
+  aquarium: { bg: '#D6ECFF', fg: '#1D5A99', icon: 'M3 12c3-5 9-6 14-2l4-3v10l-4-3c-5 4-11 3-14-2Z M8 11h.01 M12 9.5c.8 1.5.8 3.5 0 5' },
+  nature: { bg: '#DDF3E6', fg: '#1E6B47', icon: 'M2 20 9 7l4 7 3-4 6 10Z M7 10.5l2 1.5 2-1.5' },
+  art: { bg: '#F1E3FF', fg: '#6B3FA0', icon: 'M4 4h16v16H4Z M4 16l5-5 4 4 3-3 4 4 M15 8.5h.01' },
+  food: { bg: '#FFE4D6', fg: '#A23B12', icon: 'M3 11h18a9 9 0 0 1-18 0Z M14 3l-4 7 M19 4l-6 6' },
+  activity: { bg: '#D9F4F1', fg: '#146B63', icon: 'M2 18c2 0 3-1.5 5-1.5S10 18 12 18s3-1.5 5-1.5 3 1.5 5 1.5 M5 14l2-5h10l2 5 M12 9V3l4 3' },
+  park: { bg: '#FFE1EE', fg: '#A02A62', icon: 'M5 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0Z M12 10l-4 11 M12 10l4 11 M5 10h14 M12 3v14' },
+  town: { bg: '#FFF0C2', fg: '#7A5A00', icon: 'M4 10h16 M5 10l1-5h12l1 5 M6 10v10h12V10 M10 20v-5h4v5' },
+  shrine: { bg: '#FFDCD6', fg: '#A12A1A', icon: 'M3 6c6 1.2 12 1.2 18 0 M5 10h14 M7 6.5V20 M17 6.5V20' },
+  sea: { bg: '#D6F0FF', fg: '#165E8C', icon: 'M2 16c2 0 3-1.5 5-1.5S10 16 12 16s3-1.5 5-1.5 3 1.5 5 1.5 M2 20c2 0 3-1.5 5-1.5S10 20 12 20s3-1.5 5-1.5 3 1.5 5 1.5 M8 11a4 4 0 0 1 8 0 M12 4v2 M5.5 6.5l1.4 1.4 M18.5 6.5l-1.4 1.4' }
+};
+
+const CAT_KIND = {
+  '水族館': 'aquarium', '自然・ハイキング': 'nature', '自然': 'nature', 'アート': 'art', '美術館': 'art',
+  'グルメ': 'food', 'アクティビティ': 'activity', 'テーマパーク': 'park', '街歩き': 'town', '寺社': 'shrine', '海': 'sea'
+};
+
+const QUICK = ['水族館', '自然', 'グルメ', 'テーマパーク', '街歩き'];
+
+const MEMBERS = [
+  { id: 'me', name: 'あなた', color: '#B8321A', ok: false },
+  { id: 'yui', name: 'ゆい', color: '#23775D', ok: true },
+  { id: 'kenta', name: 'けんた', color: '#2F6FD0', ok: true },
+  { id: 'misaki', name: 'みさき', color: '#A3367E', ok: false },
+  { id: 'soma', name: 'そうま', color: '#6B48C9', ok: true }
+];
+
+// 古い順に並べ、表示時に新しい順へ反転する
+const CANDS = [
+  { id: 'c1', name: 'サンシャイン水族館', area: '東京・豊島区', cat: '水族館', by: 'yui', likers: ['kenta', 'misaki', 'soma'], note: '天空のペンギン見たい！', ago: '3日前' },
+  { id: 'c2', name: '高尾山', area: '東京・八王子市', cat: '自然・ハイキング', by: 'misaki', likers: ['yui', 'kenta', 'soma'], note: '紅葉シーズンにちょうどいい', ago: '3日前' },
+  { id: 'c3', name: 'チームラボプラネッツ TOKYO', area: '東京・江東区', cat: 'アート', by: 'kenta', likers: ['yui', 'misaki'], note: '水に入るやつ', ago: '2日前' },
+  { id: 'c4', name: '横浜中華街', area: '神奈川・横浜市', cat: 'グルメ', by: 'soma', likers: ['yui'], note: '食べ歩きしたい', ago: '2日前' },
+  { id: 'c5', name: '新江ノ島水族館', area: '神奈川・藤沢市', cat: '水族館', by: 'kenta', likers: ['misaki', 'soma'], note: '', ago: '昨日' },
+  { id: 'c7', name: '東京ディズニーシー', area: '千葉・浦安市', cat: 'テーマパーク', by: 'me', likers: ['yui', 'kenta'], note: 'ハロウィン明けで空いてるかも', ago: '5時間前' },
+  { id: 'c6', name: '長瀞ライン下り', area: '埼玉・秩父郡', cat: 'アクティビティ', by: 'soma', likers: [], note: '川下り！', ago: '3時間前', isNew: true },
+  { id: 'c8', name: '川越 菓子屋横丁', area: '埼玉・川越市', cat: '街歩き', by: 'yui', likers: ['misaki'], note: '', ago: '20分前', isNew: true }
+];
+
+const PLACES = [
+  { id: 's1', name: 'すみだ水族館', area: '東京・墨田区', cat: '水族館' },
+  { id: 's2', name: 'しながわ水族館', area: '東京・品川区', cat: '水族館' },
+  { id: 's3', name: 'マクセル アクアパーク品川', area: '東京・港区', cat: '水族館' },
+  { id: 's4', name: '横浜・八景島シーパラダイス', area: '神奈川・横浜市', cat: '水族館' },
+  { id: 's5', name: '鴨川シーワールド', area: '千葉・鴨川市', cat: '水族館' },
+  { id: 's6', name: '箱根 大涌谷', area: '神奈川・箱根町', cat: '自然' },
+  { id: 's8', name: '御岳山', area: '東京・青梅市', cat: '自然・ハイキング' },
+  { id: 's7', name: '日光東照宮', area: '栃木・日光市', cat: '寺社' },
+  { id: 's9', name: '横浜赤レンガ倉庫', area: '神奈川・横浜市', cat: '街歩き' },
+  { id: 's10', name: '谷中銀座商店街', area: '東京・台東区', cat: '街歩き' },
+  { id: 's11', name: '富士急ハイランド', area: '山梨・富士吉田市', cat: 'テーマパーク' },
+  { id: 's12', name: '築地場外市場', area: '東京・中央区', cat: 'グルメ' }
+];
+
+const PAST = [
+  { id: 'p1', name: '箱根 彫刻の森美術館', area: '神奈川・箱根町', cat: '美術館', prevLikes: 4 },
+  { id: 'p2', name: '河口湖', area: '山梨・富士河口湖町', cat: '自然', prevLikes: 3 },
+  { id: 'p3', name: 'よみうりランド', area: '東京・稲城市', cat: 'テーマパーク', prevLikes: 1 },
+  { id: 'p4', name: '三浦海岸', area: '神奈川・三浦市', cat: '海', prevLikes: 0 }
+];
+
+const COND_LABELS = { all: '全員OK', majority: '過半数OK', deadline: '締切日時' };
+
+function catStyle(cat) {
+  return CAT_STYLE[CAT_KIND[cat] || 'town'];
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.timers = [];
+    this.state = {
+      screen: 'home',
+      roomName: '11月の日帰り旅行',
+      limit: 3,
+      unlockCond: 'all',
+      mode: 'boost',
+      members: MEMBERS.map((m) => ({ ...m })),
+      cands: CANDS.map((c) => ({ ...c })),
+      myLikes: { c2: true },
+      forced: false,
+      excluded: [],
+      rerollUsed: false,
+      proposing: false,
+      phase: 'idle',
+      winnerId: null,
+      winnerPct: 0,
+      winnerRare: false,
+      addTab: 'search',
+      query: '水族館',
+      draftName: '年末の旅行',
+      draftLimit: 3,
+      draftCond: 'all',
+      draftMode: 'boost',
+      toast: ''
+    };
+  }
+
+  componentWillUnmount() {
+    this.timers.forEach((t) => clearTimeout(t));
+  }
+
+  later(fn, ms) {
+    this.timers.push(setTimeout(fn, ms));
+  }
+
+  notify(msg) {
+    this.setState({ toast: msg });
+    this.later(() => this.setState((s) => (s.toast === msg ? { toast: '' } : null)), 2200);
+  }
+
+  stats(s) {
+    const pool = s.cands.filter((c) => !s.excluded.includes(c.id));
+    const likesOf = (c) => c.likers.length + (s.myLikes[c.id] ? 1 : 0);
+    const weightOf = (c) => (s.mode === 'equal' ? 1 : 1 + Math.sqrt(likesOf(c)));
+    const total = pool.reduce((a, c) => a + weightOf(c), 0) || 1;
+    const okCount = s.members.filter((m) => m.ok).length;
+    const n = s.members.length;
+    const condMet = s.unlockCond === 'all' ? okCount === n : s.unlockCond === 'majority' ? okCount > n / 2 : false;
+    return { pool, likesOf, weightOf, total, okCount, n, unlocked: s.forced || condMet };
+  }
+
+  colorOf(id) {
+    const i = this.state.cands.findIndex((c) => c.id === id);
+    return COLORS[(i < 0 ? 0 : i) % COLORS.length];
+  }
+
+  memberName(id) {
+    const m = this.state.members.find((x) => x.id === id);
+    return m ? m.name : '';
+  }
+
+  toggleReady() {
+    const s = this.state;
+    const me = s.members.find((m) => m.id === 'me');
+    const nowOk = !me.ok;
+    this.setState({ members: s.members.map((m) => (m.id === 'me' ? { ...m, ok: nowOk } : m)) });
+    if (nowOk) {
+      this.later(() => {
+        this.setState((st) => ({ members: st.members.map((m) => (m.ok ? m : { ...m, ok: true })) }));
+        const st = this.stats(this.state);
+        this.notify(st.unlocked ? '全員OK！ガチャが解禁されました' : 'みさきさんも準備OKになりました');
+      }, 1300);
+    }
+  }
+
+  addCandidate(place, fromPast) {
+    const s = this.state;
+    const mine = s.cands.filter((c) => c.by === 'me').length;
+    if (mine >= s.limit) {
+      this.notify('投稿は1人' + s.limit + '件までです');
+      return;
+    }
+    const cand = { id: 'n' + place.id, name: place.name, area: place.area, cat: place.cat, by: 'me', likers: [], note: '', ago: 'たった今' };
+    this.setState({ cands: s.cands.concat([cand]) });
+    this.notify(fromPast ? '過去のアイデアを持ち込みました' : '候補に追加しました');
+  }
+
+  spin() {
+    const s = this.state;
+    if (s.phase !== 'idle') return;
+    this.setState({ phase: 'spinning' });
+    this.later(() => {
+      const st = this.stats(this.state);
+      let r = Math.random() * st.total;
+      let winner = st.pool[st.pool.length - 1];
+      for (const c of st.pool) {
+        r -= st.weightOf(c);
+        if (r <= 0) { winner = c; break; }
+      }
+      const pct = Math.round((st.weightOf(winner) / st.total) * 100);
+      const avg = 100 / st.pool.length;
+      this.setState({ phase: 'dropped', winnerId: winner.id, winnerPct: pct, winnerRare: pct < avg * 0.85 });
+    }, 1700);
+  }
+
+  openCapsule() {
+    if (this.state.phase !== 'dropped') return;
+    this.setState({ phase: 'opening' });
+    this.later(() => this.setState({ screen: 'result' }), 500);
+  }
+
+  proposeReroll() {
+    const s = this.state;
+    if (s.rerollUsed || s.proposing) return;
+    this.setState({ proposing: true });
+    this.later(() => {
+      this.setState((st) => ({
+        proposing: false,
+        rerollUsed: true,
+        excluded: st.excluded.concat([st.winnerId]),
+        winnerId: null,
+        phase: 'idle',
+        screen: 'gacha'
+      }));
+      this.notify('過半数が賛成。もう一度引けます');
+    }, 1400);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const accent = this.props.accent ?? '#D93A1F';
+    const adFree = this.props.adFree ?? false;
+    const st = this.stats(s);
+    const go = (screen) => () => this.setState({ screen });
+
+    const avatars = s.members.map((m) => ({
+      name: m.name,
+      initial: m.name.slice(0, 1),
+      ok: m.ok,
+      bg: m.ok ? m.color : '#F1E7DC',
+      fg: m.ok ? '#ffffff' : '#5E5045'
+    }));
+
+    const myCount = s.cands.filter((c) => c.by === 'me').length;
+    const full = myCount >= s.limit;
+    const addedNames = s.cands.map((c) => c.name);
+
+    // 出やすさ：平均（全候補が同じ確率のとき）との比でレベル分けする
+    const pctOf = (c) => Math.round((st.weightOf(c) / st.total) * 100);
+    const avg = 100 / Math.max(1, st.pool.length);
+    const maxPct = Math.max(1, ...st.pool.map(pctOf));
+
+    const candList = st.pool.slice().reverse().map((c) => {
+      const isMine = c.by === 'me';
+      const liked = !!s.myLikes[c.id];
+      const pct = pctOf(c);
+      const ratio = pct / avg;
+      const lv = s.mode === 'equal' ? 'flat' : ratio >= 1.2 ? 'high' : ratio >= 0.85 ? 'mid' : 'low';
+      const lvMap = {
+        high: { label: '出やすい', bg: accent, fg: '#ffffff', bar: accent, num: '#B8321A' },
+        mid: { label: 'ふつう', bg: '#FFC93C', fg: '#2B2118', bar: '#FFC93C', num: '#2B2118' },
+        low: { label: 'レア', bg: '#DCEBFF', fg: '#1D5A99', bar: '#4DA3FF', num: '#1D5A99' },
+        flat: { label: '平等', bg: '#F1E4D6', fg: '#2B2118', bar: '#CDB9A4', num: '#2B2118' }
+      }[lv];
+      const cs = catStyle(c.cat);
+      // 人気：投稿者以外のメンバーの6割以上がいいね
+      const likes = st.likesOf(c);
+      const popular = likes >= Math.ceil((st.n - 1) * 0.6);
+      const allLiked = likes >= st.n - 1;
+      const likerIds = c.likers.concat(liked ? ['me'] : []);
+      const cardBgSolid = popular ? '#FFF1C9' : '#ffffff';
+      return {
+        name: c.name,
+        meta: c.area + ' · ' + c.cat,
+        note: c.note,
+        hasNote: !!c.note,
+        ago: c.ago,
+        popular,
+        popLabel: allLiked ? '全員いいね' : 'みんな推し',
+        pad: popular ? '20px 14px 14px' : '14px',
+        cardBg: cardBgSolid,
+        cardBgSolid,
+        cardBorder: popular ? '2.5px solid #2B2118' : '2px solid #2B2118',
+        cardShadow: popular ? '0 4px 0 #2B2118' : 'none',
+        hasLikes: likes > 0,
+        noLikes: likes === 0,
+        likeNumColor: popular ? '#B8321A' : '#2B2118',
+        likerAvatars: likerIds.map((id) => {
+          const m = s.members.find((x) => x.id === id);
+          return { initial: m.name.slice(0, 1), color: m.color };
+        }),
+        likeBtnLabel: isMine ? '自分' : liked ? 'いいね済' : 'いいね',
+        isNew: !!c.isNew,
+        byLabel: isMine ? 'あなたの投稿' : this.memberName(c.by) + 'さんの投稿',
+        pct,
+        barW: Math.round((pct / maxPct) * 100),
+        lvLabel: lvMap.label,
+        lvBg: lvMap.bg,
+        lvFg: lvMap.fg,
+        barColor: lvMap.bar,
+        pctColor: lvMap.num,
+        catBg: cs.bg,
+        catFg: cs.fg,
+        icon: cs.icon,
+        likes: st.likesOf(c),
+        isMine,
+        likeAria: isMine ? '自分の投稿にはいいねできません' : liked ? 'いいねを取り消す' : 'いいね',
+        likeBg: liked ? '#FDE3DC' : '#F7EEE4',
+        heartColor: isMine ? '#9C8B7C' : liked ? '#B8321A' : '#5E5045',
+        heartFill: liked ? '#B8321A' : 'none',
+        toggleLike: () => {
+          if (isMine) return;
+          this.setState((p) => ({ myLikes: { ...p.myLikes, [c.id]: !p.myLikes[c.id] } }));
+        }
+      };
+    });
+    const newCount = st.pool.filter((c) => c.isNew).length;
+
+    const bigCapsules = st.pool.slice(0, 50).map((c, i) => ({
+      color: this.colorOf(c.id),
+      x: 22 + ((i * 61) % 160),
+      y: 120 + ((i * 37) % 80),
+      r: (i * 53) % 360
+    }));
+
+    const addButton = (added) => {
+      const disabled = added || full;
+      return {
+        disabled,
+        bg: disabled ? '#F1E7DC' : '#FFC93C',
+        fg: disabled ? '#5E5045' : '#2B2118'
+      };
+    };
+
+    const q = s.query.trim();
+    const searchResults = PLACES.filter((p) => !q || p.name.includes(q) || p.cat.includes(q) || p.area.includes(q)).map((p) => {
+      const added = addedNames.includes(p.name);
+      const cs = catStyle(p.cat);
+      return {
+        name: p.name,
+        meta: p.area + ' · ' + p.cat,
+        catBg: cs.bg,
+        catFg: cs.fg,
+        icon: cs.icon,
+        label: added ? '追加済み' : full ? '上限' : '追加',
+        ...addButton(added),
+        add: () => this.addCandidate(p, false)
+      };
+    });
+
+    const pastList = PAST.map((p) => {
+      const added = addedNames.includes(p.name);
+      const cs = catStyle(p.cat);
+      return {
+        name: p.name,
+        meta: p.area + ' · ' + p.cat,
+        catBg: cs.bg,
+        catFg: cs.fg,
+        icon: cs.icon,
+        prevLikes: p.prevLikes,
+        close: p.prevLikes >= 3,
+        label: added ? '追加済み' : full ? '上限' : '持ち込む',
+        ...addButton(added),
+        add: () => this.addCandidate(p, true)
+      };
+    });
+
+    const need = s.unlockCond === 'all' ? st.n - st.okCount : Math.max(0, Math.floor(st.n / 2) + 1 - st.okCount);
+    let condHint;
+    if (st.unlocked) condHint = s.forced ? '作成者が解禁しました。いつでも回せます' : '条件を満たしました。誰が回してもOK！';
+    else if (s.unlockCond === 'deadline') condHint = '締切 11/8(土) 21:00 に解禁されます';
+    else condHint = (s.unlockCond === 'all' ? '全員OK' : '過半数OK') + 'で解禁 · あと' + need + '人';
+
+    const me = s.members.find((m) => m.id === 'me');
+    const winner = s.cands.find((c) => c.id === s.winnerId);
+    const wcs = winner ? catStyle(winner.cat) : CAT_STYLE.town;
+
+    const gachaTitle = s.phase === 'idle' ? 'レバーを回してね' : s.phase === 'spinning' ? 'ガラガラ…' : 'カプセルをタップ！';
+    const gachaSub = s.phase === 'idle'
+      ? (s.rerollUsed ? '引き直し（前回の当選は除外）' : '結果はメンバー全員の画面に同時に出ます')
+      : s.phase === 'spinning' ? 'どこに決まるかな' : '開けると行き先が決まります';
+
+    const optStyle = (on) => ({ bg: on ? accent : '#ffffff', fg: on ? '#ffffff' : '#2B2118' });
+
+    return {
+      accent,
+      adFree,
+      showAd: !adFree,
+      isHome: s.screen === 'home',
+      isCreate: s.screen === 'create',
+      isInvite: s.screen === 'invite',
+      isRoom: s.screen === 'room',
+      isAdd: s.screen === 'add',
+      isGacha: s.screen === 'gacha',
+      isResult: s.screen === 'result',
+      goHome: go('home'),
+      goCreate: go('create'),
+      openRoom: go('room'),
+      goAdd: go('add'),
+      goGacha: () => { if (st.unlocked) this.setState({ screen: 'gacha', phase: 'idle' }); },
+      joinByCode: () => this.notify('（モック）招待コード入力画面へ'),
+      sendInvite: () => this.notify('（モック）共有シートを開きます'),
+      inviteLast: () => this.notify('夏の日帰りのメンバー4人に招待を送りました'),
+
+      roomName: s.roomName,
+      limit: s.limit,
+      myCount,
+      poolCount: st.pool.length,
+      okCount: st.okCount,
+      memberCount: st.n,
+      avatars,
+      statusLabel: st.unlocked ? 'ガチャ解禁！' : '候補募集中',
+      statusBg: st.unlocked ? '#FFC93C' : '#E3F2EC',
+      statusFg: st.unlocked ? '#2B2118' : '#1E5E49',
+      modeLabel: s.mode === 'equal' ? 'みんな平等' : '共感ブースト',
+      condHint,
+      readyLabel: me.ok ? '準備OKを取り消す' : '準備OK',
+      readyBg: me.ok ? '#ffffff' : '#FFC93C',
+      readyFg: '#2B2118',
+      toggleReady: () => this.toggleReady(),
+      canForce: !st.unlocked,
+      forceUnlock: () => { this.setState({ forced: true }); this.notify('ガチャを強制解禁しました'); },
+      candList,
+      hasNew: newCount > 0,
+      newCount,
+      bigCapsules,
+      ctaDisabled: !st.unlocked,
+      ctaLabel: st.unlocked ? 'ガチャを回す' : '準備OKが揃うと回せます',
+      ctaBg: st.unlocked ? accent : '#E6D9CB',
+      ctaFg: st.unlocked ? '#ffffff' : '#5E5045',
+      ctaBorder: st.unlocked ? '#2B2118' : '#E6D9CB',
+
+      draftName: s.draftName,
+      onDraftName: (e) => this.setState({ draftName: e.target.value }),
+      draftLimit: s.draftLimit,
+      decLimit: () => this.setState((p) => ({ draftLimit: Math.max(1, p.draftLimit - 1) })),
+      incLimit: () => this.setState((p) => ({ draftLimit: Math.min(10, p.draftLimit + 1) })),
+      condOptions: ['all', 'majority', 'deadline'].map((k) => ({ label: COND_LABELS[k], ...optStyle(s.draftCond === k), pick: () => this.setState({ draftCond: k }) })),
+      modeOptions: [['boost', '共感ブースト'], ['equal', 'みんな平等']].map(([k, label]) => ({ label, ...optStyle(s.draftMode === k), pick: () => this.setState({ draftMode: k }) })),
+      modeHelp: s.draftMode === 'boost' ? 'いいねが多い候補ほど出やすくなります（いいね0でも当たります）' : 'どの候補も同じ確率で出ます',
+      createRoom: () => this.setState((p) => ({
+        roomName: p.draftName.trim() || '新しいルーム',
+        limit: p.draftLimit,
+        unlockCond: p.draftCond,
+        mode: p.draftMode,
+        forced: false,
+        excluded: [],
+        rerollUsed: false,
+        phase: 'idle',
+        winnerId: null,
+        members: p.members.map((m) => (m.id === 'me' ? { ...m, ok: false } : m)),
+        screen: 'invite'
+      })),
+
+      addTabs: [['search', '場所を探す'], ['past', '過去のアイデア']].map(([k, label]) => ({
+        label,
+        bg: s.addTab === k ? '#ffffff' : 'transparent',
+        border: s.addTab === k ? '2px solid #2B2118' : '2px solid transparent',
+        pick: () => this.setState({ addTab: k })
+      })),
+      isSearchTab: s.addTab === 'search',
+      isPastTab: s.addTab === 'past',
+      query: s.query,
+      onQuery: (e) => this.setState({ query: e.target.value }),
+      quickCats: QUICK.map((label) => ({
+        label,
+        bg: q === label ? '#2B2118' : '#ffffff',
+        fg: q === label ? '#ffffff' : '#2B2118',
+        pick: () => this.setState({ query: label })
+      })),
+      searchResults,
+      noResults: searchResults.length === 0,
+      pastList,
+
+      gachaTitle,
+      gachaSub,
+      spin: () => this.spin(),
+      spinDisabled: s.phase !== 'idle',
+      domeClass: s.phase === 'spinning' ? 'dg-shake' : '',
+      handleClass: s.phase === 'spinning' ? 'dg-turn' : '',
+      showCapsule: s.phase === 'dropped' || s.phase === 'opening',
+      capsuleClass: s.phase === 'opening' ? 'dg-opening' : 'dg-drop',
+      openCapsule: () => this.openCapsule(),
+      winnerColor: winner ? this.colorOf(winner.id) : '#FFC93C',
+
+      winnerName: winner ? winner.name : '',
+      winnerMeta: winner ? winner.area + ' · ' + winner.cat : '',
+      winnerNote: winner ? winner.note : '',
+      winnerHasNote: !!(winner && winner.note),
+      winnerBy: winner ? (winner.by === 'me' ? 'あなた' : this.memberName(winner.by) + 'さん') : '',
+      winnerLikes: winner ? st.likesOf(winner) : 0,
+      winnerPct: s.winnerPct,
+      winnerRare: s.winnerRare,
+      winnerCatBg: wcs.bg,
+      winnerCatFg: wcs.fg,
+      winnerIcon: wcs.icon,
+      openMap: () => this.notify('（モック）マップアプリで開きます'),
+      shareResult: () => this.notify('（モック）きっぷ画像を共有します'),
+      proposeReroll: () => this.proposeReroll(),
+      rerollDisabled: s.rerollUsed || s.proposing,
+      rerollLabel: s.proposing ? '賛成を集めています…（2/4人）' : s.rerollUsed ? '引き直しは使用済みです' : '引き直しを提案（過半数の賛成で1回まで）',
+      finishRoom: () => { this.setState({ screen: 'home' }); this.notify('行き先が決まりました！'); },
+
+      hasToast: !!s.toast,
+      toast: s.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

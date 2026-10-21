@@ -214,7 +214,7 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 ├── Dokogacha.xcodeproj # 共有スキーム Dokogacha を含む
 ├── AppStore/                # App Store の掲載情報（言語・撮る画面・説明文・クリエイティブアセット）
 ├── Tools/                   # スクリーンショットの撮影と App Store Connect への反映
-├── docs/                    # ExportOptions.plist のサンプル
+├── docs/                    # ExportOptions.plist のサンプル、spec/（企画・仕様・デザイン資料）
 ├── scripts/                 # rename.sh
 ├── .swiftlint.yml           # SwiftLint 設定
 └── .github/
