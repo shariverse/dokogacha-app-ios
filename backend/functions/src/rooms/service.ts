@@ -4,7 +4,8 @@
  * 判定は `logic.ts`、入力の検証は `input.ts` に切り出してある。
  *
  * 解禁の再判定（05 の §5）と `readyCount` の数え直しは、members の作成・削除で動く `onMemberWrite`（タスク 23）が受け持つ。
- * ここでは退出した人が準備OKだったときに `readyCount` を 1 減らすだけにする。
+ * ここでは `readyCount` に触れない（増やす経路と減らす経路を `onMemberWrite` の数え直しの 1 か所にそろえ、
+ * 準備OKの人が退出したときに数がずれたり負になったりしないようにする）。
  */
 import {
   FieldValue,
@@ -141,7 +142,7 @@ export async function joinRoom(deps: ServiceDeps, uid: string, data: unknown): P
 
 /**
  * トランザクションの中で、メンバーをルームから外す（退出と削除で共通。02 の F-05「挙動は退出と同じ」）。
- * - メンバーのドキュメントを消し、`memberIds`・`memberCount`（準備OKだったら `readyCount` も）を更新する
+ * - メンバーのドキュメントを消し、`memberIds`・`memberCount` を更新する（`readyCount` は `onMemberWrite` が数え直す）
  * - その人のいいねを全候補の `likedBy` から取り除く（候補そのものは残す）
  * - 引き直しの投票（`reroll.votesFor`・`votesAgainst`）からも取り除く（残ると人数と票が合わなくなる）
  * - 広告非表示の購入者だったら、残りのメンバーから参加の早い順に探し直す
@@ -190,9 +191,6 @@ async function removeFromRoom(
     "reroll.votesFor": FieldValue.arrayRemove(memberId),
     "reroll.votesAgainst": FieldValue.arrayRemove(memberId),
   };
-  if (member.ready) {
-    update.readyCount = FieldValue.increment(-1);
-  }
   if (sponsorChanges) {
     update.adFreeSponsor = sponsor;
   }
