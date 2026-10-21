@@ -6,3 +6,10 @@
 //
 
 #include "Project.xcconfig"
+
+// Firebase の接続先（Info.plist の DGFirebaseEnvironment）。App Store 用の Release は常に prod（Discussion #5 の Q4）
+DG_FIREBASE_ENVIRONMENT = prod
+// 読む GoogleService-Info の名前（拡張子なし）。CI が Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist に書き出す
+DG_FIREBASE_OPTIONS_FILE_NAME = GoogleService-Info-Prod
+// dev の plist が手元にあっても、App Store 用のアプリには入れない
+EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Dev.plist

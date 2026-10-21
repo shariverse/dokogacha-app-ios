@@ -5,6 +5,12 @@
 	<!-- AdMob の App ID。値は Configs/*.xcconfig の DG_GAD_APPLICATION_IDENTIFIER で構成ごとに決める（無いと Google Mobile Ads が起動時に落ちる） -->
 	<key>GADApplicationIdentifier</key>
 	<string>$(DG_GAD_APPLICATION_IDENTIFIER)</string>
+	<!-- Firebase の接続先（emulator / dev / prod）。値は Configs/*.xcconfig の DG_FIREBASE_ENVIRONMENT で構成ごとに決める -->
+	<key>DGFirebaseEnvironment</key>
+	<string>$(DG_FIREBASE_ENVIRONMENT)</string>
+	<!-- 読む GoogleService-Info の名前（拡張子なし）。値は Configs/*.xcconfig の DG_FIREBASE_OPTIONS_FILE_NAME。Debug は空 -->
+	<key>DGFirebaseOptionsFileName</key>
+	<string>$(DG_FIREBASE_OPTIONS_FILE_NAME)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<!-- 同梱フォント（Dokogacha/Resources/Fonts/。フォルダ同期グループのリソースは .app の直下にコピーされるのでファイル名だけを書く） -->
