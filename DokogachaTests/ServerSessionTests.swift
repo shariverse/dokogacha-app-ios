@@ -48,6 +48,49 @@ struct ServerSessionTests {
         func linkWithApple(_ credential: AppleIDCredential) async throws {}
     }
 
+    /// サインインを、テストが `finishSignIn` を呼ぶまで止めておく擬似の認証
+    final class SuspendedAuth: AuthService {
+        let server = InMemoryServer()
+        private(set) var signInCount = 0
+        private var pending: CheckedContinuation<String, Never>?
+
+        /// サインインの途中で止まっているか
+        var isWaiting: Bool {
+            pending != nil
+        }
+
+        var currentUserID: String? {
+            server.signedInUserID
+        }
+
+        func userIDChanges() -> AsyncStream<String?> {
+            server.userIDChanges()
+        }
+
+        func signInAnonymously() async throws -> String {
+            signInCount += 1
+            let userID = await withCheckedContinuation { pending = $0 }
+            server.signedInUserID = userID
+            return userID
+        }
+
+        /// 止めていたサインインを `userID` で終える
+        func finishSignIn(_ userID: String) {
+            pending?.resume(returning: userID)
+            pending = nil
+        }
+
+        func profile(userID: String) -> AsyncStream<LiveUpdate<UserProfile?>> {
+            server.profile(userID: userID)
+        }
+
+        func saveDisplayName(_ displayName: String) async throws -> SaveProfileResponse {
+            try await server.saveDisplayName(displayName)
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+    }
+
     /// 擬似の認証を使う窓口
     static func services(_ auth: CountingAuth) -> DataServices {
         DataServices(backend: .firebase, auth: auth, rooms: auth.server, functions: auth.server, inMemoryServer: nil)
@@ -88,6 +131,36 @@ struct ServerSessionTests {
 
         // 2 回目はサインインし直さない
         await session.signInIfNeeded()
+        #expect(auth.signInCount == 1)
+    }
+
+    /// サインインの途中で呼ばれた 2 回目は、サインインし直さずに、進行中のサインインの完了を待って返る
+    @Test
+    func secondCallWaitsForSignInInProgress() async {
+        let auth = SuspendedAuth()
+        let session = ServerSession()
+        session.start(
+            connection: .firebase(.emulator),
+            services: DataServices(backend: .firebase, auth: auth, rooms: auth.server, functions: auth.server, inMemoryServer: nil)
+        )
+        let first = Task { await session.signInIfNeeded() }
+        #expect(await AsyncTestSupport.eventually { auth.isWaiting })
+        #expect(session.authState == .signingIn)
+
+        let second = Task {
+            await session.signInIfNeeded()
+            return session.authState
+        }
+        // 2 回目を、進行中のサインインを待つところまで進める（時間では待たず、順番を譲る）
+        for _ in 0..<100 {
+            await Task.yield()
+        }
+        #expect(session.authState == .signingIn)
+
+        auth.finishSignIn("new-user")
+        // 2 回目は完了を待ったので、返った時点でサインイン済みになっている
+        #expect(await second.value == .signedIn(userID: "new-user"))
+        await first.value
         #expect(auth.signInCount == 1)
     }
 
