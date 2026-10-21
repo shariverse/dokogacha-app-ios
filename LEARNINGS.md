@@ -26,3 +26,6 @@
 - Firebase の既定のポートのまま 100 ずらすと、hub（4400 → 4500）が、ずらし 0 の logging の既定（4500）とぶつかって `EADDRINUSE` で起動に失敗する。logging は 4600 にしてある（2026-10-22）
 - `emulators:exec` に `"npx --no jest --config <設定>"` を渡すと jest に `--config` が届かず、テストが見つからずに失敗した。`./node_modules/.bin/jest` を直接呼ぶ（2026-10-22）
 - 2 つのスロットで同時に Emulator を起動すると「running multiple instances of the emulator suite for project demo-dokogacha」と警告が出る（hub の locator が TMPDIR の `hub-<プロジェクト>.json` で共有されるため）。テストは環境変数で接続先を読むので実害はない（2026-10-22）
+- Jest（CommonJS）で `firebase-functions/v2/https`（`HttpsError`・`onCall`）を読み込むと、firebase-admin の auth が ESM だけの `jose` を require して「Must use import to load ES Module」で落ちる（Jest は Node 22 では ESM を require できない）。`jest.shared.cjs` で `jose` だけを ts-jest で CommonJS に変換している（2026-10-22）
+- firebase（JS）12 の `httpsCallable` が失敗したときの `message` は、サーバーの文言の後ろに HTTP のステータス（` [404]` など）が付く。文言は `details.reason`（`functions/src/errors.ts`）で選び、テストで `message` を完全一致で比べない（2026-10-22）
+- Emulator のテストのファイルどうしは同じ Firestore を使うので、片方の `clearFirestore` がもう片方のデータを消す。`jest.emulator.config.js` は `maxWorkers: 1` で 1 ファイルずつ流す（2026-10-22）
