@@ -11,12 +11,14 @@ import SwiftUI
 /// 後の画面は `@Environment(DGToastCenter.self)` で受け取れる。
 struct RootView: View {
     @State private var model: RootModel
-    @State private var toasts = DGToastCenter()
+    @State private var toasts: DGToastCenter
     @Environment(\.scenePhase) private var scenePhase
 
     /// - Parameter session: サーバーへの接続とサインインの状態（`AppDelegate` で `start` 済みのもの）
     init(session: ServerSession) {
-        _model = State(initialValue: RootModel(session: session))
+        let toasts = DGToastCenter()
+        _toasts = State(initialValue: toasts)
+        _model = State(initialValue: RootModel(session: session, toasts: toasts))
     }
 
     var body: some View {

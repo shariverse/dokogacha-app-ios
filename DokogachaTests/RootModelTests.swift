@@ -52,11 +52,61 @@ struct RootModelTests {
         func linkWithApple(_ credential: AppleIDCredential) async throws {}
     }
 
+    /// 読めたプロフィールの後に、購読が一度だけ失敗で終わる擬似の認証（2 回目からは擬似のサーバーのまま）
+    final class InterruptedProfileAuth: AuthService {
+        let server: InMemoryServer
+        /// プロフィールを購読した回数
+        private(set) var profileSubscriptionCount = 0
+
+        init(server: InMemoryServer) {
+            self.server = server
+        }
+
+        var currentUserID: String? {
+            server.currentUserID
+        }
+
+        func userIDChanges() -> AsyncStream<String?> {
+            server.userIDChanges()
+        }
+
+        func signInAnonymously() async throws -> String {
+            try await server.signInAnonymously()
+        }
+
+        func profile(userID: String) -> AsyncStream<LiveUpdate<UserProfile?>> {
+            profileSubscriptionCount += 1
+            guard profileSubscriptionCount == 1 else {
+                return server.profile(userID: userID)
+            }
+            // 1 回目: 読めた後に、一時的な失敗で購読が終わる
+            let (stream, continuation) = AsyncStream.makeStream(of: LiveUpdate<UserProfile?>.self)
+            continuation.yield(.value(server.users[userID]))
+            continuation.yield(.failure(AppError(.network, code: .unavailable)))
+            continuation.finish()
+            return stream
+        }
+
+        func saveDisplayName(_ displayName: String) async throws -> SaveProfileResponse {
+            try await server.saveDisplayName(displayName)
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+    }
+
+    /// トーストを出したままにする窓口（テストの間に消えないよう、出しておく時間を長くする）
+    static func makeToasts() -> DGToastCenter {
+        DGToastCenter(visibleFor: .seconds(3_600))
+    }
+
+    /// 待たずに購読し直す（固定の時間で待たない）
+    static let immediateResubscribe = ResubscribeDelay(delay: .zero) { _ in }
+
     /// 擬似のサーバーで `start` した起動の流れ
     static func makeModel(_ server: InMemoryServer, scenario: DemoScenario) -> RootModel {
         let session = ServerSession()
         session.start(connection: .disabled(.uiTesting), services: .inMemory(server, scenario: scenario))
-        return RootModel(session: session)
+        return RootModel(session: session, toasts: Self.makeToasts())
     }
 
     /// サインインの状態に合わせて `follow()` を呼んだ後、プロフィールの購読を `Task` で動かす（画面の `.task(id:)` の代わり）
@@ -140,7 +190,7 @@ struct RootModelTests {
         let auth = ServerSessionTests.CountingAuth(result: .failure(ServerSessionTests.SignInFailure()))
         let session = ServerSession()
         session.start(connection: .firebase(.emulator), services: ServerSessionTests.services(auth))
-        let model = RootModel(session: session)
+        let model = RootModel(session: session, toasts: Self.makeToasts())
 
         await model.follow()
         #expect(session.authState == .failed)
@@ -160,7 +210,7 @@ struct RootModelTests {
         let auth = ServerSessionTests.CountingAuth(currentUserID: "existing-user")
         let session = ServerSession()
         session.start(connection: .firebase(.emulator), services: ServerSessionTests.services(auth))
-        let model = RootModel(session: session)
+        let model = RootModel(session: session, toasts: Self.makeToasts())
         await model.follow()
         #expect(session.authState == .signedIn(userID: "existing-user"))
 
@@ -179,7 +229,7 @@ struct RootModelTests {
             connection: .firebase(.emulator),
             services: DataServices(backend: .firebase, auth: auth, rooms: server, functions: server, inMemoryServer: nil)
         )
-        let model = RootModel(session: session)
+        let model = RootModel(session: session, toasts: Self.makeToasts())
 
         let first = await Self.startFollowing(model)
         // 失敗で購読が終わるので、`follow()` も返る
@@ -197,12 +247,42 @@ struct RootModelTests {
         #expect(await AsyncTestSupport.eventually { model.route == .home(profile) })
     }
 
+    /// ホームを出している間（プロフィールが読めた後）に購読が一時的に失敗しても、画面は替えずにトーストを出して購読し直す
+    @Test
+    func transientFailureAfterLoadKeepsHomeAndResubscribes() async throws {
+        let server = InMemoryServer.demo(.empty)
+        let auth = InterruptedProfileAuth(server: server)
+        let session = ServerSession()
+        session.start(
+            connection: .firebase(.emulator),
+            services: DataServices(backend: .firebase, auth: auth, rooms: server, functions: server, inMemoryServer: nil)
+        )
+        let toasts = Self.makeToasts()
+        let model = RootModel(session: session, toasts: toasts, resubscribeDelay: Self.immediateResubscribe)
+        let profile = try #require(server.users[DemoScenario.myUserID])
+
+        let following = await Self.startFollowing(model)
+        defer { following.cancel() }
+        #expect(await AsyncTestSupport.eventually { auth.profileSubscriptionCount == 2 })
+        #expect(model.route == .home(profile))
+        #expect(toasts.current?.text == "通信できませんでした")
+
+        // 購読し直した後も、プロフィールの変化を受け取り続ける
+        server.users[DemoScenario.myUserID]?.displayName = "ゆい"
+        #expect(await AsyncTestSupport.eventually {
+            if case let .home(updated) = model.route {
+                return updated.displayName == "ゆい"
+            }
+            return false
+        })
+    }
+
     /// サーバーに接続できないときは、サインインせず「接続できない」のまま（再試行もしない）
     @Test
     func unavailableServerStaysUnavailable() async {
         let session = ServerSession()
         session.start(connection: .unavailable(.missingOptionsFile("GoogleService-Info-Dev")), services: .unavailable)
-        let model = RootModel(session: session)
+        let model = RootModel(session: session, toasts: Self.makeToasts())
 
         await model.follow()
         #expect(session.authState == .signedOut)
