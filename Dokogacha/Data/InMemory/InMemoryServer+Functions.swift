@@ -56,6 +56,8 @@ extension InMemoryServer: FunctionsClient {
         if var existing = users[userID] {
             existing.displayName = displayName
             users[userID] = existing
+            // backend では `users/{uid}` の更新で動く `onUserProfileUpdate` が、参加中のルームの複製に反映する
+            syncProfileCopies(of: userID)
             return SaveProfileResponse(displayName: displayName, avatarColor: existing.avatarColor, created: false)
         }
         let avatarColor = AvatarPalette.random(randomIndex: randomIndex)
