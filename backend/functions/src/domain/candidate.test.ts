@@ -4,6 +4,7 @@ import {
   findDuplicateCandidate,
   isAcceptableCandidateUrl,
   isSamePlace,
+  isWithinDuplicateDistance,
   nextColorIndex,
   type ExistingCandidate,
   type PlaceIdentity,
@@ -49,6 +50,16 @@ describe("distanceMeters", () => {
   it("江の島から東京駅までは約 49.73km（球面の余弦定理で検算した値）", () => {
     const tokyo = { latitude: 35.681236, longitude: 139.767125 };
     expect(distanceMeters(enoshima, tokyo)).toBeCloseTo(49_727.08, 1);
+  });
+});
+
+describe("isWithinDuplicateDistance（02 の F-10 の 100m 以内）", () => {
+  it.each([
+    [99.999, true],
+    [100, true],
+    [100.001, false],
+  ])("%pm は %p（100m ちょうどは以内）", (meters, expected) => {
+    expect(isWithinDuplicateDistance(meters)).toBe(expected);
   });
 });
 

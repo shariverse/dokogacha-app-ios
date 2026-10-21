@@ -45,6 +45,16 @@ export function distanceMeters(a: Coordinate, b: Coordinate): number {
 }
 
 /**
+ * 重複とみなす距離の内か（02 の F-10「100m以内」。100m ちょうどは「以内」に入る）。
+ * 境目をテストで決めるため、距離の計算から分けている。Swift 側の `CandidateRules.isWithinDuplicateDistance` と同じ。
+ * @param meters 2 点の間の距離（メートル）
+ * @returns `DUPLICATE_DISTANCE_METERS` 以下なら true
+ */
+export function isWithinDuplicateDistance(meters: number): boolean {
+  return meters <= DUPLICATE_DISTANCE_METERS;
+}
+
+/**
  * 同じ場所か（02 の F-10「MapKit の識別子が同じ、または場所名が同じで座標が100m以内」）。
  * - 識別子はどちらにもあって等しいときだけ「同じ」とみなす（片方に無ければ、名前と距離で判定する）
  * - 場所名は前後の空白を取り除いた文字列どうしの完全一致（大文字・小文字・全角・半角を区別する）
@@ -59,7 +69,7 @@ export function isSamePlace(a: PlaceIdentity, b: PlaceIdentity): boolean {
   if (aId !== null && bId !== null && aId === bId) {
     return true;
   }
-  return a.name === b.name && distanceMeters(a, b) <= DUPLICATE_DISTANCE_METERS;
+  return a.name === b.name && isWithinDuplicateDistance(distanceMeters(a, b));
 }
 
 /** 重複の判定と採番に使う、既存の候補 */

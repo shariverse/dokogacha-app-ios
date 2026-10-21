@@ -81,6 +81,14 @@ struct CandidateRulesTests {
         #expect(abs(CandidateRules.distanceMeters(Self.enoshima, tokyo) - 49_727.08) < 0.05)
     }
 
+    // MARK: 100m 以内か（candidate.test.ts の isWithinDuplicateDistance）
+
+    /// 99.999m と 100m は以内・100.001m は超（100m ちょうどは以内）
+    @Test(arguments: [(99.999, true), (100, true), (100.001, false)])
+    func duplicateDistanceBoundary(meters: Double, expected: Bool) {
+        #expect(CandidateRules.isWithinDuplicateDistance(meters) == expected)
+    }
+
     // MARK: 同じ場所か（candidate.test.ts の isSamePlace）
 
     /// 場所名が同じで 100m 以内なら同じ・100m を超えたら別

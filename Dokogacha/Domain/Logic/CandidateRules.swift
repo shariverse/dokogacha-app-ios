@@ -35,6 +35,13 @@ nonisolated enum CandidateRules {
         return 2 * earthRadiusMeters * asin(min(1, haversine.squareRoot()))
     }
 
+    /// 重複とみなす距離の内か（02 の F-10「100m以内」。100m ちょうどは「以内」に入る。backend の `isWithinDuplicateDistance`）。
+    ///
+    /// 境目をテストで決めるため、距離の計算から分けている
+    static func isWithinDuplicateDistance(_ meters: Double) -> Bool {
+        meters <= DomainConstants.Limits.duplicateDistanceMeters
+    }
+
     /// 同じ場所か（02 の F-10「MapKit の識別子が同じ、または場所名が同じで座標が100m以内」。backend の `isSamePlace`）。
     ///
     /// - 識別子はどちらにもあって等しいときだけ「同じ」とみなす（片方に無ければ、名前と距離で判定する）
@@ -45,7 +52,7 @@ nonisolated enum CandidateRules {
             return true
         }
         return lhs.name.utf16.elementsEqual(rhs.name.utf16)
-            && distanceMeters(lhs, rhs) <= DomainConstants.Limits.duplicateDistanceMeters
+            && isWithinDuplicateDistance(distanceMeters(lhs, rhs))
     }
 
     /// 同じ場所の既存の候補を探す（自分の投稿も対象。backend の `findDuplicateCandidate`）。
