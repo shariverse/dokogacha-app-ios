@@ -13,6 +13,8 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -28,7 +30,7 @@ import {
 
 import { BACKEND_DIR, parseHostPort, PROJECT_ID, requireEnv } from "./env";
 
-/** ルーム room1（alice が作成者、bob がメンバー。carol はメンバーでない） */
+/** ルーム room1（alice が作成者、bob・dave がメンバー。carol はメンバーでない） */
 function roomData(status = "open") {
   return {
     name: "年末の旅行",
@@ -37,8 +39,8 @@ function roomData(status = "open") {
     status,
     settings: { postLimit: 3, unlockRule: "all", deadlineAt: null, likeMode: "boost" },
     forcedUnlock: false,
-    memberIds: ["alice", "bob"],
-    memberCount: 2,
+    memberIds: ["alice", "bob", "dave"],
+    memberCount: 3,
     readyCount: 0,
     candidateCount: 0,
     adFreeSponsor: null,
@@ -49,6 +51,22 @@ function roomData(status = "open") {
     createdAt: Timestamp.fromMillis(0),
     drawnAt: null,
     closedAt: null,
+  };
+}
+
+/** 候補のドキュメント（`postedBy` の投稿。いいねは `likedBy`） */
+function candidateData(postedBy: string, likedBy: string[] = []) {
+  return {
+    place: { name: "江の島", area: "神奈川・藤沢市", latitude: 35.3, longitude: 139.48, mapItemId: null },
+    category: "sea",
+    note: "",
+    url: null,
+    postedBy,
+    postedByName: postedBy,
+    colorIndex: 0,
+    likedBy,
+    fromPastIdeaId: null,
+    createdAt: Timestamp.fromMillis(0),
   };
 }
 
@@ -86,7 +104,10 @@ describe("firestore.rules", () => {
       await setDoc(doc(db, "rooms/room1"), roomData(status));
       await setDoc(doc(db, "rooms/room1/members/alice"), memberData("owner"));
       await setDoc(doc(db, "rooms/room1/members/bob"), memberData("member"));
-      await setDoc(doc(db, "rooms/room1/candidates/c1"), { postedBy: "alice", likedBy: [] });
+      await setDoc(doc(db, "rooms/room1/members/dave"), memberData("member"));
+      // c1 は alice の投稿（bob がいいね済み）、c2 は bob の投稿
+      await setDoc(doc(db, "rooms/room1/candidates/c1"), candidateData("alice", ["bob"]));
+      await setDoc(doc(db, "rooms/room1/candidates/c2"), candidateData("bob"));
       await setDoc(doc(db, "inviteCodes/DK729Q"), { roomId: "room1", createdAt: Timestamp.fromMillis(0) });
     });
   }
@@ -262,6 +283,104 @@ describe("firestore.rules", () => {
     });
   });
 
+  describe("candidates", () => {
+    /** uid のユーザーから見た候補 */
+    function candidate(uid: string | null, candidateId: string) {
+      return doc(as(uid), `rooms/room1/candidates/${candidateId}`);
+    }
+
+    /** 候補のいいねの一覧（ルール抜きで読む） */
+    async function likedBy(candidateId: string): Promise<unknown> {
+      let value: unknown;
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        value = (await getDoc(doc(context.firestore(), `rooms/room1/candidates/${candidateId}`))).get("likedBy");
+      });
+      return value;
+    }
+
+    it("メンバーは候補を読める・メンバー以外・サインインしていない人は読めない", async () => {
+      await seed();
+      await assertSucceeds(getDoc(candidate("dave", "c1")));
+      await assertSucceeds(getDocs(collection(as("bob"), "rooms/room1/candidates")));
+      await assertFails(getDoc(candidate("carol", "c1")));
+      await assertFails(getDocs(collection(as("carol"), "rooms/room1/candidates")));
+      await assertFails(getDoc(candidate(null, "c1")));
+    });
+
+    it("候補を直接作る・消すことはできない（追加・削除は Callable。作成者・投稿した人でも）", async () => {
+      await seed();
+      await assertFails(setDoc(candidate("bob", "c3"), candidateData("bob")));
+      await assertFails(deleteDoc(candidate("bob", "c2")));
+      await assertFails(deleteDoc(candidate("alice", "c2")));
+    });
+
+    it("他人の候補にいいねを付けて、取り消せる（open・unlocked）", async () => {
+      for (const status of ["open", "unlocked"]) {
+        await testEnv.clearFirestore();
+        await seed(status);
+        await assertSucceeds(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("dave") }));
+        expect(await likedBy("c1")).toEqual(["bob", "dave"]);
+        await assertSucceeds(updateDoc(candidate("bob", "c1"), { likedBy: arrayRemove("bob") }));
+        expect(await likedBy("c1")).toEqual(["dave"]);
+        // 一覧をそのまま書いても、自分の分だけの違いなら通る
+        await assertSucceeds(updateDoc(candidate("alice", "c2"), { likedBy: ["alice"] }));
+      }
+    });
+
+    it("付いているのに付ける・無いのに外す書き込みは、何も変えないので通る（二度押し）", async () => {
+      await seed();
+      await assertSucceeds(updateDoc(candidate("bob", "c1"), { likedBy: arrayUnion("bob") }));
+      await assertSucceeds(updateDoc(candidate("dave", "c1"), { likedBy: arrayRemove("dave") }));
+      expect(await likedBy("c1")).toEqual(["bob"]);
+    });
+
+    it("自分の投稿にはいいねできない（F-20）", async () => {
+      await seed();
+      await assertFails(updateDoc(candidate("alice", "c1"), { likedBy: arrayUnion("alice") }));
+      await assertFails(updateDoc(candidate("bob", "c2"), { likedBy: ["bob"] }));
+    });
+
+    it("他人の likedBy を消せない・他人の uid を足せない", async () => {
+      await seed();
+      await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: arrayRemove("bob") }));
+      await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: [] }));
+      // 自分を足して他人を消す（差が 2 人）
+      await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: ["dave"] }));
+      await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("carol") }));
+      await assertFails(updateDoc(candidate("alice", "c1"), { likedBy: arrayRemove("bob") }));
+      expect(await likedBy("c1")).toEqual(["bob"]);
+    });
+
+    it("同じ uid を重ねられない・一覧以外にできない", async () => {
+      await seed();
+      await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: ["bob", "dave", "dave"] }));
+      await assertFails(updateDoc(candidate("bob", "c1"), { likedBy: ["bob", "bob"] }));
+      await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: "dave" }));
+    });
+
+    it("likedBy 以外のフィールドは変えられない（いいねと一緒でも）", async () => {
+      await seed();
+      await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("dave"), note: "書き換え" }));
+      await assertFails(updateDoc(candidate("dave", "c1"), { colorIndex: 9 }));
+      await assertFails(updateDoc(candidate("alice", "c1"), { postedBy: "dave" }));
+    });
+
+    it("drawn・closed ではいいねを付けることも取り消すこともできない", async () => {
+      for (const status of ["drawn", "closed"]) {
+        await testEnv.clearFirestore();
+        await seed(status);
+        await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("dave") }));
+        await assertFails(updateDoc(candidate("bob", "c1"), { likedBy: arrayRemove("bob") }));
+      }
+    });
+
+    it("メンバー以外・サインインしていない人はいいねできない", async () => {
+      await seed();
+      await assertFails(updateDoc(candidate("carol", "c1"), { likedBy: arrayUnion("carol") }));
+      await assertFails(updateDoc(candidate(null, "c1"), { likedBy: arrayUnion("carol") }));
+    });
+  });
+
   describe("まだ作っていないコレクション", () => {
     beforeEach(() => seed());
 
@@ -270,9 +389,7 @@ describe("firestore.rules", () => {
       await assertFails(setDoc(doc(as("carol"), "inviteCodes/AAAAAA"), { roomId: "room1" }));
     });
 
-    it("候補・抽選・過去のアイデア・報告は、メンバーでも読み書きできない", async () => {
-      await assertFails(getDoc(doc(as("bob"), "rooms/room1/candidates/c1")));
-      await assertFails(updateDoc(doc(as("bob"), "rooms/room1/candidates/c1"), { likedBy: ["bob"] }));
+    it("抽選・過去のアイデア・報告は、メンバーでも読み書きできない", async () => {
       await assertFails(getDocs(collection(as("bob"), "rooms/room1/draws")));
       await assertFails(getDocs(collection(as("alice"), "users/alice/pastIdeas")));
       await assertFails(setDoc(doc(as("bob"), "reports/r1"), { roomId: "room1" }));
