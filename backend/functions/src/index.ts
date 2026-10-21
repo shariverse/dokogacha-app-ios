@@ -1,7 +1,7 @@
 /**
  * Cloud Functions（2nd gen）の入口。
  * Callable やトリガーの関数は、機能を作るタスクでここから export する（05_architecture.md の §5）。
- * 処理の中身は `rooms/`・`users/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
+ * 処理の中身は `rooms/`・`users/`・`candidates/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -9,6 +9,7 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall } from "firebase-functions/v2/https";
 
 import { runCallable } from "./callable";
+import * as candidates from "./candidates/service";
 import { FUNCTIONS_REGION } from "./config";
 import { defaultDeps } from "./deps";
 import * as rooms from "./rooms/service";
@@ -45,4 +46,14 @@ export const leaveRoom = onCall((request) =>
 /** 作成者がメンバーを削除する（02 の F-05） */
 export const removeMember = onCall((request) =>
   runCallable("removeMember", request, (uid, data) => rooms.removeMember(deps(), uid, data)),
+);
+
+/** 候補を追加する（02 の F-10。同じ場所があれば作らずに `{ duplicateOf }` を返す） */
+export const addCandidate = onCall((request) =>
+  runCallable("addCandidate", request, (uid, data) => candidates.addCandidate(deps(), uid, data)),
+);
+
+/** 候補を削除する（02 の F-11。投稿した人か作成者だけ） */
+export const deleteCandidate = onCall((request) =>
+  runCallable("deleteCandidate", request, (uid, data) => candidates.deleteCandidate(deps(), uid, data)),
 );

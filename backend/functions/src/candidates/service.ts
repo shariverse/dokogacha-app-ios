@@ -1,0 +1,110 @@
+/**
+ * 候補の追加・削除（05 の §5 の `addCandidate`・`deleteCandidate`）。
+ * 上限・重複・状態の確認と書き込みを、1 つのトランザクションで行う（同時に追加しても上限を超えない・同じ場所が 2 件にならない）。
+ * 判定は `logic.ts`、入力の検証は `input.ts` に切り出してある。
+ */
+import { FieldValue, Timestamp, type DocumentReference, type Transaction } from "firebase-admin/firestore";
+
+import type { ExistingCandidate } from "../domain/candidate";
+import type { CandidateDoc, MemberDoc, RoomDoc } from "../domain/models";
+import type { ServiceDeps } from "../deps";
+import { appError } from "../errors";
+import { candidatesRef, membersRef, roomRef } from "../paths";
+import { parseAddCandidateInput, parseDeleteCandidateInput } from "./input";
+import { assertCanDeleteCandidate, decideAddCandidate, newCandidateDoc } from "./logic";
+
+/**
+ * トランザクションの中で、ルームと呼んだ人のメンバーのドキュメントを読む。
+ * ルームが無ければ `room-not-found`、メンバーでなければ `not-room-member`。
+ */
+async function getRoomAsMember(
+  tx: Transaction,
+  ref: DocumentReference,
+  uid: string,
+): Promise<{ room: RoomDoc; member: MemberDoc }> {
+  const room = (await tx.get(ref)).data() as RoomDoc | undefined;
+  if (room === undefined) {
+    throw appError("room-not-found");
+  }
+  const member = (await tx.get(membersRef(ref).doc(uid))).data() as MemberDoc | undefined;
+  if (member === undefined) {
+    throw appError("not-room-member");
+  }
+  return { room, member };
+}
+
+/**
+ * 投稿日時をミリ秒にする（重複が複数あるときに古い順を決めるため）。
+ * `serverTimestamp()` の書き込みは、確定してから読まれるので `Timestamp` になっている。それ以外の値は 0 とみなす。
+ */
+function createdAtMs(value: unknown): number {
+  return value instanceof Timestamp ? value.toMillis() : 0;
+}
+
+/** `addCandidate` の結果（05 の §5。追加したら `candidateId`、同じ場所があれば作らずに `duplicateOf`） */
+export type AddCandidateResult = { candidateId: string } | { duplicateOf: string };
+
+/**
+ * 候補を追加する（02 の F-10）。
+ * ルームの候補をすべて（最大 200 件）トランザクションの中で読み、状態・重複・上限を確かめてから作る。
+ * 同じ場所があれば作らずに `{ duplicateOf }` を返す（アプリは「すでに候補にあります。いいねしますか？」を出す）。
+ * @param deps 外部のもの
+ * @param uid 投稿する人
+ * @param data `request.data`（`{ roomId, place, category, note, url?, fromPastIdeaId? }`）
+ * @returns 追加した候補の ID か、重複した既存の候補の ID
+ */
+export async function addCandidate(deps: ServiceDeps, uid: string, data: unknown): Promise<AddCandidateResult> {
+  const input = parseAddCandidateInput(data);
+  const { db } = deps;
+  const ref = roomRef(db, input.roomId);
+  return db.runTransaction(async (tx) => {
+    const { room, member } = await getRoomAsMember(tx, ref, uid);
+    const snapshot = await tx.get(candidatesRef(ref));
+    const existing = snapshot.docs.map((doc): ExistingCandidate => {
+      const candidate = doc.data() as CandidateDoc;
+      return {
+        id: doc.id,
+        place: candidate.place,
+        postedBy: candidate.postedBy,
+        colorIndex: candidate.colorIndex,
+        createdAtMs: createdAtMs(candidate.createdAt),
+      };
+    });
+
+    const decision = decideAddCandidate(room, uid, input.place, existing);
+    if (decision.kind === "duplicate") {
+      return { duplicateOf: decision.candidateId };
+    }
+    const candidate = candidatesRef(ref).doc();
+    const poster = { uid, displayName: member.displayName };
+    tx.create(candidate, newCandidateDoc(input, poster, decision.colorIndex, FieldValue.serverTimestamp()));
+    tx.update(ref, { candidateCount: FieldValue.increment(1) });
+    return { candidateId: candidate.id };
+  });
+}
+
+/**
+ * 候補を削除する（02 の F-11。投稿した人か作成者だけ・`open`・`unlocked` のときだけ）。
+ * いいね（`likedBy`）は候補のドキュメントの中にあるので、候補と一緒に消える。
+ * 報告（`reports`。F-14・タスク 40）は運営が確かめるための記録なので、候補を消しても残す。
+ * @param deps 外部のもの
+ * @param uid 削除する人
+ * @param data `request.data`（`{ roomId, candidateId }`）
+ */
+export async function deleteCandidate(deps: ServiceDeps, uid: string, data: unknown): Promise<Record<string, never>> {
+  const { roomId, candidateId } = parseDeleteCandidateInput(data);
+  const { db } = deps;
+  const ref = roomRef(db, roomId);
+  await db.runTransaction(async (tx) => {
+    const { room } = await getRoomAsMember(tx, ref, uid);
+    const candidateRef = candidatesRef(ref).doc(candidateId);
+    const candidate = (await tx.get(candidateRef)).data() as CandidateDoc | undefined;
+    if (candidate === undefined) {
+      throw appError("candidate-not-found");
+    }
+    assertCanDeleteCandidate(room, uid, candidate);
+    tx.delete(candidateRef);
+    tx.update(ref, { candidateCount: FieldValue.increment(-1) });
+  });
+  return {};
+}
