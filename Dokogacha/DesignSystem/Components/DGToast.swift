@@ -63,7 +63,9 @@ nonisolated struct DGToastMessage: Identifiable, Equatable, Sendable {
 /// トーストの表示の順番（いま出している 1 件と、待っているもの）。
 ///
 /// トーストは 1 件ずつ出し、出している間に来たものは後ろに並べる（重ねて出すと読めないため）。
-/// 同じ文言が出ている・最後に待っているときは足さない（いいねの失敗などで「通信できませんでした」が続けて並ばないように）。
+/// 最後に出る予定のもの（待っているものの末尾。待っているものが無ければ表示中のもの）と同じ文言は足さない
+/// （いいねの失敗などで「通信できませんでした」が続けて並ばないように）。待っているものがあるときは表示中のものとは比べないので、
+/// 間に別の文言を挟んだ同じ文言は足す。
 nonisolated struct DGToastQueue: Equatable, Sendable {
     /// いま出しているトースト。無ければ `nil`
     private(set) var current: DGToastMessage?
@@ -195,6 +197,7 @@ private struct DGToastPresenter: ViewModifier {
                     DGToast(verbatim: message.text)
                         .id(message.id)
                         .transition(transition)
+                        // タップで消す操作は VoiceOver からは使えないが、2.2 秒で自動で消え、出すときに読み上げもするので足さない
                         .onTapGesture { center.dismiss() }
                 }
             }
