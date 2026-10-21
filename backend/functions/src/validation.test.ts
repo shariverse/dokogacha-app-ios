@@ -54,7 +54,7 @@ describe("requireTrimmedText", () => {
   });
 
   it("見えない文字と空白だけの名前は空とみなして受け付けない", () => {
-    for (const value of ["\u{200B}", " \u{200B}\u{200D} ", "\u{2060}\u{FEFF}", "\u{3164}"]) {
+    for (const value of ["\u{200B}", " \u{200B}\u{200D} ", "\u{2060}\u{FEFF}", "\u{3164}", "\u{200B} \u{200B}", "\u{FE0F}"]) {
       expectInvalid(() => requireTrimmedText(value, range));
     }
     // 見える文字があれば、見えない文字を含んでいても受け付ける（取り除かない）
