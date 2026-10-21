@@ -1,11 +1,59 @@
 rules_version = '2';
 
-// ドコガチャの Firestore のセキュリティルール。
-// まずはすべての読み書きを拒否する。コレクションごとの許可は、機能を作るタスクで
-// 05_architecture.md の §4 の方針（整合性が要る書き込みは Callable Functions を通し、
-// クライアントが直接書くのは「自分の準備OK」「いいね」「lastSeenAt」だけ）に沿って足していく。
+// ドコガチャの Firestore のセキュリティルール（05_architecture.md の §4）。
+// 整合性が要る書き込みは Callable Functions（Admin SDK。ルールを通らない）で行い、
+// クライアントが直接書けるのは「自分の準備OK」「いいね」「lastSeenAt」（と自分の通知トークン）だけにする。
+// まだ作っていないコレクション（candidates・draws・pastIdeas・inviteCodes・reports など）は、
+// 最後の match ですべて拒否する。機能を作るタスクで許可を足していく。
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function room(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId)).data;
+    }
+
+    // ルームのメンバーか（rooms.memberIds で判定する。Functions が members と同じトランザクションで更新する）
+    function isMember(roomId) {
+      return signedIn() && request.auth.uid in room(roomId).memberIds;
+    }
+
+    // 更新で変わったフィールドが keys だけか
+    function changesOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // users/{uid}: 本人だけが読める。作成・表示名の変更は Callable の saveProfile（色・adFree をサーバーで決める）。
+    // 直接変えられるのは通知トークン（fcmTokens）だけ。adFree は verifyPurchase だけが書く
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid
+        && changesOnly(['fcmTokens'])
+        && request.resource.data.fcmTokens is list;
+    }
+
+    // rooms/{roomId}: メンバーだけが読める（ホームの memberIds array-contains の一覧も、この条件で許可される）。
+    // 書き込みはすべて Callable
+    match /rooms/{roomId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
+
+      // members/{uid}: メンバーだけが読める。直接変えられるのは自分の ready と lastSeenAt だけ。
+      // ready は open・unlocked のときだけ（F-30）。lastSeenAt はサーバーの時刻（serverTimestamp）だけを受け付ける
+      match /members/{uid} {
+        allow read: if isMember(roomId);
+        allow update: if signedIn() && request.auth.uid == uid
+          && changesOnly(['ready', 'lastSeenAt'])
+          && request.resource.data.ready is bool
+          && (!('ready' in request.resource.data.diff(resource.data).affectedKeys())
+              || room(roomId).status in ['open', 'unlocked'])
+          && (!('lastSeenAt' in request.resource.data.diff(resource.data).affectedKeys())
+              || request.resource.data.lastSeenAt == request.time);
+      }
+    }
+
+    // ここまでで許可していないものは、すべて拒否する
     match /{document=**} {
       allow read, write: if false;
     }
