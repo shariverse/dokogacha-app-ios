@@ -7,7 +7,7 @@
 //
 //    -screenshot-demo -screenshot-scene <Scene の rawValue> -AppleLanguages (<言語>) -AppleLocale <ロケール>
 //
-//  画面を足すときは、Scene に case を足し、Dokogacha.swift の rootView で開く画面を返し、
+//  画面を足すときは、Scene に case を足し、App/DokoGachaApp.swift の rootView で開く画面を返し、
 //  AppStore/screenshots.json の scenes に同じ rawValue を足す（突き合わせは Tools/app_store_config.py が行う）。
 //  デモデータは実データと混ざらないよう、撮影モードのときだけメモリ上やインメモリのストアに用意する。
 //
@@ -20,8 +20,11 @@ enum ScreenshotDemo {
         case home
     }
 
+    /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
+    nonisolated static let argument = "-screenshot-demo"
+
     /// 撮影モードで起動しているか
-    static let isEnabled = ProcessInfo.processInfo.arguments.contains("-screenshot-demo")
+    static let isEnabled = ProcessInfo.processInfo.arguments.contains(argument)
 
     /// 撮影モードで開く画面。撮影モードでないときと、知らない値を渡されたときは nil
     static let scene: Scene? = {
