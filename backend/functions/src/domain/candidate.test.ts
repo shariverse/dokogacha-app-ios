@@ -48,6 +48,10 @@ describe("isSamePlace（02 の F-10 の重複）", () => {
     expect(isSamePlace(enoshima, { ...enoshima, name: "江の島 " })).toBe(false);
   });
 
+  it("場所名は正準等価ではなく UTF-16 の並びで比べる（Swift の == は正準等価なので、Swift 側もコード単位で比べる）", () => {
+    expect(isSamePlace({ ...enoshima, name: "が" }, { ...enoshima, name: "か\u{3099}" })).toBe(false);
+  });
+
   it("MapKit の識別子が同じなら、名前と距離に関係なく同じ", () => {
     expect(isSamePlace({ ...enoshima, mapItemId: "I1" }, shifted(enoshima, 1, { name: "別の名前", mapItemId: "I1" }))).toBe(
       true,
@@ -94,7 +98,7 @@ describe("nextColorIndex（05 の §3 の投稿順の通し番号）", () => {
 
 describe("isAcceptableCandidateUrl", () => {
   it("http・https で始まり、空白・制御文字を含まない URL を受け付ける", () => {
-    for (const url of ["https://example.com", "http://a", "HTTPS://Example.com/Path?q=1#x", "https://例え.jp/パス"]) {
+    for (const url of ["https://example.com", "http://a", "HTTPS://Example.com/Path?q=1#x", "https://例え.jp/パス", "https://\u{0301}a"]) {
       expect(isAcceptableCandidateUrl(url)).toBe(true);
     }
   });

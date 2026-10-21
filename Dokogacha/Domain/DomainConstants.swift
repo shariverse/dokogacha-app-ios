@@ -36,6 +36,16 @@ nonisolated enum DomainConstants {
         static let noteMaxLength = 40
         /// 同じ場所とみなす距離（02 の §3.1「場所名が同じで座標が100m以内」。メートル）
         static let duplicateDistanceMeters: Double = 100
+        /// 場所名の文字数（02 に無い。MapKit の検索結果の名前が収まる長さとして決めた。backend の `PLACE_NAME_LENGTH`）
+        static let placeNameLength = 1...100
+        /// エリアの表示の文字数（02 に無い。「東京・豊島区」の形。MapKit から取れないときは空。backend の `PLACE_AREA_LENGTH`）
+        static let placeAreaLength = 0...50
+        /// ひとことの文字数（02 の §3.1「最大40文字」。任意なので 0 文字も可。backend の `NOTE_LENGTH`）
+        static let noteLength = 0...noteMaxLength
+        /// 参考 URL の最大の長さ（UTF-16 のコード単位。02 に無い。backend の `CANDIDATE_URL_MAX_LENGTH`）
+        static let candidateURLMaxLength = 2_048
+        /// MapKit の識別子（`MKMapItem.identifier`）の最大の長さ（UTF-16 のコード単位。backend の `MAP_ITEM_ID_MAX_LENGTH`）
+        static let mapItemIDMaxLength = 256
         /// 締切日時に選べる最も早い時刻の、今からの秒数（02 の §2.2「現在から1時間後」）
         static let deadlineEarliestFromNow: TimeInterval = 60 * 60
         /// 締切日時に選べる最も遅い時刻の、今からの秒数（02 の §2.2「30日後」）
