@@ -16,11 +16,31 @@ export const INVITE_CODE_GROUP_LENGTH = 3;
 export const INVITE_CODE_SEPARATOR = "-";
 
 /**
- * 入力から取り除く文字（空白と、ハイフン・ダッシュ・マイナス・長音記号）。
- * 日本語の入力では、ハイフンのつもりで全角のハイフン・長音記号（ー）を打つことが多いため含める。
- * Swift 側の `InviteCode.ignoredSeparators` と `Character.isWhitespace` に合わせる。
+ * 入力から取り除く空白（Unicode のコードポイント）。
+ * Unicode の White_Space（Swift の `Character.isWhitespace`）と、JavaScript の `\s` の両方が空白とみなす文字の和
+ * （`U+0085` は White_Space だけ、`U+FEFF` は `\s` だけが空白とみなす）。
+ * 言語ごとの空白の定義の違いで結果が変わらないよう、一覧を明示する。
+ * Swift 側の `InviteCode.ignoredWhitespaces` と同じ一覧。片方を変えたら両方を変える。
  */
-const IGNORED_CHARACTERS = /[\s\-‐‑‒–—―−ー]/gu;
+export const INVITE_CODE_IGNORED_WHITESPACES: readonly number[] = [
+  0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x0020, 0x0085, 0x00a0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
+  0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff,
+];
+
+/**
+ * 入力から取り除く区切りの文字（ハイフン・ダッシュ・マイナス・長音記号。Unicode のコードポイント）。
+ * 日本語の入力では、ハイフンのつもりで全角のハイフン・長音記号（ー）を打つことが多いため含める。
+ * Swift 側の `InviteCode.ignoredSeparators` と同じ一覧。片方を変えたら両方を変える。
+ */
+export const INVITE_CODE_IGNORED_SEPARATORS: readonly number[] = [
+  0x002d, 0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212, 0x30fc,
+];
+
+/** 入力から取り除く文字（空白と区切り）のコードポイントの集合 */
+const IGNORED_CODE_POINTS: ReadonlySet<number> = new Set([
+  ...INVITE_CODE_IGNORED_WHITESPACES,
+  ...INVITE_CODE_IGNORED_SEPARATORS,
+]);
 
 /** 文字（書記素クラスタ）に分ける道具。Swift の `Character` と同じ単位で数える */
 const graphemeSegmenter = new Intl.Segmenter("ja", { granularity: "grapheme" });
@@ -49,13 +69,17 @@ export function generateInviteCode(random: RandomInt = cryptoRandomInt): string 
 /**
  * 入力の文字列を、招待コードの形に正規化する（検証はしない）。
  * 1. 全角の英数字・記号・空白を半角にする（NFKC）
- * 2. 空白と区切りの文字を取り除く
+ * 2. 空白と区切りの文字（`INVITE_CODE_IGNORED_WHITESPACES`・`INVITE_CODE_IGNORED_SEPARATORS`）を取り除く
  * 3. 英字を大文字にする
  * @param input 入力された文字列
  * @returns 正規化した文字列（使えない文字はそのまま残す）
  */
 export function normalizeInviteCode(input: string): string {
-  return input.normalize("NFKC").replace(IGNORED_CHARACTERS, "").toUpperCase();
+  // コードポイントごとに見る（Swift 側も `unicodeScalars` で取り除くので、書記素クラスタの切れ目の違いに左右されない）
+  const kept = Array.from(input.normalize("NFKC")).filter(
+    (character) => !IGNORED_CODE_POINTS.has(character.codePointAt(0) ?? -1),
+  );
+  return kept.join("").toUpperCase();
 }
 
 /**

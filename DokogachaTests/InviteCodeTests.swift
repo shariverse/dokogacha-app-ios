@@ -90,7 +90,10 @@ struct InviteCodeTests {
         (" dk7 29q ", "DK729Q"),
         ("ＤＫ７－２９Ｑ", "DK729Q"),
         ("dk7ー29q", "DK729Q"),
-        ("DK7\u{3000}29Q", "DK729Q")
+        ("DK7\u{3000}29Q", "DK729Q"),
+        ("DK7\u{0085}29Q", "DK729Q"),
+        ("\u{FEFF}DK729Q", "DK729Q"),
+        ("DK7\r\n29Q", "DK729Q")
     ]
 
     /// 正規化すると招待コードとして読める
@@ -105,6 +108,26 @@ struct InviteCodeTests {
     func rejectsInvalidInput(input: String) {
         #expect(InviteCode(input) == nil)
         #expect(!InviteCode.isValid(InviteCode.normalize(input)))
+    }
+
+    /// 取り除く文字の一覧は TypeScript 側と同じ（空白 26 文字・区切り 9 文字）
+    @Test
+    func ignoredCharactersMatchTypeScript() {
+        let whitespaces = InviteCode.ignoredWhitespaces.map { String($0.value, radix: 16) }
+        #expect(whitespaces == [
+            "9", "a", "b", "c", "d", "20", "85", "a0", "1680", "2000", "2001", "2002", "2003", "2004",
+            "2005", "2006", "2007", "2008", "2009", "200a", "2028", "2029", "202f", "205f", "3000", "feff"
+        ])
+        let separators = InviteCode.ignoredSeparators.map { String($0.value, radix: 16) }
+        #expect(separators == ["2d", "2010", "2011", "2012", "2013", "2014", "2015", "2212", "30fc"])
+    }
+
+    /// 一覧のどの文字も、コードの間に入れると取り除かれる
+    @Test
+    func removesEveryIgnoredCharacter() {
+        for scalar in InviteCode.ignoredWhitespaces + InviteCode.ignoredSeparators {
+            #expect(InviteCode("DK7\(Character(scalar))29Q")?.value == "DK729Q", "U+\(String(scalar.value, radix: 16)) が残る")
+        }
     }
 
     /// 入力欄は、大文字にしてハイフンを自動で入れ、6 文字までに切る（S-05）

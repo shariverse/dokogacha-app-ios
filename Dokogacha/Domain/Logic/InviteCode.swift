@@ -21,10 +21,26 @@ nonisolated struct InviteCode: Hashable, Sendable {
     static let groupLength = 3
     /// 表示の区切り
     static let separator: Character = "-"
-    /// 入力から取り除く区切りの文字（ハイフン・ダッシュ・マイナス・長音記号）。空白は別に取り除く。
+    /// 入力から取り除く空白（Unicode のスカラー値）。
+    ///
+    /// Unicode の White_Space（`Character.isWhitespace`）と、JavaScript の `\s` の両方が空白とみなす文字の和
+    /// （`U+0085` は White_Space だけ、`U+FEFF` は `\s` だけが空白とみなす）。
+    /// 言語ごとの空白の定義の違いで Functions（`joinRoom`）と結果が変わらないよう、一覧を明示する。
+    /// TypeScript 側の `INVITE_CODE_IGNORED_WHITESPACES` と同じ一覧。片方を変えたら両方を変える。
+    static let ignoredWhitespaces: [Unicode.Scalar] = [
+        "\u{0009}", "\u{000A}", "\u{000B}", "\u{000C}", "\u{000D}", "\u{0020}", "\u{0085}", "\u{00A0}", "\u{1680}",
+        "\u{2000}", "\u{2001}", "\u{2002}", "\u{2003}", "\u{2004}", "\u{2005}", "\u{2006}", "\u{2007}", "\u{2008}",
+        "\u{2009}", "\u{200A}", "\u{2028}", "\u{2029}", "\u{202F}", "\u{205F}", "\u{3000}", "\u{FEFF}"
+    ]
+    /// 入力から取り除く区切りの文字（ハイフン・ダッシュ・マイナス・長音記号。Unicode のスカラー値）。
     ///
     /// 日本語の入力では、ハイフンのつもりで全角のハイフン・長音記号（ー）を打つことが多いため含める。
-    static let ignoredSeparators: Set<Character> = ["-", "‐", "‑", "‒", "–", "—", "―", "−", "ー"]
+    /// TypeScript 側の `INVITE_CODE_IGNORED_SEPARATORS` と同じ一覧。片方を変えたら両方を変える。
+    static let ignoredSeparators: [Unicode.Scalar] = [
+        "\u{002D}", "\u{2010}", "\u{2011}", "\u{2012}", "\u{2013}", "\u{2014}", "\u{2015}", "\u{2212}", "\u{30FC}"
+    ]
+    /// 入力から取り除く文字（空白と区切り）の集合
+    private static let ignoredScalars = Set(ignoredWhitespaces + ignoredSeparators)
 
     /// ハイフンなしの 6 文字（保存する形）
     let value: String
@@ -73,14 +89,17 @@ nonisolated struct InviteCode: Hashable, Sendable {
     /// 入力の文字列を、招待コードの形に正規化する（検証はしない）。
     ///
     /// 1. 全角の英数字・記号・空白を半角にする（Unicode の互換分解 NFKC）
-    /// 2. 空白と区切りの文字（`ignoredSeparators`）を取り除く
+    /// 2. 空白と区切りの文字（`ignoredWhitespaces`・`ignoredSeparators`）を取り除く
     /// 3. 英字を大文字にする
     /// - Parameter input: 入力された文字列
     /// - Returns: 正規化した文字列（使えない文字はそのまま残す）
     static func normalize(_ input: String) -> String {
-        let characters = input.precomposedStringWithCompatibilityMapping
-            .filter { !$0.isWhitespace && !ignoredSeparators.contains($0) }
-        return String(characters).uppercased()
+        // スカラー値ごとに見る（`Character` で見ると "\r\n" のような書記素クラスタを 1 文字として扱い、TypeScript 側と結果が変わる）
+        var scalars = String.UnicodeScalarView()
+        scalars.append(contentsOf: input.precomposedStringWithCompatibilityMapping.unicodeScalars.filter {
+            !ignoredScalars.contains($0)
+        })
+        return String(scalars).uppercased()
     }
 
     /// 正規化済みの文字列が、招待コードとして正しいか（6 文字で、すべて使える文字）。

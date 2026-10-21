@@ -2,6 +2,8 @@ import {
   formatInviteCode,
   generateInviteCode,
   INVITE_CODE_ALPHABET,
+  INVITE_CODE_IGNORED_SEPARATORS,
+  INVITE_CODE_IGNORED_WHITESPACES,
   inviteCodeInputText,
   isValidInviteCode,
   normalizeInviteCode,
@@ -70,6 +72,9 @@ describe("入力の正規化と検証", () => {
     ["ＤＫ７－２９Ｑ", "DK729Q"],
     ["dk7ー29q", "DK729Q"],
     ["DK7　29Q", "DK729Q"],
+    ["DK7\u{0085}29Q", "DK729Q"],
+    ["\u{FEFF}DK729Q", "DK729Q"],
+    ["DK7\r\n29Q", "DK729Q"],
   ])("%j は正規化すると %j として読める", (input, expected) => {
     expect(normalizeInviteCode(input)).toBe(expected);
     expect(parseInviteCode(input)).toBe(expected);
@@ -82,6 +87,22 @@ describe("入力の正規化と検証", () => {
       expect(isValidInviteCode(normalizeInviteCode(input))).toBe(false);
     },
   );
+
+  it("取り除く文字の一覧は Swift 側と同じ（空白 26 文字・区切り 9 文字）", () => {
+    expect(INVITE_CODE_IGNORED_WHITESPACES.map((point) => point.toString(16))).toEqual([
+      "9", "a", "b", "c", "d", "20", "85", "a0", "1680", "2000", "2001", "2002", "2003", "2004",
+      "2005", "2006", "2007", "2008", "2009", "200a", "2028", "2029", "202f", "205f", "3000", "feff",
+    ]);
+    expect(INVITE_CODE_IGNORED_SEPARATORS.map((point) => point.toString(16))).toEqual([
+      "2d", "2010", "2011", "2012", "2013", "2014", "2015", "2212", "30fc",
+    ]);
+  });
+
+  it("一覧のどの文字も、コードの間に入れると取り除かれる", () => {
+    for (const point of [...INVITE_CODE_IGNORED_WHITESPACES, ...INVITE_CODE_IGNORED_SEPARATORS]) {
+      expect(parseInviteCode(`DK7${String.fromCodePoint(point)}29Q`)).toBe("DK729Q");
+    }
+  });
 
   it("入力欄は、大文字にしてハイフンを自動で入れ、6 文字までに切る（S-05）", () => {
     expect(inviteCodeInputText("")).toBe("");
