@@ -91,4 +91,6 @@ nonisolated struct DGShadow: Sendable {
     static let hard = DGShadow(x: 0, y: 4, blur: 0, color: .dgInk)
     /// 小さいボタンの影（`shadow.hardSmall`。真下に 3）
     static let hardSmall = DGShadow(x: 0, y: 3, blur: 0, color: .dgInk)
+    /// 押している間のボタンの影（04 の §4 の Button「押下時：影を y 1 に縮める」。tokens.json には無い）
+    static let pressed = DGShadow(x: 0, y: 1, blur: 0, color: .dgInk)
 }
