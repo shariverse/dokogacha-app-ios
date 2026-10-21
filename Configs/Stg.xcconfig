@@ -1,0 +1,10 @@
+//
+//  Stg.xcconfig
+//  Dokogacha
+//
+//  Stg 構成だけに適用したい設定をここに書く。
+//  Stg は TestFlight 用（develop の Upload）の構成で、Release と同じ最適化でビルドし、Firebase は dev に接続する。
+//  App Store に出す Release は常に prod に接続する（Discussion #5 の Q4）。
+//
+
+#include "Project.xcconfig"

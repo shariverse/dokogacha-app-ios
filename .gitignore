@@ -106,3 +106,11 @@ private_keys/
 # （ralph-loop の制御用 worktree に残ると、起動スクリプトが worktree を片付けられない）
 *.profraw
 *.profdata
+
+# Firebase の設定ファイルはコミットしない（public リポジトリのため）。CI が GitHub Secrets から書き出す（Discussion #5 の Q5）
+GoogleService-Info*.plist
+# backend（Firebase の Functions・ルール・Hosting）の生成物と Emulator のログ
+backend/**/node_modules/
+backend/functions/lib/
+.firebase/
+*-debug.log

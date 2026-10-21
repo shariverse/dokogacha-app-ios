@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- AdMob の App ID。値は Configs/*.xcconfig の DG_GAD_APPLICATION_IDENTIFIER で構成ごとに決める（無いと Google Mobile Ads が起動時に落ちる） -->
+	<key>GADApplicationIdentifier</key>
+	<string>$(DG_GAD_APPLICATION_IDENTIFIER)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>
