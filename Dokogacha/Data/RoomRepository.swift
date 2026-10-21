@@ -13,6 +13,13 @@ import Foundation
 /// 購読は `Task` の中で `for await` で読み、`Task` を cancel する（画面が消える）とリスナーを外す。
 /// 整合性が要る書き込み（作成・参加・候補の追加など）は `FunctionsClient` を通し、ここでは
 /// 05 の §4 の「自分の準備OK」「いいね」「lastSeenAt」だけを書く。
+///
+/// 直接の書き込み（`setReady`・`setLike`・`markSeen`）は、**送った時点で返る**（サーバーの完了は待たない）:
+/// - Firestore はローカルのキャッシュに書いた時点で購読に新しい値を流し、つながったらサーバーに送る。
+///   完了を待つとオフラインの間は戻らず、cancel にも反応しないので、キャッシュに書けたら成功とみなす
+/// - サーバーで拒まれたとき（ルールで permission-denied。例: 引いた後の準備OK）は投げない。SDK がキャッシュの値を元に戻し、
+///   購読に元の値が流れるので、画面は購読の値をそのまま映せばよい（失敗はログに残す）
+/// - 投げるのは、送る前に分かる失敗だけ（サーバーに接続できない構成の `UnavailableServer` など）
 protocol RoomRepository {
     /// ホームの進行中のルーム（`open`・`unlocked`・`drawn`）を、作成日時の新しい順に購読する（05 の §6）
     func activeRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>>

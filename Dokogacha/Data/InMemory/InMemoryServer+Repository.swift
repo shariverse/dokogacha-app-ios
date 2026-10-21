@@ -4,6 +4,7 @@
 //
 //  擬似のサーバーの購読と、クライアントから直接書いてよい項目（05 の §4）。
 //  読み書きできる範囲は backend の `firestore.rules` と同じにする（メンバーだけが読める・自分の分だけ書ける）。
+//  直接の書き込みは Firestore と同じく送った時点で返り、ルールで拒まれたら状態を変えずに `rejectedWrites` に残す。
 //
 
 import Foundation
@@ -53,7 +54,34 @@ extension InMemoryServer: RoomRepository {
         }
     }
 
+    // 直接の書き込みは、Firestore と同じく送った時点で返る（`RoomRepository` の説明）。
+    // ルールで拒まれたら状態を変えずに `rejectedWrites` に残し、投げない（購読には元の値のまま）
+
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {
+        applyDirectWrite { try writeReady(ready, roomID: roomID, userID: userID) }
+    }
+
+    func setLike(_ liked: Bool, candidateID: String, roomID: String, userID: String) async throws {
+        applyDirectWrite { try writeLike(liked, candidateID: candidateID, roomID: roomID, userID: userID) }
+    }
+
+    func markSeen(roomID: String, userID: String) async throws {
+        applyDirectWrite { try writeSeen(roomID: roomID, userID: userID) }
+    }
+}
+
+private extension InMemoryServer {
+    /// 直接の書き込みを行う。ルールで拒まれたら（`body` が投げたら）状態を変えずに `rejectedWrites` に残す
+    func applyDirectWrite(_ body: () throws -> Void) {
+        do {
+            try body()
+        } catch {
+            rejectedWrites.append(AppError.wrapping(error))
+        }
+    }
+
+    /// 準備OKを変える（ルールの検証つき）
+    func writeReady(_ ready: Bool, roomID: String, userID: String) throws {
         var record = try writableRecord(roomID, userID: userID)
         guard Self.interactiveStatuses.contains(record.room.status) else {
             throw Self.permissionDenied
@@ -64,7 +92,8 @@ extension InMemoryServer: RoomRepository {
         rooms[roomID] = record
     }
 
-    func setLike(_ liked: Bool, candidateID: String, roomID: String, userID: String) async throws {
+    /// いいねを付ける・外す（ルールの検証つき）
+    func writeLike(_ liked: Bool, candidateID: String, roomID: String, userID: String) throws {
         var record = try writableRecord(roomID, userID: userID)
         guard Self.interactiveStatuses.contains(record.room.status) else {
             throw Self.permissionDenied
@@ -88,14 +117,13 @@ extension InMemoryServer: RoomRepository {
         rooms[roomID] = record
     }
 
-    func markSeen(roomID: String, userID: String) async throws {
+    /// 最後に見た日時をサーバーの今の時刻にする（ルールの検証つき）
+    func writeSeen(roomID: String, userID: String) throws {
         var record = try writableRecord(roomID, userID: userID)
         record.members[userID]?.lastSeenAt = clock()
         rooms[roomID] = record
     }
-}
 
-private extension InMemoryServer {
     /// サインインしている人がルームのメンバーか（ルールの `isMember`）
     func isSignedInMember(of record: RoomRecord) -> Bool {
         guard let signedInUserID else {

@@ -23,8 +23,12 @@ protocol FirestoreGateway {
         handler: @escaping (Result<[FirestoreDocument], ServerFailure>) -> Void
     ) -> any FirestoreListenerToken
 
-    /// ドキュメントのフィールドを更新する。失敗したら `ServerFailure` を投げる
-    func update(path: String, fields: [String: FirestoreFieldUpdate]) async throws
+    /// ドキュメントのフィールドの更新を送る。サーバーの完了は待たずに返る。
+    ///
+    /// Firestore はまずローカルのキャッシュに書き、つながったらサーバーに送る。完了を待つとオフラインの間は戻らず、
+    /// cancel にも反応しないため、送った（キャッシュに書けた）時点で成功とみなす（`RoomRepository` の直接の書き込みの説明を参照）。
+    /// サーバーで拒まれたとき（ルールで permission-denied など）はログに残すだけで、SDK がキャッシュの値を元に戻し、購読に元の値が流れる
+    func update(path: String, fields: [String: FirestoreFieldUpdate])
 }
 
 /// 購読を外すための札（SDK の `ListenerRegistration`）。

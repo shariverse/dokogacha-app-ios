@@ -26,7 +26,6 @@ struct FirestoreRoomRepositoryTests {
         var queryHandlers: [(query: FirestoreQuerySpec, handler: (Result<[FirestoreDocument], ServerFailure>) -> Void)] = []
         var tokens: [FakeToken] = []
         var updates: [(path: String, fields: [String: FirestoreFieldUpdate])] = []
-        var updateError: ServerFailure?
 
         func listenDocument(
             path: String,
@@ -44,11 +43,9 @@ struct FirestoreRoomRepositoryTests {
             return makeToken()
         }
 
-        func update(path: String, fields: [String: FirestoreFieldUpdate]) async throws {
+        /// 送ったものを覚えるだけ（本物の SDK と同じく、サーバーの完了は待たない）
+        func update(path: String, fields: [String: FirestoreFieldUpdate]) {
             updates.append((path, fields))
-            if let updateError {
-                throw updateError
-            }
         }
 
         private func makeToken() -> FakeToken {
@@ -210,14 +207,5 @@ struct FirestoreRoomRepositoryTests {
             ["likedBy": .arrayRemove(["me"])],
             ["lastSeenAt": .serverTimestamp]
         ])
-    }
-
-    @Test
-    func writeFailureBecomesAppError() async {
-        let gateway = FakeGateway()
-        gateway.updateError = ServerFailure(code: .unavailable)
-        await #expect(throws: AppError(.network, code: .unavailable)) {
-            try await FirestoreRoomRepository(gateway: gateway).setReady(false, roomID: "r1", userID: "me")
-        }
     }
 }

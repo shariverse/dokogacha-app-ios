@@ -54,26 +54,19 @@ final class FirestoreRoomRepository: RoomRepository {
         return FirestoreSubscription.query(query, gateway: gateway) { FirestoreDecoding.list($0, FirestoreDecoding.candidate) }
     }
 
+    // 直接の書き込みは送った時点で返る（`RoomRepository` の説明）。Firestore の実装では送る前に分かる失敗は無いので投げない
+
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {
-        try await update(FirestorePath.member(userID, roomID: roomID), ["ready": .bool(ready)])
+        gateway.update(path: FirestorePath.member(userID, roomID: roomID), fields: ["ready": .bool(ready)])
     }
 
     func setLike(_ liked: Bool, candidateID: String, roomID: String, userID: String) async throws {
         let change: FirestoreFieldUpdate = liked ? .arrayUnion([userID]) : .arrayRemove([userID])
-        try await update(FirestorePath.candidate(candidateID, roomID: roomID), ["likedBy": change])
+        gateway.update(path: FirestorePath.candidate(candidateID, roomID: roomID), fields: ["likedBy": change])
     }
 
     func markSeen(roomID: String, userID: String) async throws {
-        try await update(FirestorePath.member(userID, roomID: roomID), ["lastSeenAt": .serverTimestamp])
-    }
-
-    /// 更新して、失敗したら `AppError` にして投げる
-    private func update(_ path: String, _ fields: [String: FirestoreFieldUpdate]) async throws {
-        do {
-            try await gateway.update(path: path, fields: fields)
-        } catch {
-            throw AppError.wrapping(error)
-        }
+        gateway.update(path: FirestorePath.member(userID, roomID: roomID), fields: ["lastSeenAt": .serverTimestamp])
     }
 }
 

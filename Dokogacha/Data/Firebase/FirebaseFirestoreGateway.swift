@@ -5,11 +5,15 @@
 
 @preconcurrency import FirebaseFirestore
 import Foundation
+import os
 
 /// Firestore の SDK を使う `FirestoreGateway`。`FirebaseApp.configure` の後でだけ作る。
 ///
 /// SDK のリスナーは既定でメインスレッドに結果を返すので、`handler` は MainActor で呼ばれる。
 final class FirebaseFirestoreGateway: FirestoreGateway {
+    /// サーバーで拒まれた書き込みを残すログ（完了は待たないので、画面には出さない）
+    nonisolated private static let logger = Logger(subsystem: "jp.shilokuma.Dokogacha", category: "Firestore")
+
     private let firestore: Firestore
 
     /// Firestore を受け取って作る（既定はアプリの既定のインスタンス。Emulator への接続は `FirebaseBootstrap` で済ませてある）
@@ -45,18 +49,15 @@ final class FirebaseFirestoreGateway: FirestoreGateway {
         return FirebaseListenerToken(registration: registration)
     }
 
-    func update(path: String, fields: [String: FirestoreFieldUpdate]) async throws {
+    func update(path: String, fields: [String: FirestoreFieldUpdate]) {
         let data: [String: Any] = fields.mapValues(Self.sdkValue)
-        let reference = firestore.document(path)
-        // SDK の非同期の API に `[String: Any]`（Sendable でない）を渡さないよう、完了のコールバックで待つ
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            reference.updateData(data) { error in
-                if let error {
-                    continuation.resume(throwing: Self.failure(from: error))
-                } else {
-                    continuation.resume()
-                }
+        // 完了は待たない（オフラインでは、つながるまで呼ばれない）。拒まれたらログに残す
+        firestore.document(path).updateData(data) { error in
+            guard let error else {
+                return
             }
+            let failure = Self.failure(from: error)
+            Self.logger.error("直接の書き込みが拒まれた: \(path, privacy: .private) code=\(failure.code.rawValue)")
         }
     }
 

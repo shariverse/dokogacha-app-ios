@@ -46,6 +46,11 @@ final class InMemoryServer {
         didSet { notifySubscribers() }
     }
 
+    /// ルールで拒まれた直接の書き込み（古い順）。
+    ///
+    /// 直接の書き込みは Firestore と同じく送った時点で返り、拒まれても投げない（`RoomRepository`）ので、テストはここで確かめる
+    var rejectedWrites: [AppError] = []
+
     /// 今の時刻（サーバーの時刻の代わり）
     let clock: () -> Date
     /// `0..<上限` の整数を返す乱数（招待コード・アバターの色）

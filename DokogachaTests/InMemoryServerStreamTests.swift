@@ -88,13 +88,16 @@ struct InMemoryServerStreamTests {
 
         try await InMemoryServerTests.addUser(server, "guest")
         _ = try await InMemoryServerTests.join(server, "guest", code: room.inviteCode)
-        await #expect(throws: InMemoryServer.permissionDenied) {
-            try await server.setReady(true, roomID: room.roomId, userID: "guest")
-        }
+        // ほかの人の分は書けない。直接の書き込みは送った時点で返り、拒まれても投げずに状態を変えない
+        try await server.setReady(true, roomID: room.roomId, userID: "guest")
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == false)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied])
+
         server.rooms[room.roomId]?.room.status = .drawn
-        await #expect(throws: InMemoryServer.permissionDenied) {
-            try await server.setReady(false, roomID: room.roomId, userID: "owner")
-        }
+        try await server.setReady(false, roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.members["owner"]?.ready == true)
+        #expect(server.rooms[room.roomId]?.room.readyCount == 1)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied, InMemoryServer.permissionDenied])
     }
 
     /// いいねは他人の候補にだけ付けられ、もう一度で外れる（F-20）
@@ -117,9 +120,11 @@ struct InMemoryServerStreamTests {
         try await server.setLike(true, candidateID: "theirs", roomID: room.roomId, userID: "owner")
         #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy == ["x", "owner", "y"])
 
-        await #expect(throws: InMemoryServer.permissionDenied) {
-            try await server.setLike(true, candidateID: "mine", roomID: room.roomId, userID: "owner")
-        }
+        // 自分の候補にはいいねできない（拒まれても投げず、状態を変えない）
+        #expect(server.rejectedWrites.isEmpty)
+        try await server.setLike(true, candidateID: "mine", roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.candidates["mine"]?.likedBy.isEmpty == true)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied])
     }
 
     @Test
