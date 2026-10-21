@@ -27,14 +27,9 @@ extension InMemoryServer: RoomRepository {
     }
 
     func room(id roomID: String) -> AsyncStream<LiveUpdate<Identified<Room>?>> {
+        // 無いルームはルールの `resource.data.memberIds` を読めず permission-denied になる（本番と同じく失敗で終わる）
         subscribe { server in
-            guard let record = server.rooms[roomID] else {
-                return .value(nil)
-            }
-            guard server.isSignedInMember(of: record) else {
-                return .failure(Self.permissionDenied)
-            }
-            return .value(Identified(id: roomID, value: record.room))
+            server.readableRecord(roomID).map { Identified(id: roomID, value: $0.room) }
         }
     }
 
@@ -105,7 +100,7 @@ private extension InMemoryServer {
         return record.room.memberIds.contains(signedInUserID)
     }
 
-    /// サインインしている人が読めるルーム。メンバーでなければ権限のエラー
+    /// サインインしている人が読めるルーム。ルームが無い・メンバーでなければ権限のエラー（ルールの `isMember`）
     func readableRecord(_ roomID: String) -> LiveUpdate<RoomRecord> {
         guard let record = rooms[roomID], isSignedInMember(of: record) else {
             return .failure(Self.permissionDenied)

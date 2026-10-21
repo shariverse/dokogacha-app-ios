@@ -66,8 +66,15 @@ struct InMemoryServerStreamTests {
         server.signedInUserID = "stranger"
         var iterator = server.room(id: room.roomId).makeAsyncIterator()
         #expect(await iterator.next() == .failure(InMemoryServer.permissionDenied))
+    }
+
+    /// 無いルームの購読は、本番のルールと同じく permission-denied で終わる（nil は流さない）
+    @Test
+    func missingRoomFailsLikeSecurityRules() async throws {
+        let server = InMemoryServerTests.makeServer()
         var missing = server.room(id: "missing").makeAsyncIterator()
-        #expect(await missing.next() == .value(nil))
+        #expect(await missing.next() == .failure(InMemoryServer.permissionDenied))
+        #expect(await missing.next() == nil)
     }
 
     /// 準備OKは自分の分だけ、open・unlocked のときだけ（05 の §4 のルール）

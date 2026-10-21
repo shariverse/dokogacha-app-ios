@@ -17,7 +17,11 @@ protocol RoomRepository {
     /// ホームの進行中のルーム（`open`・`unlocked`・`drawn`）を、作成日時の新しい順に購読する（05 の §6）
     func activeRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>>
 
-    /// ルームを購読する。ルームが無いときは nil が流れる
+    /// ルームを購読する。
+    ///
+    /// 読めるのはメンバーだけ（セキュリティルール）。無いルーム（招待のリンクの先が消えたなど）を購読すると、ルールが
+    /// `memberIds` を読めずに permission-denied になり、`.failure` を流して終わる（画面は「ルームが見つからない」とまとめて扱う）。
+    /// 購読している間にルームが消えたときは nil が流れることがある
     func room(id roomID: String) -> AsyncStream<LiveUpdate<Identified<Room>?>>
 
     /// ルームのメンバー（ID は uid）を、参加の早い順に購読する
