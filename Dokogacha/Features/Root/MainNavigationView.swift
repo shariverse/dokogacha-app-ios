@@ -63,11 +63,15 @@ struct MainNavigationView: View {
     /// 行き先の画面（後のタスクで本物の画面に差し替える）
     @ViewBuilder private func destination(_ route: AppRoute) -> some View {
         switch route {
+        case .createRoom:
+            CreateRoomView(model: CreateRoomModel(functions: services.functions, toasts: toasts)) { created in
+                path = AppRoute.pathAfterCreating(created, from: path)
+            }
         case let .invite(created):
             InviteView(model: InviteModel(destination: created, toasts: toasts)) {
                 path = AppRoute.pathOpeningRoom(from: path)
             }
-        case .createRoom, .joinByCode, .room, .settings:
+        case .joinByCode, .room, .settings:
             PendingScreenView(route: route)
         }
     }
