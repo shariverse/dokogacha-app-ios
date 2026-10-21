@@ -120,14 +120,18 @@ struct DGAvatar: View {
 nonisolated enum DGAvatarInitial {
     /// 表示名からアバターに出す 1 文字を返す。
     ///
-    /// 前後の空白を除いた 1 文字目（書記素。絵文字の合成や濁点の結合文字も 1 文字として扱う）を、英字なら大文字にして返す。
+    /// 前後の空白を除いた 1 文字目（書記素。絵文字の合成や濁点の結合文字も 1 文字として扱う）を、英字なら大文字にして返す（大文字にすると複数の文字になる字は、その 1 文字目）。
     /// 空白だけ・空のときは空文字を返す（表示名は 1〜10 文字の必須なので、通常は起きない）。
     /// - Parameter name: メンバーの表示名
     static func make(from name: String) -> String {
         guard let first = name.trimmingCharacters(in: .whitespacesAndNewlines).first else {
             return ""
         }
-        return String(first).uppercased()
+        // 大文字にすると 2 文字になる字がある（`ß` → `SS`）ので、大文字にした結果の 1 文字目だけを使う
+        guard let initial = String(first).uppercased().first else {
+            return String(first)
+        }
+        return String(initial)
     }
 }
 
