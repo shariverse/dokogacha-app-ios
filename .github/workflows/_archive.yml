@@ -131,6 +131,43 @@ jobs:
             -archivePath "$RUNNER_TEMP/build.xcarchive" \
             CODE_SIGNING_ALLOWED=NO
 
+      - name: Verify Firebase settings in the app
+        # 構成と Firebase の接続先の取り違え（Stg のつもりで prod に繋ぐなど）を、Export・アップロードの前に止める。
+        # Info.plist の DGFirebaseEnvironment・DGFirebaseOptionsFileName が構成どおりか、もう一方の構成の plist が入っていないか、
+        # 書き出した plist がアプリに入ったかを確かめる（plist の中身は読まない・出さない）
+        run: |
+          if [[ "$CONFIGURATION" == "Release" ]]; then
+            expected_environment=prod
+            expected_name=GoogleService-Info-Prod
+            other_name=GoogleService-Info-Dev
+          else
+            expected_environment=dev
+            expected_name=GoogleService-Info-Dev
+            other_name=GoogleService-Info-Prod
+          fi
+          app_path=$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:ApplicationPath' "$RUNNER_TEMP/build.xcarchive/Info.plist")
+          app="$RUNNER_TEMP/build.xcarchive/Products/$app_path"
+          environment=$(plutil -extract DGFirebaseEnvironment raw -o - "$app/Info.plist")
+          options_name=$(plutil -extract DGFirebaseOptionsFileName raw -o - "$app/Info.plist")
+          echo "configuration=$CONFIGURATION DGFirebaseEnvironment=$environment DGFirebaseOptionsFileName=$options_name"
+          if [[ "$environment" != "$expected_environment" || "$options_name" != "$expected_name" ]]; then
+            echo "::error::${CONFIGURATION} のアプリの Firebase の設定が想定と違います（DGFirebaseEnvironment は ${expected_environment}、DGFirebaseOptionsFileName は ${expected_name} のはず）" >&2
+            exit 1
+          fi
+          if [[ -e "$app/$other_name.plist" ]]; then
+            echo "::error::${CONFIGURATION} のアプリに ${other_name}.plist が入っています" >&2
+            exit 1
+          fi
+          if [[ -f "$PROJECT_NAME/Resources/Firebase/$expected_name.plist" ]]; then
+            if [[ ! -f "$app/$expected_name.plist" ]]; then
+              echo "::error::書き出した ${expected_name}.plist がアプリに入っていません" >&2
+              exit 1
+            fi
+            echo "$expected_name.plist がアプリに入っています"
+          else
+            echo "$expected_name.plist は無いので、このアプリは Firebase に接続できません"
+          fi
+
       - name: Create ExportOptions.plist and API private key
         # Secrets はシェル展開ではなく env 経由で渡す
         env:
