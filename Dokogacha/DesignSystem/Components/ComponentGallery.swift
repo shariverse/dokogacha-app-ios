@@ -2,16 +2,18 @@
 //  ComponentGallery.swift
 //  Dokogacha
 //
-//  基本の部品の見本。Xcode Preview と PR のスクリーンショットで `docs/spec/04_design_system.md` の §4 と見比べるためだけに使い、画面からは使わない。
+//  部品の見本。Xcode Preview と PR のスクリーンショットで `docs/spec/04_design_system.md` の §4 と見比べるためだけに使い、画面からは使わない。
 //  Stg・Release のアプリに入れないよう、Debug でだけコンパイルする。
 //
 
 #if DEBUG
 import SwiftUI
 
-/// 基本の部品（Button・StatusChip・Avatar・TabSwitch・SegmentedChoice・Stepper・Toast・PlaceRow）を状態ごとに並べた見本の画面。
+/// 部品を状態ごとに並べた見本の画面。
 ///
-/// 1 画面に収まるように 3 つのページに分け、上の選択肢で切り替える。部品の名前は翻訳の対象ではないので `Text(verbatim:)` で出す。
+/// 基本の部品（Button・StatusChip・Avatar・TabSwitch・SegmentedChoice・Stepper・Toast・PlaceRow）を 3 つのページに、
+/// カードと表示の部品（CandidateCard・ProbabilityMeter・RoomTagCard・DestinationBoard・TicketStub・Stamp・AdFreeNotice）を 2 つのページに分け、
+/// 上の選択肢（基本の部品とカード・表示の 2 段）で切り替える。部品の名前は翻訳の対象ではないので `Text(verbatim:)` で出す。
 struct ComponentGallery: View {
     /// 見本のページ
     enum Page: Hashable, CaseIterable {
@@ -21,6 +23,10 @@ struct ComponentGallery: View {
         case choices
         /// PlaceRow・CategoryTile・Toast
         case rows
+        /// CandidateCard・ProbabilityMeter・LikeButton・LikeRow（`CardComponentsPage`）
+        case cards
+        /// RoomTagCard・DestinationBoard・TicketStub・Stamp・AdFreeNotice（`DisplayComponentsPage`）
+        case displays
     }
 
     /// 選んでいるページ
@@ -54,10 +60,19 @@ struct ComponentGallery: View {
                         DGChoiceOption("行・トースト", value: .rows)
                     ]
                 )
+                DGSegmentedChoice(
+                    selection: $page,
+                    options: [
+                        DGChoiceOption("カード", value: .cards),
+                        DGChoiceOption("表示", value: .displays)
+                    ]
+                )
                 switch page {
                 case .buttons: buttonsPage
                 case .choices: choicesPage
                 case .rows: rowsPage
+                case .cards: CardComponentsPage()
+                case .displays: DisplayComponentsPage()
                 }
             }
             .padding(.horizontal, DGSpacing.screenX)
