@@ -108,7 +108,7 @@ struct DGPlaceRow: View {
                 .padding(.vertical, (DGMetrics.minTapTarget - Self.actionHeight) / 2)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.dgBare)
         .disabled(!isActionEnabled)
         .fixedSize()
     }

@@ -47,7 +47,7 @@ struct DGSegmentedChoice<Value: Hashable>: View {
                 .overlay(shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular))
                 .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.dgBare)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

@@ -203,6 +203,27 @@ private struct OptionalHardShadow: ViewModifier {
     }
 }
 
+/// 見た目を部品の側で描くボタンのスタイル（TabSwitch・SegmentedChoice・Stepper・PlaceRow のボタン）。
+///
+/// `.plain` は無効のときにシステムが全体を薄くし、04 の無効の色（`surface.disabled`・`text.disabled`）や墨色の縁が変わってしまうので使わない。
+/// 押している間だけ少し薄くして、押したことを示す。
+struct DGBareButtonStyle: ButtonStyle {
+    /// 押している間の不透明度
+    private static let pressedOpacity: Double = 0.7
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? Self.pressedOpacity : 1)
+    }
+}
+
+extension ButtonStyle where Self == DGBareButtonStyle {
+    /// 見た目を部品の側で描くボタンのスタイル（`DGBareButtonStyle`）
+    static var dgBare: DGBareButtonStyle {
+        DGBareButtonStyle()
+    }
+}
+
 /// 文言と、必要ならアイコンを並べたボタン（`DGButtonStyle` を付けたもの）。
 ///
 /// アイコンは文言の飾りなので VoiceOver では読まない（ボタンの名前は文言になる）。

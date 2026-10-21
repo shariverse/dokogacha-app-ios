@@ -79,7 +79,7 @@ struct DGStepper: View {
                 .overlay(shape.strokeBorder(isEnabled ? Color.dgInk : Color.dgSurfaceDisabled, lineWidth: DGBorder.regular))
                 .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.dgBare)
         .disabled(!isEnabled)
         .accessibilityLabel(Text(label))
     }

@@ -57,7 +57,7 @@ struct DGTabSwitch<Value: Hashable>: View {
                 .padding(.horizontal, Self.inset / 2)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.dgBare)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
