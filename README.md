@@ -104,6 +104,25 @@ Archive / Upload ワークフローは App Store Connect API Key で認証しま
 | `APPLE_API_ISSUER_ID` | API Key の Issuer ID |
 
 API Key は App Store Connect の「ユーザとアクセス → 統合 → App Store Connect API」で、App Manager 以上の権限で発行します。
+
+#### Firebase の設定ファイル（GoogleService-Info.plist）
+
+`GoogleService-Info.plist` は public リポジトリにコミットせず、Secrets に base64 で登録します。Archive / Upload ワークフローが、Archive する構成の分だけを `Dokogacha/Resources/Firebase/` に書き出します。
+
+| Secret | 内容 | 使う構成 |
+|---|---|---|
+| `GOOGLE_SERVICE_INFO_PLIST_DEV` | Firebase の dev プロジェクトの `GoogleService-Info.plist` を base64 にした文字列。`GoogleService-Info-Dev.plist` として書き出します | Stg（`develop` の Upload。TestFlight） |
+| `GOOGLE_SERVICE_INFO_PLIST_PROD` | Firebase の prod プロジェクトの `GoogleService-Info.plist` を base64 にした文字列。`GoogleService-Info-Prod.plist` として書き出します | Release（`release/**` の Upload と `main` の Archive。App Store） |
+
+```bash
+# Firebase のコンソールの「プロジェクトの設定 → マイアプリ」から落とした plist を base64 にしてクリップボードに入れ、Secret の値に貼る
+base64 -i GoogleService-Info.plist | pbcopy
+```
+
+- Secret が無いときは書き出さずに Archive します（警告を出して続ける）。そのアプリは Firebase に接続できない状態で起動します。Debug（Build のテスト）は Emulator に繋ぐので plist を使いません
+- ただし `release/**` の Upload（App Store 用の Release）は、`GOOGLE_SERVICE_INFO_PLIST_PROD` が無いと止まります。サーバーに繋がらないアプリを App Store Connect に上げないためです
+- Archive の後に、アプリの `Info.plist` の `DGFirebaseEnvironment`（Stg は `dev`・Release は `prod`）と、入っている plist が構成どおりかを確かめます
+- 値が base64 の plist として読めないときは、Archive の前に止まります。Fork からの Pull Request では Secrets が渡らないので、Build は plist なしで通ります
 ### 5. App Store Connect にアプリを作成する
 
 Bundle ID・証明書・プロビジョニングプロファイルは、Export のときに API Key で自動的に作成されます（`-allowProvisioningUpdates`）。
@@ -137,6 +156,7 @@ Upload ワークフローは、アップロードの前に TestFlight の内部�
 | Fork からの Pull Request | ✅ | | |
 
 - Upload は Archive → IPA Export を含むため、`develop` / `release/**` では Archive を別途実行しません
+- Upload は `develop`（と手動実行した作業ブランチ）を Stg 構成（Firebase は dev）、`release/**` と `main` を Release 構成（Firebase は prod）で Archive します。Archive（`main`）は Release 構成です
 - Archive / Upload は Actions タブから手動でも実行できます（Run workflow）。作業ブランチを TestFlight で確認したいときは、Upload を手動実行してそのブランチを選びます
 - リポジトリ変数（Settings → Secrets and variables → Actions → Variables）に `ENABLE_DELIVERY=false` を設定すると Upload をスキップします（Archive は App Store Connect にアプリが無くても通るため止めません）。テンプレートリポジトリ自身はこの設定でアップロードを止めています。テンプレートから作成したリポジトリには引き継がれないため、何もしなければ従来どおり実行されます
 - ドキュメントだけの変更（`**/*.md`、`docs/**`）では Build を実行しません。Upload（`develop` / `release/**` への push）と Archive（`main` への push）は、ドキュメントだけの変更でも実行します
