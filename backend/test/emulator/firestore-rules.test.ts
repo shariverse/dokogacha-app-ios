@@ -142,6 +142,20 @@ describe("firestore.rules", () => {
       await assertFails(updateDoc(doc(as("alice"), "users/alice"), { fcmTokens: "token" }));
     });
 
+    it("通知トークンは 10 個まで・要素は空でない 4096 文字以下の文字列だけ", async () => {
+      const alice = doc(as("alice"), "users/alice");
+      const tokens = Array.from({ length: 10 }, (_, index) => `token${String(index)}`);
+      await assertSucceeds(updateDoc(alice, { fcmTokens: [] }));
+      await assertSucceeds(updateDoc(alice, { fcmTokens: tokens }));
+      await assertSucceeds(updateDoc(alice, { fcmTokens: ["t".repeat(4096)] }));
+      await assertFails(updateDoc(alice, { fcmTokens: [...tokens, "token10"] }));
+      for (const invalid of [1, null, "", "t".repeat(4097), { token: "x" }]) {
+        await assertFails(updateDoc(alice, { fcmTokens: ["token", invalid] }));
+      }
+      // 10 番目（最後の番号）の要素も確かめる
+      await assertFails(updateDoc(alice, { fcmTokens: [...tokens.slice(0, 9), 1] }));
+    });
+
     it("購入済み・色・表示名は直接変えられない", async () => {
       await assertFails(updateDoc(doc(as("alice"), "users/alice"), { adFree: true }));
       await assertFails(updateDoc(doc(as("alice"), "users/alice"), { avatarColor: "#000000" }));

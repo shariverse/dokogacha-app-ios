@@ -25,13 +25,37 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
 
+    // 1 人が持てる通知トークンの数の上限。トークンは端末（入れ直し）ごとに 1 つ増え、無効になったものは送るときに消す。
+    // 1 人が同時に使う iPhone は数台なので、消し損ねた古いトークンが残っても 10 で足りる。
+    // 上限が無いと、1 人が巨大な一覧を書いて、通知を送るたびの読み取りと送信の数を増やせる
+    function maxFcmTokens() {
+      return 10;
+    }
+
+    // 通知トークンの一覧の i 番目が、無いか、空でない 4096 文字以下の文字列か
+    // （ルールには一覧を繰り返す式が無いので、上限の数だけ番号で確かめる。FCM のトークンは 200 文字ほど）
+    function validFcmTokenAt(tokens, i) {
+      return tokens.size() <= i
+        || (tokens[i] is string && tokens[i].size() > 0 && tokens[i].size() <= 4096);
+    }
+
+    // 通知トークンの一覧として正しいか（一覧・数の上限・要素がすべて文字列）
+    function validFcmTokens(tokens) {
+      return tokens is list
+        && tokens.size() <= maxFcmTokens()
+        && validFcmTokenAt(tokens, 0) && validFcmTokenAt(tokens, 1) && validFcmTokenAt(tokens, 2)
+        && validFcmTokenAt(tokens, 3) && validFcmTokenAt(tokens, 4) && validFcmTokenAt(tokens, 5)
+        && validFcmTokenAt(tokens, 6) && validFcmTokenAt(tokens, 7) && validFcmTokenAt(tokens, 8)
+        && validFcmTokenAt(tokens, 9);
+    }
+
     // users/{uid}: 本人だけが読める。作成・表示名の変更は Callable の saveProfile（色・adFree をサーバーで決める）。
     // 直接変えられるのは通知トークン（fcmTokens）だけ。adFree は verifyPurchase だけが書く
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow update: if signedIn() && request.auth.uid == uid
         && changesOnly(['fcmTokens'])
-        && request.resource.data.fcmTokens is list;
+        && validFcmTokens(request.resource.data.fcmTokens);
     }
 
     // rooms/{roomId}: メンバーだけが読める（ホームの memberIds array-contains の一覧も、この条件で許可される）。
