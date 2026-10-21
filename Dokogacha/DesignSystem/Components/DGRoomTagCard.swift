@@ -39,6 +39,8 @@ struct DGRoomTagCard: View {
     private static let overflowTextSize: CGFloat = 12
     /// 「+N」が円に収まらないときに縮める下限（`DGAvatar` と同じ）
     private static let overflowMinimumScale: CGFloat = 0.5
+    /// 「+N」の文字を大きくする上限
+    private static let overflowMaxTypeSize = DynamicTypeSize.xxxLarge
 
     /// ルームの状態（ホームに出るのは「候補募集中」「ガチャ解禁！」）
     let status: DGStatusChip.Status
@@ -115,6 +117,8 @@ struct DGRoomTagCard: View {
                     .font(.dgBody(Self.overflowTextSize, weight: .black, relativeTo: .caption))
                     .lineLimit(1)
                     .minimumScaleFactor(Self.overflowMinimumScale)
+                    // 円の大きさは変えないので、2〜3 文字の「+N」が円に収まる大きさで止める
+                    .dynamicTypeSize(...Self.overflowMaxTypeSize)
                     .foregroundStyle(Color.dgInk)
                     .padding(DGSpacing.s4)
                     .frame(width: DGAvatar.Size.medium.diameter, height: DGAvatar.Size.medium.diameter)
