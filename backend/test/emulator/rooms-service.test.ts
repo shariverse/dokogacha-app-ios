@@ -228,7 +228,10 @@ describe("ルームの Functions の処理（Emulator の Firestore）", () => {
         joinRoom(deps(), "late2", { inviteCode }),
       ]);
       expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-      expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+      const rejected = results.filter((result) => result.status === "rejected");
+      expect(rejected).toHaveLength(1);
+      // 溢れた側は、競合の再試行で 20 人を読み直して「満員」で落ちる（ほかのエラーで落ちていない）
+      expect(rejected[0]?.reason).toMatchObject({ code: "resource-exhausted", details: { reason: "room-full" } });
       const room = await roomData(roomId);
       expect(room.memberCount).toBe(MAX_MEMBERS);
       expect((await db.collection(`rooms/${roomId}/members`).get()).size).toBe(MAX_MEMBERS);
