@@ -1,4 +1,5 @@
 import {
+  MAX_SURROUNDING_WHITESPACE_UTF16_UNITS,
   MAX_UTF16_UNITS_PER_CHARACTER,
   requireDocumentId,
   requireIntegerInRange,
@@ -53,7 +54,7 @@ describe("requireTrimmedText", () => {
   });
 
   it("見えない文字と空白だけの名前は空とみなして受け付けない", () => {
-    for (const value of ["\u{200B}", " \u{200B}\u{200D} ", "\u{2060}\u{FEFF}", "\u{3164}"]) {
+    for (const value of ["\u{200B}", " \u{200B}\u{200D} ", "\u{2060}\u{FEFF}", "\u{3164}", "\u{200B} \u{200B}", "\u{FE0F}"]) {
       expectInvalid(() => requireTrimmedText(value, range));
     }
     // 見える文字があれば、見えない文字を含んでいても受け付ける（取り除かない）
@@ -69,6 +70,16 @@ describe("requireTrimmedText", () => {
     expectInvalid(() => requireTrimmedText(`${atLimit}\u{0301}`, range));
     // 前後の空白は取り除いてから数える
     expect(requireTrimmedText(`  ${atLimit}  `, range)).toBe(atLimit);
+  });
+
+  it("前後の空白を取り除く前の長さが、上限 + 前後の空白のぶんを超えたら、取り除かずに受け付けない", () => {
+    const looseLimit = range.max * MAX_UTF16_UNITS_PER_CHARACTER + MAX_SURROUNDING_WHITESPACE_UTF16_UNITS;
+    expect(looseLimit).toBe(416);
+    // 取り除けば「ゆい」になる文字列でも、取り除く前が緩い上限を超えたら断る
+    const atLooseLimit = `ゆい${" ".repeat(looseLimit - 2)}`;
+    expect(requireTrimmedText(atLooseLimit, range)).toBe("ゆい");
+    expectInvalid(() => requireTrimmedText(`${atLooseLimit} `, range));
+    expectInvalid(() => requireTrimmedText(`ゆい${" ".repeat(1_000_000)}`, range));
   });
 
   it("最も長い絵文字でも上限の文字数まで入れられる", () => {

@@ -31,6 +31,19 @@ export const MAX_CANDIDATES = MAX_MEMBERS * POST_LIMIT_RANGE.max;
 export const NOTE_MAX_LENGTH = 40;
 /** 同じ場所とみなす距離（02 の §3.1「場所名が同じで座標が100m以内」。メートル） */
 export const DUPLICATE_DISTANCE_METERS = 100;
+/**
+ * 場所名の文字数（02 に無い。MapKit の検索結果の名前が収まる長さとして決めた）。
+ * 場所名は MapKit から取るので、空にはならない
+ */
+export const PLACE_NAME_LENGTH = { min: 1, max: 100 } as const;
+/** エリアの表示の文字数（02 に無い。「東京・豊島区」の形。MapKit から取れないときは空） */
+export const PLACE_AREA_LENGTH = { min: 0, max: 50 } as const;
+/** ひとことの文字数（02 の §3.1「最大40文字」。任意なので 0 文字も可） */
+export const NOTE_LENGTH = { min: 0, max: NOTE_MAX_LENGTH } as const;
+/** 参考 URL の最大の長さ（UTF-16 のコード単位。02 に無い。ブラウザが扱える長さの目安） */
+export const CANDIDATE_URL_MAX_LENGTH = 2048;
+/** MapKit の識別子（`MKMapItem.identifier`）の最大の長さ（UTF-16 のコード単位。02 に無い） */
+export const MAP_ITEM_ID_MAX_LENGTH = 256;
 /** 締切日時に選べる最も早い時刻の、今からのミリ秒（02 の §2.2「現在から1時間後」） */
 export const DEADLINE_EARLIEST_FROM_NOW_MS = HOUR_MS;
 /** 締切日時に選べる最も遅い時刻の、今からのミリ秒（02 の §2.2「30日後」） */

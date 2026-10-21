@@ -151,7 +151,7 @@ extension AppError {
         case inviteCodeNotFound = "invite-code-not-found"
         /// メンバーが上限に達している（F-04 の AC）
         case roomFull = "room-full"
-        /// ルームが `drawn`・`closed` で参加できない（F-04 の AC）
+        /// ルームが `drawn`・`closed` で参加できない（F-04 の AC）。候補の追加・削除を `drawn`・`closed` でしたときも
         case roomAlreadyDecided = "room-already-decided"
         /// ルームが存在しない
         case roomNotFound = "room-not-found"
@@ -165,6 +165,14 @@ extension AppError {
         case cannotRemoveOwner = "cannot-remove-owner"
         /// 削除しようとした人が、もうメンバーにいない
         case memberNotFound = "member-not-found"
+        /// 自分の投稿数がルームの上限に達している（F-10）
+        case postLimitReached = "post-limit-reached"
+        /// ルームの候補が上限（200 件）に達している
+        case roomCandidatesFull = "room-candidates-full"
+        /// 候補が存在しない（ほかの人がすでに削除した）
+        case candidateNotFound = "candidate-not-found"
+        /// 投稿した人と作成者以外が候補を削除しようとした（F-11）
+        case notCandidateOwner = "not-candidate-owner"
         /// 招待コードを決められなかった（もう一度で通る見込みが高い）
         case inviteCodeUnavailable = "invite-code-unavailable"
         /// 想定していないエラー
@@ -221,6 +229,14 @@ extension AppError {
                 String(localized: "作成者は削除できません")
             case .memberNotFound:
                 String(localized: "このメンバーはもうルームにいません")
+            case .postLimitReached:
+                String(localized: "投稿できる数の上限に達しています")
+            case .roomCandidatesFull:
+                String(localized: "このルームの候補は上限に達しています（最大\(DomainConstants.Limits.maxCandidates)件）")
+            case .candidateNotFound:
+                String(localized: "候補が見つかりません")
+            case .notCandidateOwner:
+                String(localized: "投稿した人と作成者だけが削除できます")
             case .permissionDenied:
                 String(localized: "この操作はできません")
             case .unauthenticated, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,

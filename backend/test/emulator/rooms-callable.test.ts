@@ -1,5 +1,5 @@
 /**
- * ルームの Callable を、Emulator の Functions に client SDK（httpsCallable）で呼んで確かめる。
+ * ルームと候補の Callable を、Emulator の Functions に client SDK（httpsCallable）で呼んで確かめる。
  * Auth の Emulator で匿名ログインし、アプリと同じ経路（リージョン asia-northeast1・認証・エラーの details）を通す。
  * 処理の細かいケースは rooms-service.test.ts（Firestore に直接）で確かめ、ここでは繋がり方を確かめる。
  */
@@ -27,7 +27,7 @@ interface CallableError {
   details?: unknown;
 }
 
-describe("ルームの Callable（Emulator の Functions）", () => {
+describe("ルームと候補の Callable（Emulator の Functions）", () => {
   let functionsHost: { host: string; port: number };
   const apps: FirebaseApp[] = [];
   let admin: App;
@@ -136,6 +136,49 @@ describe("ルームの Callable（Emulator の Functions）", () => {
       "invite-code-not-found",
     );
     expect(error.message.startsWith("招待コードが見つかりません")).toBe(true);
+  });
+
+  it("候補の追加（同じ場所は duplicateOf）・削除が通る。アプリの AddCandidateRequest の JSON の形を受け付ける", async () => {
+    const erin = await client("erin");
+    const frank = await client("frank");
+    await call(erin.functions, "saveProfile", { displayName: "えりん" });
+    await call(frank.functions, "saveProfile", { displayName: "ふらんく" });
+    const { roomId, inviteCode } = await call<{ roomId: string; inviteCode: string }>(erin.functions, "createRoom", {
+      name: "週末",
+      postLimit: 1,
+      unlockRule: "all",
+      likeMode: "boost",
+    });
+    await call(frank.functions, "joinRoom", { inviteCode });
+
+    // Swift の JSONEncoder は nil の値（mapItemId・url・fromPastIdeaId）を鍵ごと送らない
+    const request = {
+      roomId,
+      place: { name: "江の島", area: "神奈川・藤沢市", latitude: 35.3, longitude: 139.48 },
+      category: "sea",
+      note: "",
+    };
+    const added = await call<{ candidateId?: string; duplicateOf?: string }>(frank.functions, "addCandidate", request);
+    expect(Object.keys(added)).toEqual(["candidateId"]);
+    const duplicate = await call<{ candidateId?: string; duplicateOf?: string }>(erin.functions, "addCandidate", request);
+    expect(duplicate).toEqual({ duplicateOf: added.candidateId });
+
+    const limit = await expectReason(
+      call(frank.functions, "addCandidate", { ...request, place: { ...request.place, name: "鎌倉" } }),
+      "resource-exhausted",
+      "post-limit-reached",
+    );
+    expect(limit.message.startsWith("投稿できる数の上限に達しています")).toBe(true);
+
+    await expect(
+      call(erin.functions, "deleteCandidate", { roomId, candidateId: added.candidateId }),
+    ).resolves.toEqual({});
+    await expectReason(
+      call(frank.functions, "deleteCandidate", { roomId, candidateId: added.candidateId }),
+      "not-found",
+      "candidate-not-found",
+    );
+    expect((await db.doc(`rooms/${roomId}`).get()).get("candidateCount")).toBe(0);
   });
 
   it("入力が正しくなければ invalid-argument", async () => {

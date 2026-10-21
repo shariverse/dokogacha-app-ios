@@ -44,6 +44,16 @@ extension InMemoryServer {
             try server.removeMember(request, by: userID)
         }
 
+        /// 候補を追加する（`addCandidate`）
+        func addCandidate(_ request: AddCandidateRequest) async throws -> AddCandidateResult {
+            try server.addCandidate(request, by: userID)
+        }
+
+        /// 候補を削除する（`deleteCandidate`）
+        func deleteCandidate(_ request: CandidateRequest) async throws {
+            try server.deleteCandidate(request, by: userID)
+        }
+
         /// 自分の準備OKを変える（直接の書き込み）
         func setReady(_ ready: Bool, roomID: String) async {
             server.applyDirectWrite { try server.writeReady(ready, roomID: roomID, userID: userID, by: userID) }

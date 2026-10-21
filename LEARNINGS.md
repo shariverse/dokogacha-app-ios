@@ -17,6 +17,7 @@
 
 - テストのターゲットも既定の分離が MainActor なので、`@Test(arguments: Self.xxx)` に渡す static の一覧は `nonisolated static let` にする（そのままだと `main actor-isolated static property ... cannot be accessed from outside of the actor` でビルドが落ちる。マクロが展開したファイルのエラーとして出る）（2026-10-22）
 - Unit テスト（Simulator）からは、`URL(fileURLWithPath: #filePath)` を起点にリポジトリのファイル（例: `docs/spec/design/tokens.json`）をそのまま読める。資料の正本をテストのバンドルに複製せずに突き合わせられる（`DesignTokensTests`）。実機でテストを流すとホストのパスは読めない（2026-10-22）
+- Swift と TypeScript で同じ判定を持つとき、Swift の `String` の `==` は正準等価（`"が" == "か\u{3099}"` が true）、`hasPrefix` は書記素の単位（`"https://\u{0301}a".hasPrefix("https://")` が false）で比べるので、TypeScript の `===`・`startsWith`（UTF-16 のコード単位）と結果が変わる。そろえるときは `utf16.elementsEqual`・`unicodeScalars` で比べる（`CandidateRules`）（2026-10-22）
 - `Color.resolve(in: EnvironmentValues()).red` などは sRGB のガンマ補正済みの値（`linearRed` が線形）。`× 255` して丸めると `Color(.sRGB, red:…)` で作った `#RRGGBB` と一致する（2026-10-22）
 
 ## backend（Firebase）
