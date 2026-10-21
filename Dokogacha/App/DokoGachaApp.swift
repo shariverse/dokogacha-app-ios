@@ -26,6 +26,10 @@ struct DokoGachaApp: App {
             RootView(session: appDelegate.serverSession)
         case .onboarding:
             ScreenshotDemo.OnboardingScene(auth: appDelegate.serverSession.services.auth)
+        case .createRoom:
+            ScreenshotDemo.CreateRoomScene(functions: appDelegate.serverSession.services.functions)
+        case .invite:
+            ScreenshotDemo.InviteScene()
         }
     }
 }

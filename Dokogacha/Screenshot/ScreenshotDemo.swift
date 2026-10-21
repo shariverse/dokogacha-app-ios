@@ -19,6 +19,8 @@ enum ScreenshotDemo {
     enum Scene: String {
         case home
         case onboarding
+        case createRoom
+        case invite
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
@@ -67,5 +69,70 @@ extension ScreenshotDemo {
             OnboardingView(model: model)
                 .dgToast(toasts)
         }
+    }
+}
+
+extension ScreenshotDemo {
+    /// S-03 ルーム作成を擬似のサーバーで開く（ホームから進まずに、S-03 だけを `NavigationStack` に入れて出す）。
+    ///
+    /// 起動引数 `-screenshot-room-name <名前>` でルーム名を入れ、`-screenshot-unlock-rule <UnlockRule の rawValue>` で
+    /// 解禁の条件を選んだ状態で開く（締切日時のピッカーを出した状態を撮るため）
+    struct CreateRoomScene: View {
+        /// ルーム名の起動引数
+        static let roomNameArgument = "-screenshot-room-name"
+        /// 解禁の条件の起動引数
+        static let unlockRuleArgument = "-screenshot-unlock-rule"
+
+        @State private var toasts: DGToastCenter
+        private let model: CreateRoomModel
+
+        /// - Parameter functions: `createRoom` を呼ぶ窓口（撮影モードでは擬似のサーバー）
+        init(functions: any FunctionsClient) {
+            let toasts = DGToastCenter()
+            let model = CreateRoomModel(functions: functions, toasts: toasts)
+            if let name = ScreenshotDemo.value(after: Self.roomNameArgument) {
+                model.name = name
+            }
+            if let rule = ScreenshotDemo.value(after: Self.unlockRuleArgument).flatMap(UnlockRule.init(rawValue:)) {
+                model.unlockRule = rule
+            }
+            self.model = model
+            _toasts = State(initialValue: toasts)
+        }
+
+        var body: some View {
+            NavigationStack {
+                CreateRoomView(model: model) { _ in }
+            }
+            .dgToast(toasts)
+        }
+    }
+
+    /// S-04 招待を、デモのルーム（「年末の旅行」・招待コード `DK7-29Q`）で開く
+    struct InviteScene: View {
+        @State private var toasts = DGToastCenter()
+
+        var body: some View {
+            NavigationStack {
+                if let code = InviteCode(DemoScenario.inviteCode) {
+                    InviteView(
+                        model: InviteModel(
+                            destination: InviteDestination(roomID: DemoScenario.roomID, roomName: "年末の旅行", inviteCode: code),
+                            toasts: toasts
+                        )
+                    ) {}
+                }
+            }
+            .dgToast(toasts)
+        }
+    }
+
+    /// 起動引数で `name` の次に渡された値（無ければ nil）
+    static func value(after name: String) -> String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1) else {
+            return nil
+        }
+        return arguments[index + 1]
     }
 }
