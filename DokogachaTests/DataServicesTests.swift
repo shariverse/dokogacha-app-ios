@@ -51,6 +51,35 @@ struct DataServicesTests {
         #expect(DemoScenario.from(arguments: arguments) == expected)
     }
 
+    /// 撮影モードでシナリオを指定しなければ、ルームが並んだ `several-rooms` で撮る（指定すればそれに従う）
+    @Test
+    func screenshotDemoFallsBackToSeveralRooms() {
+        let screenshot = LaunchContext(arguments: ["-screenshot-demo", "-screenshot-scene", "home"], environment: [:])
+        #expect(screenshot.demoScenario == .severalRooms)
+        let chosen = LaunchContext(arguments: ["-screenshot-demo", "-demo-scenario", "empty"], environment: [:])
+        #expect(chosen.demoScenario == .empty)
+        let uiTesting = LaunchContext(arguments: ["-uiTesting"], environment: [:])
+        #expect(uiTesting.demoScenario == .empty)
+    }
+
+    /// `several-rooms`: 自分が入っている進行中のルームが 3 つ（状態が 2 種類・ほかの人が作ったものを含む）
+    @Test
+    func severalRoomsScenarioHasThreeActiveRooms() {
+        let server = InMemoryServer.demo(.severalRooms)
+        let rooms = server.rooms.values.map(\.room)
+        #expect(rooms.count == 3)
+        #expect(rooms.allSatisfy { $0.memberIds.contains(DemoScenario.myUserID) })
+        #expect(Set(rooms.map(\.status)) == [.open, .unlocked])
+        #expect(rooms.contains { $0.ownerId != DemoScenario.myUserID })
+        for record in server.rooms.values {
+            // 数のフィールドは、メンバーと候補の中身とそろえる（Functions が更新するものと同じ）
+            #expect(record.room.memberCount == record.members.count)
+            #expect(record.room.readyCount == record.members.values.filter(\.ready).count)
+            #expect(record.room.candidateCount == record.candidates.count)
+            #expect(server.inviteCodes[record.room.inviteCode] != nil)
+        }
+    }
+
     @Test
     func scenariosHaveExpectedData() {
         let firstLaunch = InMemoryServer.demo(.firstLaunch)
