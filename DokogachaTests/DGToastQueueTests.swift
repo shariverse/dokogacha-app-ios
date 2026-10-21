@@ -9,7 +9,7 @@ import Testing
 
 /// トーストの表示の順番（`DGToastQueue`）と、窓口（`DGToastCenter`）の出し入れを確かめる。
 ///
-/// 時間で消える動きは待たずに確かめられないので、窓口のテストは出しておく時間を長くして `dismiss()` で進める。
+/// 時間で消える動きは `DGToastCenterTests` で、待ちを差し替えて確かめる。
 struct DGToastQueueTests {
     /// テスト用のトースト（ID を固定して、同じ文言でも区別できるようにする）
     static func message(_ text: String, id: Int) -> DGToastMessage {

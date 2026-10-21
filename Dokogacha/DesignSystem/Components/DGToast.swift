@@ -104,19 +104,30 @@ nonisolated struct DGToastQueue: Equatable, Sendable {
 final class DGToastCenter {
     /// 表示の順番
     private(set) var queue = DGToastQueue()
+    /// 1 件を出しておく時間を待つ処理の型（テストでは、待ちを手で終わらせられるものに差し替える）
+    typealias Sleep = @Sendable (Duration) async throws -> Void
+
     /// 1 件を出しておく時間
     @ObservationIgnored private let visibleFor: Duration
-    /// いま出しているトーストを消すまでの待ち
-    @ObservationIgnored private var dismissTask: Task<Void, Never>?
+    /// 出しておく時間を待つ処理
+    @ObservationIgnored private let sleep: Sleep
+    /// いま出しているトーストを消すまでの待ち（テストで終わりを待てるように読み取りだけ公開する）
+    @ObservationIgnored private(set) var dismissTask: Task<Void, Never>?
 
     /// いま出しているトースト
     var current: DGToastMessage? {
         queue.current
     }
 
-    /// - Parameter visibleFor: 1 件を出しておく時間（既定はトークンの 2.2 秒）
-    init(visibleFor: Duration = .seconds(DGMotion.toastVisibleFor)) {
+    /// - Parameters:
+    ///   - visibleFor: 1 件を出しておく時間（既定はトークンの 2.2 秒）
+    ///   - sleep: 出しておく時間を待つ処理（既定は `Task.sleep(for:)`。テストで固定時間を待たずに進めるために差し替える）
+    init(
+        visibleFor: Duration = .seconds(DGMotion.toastVisibleFor),
+        sleep: @escaping Sleep = { try await Task.sleep(for: $0) }
+    ) {
         self.visibleFor = visibleFor
+        self.sleep = sleep
     }
 
     /// トーストを出す（出しているものがあれば、その後に出す）。
@@ -150,8 +161,9 @@ final class DGToastCenter {
         AccessibilityNotification.Announcement(current.text).post()
         dismissTask?.cancel()
         let visibleFor = visibleFor
+        let sleep = sleep
         dismissTask = Task { [weak self] in
-            try? await Task.sleep(for: visibleFor)
+            try? await sleep(visibleFor)
             guard !Task.isCancelled else {
                 return
             }
