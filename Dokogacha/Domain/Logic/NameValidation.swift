@@ -15,6 +15,7 @@ import Foundation
 /// 送ってから「入力内容を確認してください」になるのを防ぐ。擬似のサーバーもこの判定を使う。
 ///
 /// 規則（backend の `requireTrimmedText` の順）:
+/// 0. 取り除く前の UTF-16 のコード単位の数が「書記素の上限 × `maxUTF16UnitsPerCharacter` + `maxSurroundingWhitespaceUTF16Units`」を超えたら拒否する
 /// 1. 前後の空白（`whitespaces`）を取り除く。間の空白は残す
 /// 2. UTF-16 のコード単位の数が「書記素の上限 × `maxUTF16UnitsPerCharacter`」を超えたら拒否する
 /// 3. 制御文字（`\p{Cc}`。改行・タブ・U+0085 を含む）・行区切り（U+2028）・段落区切り（U+2029）を含めば拒否する
@@ -28,6 +29,12 @@ nonisolated enum NameValidation {
     /// 表示名（10 文字）は 160 単位、ルーム名（20 文字）は 320 単位まで
     static let maxUTF16UnitsPerCharacter = 16
 
+    /// 前後の空白を取り除く前の文字列に、本文の上限より多く許す UTF-16 のコード単位の数（backend の `MAX_SURROUNDING_WHITESPACE_UTF16_UNITS`）。
+    ///
+    /// 空白を取り除くにはスカラー値に分けるので、上限が無いと巨大な文字列をまるごと分けてから断ることになる。取り除く前にこの緩い上限で先に断る。
+    /// 入力欄の前後に打った空白（数個〜数十個）は十分に収まる値
+    static let maxSurroundingWhitespaceUTF16Units = 256
+
     /// 空白とみなす文字（backend の `WHITESPACE_CODE_POINTS`）。
     ///
     /// Unicode の White_Space と JavaScript の `\s` の和で、招待コードの入力で取り除く空白と同じ一覧
@@ -39,6 +46,10 @@ nonisolated enum NameValidation {
     ///   - text: 入力された名前
     ///   - length: 文字数（書記素クラスタ）の範囲（両端を含む）
     static func validated(_ text: String, length: ClosedRange<Int>) -> String? {
+        // 空白を取り除く（スカラー値に分ける）前に、緩い上限で巨大な文字列を断る
+        guard text.utf16.count <= length.upperBound * maxUTF16UnitsPerCharacter + maxSurroundingWhitespaceUTF16Units else {
+            return nil
+        }
         let trimmed = trimWhitespace(text)
         // 書記素に分ける前に長さを見て、巨大な文字列を分けずに断る
         guard trimmed.utf16.count <= length.upperBound * maxUTF16UnitsPerCharacter,

@@ -18,6 +18,15 @@ export const MAX_ID_LENGTH = 128;
 export const MAX_UTF16_UNITS_PER_CHARACTER = 16;
 
 /**
+ * 前後の空白を取り除く前の文字列に、本文の上限（`length.max × MAX_UTF16_UNITS_PER_CHARACTER`）より多く許す
+ * UTF-16 のコード単位の数（前後の空白のぶん）。
+ * 空白を取り除くにはコードポイントに分ける（`trimWhitespace`）ので、上限が無いと巨大な文字列をまるごと分けてから断ることになる。
+ * 取り除く前にこの緩い上限で先に断る。入力欄の前後に打った空白（数個〜数十個）は十分に収まる値にしてある。
+ * Swift 側は `NameValidation.maxSurroundingWhitespaceUTF16Units`。
+ */
+export const MAX_SURROUNDING_WHITESPACE_UTF16_UNITS = 256;
+
+/**
  * 入力がオブジェクト（配列・null でない）か確かめる。
  * @param data `request.data`
  * @returns キーで値を引けるオブジェクト
@@ -54,7 +63,8 @@ export function requireDocumentId(value: unknown): string {
 
 /**
  * 前後の空白を取り除いた文字数（書記素クラスタ）が範囲に入る文字列か確かめる。
- * 取り除いた後の UTF-16 のコード単位の数も `length.max × MAX_UTF16_UNITS_PER_CHARACTER` 以下であること。
+ * 取り除いた後の UTF-16 のコード単位の数も `length.max × MAX_UTF16_UNITS_PER_CHARACTER` 以下であること
+ * （取り除く前の数は、それに `MAX_SURROUNDING_WHITESPACE_UTF16_UNITS` を足した数以下であること）。
  * 名前（表示名・ルーム名）に使うので、次も拒否する（取り除かずに入力エラーにする）。
  * - 途中に制御文字（改行・タブを含む `\p{Cc}`）・行区切り・段落区切りを含む
  * - 見えない文字（`\p{Cf}`・`\p{Default_Ignorable_Code_Point}`）と空白だけでできている（空とみなす）
@@ -65,6 +75,10 @@ export function requireDocumentId(value: unknown): string {
  */
 export function requireTrimmedText(value: unknown, length: { min: number; max: number }): string {
   if (typeof value !== "string") {
+    throw appError("invalid-argument");
+  }
+  // 空白を取り除く（コードポイントに分ける）前に、緩い上限で巨大な文字列を断る
+  if (value.length > length.max * MAX_UTF16_UNITS_PER_CHARACTER + MAX_SURROUNDING_WHITESPACE_UTF16_UNITS) {
     throw appError("invalid-argument");
   }
   const trimmed = trimWhitespace(value);

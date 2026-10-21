@@ -131,6 +131,19 @@ struct NameValidationTests {
         #expect(NameValidation.validated("  \(atLimit)  ", length: Self.range) == atLimit)
     }
 
+    /// 前後の空白を取り除く前の長さが「上限 + 前後の空白のぶん」を超えたら、取り除かずに受け付けない
+    @Test
+    func rejectsTooLongTextBeforeTrimming() {
+        let looseLimit = Self.range.upperBound * NameValidation.maxUTF16UnitsPerCharacter
+            + NameValidation.maxSurroundingWhitespaceUTF16Units
+        #expect(looseLimit == 416)
+        // 取り除けば「ゆい」になる文字列でも、取り除く前が緩い上限を超えたら断る
+        let atLooseLimit = "ゆい" + String(repeating: " ", count: looseLimit - 2)
+        #expect(NameValidation.validated(atLooseLimit, length: Self.range) == "ゆい")
+        #expect(NameValidation.validated(atLooseLimit + " ", length: Self.range) == nil)
+        #expect(NameValidation.validated("ゆい" + String(repeating: " ", count: 1_000_000), length: Self.range) == nil)
+    }
+
     /// 最も長い絵文字でも上限の文字数まで入れられる
     @Test(arguments: ["👩🏻‍❤️‍💋‍👨🏼", "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "👨‍👩‍👧‍👦"])
     func acceptsLongestEmojiUpToLimit(emoji: String) {
