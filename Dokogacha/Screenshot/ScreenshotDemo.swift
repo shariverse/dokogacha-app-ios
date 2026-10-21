@@ -12,12 +12,13 @@
 //  デモデータは実データと混ざらないよう、撮影モードのときだけメモリ上やインメモリのストアに用意する。
 //
 
-import Foundation
+import SwiftUI
 
 enum ScreenshotDemo {
     /// 撮る画面。rawValue が AppStore/screenshots.json の scene と対応する
     enum Scene: String {
         case home
+        case onboarding
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
@@ -37,4 +38,34 @@ enum ScreenshotDemo {
         }
         return Scene(rawValue: arguments[index + 1])
     }()
+}
+
+extension ScreenshotDemo {
+    /// S-01 オンボーディングを擬似のサーバーで開く（起動の流れを通さず、`-demo-scenario` によらずに S-01 を出す）。
+    ///
+    /// 起動引数 `-screenshot-display-name <名前>` を付けると、入力欄にその名前を入れた状態で開く（入力した状態・無効の状態を撮るため）
+    struct OnboardingScene: View {
+        /// 入力欄に入れておく名前の起動引数
+        static let displayNameArgument = "-screenshot-display-name"
+
+        @State private var toasts = DGToastCenter()
+        private let model: OnboardingModel
+
+        /// - Parameter auth: 表示名を登録する窓口（撮影モードでは擬似のサーバー）
+        init(auth: any AuthService) {
+            let toasts = DGToastCenter()
+            let model = OnboardingModel(auth: auth, toasts: toasts)
+            let arguments = ProcessInfo.processInfo.arguments
+            if let index = arguments.firstIndex(of: Self.displayNameArgument), arguments.indices.contains(index + 1) {
+                model.displayName = arguments[index + 1]
+            }
+            self.model = model
+            _toasts = State(initialValue: toasts)
+        }
+
+        var body: some View {
+            OnboardingView(model: model)
+                .dgToast(toasts)
+        }
+    }
 }

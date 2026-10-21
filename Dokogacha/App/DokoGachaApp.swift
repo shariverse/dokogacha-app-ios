@@ -24,6 +24,8 @@ struct DokoGachaApp: App {
         switch ScreenshotDemo.scene {
         case .home, nil:
             RootView(session: appDelegate.serverSession)
+        case .onboarding:
+            ScreenshotDemo.OnboardingScene(auth: appDelegate.serverSession.services.auth)
         }
     }
 }
