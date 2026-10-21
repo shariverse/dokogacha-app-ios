@@ -50,7 +50,11 @@ final class ServerSession {
         let changes = authService.userIDChanges()
         authObservation = Task { [weak self] in
             for await userID in changes {
-                self?.applyAuthChange(userID: userID)
+                // 持ち主が解放されたら（deinit で cancel 済み）、ストリームの終わりを待たずに抜ける
+                guard let self else {
+                    return
+                }
+                applyAuthChange(userID: userID)
             }
         }
     }
