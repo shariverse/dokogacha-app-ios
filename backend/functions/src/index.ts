@@ -11,6 +11,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { runCallable } from "./callable";
 import { FUNCTIONS_REGION } from "./config";
 import { defaultDeps } from "./deps";
+import * as rooms from "./rooms/service";
 import * as users from "./users/service";
 
 // すべての関数のリージョンを東京にそろえる。関数ごとに指定し忘れて us-central1 に配置されるのを防ぐ
@@ -24,4 +25,24 @@ const deps = () => defaultDeps(getFirestore());
 /** 表示名を登録・変更する（02 の F-01。`users/{uid}` をまだ作っていなければ作る） */
 export const saveProfile = onCall((request) =>
   runCallable("saveProfile", request, (uid, data) => users.saveProfile(deps(), uid, data)),
+);
+
+/** ルームを作る（02 の F-02） */
+export const createRoom = onCall((request) =>
+  runCallable("createRoom", request, (uid, data) => rooms.createRoom(deps(), uid, data)),
+);
+
+/** 招待コードでルームに参加する（02 の F-04） */
+export const joinRoom = onCall((request) =>
+  runCallable("joinRoom", request, (uid, data) => rooms.joinRoom(deps(), uid, data)),
+);
+
+/** ルームから退出する（02 の F-05） */
+export const leaveRoom = onCall((request) =>
+  runCallable("leaveRoom", request, (uid, data) => rooms.leaveRoom(deps(), uid, data)),
+);
+
+/** 作成者がメンバーを削除する（02 の F-05） */
+export const removeMember = onCall((request) =>
+  runCallable("removeMember", request, (uid, data) => rooms.removeMember(deps(), uid, data)),
 );
