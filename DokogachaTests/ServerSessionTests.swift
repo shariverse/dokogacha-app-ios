@@ -48,6 +48,11 @@ struct ServerSessionTests {
         func linkWithApple(_ credential: AppleIDCredential) async throws {}
     }
 
+    /// 擬似の認証を使う窓口
+    static func services(_ auth: CountingAuth) -> DataServices {
+        DataServices(backend: .firebase, auth: auth, rooms: auth.server, functions: auth.server, inMemoryServer: nil)
+    }
+
     @Test
     func signsInAnonymouslyWhenSignedOut() async throws {
         let auth = CountingAuth()
@@ -68,14 +73,16 @@ struct ServerSessionTests {
     /// `start` の前は「未初期化」で、設定漏れ（unavailable）と区別できる
     @Test
     func connectionIsNotStartedBeforeStart() {
-        #expect(ServerSession().connection == .notStarted)
+        let session = ServerSession()
+        #expect(session.connection == .notStarted)
+        #expect(session.services.backend == .unavailable)
     }
 
     @Test
     func sessionSignsInWhenFirebaseIsConfigured() async {
         let auth = CountingAuth()
         let session = ServerSession()
-        session.start(connection: .firebase(.emulator), authService: auth)
+        session.start(connection: .firebase(.emulator), services: Self.services(auth))
         await session.signInIfNeeded()
         #expect(session.authState == .signedIn(userID: "new-user"))
 
@@ -84,20 +91,25 @@ struct ServerSessionTests {
         #expect(auth.signInCount == 1)
     }
 
-    /// 接続できないとき・テストで初期化しないときは、SDK を呼ばない
-    @Test(arguments: [
-        ServerConnection.unavailable(.missingOptionsFile("GoogleService-Info-Dev")),
-        .disabled(.uiTesting),
-        .disabled(.unitTestHost)
-    ])
-    func sessionDoesNotSignInWithoutFirebase(connection: ServerConnection) async {
-        let auth = CountingAuth()
+    /// 接続できないときは、サインインしない
+    @Test
+    func sessionDoesNotSignInWhenUnavailable() async {
         let session = ServerSession()
-        session.start(connection: connection, authService: auth)
+        let connection = ServerConnection.unavailable(.missingOptionsFile("GoogleService-Info-Dev"))
+        session.start(connection: connection, services: .unavailable)
         await session.signInIfNeeded()
         #expect(session.connection == connection)
         #expect(session.authState == .signedOut)
-        #expect(auth.signInCount == 0)
+    }
+
+    /// テスト・UI テストでは、擬似のサーバーでサインインする（Firebase の SDK は呼ばない）
+    @Test
+    func sessionSignsInToInMemoryServer() async {
+        let server = InMemoryServer.demo(.empty)
+        let session = ServerSession()
+        session.start(connection: .disabled(.uiTesting), services: .inMemory(server, scenario: .empty))
+        await session.signInIfNeeded()
+        #expect(session.authState == .signedIn(userID: DemoScenario.myUserID))
     }
 
     /// 通信エラーでも落とさず、次の呼び出しでやり直せる
@@ -105,7 +117,7 @@ struct ServerSessionTests {
     func failedSignInCanBeRetried() async {
         let auth = CountingAuth(result: .failure(SignInFailure()))
         let session = ServerSession()
-        session.start(connection: .firebase(.dev), authService: auth)
+        session.start(connection: .firebase(.dev), services: Self.services(auth))
         await session.signInIfNeeded()
         #expect(session.authState == .failed)
 
@@ -120,7 +132,7 @@ struct ServerSessionTests {
     func followsSignOutOnServer() async {
         let auth = CountingAuth(currentUserID: "existing-user")
         let session = ServerSession()
-        session.start(connection: .firebase(.prod), authService: auth)
+        session.start(connection: .firebase(.prod), services: Self.services(auth))
         await session.signInIfNeeded()
         #expect(session.authState == .signedIn(userID: "existing-user"))
 
@@ -137,7 +149,7 @@ struct ServerSessionTests {
     func followsUserChange() async {
         let auth = CountingAuth(currentUserID: "first")
         let session = ServerSession()
-        session.start(connection: .firebase(.emulator), authService: auth)
+        session.start(connection: .firebase(.emulator), services: Self.services(auth))
         #expect(await AsyncTestSupport.eventually { session.authState == .signedIn(userID: "first") })
         auth.server.signedInUserID = "second"
         #expect(await AsyncTestSupport.eventually { session.authState == .signedIn(userID: "second") })

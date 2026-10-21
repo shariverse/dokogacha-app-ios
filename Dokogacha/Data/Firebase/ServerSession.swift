@@ -6,9 +6,10 @@
 import Foundation
 import Observation
 
-/// サーバーへの接続と、サインインしているユーザー。アプリ全体で 1 つを `@Environment` で共有する。
+/// サーバーへの接続と、サインインしているユーザーと、データ層の窓口。アプリ全体で 1 つを `@Environment` で共有する。
 ///
-/// 後続のデータ層・画面は `connection` を見て、Firebase を使えるか・「サーバーに接続できない」表示にするかを決める。
+/// 画面は `connection` で「サーバーに接続できない」表示にするかを決め、`services` の protocol（`RoomRepository` など）を
+/// 画面の Model に渡す。Firebase の実装か擬似のサーバーかは、起動時に `DataServices.make` が決める。
 @Observable
 final class ServerSession {
     /// 匿名認証の状態
@@ -27,18 +28,21 @@ final class ServerSession {
     private(set) var connection: ServerConnection = .notStarted
     /// 匿名認証の状態。`start` の後は、Auth の変化（サーバー側でのサインアウトなど）に追随する
     private(set) var authState: AuthState = .signedOut
+    /// データ層の窓口（`start` の前は、どの操作も「通信できませんでした」になる窓口）
+    private(set) var services: DataServices = .unavailable
 
     @ObservationIgnored private var authService: (any AuthService)?
     @ObservationIgnored private var authObservation: Task<Void, Never>?
 
-    /// 起動時に一度だけ、初期化の結果と認証の窓口を受け取り、Auth の変化の購読を始める。
+    /// 起動時に一度だけ、初期化の結果とデータ層の窓口を受け取り、Auth の変化の購読を始める。
     ///
-    /// Firebase を初期化できなかったときは、サインインも購読もしない
-    func start(connection: ServerConnection, authService: (any AuthService)?) {
+    /// サインインを許さない窓口（接続できないとき）では、サインインも購読もしない
+    func start(connection: ServerConnection, services: DataServices) {
         self.connection = connection
+        self.services = services
         authObservation?.cancel()
-        self.authService = connection.isFirebaseConfigured ? authService : nil
-        guard let authService = self.authService else {
+        authService = services.allowsSignIn ? services.auth : nil
+        guard let authService else {
             return
         }
         let changes = authService.userIDChanges()

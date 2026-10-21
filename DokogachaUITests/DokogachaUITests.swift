@@ -22,4 +22,14 @@ final class DokogachaUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Hello, world!"].waitForExistence(timeout: 5))
     }
+
+    /// デモのデータ（`-demo-scenario`）を入れた擬似のサーバーでも起動できる（画面のタスクで、データを見る確かめを足す）
+    @MainActor
+    func testLaunchWithDemoScenario() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "room-with-candidates"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Hello, world!"].waitForExistence(timeout: 5))
+    }
 }
