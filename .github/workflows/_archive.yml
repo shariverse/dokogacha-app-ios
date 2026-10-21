@@ -34,6 +34,12 @@ on:
       APPLE_API_ISSUER_ID:
         description: App Store Connect API Key の Issuer ID
         required: true
+      GOOGLE_SERVICE_INFO_PLIST_DEV:
+        description: Firebase の dev プロジェクトの GoogleService-Info.plist を base64 エンコードしたもの（Stg 構成で使う。未登録なら書き出さない）
+        required: false
+      GOOGLE_SERVICE_INFO_PLIST_PROD:
+        description: Firebase の prod プロジェクトの GoogleService-Info.plist を base64 エンコードしたもの（Release 構成で使う。未登録なら書き出さない）
+        required: false
 
 jobs:
   archive:
@@ -75,6 +81,45 @@ jobs:
             echo "API_KEY_PATH=$RUNNER_TEMP/private_keys/AuthKey_$APPLE_API_KEY_ID.p8"
           } >> "$GITHUB_ENV"
           echo "project=$project scheme=$project configuration=$CONFIGURATION"
+
+      - name: Write GoogleService-Info plist
+        # Archive する構成の plist だけを Secrets から書き出す（Stg = Dev / Release = Prod。もう一方は xcconfig の EXCLUDED_SOURCE_FILE_NAMES でアプリに入らない）。
+        # Secret が未登録なら書き出さずに進む。アプリは plist が無くても起動し、サーバーに接続できない状態になる（Discussion #5 の Q5）。
+        # ただし App Store にアップロードする Release は、サーバーに繋がらないアプリを出さないよう止める。
+        # Secrets はシェル展開ではなく env 経由で渡し、中身はログに出さない
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_DEV: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_DEV }}
+          GOOGLE_SERVICE_INFO_PLIST_PROD: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_PROD }}
+          UPLOAD: ${{ inputs.upload }}
+        run: |
+          if [[ "$CONFIGURATION" == "Release" ]]; then
+            name=GoogleService-Info-Prod
+            secret_name=GOOGLE_SERVICE_INFO_PLIST_PROD
+            encoded=$GOOGLE_SERVICE_INFO_PLIST_PROD
+          else
+            name=GoogleService-Info-Dev
+            secret_name=GOOGLE_SERVICE_INFO_PLIST_DEV
+            encoded=$GOOGLE_SERVICE_INFO_PLIST_DEV
+          fi
+          destination="$PROJECT_NAME/Resources/Firebase/$name.plist"
+          if [[ -z "$encoded" ]]; then
+            message="Secret ${secret_name} が無いため ${name}.plist を書き出さずに Archive します（このアプリは Firebase に接続できません）"
+            if [[ "$CONFIGURATION" == "Release" && "$UPLOAD" == "true" ]]; then
+              echo "::error::${message}。App Store 用の Release はアップロードしません" >&2
+              exit 1
+            fi
+            echo "::warning::${message}"
+            echo "> [!WARNING]" >> "$GITHUB_STEP_SUMMARY"
+            echo "> ${message}" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mkdir -p "$(dirname "$destination")"
+          if ! printf '%s' "$encoded" | base64 --decode > "$destination" 2>/dev/null || ! plutil -lint -s "$destination" >/dev/null 2>&1; then
+            rm -f "$destination"
+            echo "::error::Secret ${secret_name} を plist として読めません。GoogleService-Info.plist を base64 にした値を登録してください" >&2
+            exit 1
+          fi
+          echo "$destination を書き出しました"
 
       - name: Archive
         run: |
