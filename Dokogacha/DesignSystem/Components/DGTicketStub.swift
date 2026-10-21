@@ -55,6 +55,8 @@ struct DGTicketStub: View {
                 .padding(.vertical, DGSpacing.s14)
                 .padding(.horizontal, DGSpacing.s16)
                 DGDashedLine(color: .dgLineDashedStrong, axis: .vertical)
+                    // 上下のカードの縁に点線が重ならないよう、縁の太さだけ離す
+                    .padding(.vertical, DGBorder.regular)
                 DGStamp("済")
                     .frame(width: Self.stubWidth)
             }
