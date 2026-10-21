@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4FA000000000000000000111 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 4FA000000000000000000101 /* FirebaseAnalytics */; };
+		4FA000000000000000000112 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 4FA000000000000000000102 /* FirebaseAuth */; };
+		4FA000000000000000000113 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 4FA000000000000000000103 /* FirebaseCrashlytics */; };
+		4FA000000000000000000114 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 4FA000000000000000000104 /* FirebaseFirestore */; };
+		4FA000000000000000000115 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 4FA000000000000000000105 /* FirebaseFunctions */; };
+		4FA000000000000000000116 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4FA000000000000000000106 /* FirebaseMessaging */; };
+		4FA000000000000000000117 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 4FA000000000000000000107 /* GoogleMobileAds */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		4FC9E1FA2BF1049C00F630AB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -68,6 +78,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4FA000000000000000000111 /* FirebaseAnalytics in Frameworks */,
+				4FA000000000000000000112 /* FirebaseAuth in Frameworks */,
+				4FA000000000000000000113 /* FirebaseCrashlytics in Frameworks */,
+				4FA000000000000000000114 /* FirebaseFirestore in Frameworks */,
+				4FA000000000000000000115 /* FirebaseFunctions in Frameworks */,
+				4FA000000000000000000116 /* FirebaseMessaging in Frameworks */,
+				4FA000000000000000000117 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -139,6 +156,15 @@
 				4FA0000000000000000000B1 /* Dokogacha */,
 			);
 			name = Dokogacha;
+			packageProductDependencies = (
+				4FA000000000000000000101 /* FirebaseAnalytics */,
+				4FA000000000000000000102 /* FirebaseAuth */,
+				4FA000000000000000000103 /* FirebaseCrashlytics */,
+				4FA000000000000000000104 /* FirebaseFirestore */,
+				4FA000000000000000000105 /* FirebaseFunctions */,
+				4FA000000000000000000106 /* FirebaseMessaging */,
+				4FA000000000000000000107 /* GoogleMobileAds */,
+			);
 			productName = Dokogacha;
 			productReference = 4FC9E1E92BF1049B00F630AB /* Dokogacha.app */;
 			productType = "com.apple.product-type.application";
@@ -221,6 +247,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				4F27869D2BF373B800E9F5EF /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */,
+				4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				4FA0000000000000000000F2 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4FC9E1EA2BF1049B00F630AB /* Products */;
@@ -601,6 +629,22 @@
 				minimumVersion = 0.65.1;
 			};
 		};
+		4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.0.1;
+			};
+		};
+		4FA0000000000000000000F2 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.11.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -618,6 +662,41 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4F27869D2BF373B800E9F5EF /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */;
 			productName = "plugin:SwiftLintBuildToolPlugin";
+		};
+		4FA000000000000000000101 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		4FA000000000000000000102 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		4FA000000000000000000103 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		4FA000000000000000000104 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		4FA000000000000000000105 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
+		};
+		4FA000000000000000000106 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FA0000000000000000000F1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		4FA000000000000000000107 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FA0000000000000000000F2 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -20,3 +20,8 @@ CURRENT_PROJECT_VERSION = 1
 
 // 最低サポート OS
 IPHONEOS_DEPLOYMENT_TARGET = 17.0
+
+// Firebase（Analytics など）と Google Mobile Ads を SPM で入れるときに必要（各 SDK の導入手順）。
+// -ObjC で Google Mobile Ads のすべてのオブジェクトを読み込むため、コードで import していない間も
+// JavaScriptCore が要る（モジュールの link 指定は import したときにしか効かない）
+OTHER_LDFLAGS = $(inherited) -ObjC -framework JavaScriptCore
