@@ -10,6 +10,8 @@ import Foundation
 /// 後続のデータ層は、この値を見て Firebase の Repository を使うか、擬似のサーバーを使うか、
 /// 「サーバーに接続できない」表示にするかを決める。
 nonisolated enum ServerConnection: Equatable, Sendable {
+    /// まだ起動時の初期化をしていない（`ServerSession.start` の前）。設定漏れ（`unavailable`）と区別する
+    case notStarted
     /// Firebase を初期化した（接続先は構成ごと）
     case firebase(FirebaseEnvironment)
     /// テスト・撮影のため、Firebase を初期化しなかった（メモリ上の擬似のサーバーで動かす）

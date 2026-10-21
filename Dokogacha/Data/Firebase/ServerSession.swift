@@ -23,8 +23,8 @@ final class ServerSession {
         case failed
     }
 
-    /// 起動時に決まった接続の状態。`start` を呼ぶまでは「初期化していない」扱い
-    private(set) var connection: ServerConnection = .unavailable(.unknownEnvironment(nil))
+    /// 起動時に決まった接続の状態。`start` を呼ぶまでは `.notStarted`
+    private(set) var connection: ServerConnection = .notStarted
     /// 匿名認証の状態。`start` の後は、Auth の変化（サーバー側でのサインアウトなど）に追随する
     private(set) var authState: AuthState = .signedOut
 

@@ -65,6 +65,12 @@ struct ServerSessionTests {
         #expect(auth.signInCount == 0)
     }
 
+    /// `start` の前は「未初期化」で、設定漏れ（unavailable）と区別できる
+    @Test
+    func connectionIsNotStartedBeforeStart() {
+        #expect(ServerSession().connection == .notStarted)
+    }
+
     @Test
     func sessionSignsInWhenFirebaseIsConfigured() async {
         let auth = CountingAuth()
