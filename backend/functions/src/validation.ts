@@ -2,7 +2,7 @@
  * Callable の入力（`request.data`）を検証するための共通の道具。
  * 入力は信用せず、形・型・範囲を確かめてから使う。正しくなければ `invalid-argument` を投げる。
  */
-import { characters, trimWhitespace } from "./domain/text";
+import { characters, containsForbiddenNameCharacter, isInvisibleOnly, trimWhitespace } from "./domain/text";
 import { appError } from "./errors";
 
 /** ドキュメントの ID（ルームの ID・uid）の最大の長さ（Firebase Auth の uid の上限 128 文字に合わせる） */
@@ -55,6 +55,9 @@ export function requireDocumentId(value: unknown): string {
 /**
  * 前後の空白を取り除いた文字数（書記素クラスタ）が範囲に入る文字列か確かめる。
  * 取り除いた後の UTF-16 のコード単位の数も `length.max × MAX_UTF16_UNITS_PER_CHARACTER` 以下であること。
+ * 名前（表示名・ルーム名）に使うので、次も拒否する（取り除かずに入力エラーにする）。
+ * - 途中に制御文字（改行・タブを含む `\p{Cc}`）・行区切り・段落区切りを含む
+ * - 見えない文字（`\p{Cf}`・`\p{Default_Ignorable_Code_Point}`）と空白だけでできている（空とみなす）
  * @param value 入力の値
  * @param length 文字数の範囲（両端を含む）
  * @returns 前後の空白を取り除いた文字列
@@ -69,7 +72,10 @@ export function requireTrimmedText(value: unknown, length: { min: number; max: n
   if (trimmed.length > length.max * MAX_UTF16_UNITS_PER_CHARACTER) {
     throw appError("invalid-argument");
   }
-  const count = characters(trimmed).length;
+  if (containsForbiddenNameCharacter(trimmed)) {
+    throw appError("invalid-argument");
+  }
+  const count = isInvisibleOnly(trimmed) ? 0 : characters(trimmed).length;
   if (count < length.min || count > length.max) {
     throw appError("invalid-argument");
   }

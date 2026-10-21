@@ -58,3 +58,39 @@ export function trimWhitespace(text: string): string {
   }
   return points.slice(start, end).join("");
 }
+
+/**
+ * 名前に入れられない文字（制御文字 `\p{Cc}`・行区切り `U+2028`・段落区切り `U+2029`）。
+ * 改行・タブ・`U+0085` は `\p{Cc}` に入る。一覧や通知で 1 行に収まらず、表示が崩れるので拒否する。
+ * Swift 側は `Unicode.Scalar.Properties.generalCategory` の `.control`・`.lineSeparator`・`.paragraphSeparator`。
+ */
+const FORBIDDEN_IN_NAME = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+
+/**
+ * 見えない文字（書式文字 `\p{Cf}`（`U+200B`〜`U+200D`・`U+2060`・`U+FEFF` など）と、
+ * 既定で表示しない文字 `\p{Default_Ignorable_Code_Point}`（`U+3164` のハングルの埋め字・異体字セレクタなど））。
+ * Swift 側は `generalCategory == .format` と `properties.isDefaultIgnorableCodePoint`。
+ */
+const INVISIBLE = /[\p{Cf}\p{Default_Ignorable_Code_Point}]/u;
+
+/**
+ * 名前に入れられない文字（制御文字・改行・行と段落の区切り）を含むか。
+ * 前後の空白を取り除いた後の文字列に使う（前後の改行・タブは空白として取り除かれる）。
+ * @param text 調べる文字列
+ * @returns 含むなら true
+ */
+export function containsForbiddenNameCharacter(text: string): boolean {
+  return FORBIDDEN_IN_NAME.test(text);
+}
+
+/**
+ * 見えない文字（`INVISIBLE`）と空白（`WHITESPACE_CODE_POINTS`）だけでできているか（空の文字列も true）。
+ * 名前がこれに当たるときは空とみなす（ゼロ幅スペースだけの名前を通さない）。
+ * @param text 調べる文字列
+ * @returns 見える文字が 1 つも無ければ true
+ */
+export function isInvisibleOnly(text: string): boolean {
+  return Array.from(text).every(
+    (point) => isWhitespaceCodePoint(point.codePointAt(0) ?? -1) || INVISIBLE.test(point),
+  );
+}

@@ -45,6 +45,21 @@ describe("requireTrimmedText", () => {
     }
   });
 
+  it("途中に制御文字・改行・タブを含む名前は受け付けない（前後の改行・タブは空白として取り除く）", () => {
+    expect(requireTrimmedText("\n\tゆい\r\n", range)).toBe("ゆい");
+    for (const value of ["ゆ\nい", "ゆ\tい", "ゆ\u{0000}い", "ゆ\u{0085}い", "ゆ\u{2028}い"]) {
+      expectInvalid(() => requireTrimmedText(value, range));
+    }
+  });
+
+  it("見えない文字と空白だけの名前は空とみなして受け付けない", () => {
+    for (const value of ["\u{200B}", " \u{200B}\u{200D} ", "\u{2060}\u{FEFF}", "\u{3164}"]) {
+      expectInvalid(() => requireTrimmedText(value, range));
+    }
+    // 見える文字があれば、見えない文字を含んでいても受け付ける（取り除かない）
+    expect(requireTrimmedText("ゆ\u{200B}い", range)).toBe("ゆ\u{200B}い");
+  });
+
   it("書記素の数が範囲内でも、UTF-16 の長さが上限を超えたら受け付けない", () => {
     const limit = range.max * MAX_UTF16_UNITS_PER_CHARACTER;
     // 結合文字（U+0301）を大量につないだ 1 文字
