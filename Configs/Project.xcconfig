@@ -25,3 +25,7 @@ IPHONEOS_DEPLOYMENT_TARGET = 17.0
 // -ObjC で Google Mobile Ads のすべてのオブジェクトを読み込むため、コードで import していない間も
 // JavaScriptCore が要る（モジュールの link 指定は import したときにしか効かない）
 OTHER_LDFLAGS = $(inherited) -ObjC -framework JavaScriptCore
+
+// AdMob の App ID（Info.plist の GADApplicationIdentifier）。本番の値が決まるまでは Google のテスト用 App ID を使う
+// （Discussion #5 の Q6「テスト用の値で実装し、本番の設定は公開前にまとめて用意する」）
+DG_GAD_APPLICATION_IDENTIFIER = ca-app-pub-3940256099942544~1458002511
