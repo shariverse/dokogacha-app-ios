@@ -5,6 +5,7 @@
  * 保存する形はハイフンなしの 6 文字（`rooms.inviteCode`・`inviteCodes/{code}`）、表示は 3 文字ずつハイフンで区切る（`DK7-29Q`）。
  */
 import { cryptoRandomInt, pickOne, type RandomInt } from "./random";
+import { characters, WHITESPACE_CODE_POINTS } from "./text";
 
 /** 使う文字（英大文字 24 文字と数字 8 文字の 32 文字）。紛らわしい `0 O 1 I` を除く */
 export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -16,16 +17,10 @@ export const INVITE_CODE_GROUP_LENGTH = 3;
 export const INVITE_CODE_SEPARATOR = "-";
 
 /**
- * 入力から取り除く空白（Unicode のコードポイント）。
- * Unicode の White_Space（Swift の `Character.isWhitespace`）と、JavaScript の `\s` の両方が空白とみなす文字の和
- * （`U+0085` は White_Space だけ、`U+FEFF` は `\s` だけが空白とみなす）。
- * 言語ごとの空白の定義の違いで結果が変わらないよう、一覧を明示する。
+ * 入力から取り除く空白（Unicode のコードポイント）。共通の空白の一覧（`WHITESPACE_CODE_POINTS`）と同じ。
  * Swift 側の `InviteCode.ignoredWhitespaces` と同じ一覧。片方を変えたら両方を変える。
  */
-export const INVITE_CODE_IGNORED_WHITESPACES: readonly number[] = [
-  0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x0020, 0x0085, 0x00a0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
-  0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff,
-];
+export const INVITE_CODE_IGNORED_WHITESPACES: readonly number[] = WHITESPACE_CODE_POINTS;
 
 /**
  * 入力から取り除く区切りの文字（ハイフン・ダッシュ・マイナス・長音記号。Unicode のコードポイント）。
@@ -41,19 +36,6 @@ const IGNORED_CODE_POINTS: ReadonlySet<number> = new Set([
   ...INVITE_CODE_IGNORED_WHITESPACES,
   ...INVITE_CODE_IGNORED_SEPARATORS,
 ]);
-
-/** 文字（書記素クラスタ）に分ける道具。Swift の `Character` と同じ単位で数える */
-const graphemeSegmenter = new Intl.Segmenter("ja", { granularity: "grapheme" });
-
-/**
- * 文字列を文字（書記素クラスタ）の一覧にする。
- * Swift 側は `String` の `count`・`prefix` が書記素クラスタで数えるので、文字数の判定と切り詰めをそろえるために使う。
- * @param text 分ける文字列
- * @returns 文字の一覧
- */
-function characters(text: string): string[] {
-  return Array.from(graphemeSegmenter.segment(text), (segment) => segment.segment);
-}
 
 /**
  * 招待コードを作る（32 文字から 1 文字ずつ、6 回選ぶ）。
