@@ -24,7 +24,7 @@ struct BundledResourcesTests {
         "ZenMaruGothic-Black"
     ]
 
-    /// `docs/spec/design/icons/` の SVG のファイル名（＝アセット名）
+    /// `docs/spec/design/icons/` の SVG のファイル名（＝アセット名）と、それを元にアプリ側で足したアイコン
     nonisolated static let templateIconNames = [
         "cat-activity",
         "cat-aquarium",
@@ -44,7 +44,10 @@ struct BundledResourcesTests {
         "ui-plus",
         "ui-search",
         "ui-share",
-        "ui-star"
+        "ui-star",
+        // `ui-heart` を塗りつぶした版（いいね済みのハート）。04 の §6「塗りは fill で切り替え」をテンプレート画像で描くため、
+        // `design/icons` には無いが同じ形の SVG をアプリ側で足している
+        "ui-heart-fill"
     ]
 
     /// 多色の装飾。テンプレートにせず元の色で描く
