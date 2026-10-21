@@ -37,6 +37,21 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - ビルド構成は 3 つ: **Debug**（開発・テスト。Firebase は Emulator）/ **Stg**（TestFlight 用。`develop` の Upload。Firebase は dev）/ **Release**（App Store 用。Firebase は prod）。
   Stg は Release と同じ最適化。構成ごとの値は `Configs/<構成>.xcconfig` に書く
 
+### Firebase の接続先（アプリ）
+
+| 構成 | 接続先（`DG_FIREBASE_ENVIRONMENT`） | 読む設定 |
+| --- | --- | --- |
+| Debug | `emulator`（`demo-dokogacha`） | plist を読まず、コードで作った `FirebaseOptions`。Emulator の接続先は `Dokogacha/Data/Firebase/FirebaseEmulator.swift`（`localhost`・auth 9099・firestore 8080・functions 5001） |
+| Stg | `dev` | `Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist` |
+| Release | `prod` | `Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist` |
+
+- plist は CI が GitHub Secrets から上の場所に書き出す。手元で Stg / Release を dev / prod に繋ぐときは、各自 Firebase のコンソールから落としてこの名前で置く（`.gitignore` の `GoogleService-Info*.plist` で除外済み。コミットしない）
+- 構成は xcconfig の `DG_FIREBASE_ENVIRONMENT`・`DG_FIREBASE_OPTIONS_FILE_NAME` → `Dokogacha/Info.plist` の `DGFirebaseEnvironment`・`DGFirebaseOptionsFileName` でアプリに渡す
+- 構成に合わない plist はアプリに入れない（xcconfig の `EXCLUDED_SOURCE_FILE_NAMES`。Release に Dev の plist は入らない。Debug にはどちらも入らない）
+- plist が無い・読めないときは落とさずに起動し、`ServerSession.connection` が `.unavailable` になる（サーバーに接続できない状態）
+- Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化しない（`.disabled`）
+- Debug のアプリを Emulator に繋いで動かすときは、`backend/` で `npx --no firebase emulators:start --only auth,firestore --project demo-dokogacha` を起動しておく（ずらし 0 のポートだけに繋ぐ）
+
 ### backend（Firebase）
 
 Node 22 と Java 21（Firestore の Emulator に要る）を使う。`firebase-tools` は devDependencies に入っているので `npx firebase` で使い、グローバルに入れない。
