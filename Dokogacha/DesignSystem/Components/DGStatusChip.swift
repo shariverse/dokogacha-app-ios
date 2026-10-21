@@ -13,7 +13,7 @@ import SwiftUI
 struct DGStatusChip: View {
     /// チップで表すルームの状態。
     ///
-    /// ルームの状態の型（`Domain/Models`）にはまだ依存させず、画面の側で対応させる。
+    /// ルームの状態（`Domain/Models` の `RoomStatus`）からは `init(_:)` で作る。
     nonisolated enum Status: CaseIterable, Sendable {
         /// 候補募集中（`open`）
         case open
@@ -23,6 +23,17 @@ struct DGStatusChip: View {
         case drawn
         /// 終了（`closed`）
         case closed
+
+        /// ルームの状態に対応するチップの状態を作る（4 つの状態が 1 対 1 で対応する）。
+        /// - Parameter status: ルームの状態
+        init(_ status: RoomStatus) {
+            switch status {
+            case .open: self = .open
+            case .unlocked: self = .unlocked
+            case .drawn: self = .drawn
+            case .closed: self = .closed
+            }
+        }
 
         /// チップの文言（04 の §1 の表記）
         var label: LocalizedStringResource {
