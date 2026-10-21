@@ -76,9 +76,13 @@ extension InMemoryServer: RoomRepository {
         guard candidate.postedBy != userID else {
             throw Self.permissionDenied
         }
-        candidate.likedBy.removeAll { $0 == userID }
+        // `arrayUnion`・`arrayRemove` と同じ: 付け直しても位置を変えず、外すときはすべて取り除く
         if liked {
-            candidate.likedBy.append(userID)
+            if !candidate.likedBy.contains(userID) {
+                candidate.likedBy.append(userID)
+            }
+        } else {
+            candidate.likedBy.removeAll { $0 == userID }
         }
         record.candidates[candidateID] = candidate
         rooms[roomID] = record

@@ -111,6 +111,12 @@ struct InMemoryServerStreamTests {
         try await server.setLike(false, candidateID: "theirs", roomID: room.roomId, userID: "owner")
         #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy == ["x"])
 
+        // いいねし直しても並びを変えない（`arrayUnion` は既にある値の位置を変えない）
+        try await server.setLike(true, candidateID: "theirs", roomID: room.roomId, userID: "owner")
+        server.rooms[room.roomId]?.candidates["theirs"]?.likedBy.append("y")
+        try await server.setLike(true, candidateID: "theirs", roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy == ["x", "owner", "y"])
+
         await #expect(throws: InMemoryServer.permissionDenied) {
             try await server.setLike(true, candidateID: "mine", roomID: room.roomId, userID: "owner")
         }
