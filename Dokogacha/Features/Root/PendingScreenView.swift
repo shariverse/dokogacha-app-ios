@@ -8,7 +8,7 @@ import SwiftUI
 /// まだ作っていない画面の仮の画面（ホームからの行き先の口だけを先に通すため）。
 ///
 /// ヘッダー（プッシュなら戻る、シートなら閉じる）と「この画面は準備中です」だけを出す。
-/// 各画面のタスク（S-03・S-05: タスク 14・15、S-07: タスク 19、S-15: タスク 16）で、`MainNavigationView` の行き先を本物の画面に差し替えて消す。
+/// 各画面のタスク（S-05: タスク 15、S-07: タスク 19、S-15: タスク 16）で、`MainNavigationView` の行き先を本物の画面に差し替えて消す。
 struct PendingScreenView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -16,6 +16,7 @@ struct PendingScreenView: View {
         static func screen(_ route: AppRoute) -> String {
             switch route {
             case .createRoom: "pending.createRoom"
+            case .invite: "pending.invite"
             case .joinByCode: "pending.joinByCode"
             case .room: "pending.room"
             case .settings: "pending.settings"
@@ -76,6 +77,7 @@ struct PendingScreenView: View {
     private var title: Text {
         switch route {
         case .createRoom: Text("ルームを作る")
+        case .invite: Text("招待")
         case .joinByCode: Text("招待コードで参加")
         case .room: Text("ルーム")
         case .settings: Text("設定")
