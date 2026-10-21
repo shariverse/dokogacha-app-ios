@@ -72,10 +72,19 @@ nonisolated struct InviteCode: Hashable, Sendable {
     ///
     /// 乱数を注入できるように、`0..<上限` の整数を返す関数を受け取る（TypeScript の `crypto.randomInt` と同じ形）。
     /// 32 文字から 1 文字ずつ、6 回選ぶ。重複の確かめと再生成は呼ぶ側（`createRoom`）で行う。
+    /// 乱数が範囲の外の値を返したときは、`precondition` で止める（TypeScript 側の `RangeError` に当たる。
+    /// 配列の範囲外アクセスで落ちるより、原因の分かるメッセージで止める）。
     /// - Parameter randomIndex: `0..<上限` の整数を返す乱数
     /// - Returns: 生成したコード
     static func generate(randomIndex: (Int) -> Int) -> Self {
-        let characters = (0..<length).map { _ in alphabet[randomIndex(alphabet.count)] }
+        let characters = (0..<length).map { _ in
+            let index = randomIndex(alphabet.count)
+            precondition(
+                alphabet.indices.contains(index),
+                "乱数が 0〜\(alphabet.count - 1) の整数ではありません: \(index)"
+            )
+            return alphabet[index]
+        }
         return Self(validated: String(characters))
     }
 
