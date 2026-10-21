@@ -2,7 +2,7 @@
 //  InMemoryServer+Functions.swift
 //  Dokogacha
 //
-//  擬似のサーバーの Callable Functions。backend の `users/service.ts`・`rooms/service.ts`・`rooms/logic.ts`・`rooms/input.ts` と
+//  擬似のサーバーの Callable Functions。backend の `users/`・`rooms/`・`candidates/` の `service.ts`・`logic.ts`・`input.ts` と
 //  同じ順で検証し、同じ理由で失敗する（Emulator のテストと同じ観点を `InMemoryServerTests` で確かめる）。
 //
 
@@ -15,6 +15,8 @@ extension InMemoryServer: FunctionsClient {
     static let deadlineEarliestGrace: TimeInterval = 5 * 60
     /// 参加できる状態（02 の F-04）
     static let joinableStatuses: Set<RoomStatus> = [.open, .unlocked]
+    /// 候補を追加・削除できる状態（02 の §2.1。backend の `CANDIDATE_EDITABLE_STATUSES`）
+    static let candidateEditableStatuses: Set<RoomStatus> = [.open, .unlocked]
 
     // MARK: この端末（サインインしている人）からの呼び出し
 
@@ -36,6 +38,14 @@ extension InMemoryServer: FunctionsClient {
 
     func removeMember(_ request: RemoveMemberRequest) async throws {
         try removeMember(request, by: signedInUserID)
+    }
+
+    func addCandidate(_ request: AddCandidateRequest) async throws -> AddCandidateResult {
+        try addCandidate(request, by: signedInUserID)
+    }
+
+    func deleteCandidate(_ request: CandidateRequest) async throws {
+        try deleteCandidate(request, by: signedInUserID)
     }
 
     // MARK: ユーザー（呼んだ人の uid を `callerID` で受け取る。ほかのメンバーの端末 `Device` からも呼ぶ）
@@ -157,17 +167,86 @@ extension InMemoryServer: FunctionsClient {
         rooms[roomID] = record
     }
 
+    // MARK: 候補
+
+    /// 候補を追加する（backend の `candidates/service.ts` の `addCandidate`。判定の順は `logic.ts` の `decideAddCandidate`）。
+    ///
+    /// 入力の検証 → ルーム → メンバー → 状態（open・unlocked）→ 重複（作らずに既存の候補を返す。自分の投稿でも・上限でも）
+    /// → 自分の投稿数の上限 → ルームの候補の上限（200 件）の順に確かめ、`colorIndex` は既存の最大 + 1 にする
+    func addCandidate(_ request: AddCandidateRequest, by callerID: String?) throws -> AddCandidateResult {
+        let userID = try Self.requireCaller(callerID)
+        let roomID = try Self.documentID(request.roomId)
+        guard let place = CandidateRules.validatedPlace(request.place),
+              let note = CandidateRules.validatedNote(request.note) else {
+            throw Self.error(.invalidArgument)
+        }
+        let url = try Self.candidateURL(request.url)
+        let fromPastIdeaID = try request.fromPastIdeaId.map(Self.documentID)
+        guard var record = rooms[roomID] else {
+            throw Self.error(.roomNotFound)
+        }
+        guard let member = record.members[userID] else {
+            throw Self.error(.notRoomMember)
+        }
+        guard Self.candidateEditableStatuses.contains(record.room.status) else {
+            throw Self.error(.roomAlreadyDecided)
+        }
+        let existing = record.candidates.map { Identified(id: $0.key, value: $0.value) }
+        if let duplicate = CandidateRules.duplicate(of: place, in: existing) {
+            return .duplicate(of: duplicate)
+        }
+        guard existing.count(where: { $0.postedBy == userID }) < record.room.settings.postLimit else {
+            throw Self.error(.postLimitReached)
+        }
+        guard existing.count < DomainConstants.Limits.maxCandidates else {
+            throw Self.error(.roomCandidatesFull)
+        }
+        let candidateID = makeID()
+        record.candidates[candidateID] = Candidate(
+            place: place,
+            category: request.category,
+            note: note,
+            url: url,
+            postedBy: userID,
+            postedByName: member.displayName,
+            colorIndex: CandidateRules.nextColorIndex(existing.map(\.colorIndex)),
+            likedBy: [],
+            fromPastIdeaId: fromPastIdeaID,
+            createdAt: clock()
+        )
+        record.room.candidateCount += 1
+        rooms[roomID] = record
+        return .added(candidateID: candidateID)
+    }
+
+    /// 候補を削除する（backend の `deleteCandidate`。投稿した人か作成者だけ・open・unlocked のときだけ。いいねも一緒に消える）
+    func deleteCandidate(_ request: CandidateRequest, by callerID: String?) throws {
+        let userID = try Self.requireCaller(callerID)
+        let roomID = try Self.documentID(request.roomId)
+        let candidateID = try Self.documentID(request.candidateId)
+        guard var record = rooms[roomID] else {
+            throw Self.error(.roomNotFound)
+        }
+        guard record.members[userID] != nil else {
+            throw Self.error(.notRoomMember)
+        }
+        guard let candidate = record.candidates[candidateID] else {
+            throw Self.error(.candidateNotFound)
+        }
+        guard candidate.postedBy == userID || record.room.ownerId == userID else {
+            throw Self.error(.notCandidateOwner)
+        }
+        guard Self.candidateEditableStatuses.contains(record.room.status) else {
+            throw Self.error(.roomAlreadyDecided)
+        }
+        record.candidates[candidateID] = nil
+        record.room.candidateCount -= 1
+        rooms[roomID] = record
+    }
+
     // MARK: まだ backend に無い Callable（backend のタスクで足すときに、ここにも同じ検証を足す）
 
     func updateRoomSettings(_ request: UpdateRoomSettingsRequest) async throws {
-        throw AppError(.notImplemented)
-    }
-
-    func addCandidate(_ request: AddCandidateRequest) async throws -> AddCandidateResult {
-        throw AppError(.notImplemented)
-    }
-
-    func deleteCandidate(_ request: CandidateRequest) async throws {
         throw AppError(.notImplemented)
     }
 
@@ -219,6 +298,18 @@ private extension InMemoryServer {
             throw error(.invalidArgument)
         }
         return trimmed
+    }
+
+    /// 参考 URL（任意）を確かめる（backend の `parseUrl`）。無い・空白だけなら nil、受け付けなければ `invalid-argument`
+    static func candidateURL(_ text: String?) throws -> String? {
+        switch CandidateRules.validatedURL(text) {
+        case .none:
+            nil
+        case let .valid(url):
+            url
+        case .invalid:
+            throw error(.invalidArgument)
+        }
     }
 
     /// ドキュメントの ID として使えるか確かめる（backend の `requireDocumentId`）
