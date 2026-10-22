@@ -87,7 +87,14 @@ struct MainNavigationView: View {
                 path.append(.room(id: roomID))
             }
         case let .room(roomID):
-            let model = RoomModel(roomID: roomID, userID: userID, repository: services.rooms, functions: services.functions, toasts: toasts)
+            let model = RoomModel(
+                roomID: roomID,
+                userID: userID,
+                repository: services.rooms,
+                functions: services.functions,
+                toasts: toasts,
+                seenDraws: services.seenDraws
+            )
             RoomView(model: model) { route in
                 open(route)
             }

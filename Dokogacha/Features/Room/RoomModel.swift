@@ -30,6 +30,7 @@ import Observation
 /// 強制解禁（F-32）は作成者だけ・`open` のときだけ出し、確認のダイアログ（02 の §5.3）を挟んで Callable の `forceUnlock` を呼ぶ。
 /// 送っている途中は二重に送らず、画面の戻る操作を止める。失敗したら `AppError` の文言のトーストを出す。成功したら購読の
 /// `unlocked` で全員の画面が「ガチャ解禁！」になる（自分の画面も購読の値で変わる）。
+/// ほかの人がガチャを回した（F-41）ら、`DrawReplay` で決めた抽選を `drawToReplay` に入れ、画面が S-13 を開く。
 ///
 /// `lastSeenAt`（F-12 の NEW）は 02 の §3.3「ルーム画面を離れたときに更新する」のとおり、画面が消えたとき・アプリが裏に回ったときに書く。
 /// NEW の判定には、画面を開いて最初に届いた自分の `lastSeenAt` を使い続ける（画面を出している間は NEW を消さない）。
@@ -89,6 +90,8 @@ final class RoomModel {
     var isConfirmingForceUnlock = false
     /// 強制解禁を送っている途中か（二重に送らない・画面を閉じさせない）
     private(set) var isForceUnlocking = false
+    /// ほかの人が回したので、ガチャ（S-13）を開いて演出を再生する抽選の ID（開いたら `replayOpened()` で消す）
+    private(set) var drawToReplay: String?
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let functions: any FunctionsClient
@@ -96,6 +99,8 @@ final class RoomModel {
     @ObservationIgnored private var forceUnlockTask: Task<Void, Never>?
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
+    /// ガチャの演出を見終えた抽選
+    @ObservationIgnored private let seenDraws: any SeenDrawStore
     /// いま失敗している購読
     @ObservationIgnored private var failingSources: Set<Source> = []
 
@@ -106,13 +111,15 @@ final class RoomModel {
     ///   - functions: `forceUnlock` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 通信エラーを出すトーストの窓口
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
+    ///   - seenDraws: ガチャの演出を見終えた抽選（ほかの人が回したときに S-13 を開くかを決める）
     init(
         roomID: String,
         userID: String,
         repository: any RoomRepository,
         functions: any FunctionsClient,
         toasts: DGToastCenter,
-        resubscribeDelay: ResubscribeDelay = .standard
+        resubscribeDelay: ResubscribeDelay = .standard,
+        seenDraws: any SeenDrawStore = InMemorySeenDrawStore()
     ) {
         self.roomID = roomID
         self.userID = userID
@@ -120,6 +127,7 @@ final class RoomModel {
         self.functions = functions
         self.toasts = toasts
         self.resubscribeDelay = resubscribeDelay
+        self.seenDraws = seenDraws
     }
 
     // MARK: - 表示の値
@@ -324,6 +332,7 @@ final class RoomModel {
             pendingReady = nil
             return
         }
+        drawToReplay = DrawReplay.drawID(previous: room?.status, room: value.value, hasSeen: seenDraws.hasSeen(drawID:)) ?? drawToReplay
         room = value.value
         loadState = .loaded
         if !RoomCandidateRow.likeableStatuses.contains(value.status) {
@@ -363,6 +372,11 @@ final class RoomModel {
             }
             pendingLikes[id] = pending.received(candidate.likedBy.contains(userID)) ? nil : pending
         }
+    }
+
+    /// S-13 を開いた（`drawToReplay` を消す）
+    func replayOpened() {
+        drawToReplay = nil
     }
 
     // MARK: - いいね
