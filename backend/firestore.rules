@@ -1,0 +1,134 @@
+rules_version = '2';
+
+// ドコガチャの Firestore のセキュリティルール（05_architecture.md の §4）。
+// 整合性が要る書き込みは Callable Functions（Admin SDK。ルールを通らない）で行い、
+// クライアントが直接書けるのは「自分の準備OK」「いいね」「lastSeenAt」（と自分の通知トークン）だけにする。
+// まだ作っていないコレクションと、Functions だけが使うコレクション（inviteCodes・reports・mail など）は、
+// 最後の match ですべて拒否する。機能を作るタスクで許可を足していく。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function room(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId)).data;
+    }
+
+    // ルームのメンバーか（rooms.memberIds で判定する。Functions が members と同じトランザクションで更新する）
+    function isMember(roomId) {
+      return signedIn() && request.auth.uid in room(roomId).memberIds;
+    }
+
+    // 更新で変わったフィールドが keys だけか
+    function changesOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // 1 人が持てる通知トークンの数の上限。トークンは端末（入れ直し）ごとに 1 つ増え、無効になったものは送るときに消す。
+    // 1 人が同時に使う iPhone は数台なので、消し損ねた古いトークンが残っても 10 で足りる。
+    // 上限が無いと、1 人が巨大な一覧を書いて、通知を送るたびの読み取りと送信の数を増やせる
+    function maxFcmTokens() {
+      return 10;
+    }
+
+    // 通知トークンの一覧の i 番目が、無いか、空でない 4096 文字以下の文字列か
+    // （ルールには一覧を繰り返す式が無いので、上限の数だけ番号で確かめる。FCM のトークンは 200 文字ほど）
+    function validFcmTokenAt(tokens, i) {
+      return tokens.size() <= i
+        || (tokens[i] is string && tokens[i].size() > 0 && tokens[i].size() <= 4096);
+    }
+
+    // 通知トークンの一覧として正しいか（一覧・数の上限・要素がすべて文字列）
+    function validFcmTokens(tokens) {
+      return tokens is list
+        && tokens.size() <= maxFcmTokens()
+        && validFcmTokenAt(tokens, 0) && validFcmTokenAt(tokens, 1) && validFcmTokenAt(tokens, 2)
+        && validFcmTokenAt(tokens, 3) && validFcmTokenAt(tokens, 4) && validFcmTokenAt(tokens, 5)
+        && validFcmTokenAt(tokens, 6) && validFcmTokenAt(tokens, 7) && validFcmTokenAt(tokens, 8)
+        && validFcmTokenAt(tokens, 9);
+    }
+
+    // users/{uid}: 本人だけが読める。作成・表示名の変更は Callable の saveProfile（色・adFree をサーバーで決める）。
+    // 直接変えられるのは通知トークン（fcmTokens）だけ。adFree は verifyPurchase だけが書く
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid
+        && changesOnly(['fcmTokens'])
+        && validFcmTokens(request.resource.data.fcmTokens);
+
+      // users/{uid}/pastIdeas/{ideaId}: 過去のアイデア（F-13）。本人だけが読める（05 の §4）。
+      // 作るのはルームが終了したときの Functions（onRoomClosed）だけ。直接は作成・変更・削除できない
+      match /pastIdeas/{ideaId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // rooms/{roomId}: メンバーだけが読める（ホームの memberIds array-contains の一覧も、この条件で許可される）。
+    // 書き込みはすべて Callable
+    match /rooms/{roomId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
+
+      // members/{uid}: メンバーだけが読める。直接変えられるのは自分の ready と lastSeenAt だけ。
+      // ready は open・unlocked のときだけ（F-30）。lastSeenAt はサーバーの時刻（serverTimestamp）だけを受け付ける
+      match /members/{uid} {
+        allow read: if isMember(roomId);
+        allow update: if signedIn() && request.auth.uid == uid
+          && changesOnly(['ready', 'lastSeenAt'])
+          && request.resource.data.ready is bool
+          && (!('ready' in request.resource.data.diff(resource.data).affectedKeys())
+              || room(roomId).status in ['open', 'unlocked'])
+          && (!('lastSeenAt' in request.resource.data.diff(resource.data).affectedKeys())
+              || request.resource.data.lastSeenAt == request.time);
+      }
+
+      // candidates/{candidateId}: メンバーだけが読める（報告した人の画面でひとこと・URL を隠すのはアプリ。F-14）。
+      // 作成・削除は Callable の addCandidate・deleteCandidate（上限・重複・状態を確かめる）。
+      // 直接変えられるのは、いいね（likedBy に自分の uid を足す・取り除く）だけ（F-20）:
+      // - open・unlocked のときだけ・自分の投稿にはいいねできない（取り消しもできない。そもそも付けられない）
+      // - likedBy 以外のフィールドは変えられない
+      // - 変わるのは自分の uid だけ（他人の uid を足す・消すことはできない）。同じ uid を重ねない
+      //   （arrayUnion・arrayRemove の結果と同じ形だけを受け付ける。付いているのに付ける・無いのに外す書き込みは、何も変えないので通す）
+      // - 集合と件数で比べるので、他人の uid の並び順は変わり得る。並びはアバターを並べる順にしか効かず、
+      //   他人のいいねを足す・消す・重ねることはできないので許す（順序まで縛るとルールが複雑になる）
+      match /candidates/{candidateId} {
+        allow read: if isMember(roomId);
+        allow update: if isMember(roomId)
+          && room(roomId).status in ['open', 'unlocked']
+          && resource.data.postedBy != request.auth.uid
+          && changesOnly(['likedBy'])
+          && request.resource.data.likedBy is list
+          && (isLikeAdded(resource.data.likedBy, request.resource.data.likedBy, request.auth.uid)
+              || isLikeRemoved(resource.data.likedBy, request.resource.data.likedBy, request.auth.uid));
+      }
+
+      // draws/{drawId}: 抽選の記録。メンバーだけが読める（ほかの人が回したときの「◯◯さんがガチャを回しました」・結果の画面。F-41・F-42）。
+      // 作成は Callable の drawGacha だけ（サーバーの乱数で抽選し、ルームと同じトランザクションで書く）。直接は作成・変更・削除できない
+      match /draws/{drawId} {
+        allow read: if isMember(roomId);
+      }
+    }
+
+    // いいねを付けた後の一覧か（arrayUnion(uid) の結果。uid が増え、ほかは変わらない。重複を作らない）
+    function isLikeAdded(before, after, uid) {
+      return after.toSet() == before.toSet().union([uid].toSet())
+        && after.size() == before.size() + (uid in before ? 0 : 1);
+    }
+
+    // いいねを外した後の一覧か（arrayRemove(uid) の結果。uid が無くなり、ほかは変わらない）
+    function isLikeRemoved(before, after, uid) {
+      return after.toSet() == before.toSet().difference([uid].toSet())
+        && after.size() == before.size() - (uid in before ? 1 : 0);
+    }
+
+    // reports/{reportId}: 投稿の報告（F-14）。作るのは Callable の reportCandidate だけ。報告した人も含め、クライアントからは読めない
+    // （誰が報告したかを投稿した人・ほかのメンバーに知られないため。報告した人の画面でひとこと・URL を隠すのは、アプリが端末に覚えて行う）。
+    // mail/{mailId}: Trigger Email 拡張が読んで送る運営向けのメール（宛先と報告の内容を含む）。Functions と拡張だけが読み書きする。
+    // どちらも許可を書かず、下の match で拒否する
+
+    // ここまでで許可していないものは、すべて拒否する
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

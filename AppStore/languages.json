@@ -5,10 +5,10 @@
     "appleLanguage: 撮影時にアプリへ渡す -AppleLanguages の値（Localizable.xcstrings の言語コード）",
     "appleLocale:   撮影時にアプリへ渡す -AppleLocale の値（日付や数値の書式）",
     "storeLocale:   App Store Connect のロケール（アプリの言語コードとは別物）",
-    "言語を増やしたら、ここと AppStore/metadata/<言語>.json、撮影モードのデモの文言、creative.html の copy に足す。"
+    "言語を増やしたら、ここと AppStore/metadata/<言語>.json、撮影モードのデモの文言、creative.html の copy に足す。",
+    "MVP は日本語だけ（02 の §10「多言語」は対象外）。英語の掲載情報は出さないので en は載せない。"
   ],
   "languages": [
-    { "language": "ja", "appleLanguage": "ja", "appleLocale": "ja_JP", "storeLocale": "ja" },
-    { "language": "en", "appleLanguage": "en", "appleLocale": "en_US", "storeLocale": "en-US" }
+    { "language": "ja", "appleLanguage": "ja", "appleLocale": "ja_JP", "storeLocale": "ja" }
   ]
 }

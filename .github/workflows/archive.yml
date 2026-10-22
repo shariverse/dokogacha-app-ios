@@ -21,4 +21,6 @@ jobs:
     uses: ./.github/workflows/_archive.yml
     with:
       upload: false
+      # main は App Store に出す内容なので、Release（Firebase は prod）で Archive できることを確かめる
+      configuration: Release
     secrets: inherit

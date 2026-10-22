@@ -2,17 +2,21 @@ name: Build
 
 on:
   push:
-    # ドキュメントだけの変更では、macOS ランナーの枠を使わないよう Build を実行しない
+    # ドキュメントだけの変更では、macOS ランナーの枠を使わないよう Build を実行しない。
+    # backend/ だけの変更も実行しない（backend は Backend のワークフローが ubuntu で検証する）
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
+      - 'backend/**'
     branches:
       - '**'
   pull_request:
-    # ドキュメントだけの変更では、macOS ランナーの枠を使わないよう Build を実行しない
+    # ドキュメントだけの変更では、macOS ランナーの枠を使わないよう Build を実行しない。
+    # backend/ だけの変更も実行しない（backend は Backend のワークフローが ubuntu で検証する）
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
+      - 'backend/**'
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:

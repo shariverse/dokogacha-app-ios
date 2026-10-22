@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  アプリ本体（Dokogacha）の entitlements。Configs/Project.xcconfig の CODE_SIGN_ENTITLEMENTS で指定する
+  （Dokogacha/ の下に置くとリソースとしてアプリにコピーされるので、ここに置く）。
+  値に書いた $(…) は、ビルドのときに xcconfig の変数に置き換わる。
+-->
+<plist version="1.0">
+<dict>
+	<!-- プッシュ通知（02 の §8 F-60）。APNs の環境は Configs/*.xcconfig の DG_APS_ENVIRONMENT（Debug は development・Stg / Release は production） -->
+	<key>aps-environment</key>
+	<string>$(DG_APS_ENVIRONMENT)</string>
+	<!-- Universal Links（招待リンク https://dokogacha.app/r/{招待コード}）。ドメインは Configs/Project.xcconfig の DG_WEB_DOMAIN -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:$(DG_WEB_DOMAIN)</string>
+	</array>
+	<!-- Sign in with Apple（02 の §1 F-01。設定画面から匿名のアカウントを Apple ID に連携する） -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>

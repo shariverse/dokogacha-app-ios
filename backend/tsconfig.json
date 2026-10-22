@@ -1,0 +1,12 @@
+{
+  "extends": "./functions/tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "jest"],
+    "rootDir": ".",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true
+  },
+  "include": ["functions/src", "scripts", "test", "hosting/test"],
+  "exclude": ["node_modules", "functions/lib"]
+}

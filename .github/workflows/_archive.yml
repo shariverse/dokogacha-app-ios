@@ -17,6 +17,10 @@ on:
         description: Export した IPA を App Store Connect へアップロードするか
         type: boolean
         default: false
+      configuration:
+        description: Archive するビルド構成（Stg = TestFlight 用で Firebase は dev / Release = App Store 用で Firebase は prod）
+        type: string
+        default: Release
     secrets:
       EXPORT_OPTIONS:
         description: ExportOptions.plist の内容（destination と、アップロード時の manageAppVersionAndBuildNumber はワークフロー側で上書きする）
@@ -30,6 +34,12 @@ on:
       APPLE_API_ISSUER_ID:
         description: App Store Connect API Key の Issuer ID
         required: true
+      GOOGLE_SERVICE_INFO_PLIST_DEV:
+        description: Firebase の dev プロジェクトの GoogleService-Info.plist を base64 エンコードしたもの（Stg 構成で使う。未登録なら書き出さない）
+        required: false
+      GOOGLE_SERVICE_INFO_PLIST_PROD:
+        description: Firebase の prod プロジェクトの GoogleService-Info.plist を base64 エンコードしたもの（Release 構成で使う。未登録なら書き出さない）
+        required: false
 
 jobs:
   archive:
@@ -53,25 +63,151 @@ jobs:
         # ExportOptions.plist と API 秘密鍵はリポジトリ配下ではなく RUNNER_TEMP に置く
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          CONFIGURATION: ${{ inputs.configuration }}
         run: |
+          case "$CONFIGURATION" in
+            Stg | Release) ;;
+            *)
+              echo "::error::configuration は Stg か Release を指定してください（指定: ${CONFIGURATION}）" >&2
+              exit 1
+              ;;
+          esac
           project=$(basename -s .xcodeproj ./*.xcodeproj)
           {
             echo "PROJECT_NAME=$project"
             echo "SCHEME=$project"
+            echo "CONFIGURATION=$CONFIGURATION"
             echo "EXPORT_OPTIONS_PATH=$RUNNER_TEMP/ExportOptions.plist"
             echo "API_KEY_PATH=$RUNNER_TEMP/private_keys/AuthKey_$APPLE_API_KEY_ID.p8"
           } >> "$GITHUB_ENV"
-          echo "project=$project scheme=$project"
+          echo "project=$project scheme=$project configuration=$CONFIGURATION"
+
+      - name: Write GoogleService-Info plist
+        # Archive する構成の plist だけを Secrets から書き出す（Stg = Dev / Release = Prod。もう一方は xcconfig の EXCLUDED_SOURCE_FILE_NAMES でアプリに入らない）。
+        # Secret が未登録なら書き出さずに進む。アプリは plist が無くても起動し、サーバーに接続できない状態になる（Discussion #5 の Q5）。
+        # ただし App Store にアップロードする Release は、サーバーに繋がらないアプリを出さないよう止める。
+        # Secrets はシェル展開ではなく env 経由で渡し、中身はログに出さない
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_DEV: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_DEV }}
+          GOOGLE_SERVICE_INFO_PLIST_PROD: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_PROD }}
+          UPLOAD: ${{ inputs.upload }}
+        run: |
+          if [[ "$CONFIGURATION" == "Release" ]]; then
+            name=GoogleService-Info-Prod
+            secret_name=GOOGLE_SERVICE_INFO_PLIST_PROD
+            encoded=$GOOGLE_SERVICE_INFO_PLIST_PROD
+          else
+            name=GoogleService-Info-Dev
+            secret_name=GOOGLE_SERVICE_INFO_PLIST_DEV
+            encoded=$GOOGLE_SERVICE_INFO_PLIST_DEV
+          fi
+          destination="$PROJECT_NAME/Resources/Firebase/$name.plist"
+          if [[ -z "$encoded" ]]; then
+            message="Secret ${secret_name} が無いため ${name}.plist を書き出さずに Archive します（このアプリは Firebase に接続できません）"
+            if [[ "$CONFIGURATION" == "Release" && "$UPLOAD" == "true" ]]; then
+              echo "::error::${message}。App Store 用の Release はアップロードしません" >&2
+              exit 1
+            fi
+            echo "::warning::${message}"
+            echo "> [!WARNING]" >> "$GITHUB_STEP_SUMMARY"
+            echo "> ${message}" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mkdir -p "$(dirname "$destination")"
+          if ! printf '%s' "$encoded" | base64 --decode > "$destination" 2>/dev/null || ! plutil -lint -s "$destination" >/dev/null 2>&1; then
+            rm -f "$destination"
+            echo "::error::Secret ${secret_name} を plist として読めません。GoogleService-Info.plist を base64 にした値を登録してください" >&2
+            exit 1
+          fi
+          echo "$destination を書き出しました"
 
       - name: Archive
+        # DerivedData の場所を決めておく（dSYM を上げるときに、SPM が取ってきた firebase-ios-sdk の upload-symbols をここから探す）
         run: |
           xcodebuild archive \
             -project "$PROJECT_NAME.xcodeproj" \
             -scheme "$SCHEME" \
             -sdk iphoneos \
-            -configuration Release \
+            -configuration "$CONFIGURATION" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -archivePath "$RUNNER_TEMP/build.xcarchive" \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Verify Firebase settings in the app
+        # 構成と Firebase の接続先の取り違え（Stg のつもりで prod に繋ぐなど）を、Export・アップロードの前に止める。
+        # Info.plist の DGFirebaseEnvironment・DGFirebaseOptionsFileName が構成どおりか、もう一方の構成の plist が入っていないか、
+        # 書き出した plist がアプリに入ったかを確かめる（plist の中身は読まない・出さない）
+        run: |
+          if [[ "$CONFIGURATION" == "Release" ]]; then
+            expected_environment=prod
+            expected_name=GoogleService-Info-Prod
+            other_name=GoogleService-Info-Dev
+          else
+            expected_environment=dev
+            expected_name=GoogleService-Info-Dev
+            other_name=GoogleService-Info-Prod
+          fi
+          app_path=$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:ApplicationPath' "$RUNNER_TEMP/build.xcarchive/Info.plist")
+          app="$RUNNER_TEMP/build.xcarchive/Products/$app_path"
+          environment=$(plutil -extract DGFirebaseEnvironment raw -o - "$app/Info.plist")
+          options_name=$(plutil -extract DGFirebaseOptionsFileName raw -o - "$app/Info.plist")
+          echo "configuration=$CONFIGURATION DGFirebaseEnvironment=$environment DGFirebaseOptionsFileName=$options_name"
+          if [[ "$environment" != "$expected_environment" || "$options_name" != "$expected_name" ]]; then
+            echo "::error::${CONFIGURATION} のアプリの Firebase の設定が想定と違います（DGFirebaseEnvironment は ${expected_environment}、DGFirebaseOptionsFileName は ${expected_name} のはず）" >&2
+            exit 1
+          fi
+          if [[ -e "$app/$other_name.plist" ]]; then
+            echo "::error::${CONFIGURATION} のアプリに ${other_name}.plist が入っています" >&2
+            exit 1
+          fi
+          if [[ -f "$PROJECT_NAME/Resources/Firebase/$expected_name.plist" ]]; then
+            if [[ ! -f "$app/$expected_name.plist" ]]; then
+              echo "::error::書き出した ${expected_name}.plist がアプリに入っていません" >&2
+              exit 1
+            fi
+            echo "$expected_name.plist がアプリに入っています"
+          else
+            echo "$expected_name.plist は無いので、このアプリは Firebase に接続できません"
+          fi
+
+      - name: Upload dSYMs to Crashlytics
+        # TestFlight・App Store に上げるビルドの dSYM を Crashlytics に上げ、クラッシュの記録を記号化できるようにする
+        # （Xcode の Run Script のビルドフェーズは project.pbxproj を変えるので使わず、SPM が取ってきた firebase-ios-sdk の upload-symbols を Archive の後に呼ぶ）。
+        # アップロードしない Archive（main の確認）は配らないビルドなので上げない。
+        # 書き出した GoogleService-Info の plist が無い（Secret が無い Fork など）ときは上げずに進む。
+        # 上げるのに失敗しても TestFlight・App Store へのアップロードは止めない（注釈と Job Summary で知らせる）
+        if: ${{ inputs.upload }}
+        run: |
+          if [[ "$CONFIGURATION" == "Release" ]]; then
+            name=GoogleService-Info-Prod
+          else
+            name=GoogleService-Info-Dev
+          fi
+          plist="$PROJECT_NAME/Resources/Firebase/${name}.plist"
+          if [[ ! -f "$plist" ]]; then
+            echo "::notice::${name}.plist が無いため、dSYM を Crashlytics に上げません"
+            exit 0
+          fi
+          upload_symbols="$RUNNER_TEMP/DerivedData/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols"
+          if [[ ! -f "$upload_symbols" ]]; then
+            upload_symbols=""
+          fi
+          dsyms="$RUNNER_TEMP/build.xcarchive/dSYMs"
+          message=""
+          if [[ -z "$upload_symbols" ]]; then
+            message="firebase-ios-sdk の Crashlytics/upload-symbols が見つからないため、dSYM を Crashlytics に上げませんでした"
+          elif [[ ! -d "$dsyms" ]] || [[ -z "$(ls -A "$dsyms")" ]]; then
+            message="Archive に dSYM が無いため、Crashlytics に上げませんでした"
+          elif ! "$upload_symbols" --google-service-plist "$plist" --platform ios "$dsyms"; then
+            message="dSYM を Crashlytics に上げられませんでした（クラッシュの記録が記号化されません）"
+          fi
+          if [[ -n "$message" ]]; then
+            echo "::warning::${message}"
+            echo "> [!WARNING]" >> "$GITHUB_STEP_SUMMARY"
+            echo "> ${message}" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "dSYM を Crashlytics に上げました（${name}）"
 
       - name: Create ExportOptions.plist and API private key
         # Secrets はシェル展開ではなく env 経由で渡す

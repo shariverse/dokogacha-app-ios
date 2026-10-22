@@ -1,0 +1,32 @@
+{
+  "name": "dokogacha-backend",
+  "private": true,
+  "description": "ドコガチャの Firebase（Cloud Functions・Firestore のルール・Hosting）",
+  "engines": {
+    "node": "22"
+  },
+  "workspaces": [
+    "functions"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace functions",
+    "typecheck": "tsc -p functions/tsconfig.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "lint": "eslint --max-warnings 0 .",
+    "test": "jest",
+    "test:emulator": "bash scripts/test-emulator.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.13.0",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.34.0",
+    "globals": "^17.13.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0"
+  }
+}

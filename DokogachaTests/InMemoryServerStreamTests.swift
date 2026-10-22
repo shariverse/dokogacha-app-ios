@@ -1,0 +1,213 @@
+//
+//  InMemoryServerStreamTests.swift
+//  DokogachaTests
+//
+
+@testable import Dokogacha
+import Foundation
+import Testing
+
+/// 擬似のサーバーの購読（変更を流す・cancel で外れる）と、直接の書き込みのルールを確かめる
+struct InMemoryServerStreamTests {
+    @Test
+    func activeRoomsStreamsChanges() async throws {
+        let server = InMemoryServerTests.makeServer()
+        try await InMemoryServerTests.addUser(server, "owner")
+        var iterator = server.activeRooms(userID: "owner").makeAsyncIterator()
+        #expect(await iterator.next() == .value([]))
+
+        let room = try await server.createRoom(InMemoryServerTests.simpleRoom())
+        #expect(await iterator.next()?.value?.map(\.id) == [room.roomId])
+
+        // 終了したルームはホームに出ない
+        server.rooms[room.roomId]?.room.status = .closed
+        #expect(await iterator.next() == .value([]))
+    }
+
+    @Test
+    func membersStreamFollowsJoinAndFailsAfterRemoval() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        try await InMemoryServerTests.addUser(server, "guest")
+        _ = try await InMemoryServerTests.join(server, "guest", code: room.inviteCode)
+
+        // guest の端末として購読する
+        server.signedInUserID = "guest"
+        var iterator = server.members(roomID: room.roomId).makeAsyncIterator()
+        // 参加の日時が同じ（時計を止めている）ので、並びは見ない
+        #expect(Set(await iterator.next()?.value?.map(\.id) ?? []) == ["owner", "guest"])
+
+        // 作成者に削除されたら、読めなくなって購読が終わる（Firestore のリスナーと同じ）
+        try await server.device(of: "owner").removeMember(RemoveMemberRequest(roomId: room.roomId, memberId: "guest"))
+        #expect(await iterator.next() == .failure(InMemoryServer.permissionDenied))
+        #expect(await iterator.next() == nil)
+    }
+
+    @Test
+    func cancellingRemovesSubscriber() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        let stream = server.candidates(roomID: room.roomId)
+        #expect(server.subscriberCount == 1)
+        let task = Task {
+            for await _ in stream {}
+        }
+        task.cancel()
+        await task.value
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 0 })
+    }
+
+    @Test
+    func nonMemberCannotReadRoom() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        server.signedInUserID = "stranger"
+        var iterator = server.room(id: room.roomId).makeAsyncIterator()
+        #expect(await iterator.next() == .failure(InMemoryServer.permissionDenied))
+    }
+
+    /// 無いルームの購読は、本番のルールと同じく permission-denied で終わる（nil は流さない）
+    @Test
+    func missingRoomFailsLikeSecurityRules() async throws {
+        let server = InMemoryServerTests.makeServer()
+        var missing = server.room(id: "missing").makeAsyncIterator()
+        #expect(await missing.next() == .failure(InMemoryServer.permissionDenied))
+        #expect(await missing.next() == nil)
+    }
+
+    /// 準備OKは自分の分だけ、open・unlocked のときだけ（05 の §4 のルール）
+    @Test
+    func readyIsOwnAndOnlyWhileInteractive() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        try await server.setReady(true, roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.members["owner"]?.ready == true)
+        #expect(server.rooms[room.roomId]?.room.readyCount == 1)
+
+        try await InMemoryServerTests.addUser(server, "guest")
+        _ = try await InMemoryServerTests.join(server, "guest", code: room.inviteCode)
+        // ほかの人の分は書けない。直接の書き込みは送った時点で返り、拒まれても投げずに状態を変えない
+        try await server.setReady(true, roomID: room.roomId, userID: "guest")
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == false)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied])
+
+        server.rooms[room.roomId]?.room.status = .drawn
+        try await server.setReady(false, roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.members["owner"]?.ready == true)
+        #expect(server.rooms[room.roomId]?.room.readyCount == 1)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied, InMemoryServer.permissionDenied])
+    }
+
+    /// いいねは他人の候補にだけ付けられ、もう一度で外れる（F-20）
+    @Test
+    func likeOnlyOthersCandidates() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        server.rooms[room.roomId]?.candidates["mine"] = InMemoryServerTests.candidate(postedBy: "owner", likedBy: [])
+        server.rooms[room.roomId]?.candidates["theirs"] = InMemoryServerTests.candidate(postedBy: "guest", likedBy: ["x"])
+
+        try await server.setLike(true, candidateID: "theirs", roomID: room.roomId, userID: "owner")
+        try await server.setLike(true, candidateID: "theirs", roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy == ["x", "owner"])
+        try await server.setLike(false, candidateID: "theirs", roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy == ["x"])
+
+        // いいねし直しても並びを変えない（`arrayUnion` は既にある値の位置を変えない）
+        try await server.setLike(true, candidateID: "theirs", roomID: room.roomId, userID: "owner")
+        server.rooms[room.roomId]?.candidates["theirs"]?.likedBy.append("y")
+        try await server.setLike(true, candidateID: "theirs", roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy == ["x", "owner", "y"])
+
+        // 自分の候補にはいいねできない（拒まれても投げず、状態を変えない）
+        #expect(server.rejectedWrites.isEmpty)
+        try await server.setLike(true, candidateID: "mine", roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.candidates["mine"]?.likedBy.isEmpty == true)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied])
+    }
+
+    /// 購読に流れたルームの準備OKの数（ルームが流れていなければ nil）
+    static func readyCount(_ update: LiveUpdate<Identified<Room>?>?) -> Int? {
+        guard case let .value(room?)? = update else {
+            return nil
+        }
+        return room.value.readyCount
+    }
+
+    /// ほかのメンバーの準備OK・いいね・lastSeenAt も、この端末と同じ検証と数え直しを通り、購読に流れる
+    @Test
+    func otherMembersDirectWritesGoThroughSameRules() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        try await InMemoryServerTests.addUser(server, "guest")
+        _ = try await InMemoryServerTests.join(server, "guest", code: room.inviteCode)
+        server.rooms[room.roomId]?.candidates["mine"] = InMemoryServerTests.candidate(postedBy: "owner", likedBy: [])
+        var rooms = server.room(id: room.roomId).makeAsyncIterator()
+        #expect(Self.readyCount(await rooms.next()) == 0)
+
+        let guest = server.device(of: "guest")
+        await guest.setReady(true, roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == true)
+        // 数え直した readyCount が、作成者の端末の購読に流れる
+        #expect(Self.readyCount(await rooms.next()) == 1)
+
+        await guest.setLike(true, candidateID: "mine", roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.candidates["mine"]?.likedBy == ["guest"])
+        await guest.markSeen(roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.members["guest"]?.lastSeenAt == InMemoryServerTests.now)
+
+        // ほかの人の端末でも、ルールで拒まれるものは拒まれる（自分の投稿へのいいね・引いた後の準備OK）
+        server.rooms[room.roomId]?.candidates["theirs"] = InMemoryServerTests.candidate(postedBy: "guest", likedBy: [])
+        await guest.setLike(true, candidateID: "theirs", roomID: room.roomId)
+        server.rooms[room.roomId]?.room.status = .drawn
+        await guest.setReady(false, roomID: room.roomId)
+        #expect(server.rooms[room.roomId]?.candidates["theirs"]?.likedBy.isEmpty == true)
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == true)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied, InMemoryServer.permissionDenied])
+    }
+
+    /// ほかのメンバーの操作の後も、この端末の呼び出しはサインインしている人のものとして扱う（呼んだ人が漏れない）
+    @Test
+    func deviceDoesNotChangeCallerOfThisDevice() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let room = try await InMemoryServerTests.makeRoom(server)
+        try await InMemoryServerTests.addUser(server, "guest")
+        _ = try await InMemoryServerTests.join(server, "guest", code: room.inviteCode)
+
+        // ほかの端末の呼び出しと、この端末の呼び出しを交互に並べても、それぞれの uid で通る
+        _ = try await server.device(of: "guest").saveProfile(SaveProfileRequest(displayName: "ゲスト"))
+        _ = try await server.saveProfile(SaveProfileRequest(displayName: "オーナー"))
+        #expect(server.users["guest"]?.displayName == "ゲスト")
+        #expect(server.users["owner"]?.displayName == "オーナー")
+
+        // この端末の準備OKは owner の分だけ。guest の分を書こうとしても拒まれる
+        try await server.setReady(true, roomID: room.roomId, userID: "guest")
+        #expect(server.rooms[room.roomId]?.members["guest"]?.ready == false)
+        #expect(server.rejectedWrites == [InMemoryServer.permissionDenied])
+    }
+
+    @Test
+    func markSeenUsesServerClock() async throws {
+        var now = InMemoryServerTests.now
+        let server = InMemoryServer(clock: { now }, signedInUserID: "owner")
+        try await InMemoryServerTests.addUser(server, "owner")
+        let room = try await server.createRoom(InMemoryServerTests.simpleRoom())
+        now = now.addingTimeInterval(600)
+        try await server.markSeen(roomID: room.roomId, userID: "owner")
+        #expect(server.rooms[room.roomId]?.members["owner"]?.lastSeenAt == now)
+    }
+
+    @Test
+    func profileStreamShowsOwnProfileOnly() async throws {
+        let server = InMemoryServerTests.makeServer()
+        var mine = server.profile(userID: "owner").makeAsyncIterator()
+        #expect(await mine.next() == .value(nil))
+        _ = try await server.saveDisplayName("たくみ")
+        guard case let .value(profile?) = try #require(await mine.next()) else {
+            Issue.record("プロフィールが流れていない")
+            return
+        }
+        #expect(profile.displayName == "たくみ")
+        var others = server.profile(userID: "guest").makeAsyncIterator()
+        #expect(await others.next() == .failure(InMemoryServer.permissionDenied))
+    }
+}

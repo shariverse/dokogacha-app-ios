@@ -1,0 +1,22 @@
+//
+//  Stg.xcconfig
+//  Dokogacha
+//
+//  Stg 構成だけに適用したい設定をここに書く。
+//  Stg は TestFlight 用（develop の Upload）の構成で、Release と同じ最適化でビルドし、Firebase は dev に接続する。
+//  App Store に出す Release は常に prod に接続する（Discussion #5 の Q4）。
+//
+
+#include "Project.xcconfig"
+
+// Firebase の接続先（Info.plist の DGFirebaseEnvironment）。Stg は dev プロジェクト
+DG_FIREBASE_ENVIRONMENT = dev
+// 読む GoogleService-Info の名前（拡張子なし）。CI が Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist に書き出す
+DG_FIREBASE_OPTIONS_FILE_NAME = GoogleService-Info-Dev
+// prod の plist が手元にあっても、TestFlight 用のアプリには入れない
+EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Prod.plist
+// APNs の環境（Configs/Dokogacha.entitlements の aps-environment）。TestFlight は App Store の配布用の署名なので production
+DG_APS_ENVIRONMENT = production
+// Analytics・Crashlytics の収集の既定（Info.plist の FIREBASE_ANALYTICS_COLLECTION_ENABLED・FirebaseCrashlyticsCollectionEnabled）。
+// TestFlight のアプリは dev に送る（起動ごとの判定は FirebaseCollectionPolicy）
+DG_FIREBASE_COLLECTION_ENABLED = YES
