@@ -6,6 +6,7 @@ import {
   decideForceUnlock,
   memberWriteAffectsUnlock,
   planUnlock,
+  statusAfterRecount,
   type MemberCounts,
   type RoomUnlockState,
 } from "./logic";
@@ -156,6 +157,31 @@ describe("planUnlock", () => {
       unlockedBy: null,
     });
     expect(planUnlock(room({ unlockRule: undefined }), counts(3, 0), NOW_MS)).toEqual({ update: {}, unlockedBy: null });
+  });
+});
+
+describe("statusAfterRecount（drawGacha が回す前に解禁を確かめる）", () => {
+  it("unlocked でも、数え直した準備OKで条件を満たさなければ open（参加の直後で onMemberWrite がまだ戻していない）", () => {
+    expect(statusAfterRecount(room({ status: "unlocked", readyCount: 3 }), counts(4, 3), NOW_MS)).toBe("open");
+    expect(statusAfterRecount(room({ status: "unlocked", readyCount: 3 }), counts(3, 3), NOW_MS)).toBe("unlocked");
+  });
+
+  it("強制解禁・締切日時の後・引き直しの可決の後は、準備OKの数によらず unlocked のまま（planUnlock と同じ規則）", () => {
+    expect(statusAfterRecount(room({ status: "unlocked", forcedUnlock: true }), counts(4, 0), NOW_MS)).toBe("unlocked");
+    expect(
+      statusAfterRecount(
+        room({ status: "unlocked", unlockRule: "deadline", deadlineAtMs: NOW_MS - 1 }),
+        counts(4, 0),
+        NOW_MS,
+      ),
+    ).toBe("unlocked");
+    expect(statusAfterRecount(room({ status: "unlocked", rerollPassed: true }), counts(4, 0), NOW_MS)).toBe("unlocked");
+  });
+
+  it("open は条件を満たしていれば unlocked（トリガーより先に揃った）・drawn・closed はそのまま", () => {
+    expect(statusAfterRecount(room({ status: "open" }), counts(3, 3), NOW_MS)).toBe("unlocked");
+    expect(statusAfterRecount(room({ status: "drawn" }), counts(3, 0), NOW_MS)).toBe("drawn");
+    expect(statusAfterRecount(room({ status: "closed" }), counts(3, 3), NOW_MS)).toBe("closed");
   });
 });
 
