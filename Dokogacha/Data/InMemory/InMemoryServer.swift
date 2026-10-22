@@ -228,6 +228,10 @@ extension InMemoryServer: AuthService {
         try await saveProfile(SaveProfileRequest(displayName: displayName))
     }
 
+    func signOut() {
+        signedInUserID = nil
+    }
+
     /// サーバー側でサインアウトされたことを再現する（ユーザーの削除・トークンの更新の失敗）
     func simulateSignOut() {
         signedInUserID = nil

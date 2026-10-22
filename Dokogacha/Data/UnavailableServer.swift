@@ -59,6 +59,8 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
         throw error
     }
 
+    func signOut() {}
+
     // MARK: RoomRepository
 
     func activeRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {

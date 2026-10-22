@@ -56,6 +56,14 @@ struct ServerSessionTests {
         func signInWithLinkedAppleAccount() async throws -> String {
             throw AppError(.appleSignInFailed)
         }
+
+        func deleteAccount() async throws {
+            try await server.deleteAccount()
+        }
+
+        func signOut() {
+            server.signOut()
+        }
     }
 
     /// サインインを、テストが `finishSignIn` を呼ぶまで止めておく擬似の認証
@@ -108,6 +116,14 @@ struct ServerSessionTests {
 
         func signInWithLinkedAppleAccount() async throws -> String {
             throw AppError(.appleSignInFailed)
+        }
+
+        func deleteAccount() async throws {
+            try await server.deleteAccount()
+        }
+
+        func signOut() {
+            server.signOut()
         }
     }
 
@@ -172,6 +188,14 @@ struct ServerSessionTests {
 
         func signInWithLinkedAppleAccount() async throws -> String {
             throw AppError(.appleSignInFailed)
+        }
+
+        func deleteAccount() async throws {
+            try await server.deleteAccount()
+        }
+
+        func signOut() {
+            server.signOut()
         }
     }
 

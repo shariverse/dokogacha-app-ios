@@ -5,6 +5,7 @@
 
 @preconcurrency import FirebaseAuth
 import Foundation
+import os
 
 /// Firebase Auth を使う `AuthService`。`FirebaseApp.configure` の後でだけ作る。
 ///
@@ -15,6 +16,8 @@ final class FirebaseAuthService: AuthService {
     enum SignInError: Error {
         case missingUser
     }
+
+    nonisolated private static let logger = Logger(subsystem: "jp.shilokuma.Dokogacha", category: "Auth")
 
     private let gateway: any FirestoreGateway
     private let functions: any FunctionsClient
@@ -126,6 +129,19 @@ final class FirebaseAuthService: AuthService {
                     continuation.resume(throwing: SignInError.missingUser)
                 }
             }
+        }
+    }
+
+    func deleteAccount() async throws {
+        try await functions.deleteAccount()
+    }
+
+    func signOut() {
+        do {
+            try Auth.auth().signOut()
+        } catch {
+            // キーチェーンから消せなかったときだけ失敗する。サーバーでユーザーを消してあるので、トークンが切れるとサインアウトされる
+            Self.logger.error("サインアウトできない: \(error.localizedDescription, privacy: .public)")
         }
     }
 

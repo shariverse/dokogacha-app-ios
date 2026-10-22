@@ -41,6 +41,17 @@ protocol AuthService {
     /// 02 の F-01 の AC「別端末で同じ Apple ID でサインインしたときに参加ルームが復元される」ため。
     /// 今の匿名のアカウントからはサインアウトする（戻れない）。`userIDChanges` に新しいユーザーが流れ、起動の流れがホームを開き直す
     func signInWithLinkedAppleAccount() async throws -> String
+
+    /// サインインしているアカウントをサーバーで削除する（02 の F-06。Callable の `deleteAccount`）。
+    ///
+    /// 参加中のルームからの退出・作成者のルームの終了・`users/{uid}` と過去のアイデアと Auth のユーザーの削除はサーバーが行う。
+    /// 途中で失敗しても、もう一度呼べば続きから終わる。この端末のサインインはそのまま残るので、終えたら `signOut` で外す
+    func deleteAccount() async throws
+
+    /// この端末でサインアウトする（アカウントを削除した後）。
+    ///
+    /// `userIDChanges` に nil が流れ、起動の流れが匿名でサインインし直して S-01 を出す（新しいユーザーにはプロフィールが無い）
+    func signOut()
 }
 
 /// Sign in with Apple で受け取った資格情報（`ASAuthorizationAppleIDCredential` から取り出した値）。

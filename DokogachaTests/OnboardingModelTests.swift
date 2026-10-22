@@ -29,7 +29,14 @@ struct OnboardingModelTests {
         private(set) var linkedCredentials: [AppleIDCredential] = []
         /// 連携を失敗させるエラー（nil なら擬似のサーバーで連携する）
         var linkError: AppError?
+        /// アカウントの削除のふるまい（失敗させる・止める）
+        var deleteBehavior: SaveBehavior = .save
+        /// アカウントの削除を呼んだ回数
+        private(set) var deleteCount = 0
+        /// サインアウトした回数
+        private(set) var signOutCount = 0
         private var pending: CheckedContinuation<Void, Never>?
+        private var pendingDelete: CheckedContinuation<Void, Never>?
 
         /// - Parameters:
         ///   - behavior: 登録のふるまい
@@ -93,6 +100,35 @@ struct OnboardingModelTests {
 
         func signInWithLinkedAppleAccount() async throws -> String {
             try await server.signInWithLinkedAppleAccount()
+        }
+
+        /// 削除の途中で止まっているか
+        var isWaitingForDelete: Bool {
+            pendingDelete != nil
+        }
+
+        /// 止めていた削除を進める
+        func finishDelete() {
+            pendingDelete?.resume()
+            pendingDelete = nil
+        }
+
+        func deleteAccount() async throws {
+            deleteCount += 1
+            switch deleteBehavior {
+            case .save:
+                break
+            case let .fail(error):
+                throw error
+            case .suspend:
+                await withCheckedContinuation { pendingDelete = $0 }
+            }
+            try await server.deleteAccount()
+        }
+
+        func signOut() {
+            signOutCount += 1
+            server.signOut()
         }
     }
 

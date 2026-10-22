@@ -60,6 +60,14 @@ struct RootModelTests {
         func signInWithLinkedAppleAccount() async throws -> String {
             throw AppError(.appleSignInFailed)
         }
+
+        func deleteAccount() async throws {
+            try await server.deleteAccount()
+        }
+
+        func signOut() {
+            server.signOut()
+        }
     }
 
     /// 読めたプロフィールの後に、購読が一度だけ失敗で終わる擬似の認証（2 回目からは擬似のサーバーのまま）
@@ -111,6 +119,14 @@ struct RootModelTests {
 
         func signInWithLinkedAppleAccount() async throws -> String {
             throw AppError(.appleSignInFailed)
+        }
+
+        func deleteAccount() async throws {
+            try await server.deleteAccount()
+        }
+
+        func signOut() {
+            server.signOut()
         }
     }
 
