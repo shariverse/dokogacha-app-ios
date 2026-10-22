@@ -56,6 +56,13 @@ describe("APP_ERRORS", () => {
     });
   });
 
+  it("投稿の報告（02 の §3.5。自分の投稿は報告できない）の文言", () => {
+    expect(APP_ERRORS["cannot-report-own-candidate"]).toEqual({
+      code: "failed-precondition",
+      message: "自分の投稿は報告できません",
+    });
+  });
+
   it("想定していないエラーとサインインの無いときは「通信できませんでした」（05 の §6 のトースト）", () => {
     expect(APP_ERRORS.internal.message).toBe("通信できませんでした");
     expect(APP_ERRORS.unauthenticated).toEqual({ code: "unauthenticated", message: "通信できませんでした" });

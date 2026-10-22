@@ -256,4 +256,25 @@ export interface ReportDoc {
   reason: ReportReason;
   /** 報告した日時 */
   createdAt: Timestamp;
+  /**
+   * 報告した時点の候補の内容（投稿した人が後で削除・ルームが終了しても、運営が何を報告されたか確かめられるように残す）。
+   * 05 の §5 の項目に足したもの。表示名は持たない（投稿した人は uid で引く）
+   */
+  candidate: ReportedCandidateSnapshot;
+}
+
+/** 報告した時点の候補の内容（`reports.candidate`） */
+export interface ReportedCandidateSnapshot {
+  /** 場所名 */
+  placeName: string;
+  /** エリアの表示 */
+  area: string;
+  /** カテゴリ */
+  category: PlaceCategory;
+  /** ひとこと */
+  note: string;
+  /** 参考 URL（無ければ null） */
+  url: string | null;
+  /** 投稿した人の uid */
+  postedBy: string;
 }
