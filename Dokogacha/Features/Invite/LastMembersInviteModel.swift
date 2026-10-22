@@ -118,10 +118,12 @@ final class LastMembersInviteModel {
         }
     }
 
-    /// 終了したルームを購読し続ける（失敗したらトーストを出さずに読み直す）
+    /// 終了したルームを購読し続ける（失敗したらトーストを出さずに読み直す）。
+    ///
+    /// 前回のルームは直近の 1 件だけなので、終了した日時の新しい順に 1 件だけ読む
     private func observeClosedRooms() async {
         while !Task.isCancelled {
-            for await update in repository.closedRooms(userID: userID) {
+            for await update in repository.closedRooms(userID: userID, limit: 1) {
                 guard !Task.isCancelled else {
                     break
                 }
