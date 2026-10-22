@@ -35,7 +35,8 @@ struct CandidateDetailModelTests {
         server: InMemoryServer,
         functions: (any FunctionsClient)? = nil,
         toasts: DGToastCenter = DGToastCenter(visibleFor: .seconds(3_600)),
-        mapOpener: any MapOpener = RecordingMapOpener()
+        mapOpener: any MapOpener = RecordingMapOpener(),
+        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore()
     ) -> CandidateDetailModel {
         CandidateDetailModel(
             roomID: DemoScenario.roomID,
@@ -45,7 +46,8 @@ struct CandidateDetailModelTests {
             functions: functions ?? server,
             toasts: toasts,
             mapOpener: mapOpener,
-            resubscribeDelay: RoomModelTests.immediateResubscribe
+            resubscribeDelay: RoomModelTests.immediateResubscribe,
+            reportedCandidates: reportedCandidates
         )
     }
 
@@ -297,7 +299,7 @@ struct CandidateDetailModelTests {
 
         model.confirmDeleteTapped()
         #expect(await AsyncTestSupport.eventually { functions.isWaiting })
-        model.cancelDelete()
+        model.cancelSending()
         functions.finish()
         #expect(await AsyncTestSupport.eventually { !model.isDeleting })
         #expect(!model.didDelete)
@@ -321,7 +323,7 @@ struct CandidateDetailModelTests {
         #expect(!model.didDelete)
     }
 
-    // MARK: - いいね・マップ・報告
+    // MARK: - いいね・マップ（報告は CandidateDetailReportTests）
 
     /// いいねは S-07 と同じに付けられる（押すとすぐに表示が変わり、サーバーに送る）
     @Test
@@ -358,15 +360,6 @@ struct CandidateDetailModelTests {
         #expect(place.name == "サンシャイン水族館")
         #expect(place.latitude == 35.728_9)
         #expect(place.longitude == 139.719_7)
-    }
-
-    /// 「この投稿を報告」は、送信を作るまで準備中と出す（F-14 はタスク 40）
-    @Test
-    func reportShowsPendingMessage() {
-        let toasts = DGToastCenter(visibleFor: .seconds(3_600))
-        let model = Self.makeModel(Self.shrine, server: RoomModelTests.makeServer(), toasts: toasts)
-        model.reportTapped()
-        #expect(toasts.current?.text == "この機能は準備中です")
     }
 
     /// Apple のマップに渡す `MKMapItem` は場所の名前と座標を持つ
