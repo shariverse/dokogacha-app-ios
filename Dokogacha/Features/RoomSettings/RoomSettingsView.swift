@@ -252,7 +252,7 @@ struct RoomSettingsView: View {
     /// いいねの効き方の補足（状態で変えられないときは、その理由。変えられるときは S-03 と同じく選択に応じて切り替える）
     private var likeModeHint: LocalizedStringKey {
         if model.likeModeLock == .status {
-            return "いいねの効き方はガチャを回す前だけ変更できます"
+            return "行き先が決まった後は、いいねの効き方を変更できません"
         }
         switch model.likeMode {
         case .boost:
