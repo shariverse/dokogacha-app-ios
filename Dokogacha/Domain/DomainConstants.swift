@@ -69,6 +69,10 @@ nonisolated enum DomainConstants {
         static let highRatioPercent = 120
         /// 「ふつう」になる比の下限（百分率。0.85 ≤ 比。これより下は「レア」）
         static let midRatioPercent = 85
+        /// レア当選（F-42）の比の上限（02 の §6.3「当選確率 < 平均確率 × 0.85」の 0.85。これより下ならレア当選）
+        static let rareWinRatio = 0.85
+        /// レア当選の比を境目と比べるときの許容誤差（重み ÷ 合計 × 候補数の割り算の誤差で、0.85 ちょうどがレア当選に落ちないようにする）
+        static let rareWinTolerance = 1e-9
     }
 
     // MARK: 仮決め（06 の §4）
