@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     let push: PushNotificationCoordinator
     /// 広告のまとめ役（`DokoGachaApp` が `@Environment` で画面に渡す）。テストでは広告を読み込まず、撮影モードでは固定の枠を出す
     let ads: AdCoordinator
+    /// 広告非表示の買い切りのまとめ役（`DokoGachaApp` が `@Environment` で画面に渡す）。テスト・撮影モードでは StoreKit を使わない
+    let purchases = PurchaseCoordinator.make(launch: .current)
 
     /// `UNUserNotificationCenter`・`Messaging` の delegate（どちらも弱い参照なので、ここで持つ）
     private var notificationObserver: NotificationCenterObserver?
@@ -39,6 +41,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         serverSession.start(connection: connection, services: DataServices.make(connection: connection, launch: launch))
         // 本物の広告を読み込むときだけ Google Mobile Ads を初期化する（Unit テストのホスト・`-uiTesting`・撮影モードでは初期化しない）
         ads.start()
+        // 端末の購入を読み、`Transaction.updates` を購読する（起動の直後から聞いていないと、アプリの外での購入を取りこぼす）
+        purchases.start()
         if PushNotificationPolicy.isEnabled(connection: connection) {
             startPushNotifications()
         }

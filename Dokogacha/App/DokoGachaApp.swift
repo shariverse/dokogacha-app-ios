@@ -21,6 +21,7 @@ struct DokoGachaApp: App {
                 .environment(appDelegate.serverSession)
                 .environment(appDelegate.push)
                 .environment(appDelegate.ads)
+                .environment(appDelegate.purchases)
                 .onOpenURL { url in
                     appDelegate.deepLinks.handle(url)
                 }

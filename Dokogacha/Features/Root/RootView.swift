@@ -15,6 +15,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     /// 広告のまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
     @Environment(AdCoordinator.self) private var ads: AdCoordinator?
+    /// 広告非表示の買い切りのまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
+    @Environment(PurchaseCoordinator.self) private var purchases: PurchaseCoordinator?
     /// 招待リンクで開かれたときの行き先（表示名を登録するまでは覚えておくだけで、ホームが出たら S-06 を開く）
     private let deepLinks: DeepLinkRouter
 
@@ -43,18 +45,38 @@ struct RootView: View {
                     model.retryIfFailed()
                 }
             }
-            // 広告を出すかの判定に、自分が広告非表示を買ったか（`users.adFree`）を渡す（05 の §8）
+            // 広告を出すかの判定に、自分が広告非表示を買ったか（`users.adFree` か端末の購入）を渡す（05 の §8）
             .onChange(of: isAdFree, initial: true) { _, isAdFree in
                 ads?.isAdFree = isAdFree
             }
+            // 端末の購入をサーバーにまだ記録していなければ送る（05 の §8 の `verifyPurchase`）
+            .onChange(of: purchaseSyncKey, initial: true) { _, key in
+                purchases?.connect(functions: model.session.services.functions, userID: key.userID, serverAdFree: key.serverAdFree)
+            }
     }
 
-    /// 自分が広告非表示を買ったか（プロフィールが読めるまでは false）
-    private var isAdFree: Bool {
+    /// 端末の購入をサーバーに送るかを決め直す鍵（サインインしているユーザーと、その `users.adFree`）
+    private struct PurchaseSyncKey: Equatable {
+        let userID: String?
+        let serverAdFree: Bool?
+    }
+
+    /// 自分のプロフィールの `users.adFree`（プロフィールが読めるまでは nil）
+    private var serverAdFree: Bool? {
         if case let .home(profile) = model.route {
             return profile.adFree
         }
-        return false
+        return nil
+    }
+
+    /// 端末の購入をサーバーに送るかを決め直す鍵
+    private var purchaseSyncKey: PurchaseSyncKey {
+        PurchaseSyncKey(userID: model.signedInUserID, serverAdFree: serverAdFree)
+    }
+
+    /// 自分が広告非表示を買ったか（サーバーの記録か端末の購入。プロフィールが読めるまでは端末の購入だけ）
+    private var isAdFree: Bool {
+        AdFreeStatus.isAdFree(serverAdFree: serverAdFree ?? false, hasEntitlement: purchases?.entitlement != nil)
     }
 
     @ViewBuilder private var content: some View {
