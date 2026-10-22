@@ -121,14 +121,17 @@ struct PushNotificationCoordinatorTests {
     }
 
     /// 通知の許可を尋ねている途中なら、答えが出て（登録まで済んで）から返る（ATT のダイアログを重ねて出さないため）
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func waitForAuthorizationRequestWaitsForAnswer() async {
         let fake = FakePush()
         fake.holdsAnswer = true
         let coordinator = makeEnabled(fake)
         let request = Task { await coordinator.requestAuthorizationIfNeeded() }
-        while fake.pendingAnswer == nil {
-            await Task.yield()
+        // 尋ねている途中になるまで待つ（譲る回数に上限を付け、届かなければ失敗にして止める）
+        guard await AsyncTestSupport.eventually({ fake.pendingAnswer != nil }) else {
+            Issue.record("通知の許可を尋ねている途中になりませんでした")
+            request.cancel()
+            return
         }
 
         let waiter = Task {
