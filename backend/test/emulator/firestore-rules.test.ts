@@ -29,6 +29,7 @@ import {
 } from "firebase/firestore";
 
 import { BACKEND_DIR, parseHostPort, PROJECT_ID, requireEnv } from "./env";
+import { isLockTimeout, retryWhileLocked } from "./firestore-admin";
 
 /** ルーム room1（alice が作成者、bob・dave がメンバー。carol はメンバーでない） */
 function roomData(status = "open") {
@@ -126,11 +127,11 @@ describe("firestore.rules", () => {
   });
 
   beforeEach(async () => {
-    await testEnv.clearFirestore();
+    await retryWhileLocked(() => testEnv.clearFirestore(), isLockTimeout);
   });
 
   afterAll(async () => {
-    await testEnv.clearFirestore();
+    await retryWhileLocked(() => testEnv.clearFirestore(), isLockTimeout);
     await testEnv.cleanup();
   });
 
@@ -261,7 +262,7 @@ describe("firestore.rules", () => {
 
     it("drawn・closed では準備OKを変えられない（lastSeenAt は変えられる）", async () => {
       for (const status of ["drawn", "closed"]) {
-        await testEnv.clearFirestore();
+        await retryWhileLocked(() => testEnv.clearFirestore(), isLockTimeout);
         await seed(status);
         await assertFails(updateDoc(doc(as("bob"), "rooms/room1/members/bob"), { ready: true }));
         await assertSucceeds(updateDoc(doc(as("bob"), "rooms/room1/members/bob"), { lastSeenAt: serverTimestamp() }));
@@ -316,7 +317,7 @@ describe("firestore.rules", () => {
 
     it("他人の候補にいいねを付けて、取り消せる（open・unlocked）", async () => {
       for (const status of ["open", "unlocked"]) {
-        await testEnv.clearFirestore();
+        await retryWhileLocked(() => testEnv.clearFirestore(), isLockTimeout);
         await seed(status);
         await assertSucceeds(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("dave") }));
         expect(await likedBy("c1")).toEqual(["bob", "dave"]);
@@ -367,7 +368,7 @@ describe("firestore.rules", () => {
 
     it("drawn・closed ではいいねを付けることも取り消すこともできない", async () => {
       for (const status of ["drawn", "closed"]) {
-        await testEnv.clearFirestore();
+        await retryWhileLocked(() => testEnv.clearFirestore(), isLockTimeout);
         await seed(status);
         await assertFails(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("dave") }));
         await assertFails(updateDoc(candidate("bob", "c1"), { likedBy: arrayRemove("bob") }));
