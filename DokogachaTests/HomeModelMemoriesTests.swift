@@ -53,6 +53,26 @@ struct HomeModelMemoriesTests {
         #expect(model.cards.map(\.id).sorted() == [DemoScenario.drawnRoomID, DemoScenario.othersDrawnRoomID])
     }
 
+    /// 当選した候補の購読が失敗し続けても、読み込み中の形のまま止めない（PR #78 の持ち越し）。直ったらきっぷを出す
+    @Test
+    func failingWinnersDoNotKeepLoading() async throws {
+        let repository = MemoriesRecordingRepository(server: InMemoryServer.demo(.memories) { RoomModelTests.now })
+        repository.failsCandidates = true
+        let sleeper = ManualSleeper()
+        let model = HomeModelTests.makeModel(repository, resubscribeDelay: ResubscribeDelay(delay: .seconds(5), sleep: sleeper.sleep))
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+
+        #expect(await AsyncTestSupport.eventually { model.memoriesState == .loaded && !model.isMemoriesLoading })
+        #expect(model.memoryTickets.isEmpty)
+        #expect(model.settledWinnerRoomIDs.count == MemoryTicket.visibleLimit)
+
+        repository.failsCandidates = false
+        #expect(await AsyncTestSupport.eventually { sleeper.waitingCount >= MemoryTicket.visibleLimit })
+        sleeper.releaseAll()
+        #expect(await AsyncTestSupport.eventually { model.memoryTickets.count == MemoryTicket.visibleLimit })
+    }
+
     /// 作成者がルームを終了すると、進行中のルームから消えて、思い出のきっぷの先頭に出る（購読で反映）
     @Test
     func closingMovesRoomToMemories() async throws {
@@ -82,6 +102,8 @@ final class MemoriesRecordingRepository: RoomRepository {
     private(set) var closedRoomLimits: [Int?] = []
     /// `candidate` を購読したルームの ID（呼ばれた順）
     private(set) var candidateRoomIDs: [String] = []
+    /// true なら、当選した候補の購読がすぐ通信エラーで終わる
+    var failsCandidates = false
 
     init(server: InMemoryServer) {
         self.server = server
@@ -114,6 +136,12 @@ final class MemoriesRecordingRepository: RoomRepository {
 
     func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {
         candidateRoomIDs.append(roomID)
+        guard !failsCandidates else {
+            let (stream, continuation) = AsyncStream.makeStream(of: LiveUpdate<Identified<Candidate>?>.self)
+            continuation.yield(.failure(AppError(.network, code: .unavailable)))
+            continuation.finish()
+            return stream
+        }
         return server.candidate(roomID: roomID, candidateID: candidateID)
     }
 
