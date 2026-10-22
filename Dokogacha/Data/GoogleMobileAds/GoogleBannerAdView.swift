@@ -10,17 +10,18 @@ import SwiftUI
 ///
 /// 幅は置いた場所の幅に合わせ、高さは SDK が幅から決める（`largeAnchoredAdaptiveBanner`。03 の §3「目安50pt」）。
 /// 読み込めるまでは `surface.ad` の枠で場所を取っておき（読み込めた瞬間に下のボタンが押し上がらないように）、
-/// 読み込めなかったら（オフライン・在庫なし）場所ごと消す。
+/// 読み込めなかったら（オフライン・在庫なし）`didFail` を立てる。置いた側（`BannerAdSlot`）が余白ごと場所を消し、
+/// 回線が戻ったら `didFail` を下ろして読み込み直す（PR #89 の持ち越し）。
 struct GoogleBannerAdView: View {
     /// 広告ユニット ID
     let adUnitID: String
     /// リクエストに足すパラメータ（ATT で許可していなければ非パーソナライズの `npa`）
     let requestParameters: [String: String]
+    /// 読み込めなかったか（置いた側が持つ。下ろすと読み込み直す）
+    @Binding var didFail: Bool
 
     /// 置いた場所の幅（測るまでは 0）
     @State private var width: CGFloat = 0
-    /// 読み込めなかった
-    @State private var didFail = false
 
     var body: some View {
         if !didFail {

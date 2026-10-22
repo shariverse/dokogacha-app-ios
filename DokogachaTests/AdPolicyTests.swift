@@ -168,4 +168,14 @@ struct AdPolicyTests {
         let authorized = BannerLoadConditions(width: 361, requestParameters: AdTrackingPolicy.requestParameters(status: .authorized))
         #expect(authorized.needsReload(since: loaded))
     }
+
+    /// 読み込めなかったバナーは、回線がオンラインに戻ったときだけ読み込み直す（PR #89 の持ち越し）
+    @Test
+    func bannerReloadsWhenBackOnline() {
+        #expect(BannerReloadPolicy.shouldReload(didFail: true, previous: .offline, current: .online))
+        #expect(BannerReloadPolicy.shouldReload(didFail: true, previous: .unknown, current: .online))
+        #expect(!BannerReloadPolicy.shouldReload(didFail: false, previous: .offline, current: .online))
+        #expect(!BannerReloadPolicy.shouldReload(didFail: true, previous: .online, current: .online))
+        #expect(!BannerReloadPolicy.shouldReload(didFail: true, previous: .online, current: .offline))
+    }
 }

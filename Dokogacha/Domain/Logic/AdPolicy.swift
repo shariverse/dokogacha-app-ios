@@ -162,3 +162,18 @@ nonisolated struct BannerLoadConditions: Equatable, Sendable {
         loaded != self
     }
 }
+
+/// 読み込めなかったバナーを読み込み直すかの決まり（PR #89 の持ち越し）。
+///
+/// オフラインで起動すると読み込みに失敗し、そのままでは画面を出し直すまでバナーが出ない。回線が繋がったと分かったとき
+/// （オンライン以外からオンラインに替わったとき）に、失敗していれば読み込み直す
+nonisolated enum BannerReloadPolicy {
+    /// 読み込み直すか
+    /// - Parameters:
+    ///   - didFail: 読み込めなかったか
+    ///   - previous: 前の回線の状態
+    ///   - current: いまの回線の状態
+    static func shouldReload(didFail: Bool, previous: NetworkReachability, current: NetworkReachability) -> Bool {
+        didFail && previous != .online && current == .online
+    }
+}
