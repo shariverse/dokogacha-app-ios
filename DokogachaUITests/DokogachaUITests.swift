@@ -45,6 +45,22 @@ final class DokogachaUITests: XCTestCase {
     private static let nameEditorField = "settings.nameEditor.field"
     /// 表示名の変更のシートの「保存」（`DisplayNameEditor.Identifier.save`）
     private static let nameEditorSave = "settings.nameEditor.save"
+    /// ホームの「招待コードで参加」（`HomeView.Identifier.joinByCode`）
+    private static let joinByCodeButton = "home.joinByCode"
+    /// S-05 の招待コードの入力欄（`JoinByCodeView.Identifier.code`）
+    private static let joinCodeField = "joinByCode.code"
+    /// S-05 の入力欄の下のエラー（`JoinByCodeView.Identifier.error`）
+    private static let joinCodeError = "joinByCode.error"
+    /// S-05 の「参加する」（`JoinByCodeView.Identifier.submit`）
+    private static let joinCodeSubmit = "joinByCode.submit"
+    /// S-06（`JoinConfirmView.Identifier.screen`）
+    private static let joinConfirmScreen = "joinConfirm.screen"
+    /// S-06 のルームのカード（`JoinConfirmView.Identifier.card`）
+    private static let joinConfirmCard = "joinConfirm.card"
+    /// S-06 の「参加する」（`JoinConfirmView.Identifier.join`）
+    private static let joinConfirmJoin = "joinConfirm.join"
+    /// デモの参加できるルームの ID（`DemoScenario.joinableRoomID`）
+    private static let joinableRoomID = "demo-room-joinable"
     /// 画面が出るのを待つ時間
     private static let timeout: TimeInterval = 10
 
@@ -147,6 +163,55 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertFalse(app.otherElements[Self.createRoomScreen].exists)
         // 作ったルームがホームに並ぶ
         XCTAssertFalse(app.staticTexts[Self.roomsEmpty].exists)
+    }
+
+    /// ホームから「招待コードで参加」→ 存在しないコードでは入力欄の下にエラー → 正しいコード（小文字・ハイフンなし）を入れて
+    /// 「参加する」→ S-06 にルーム名が出る → 「参加する」でシートが閉じてルーム画面（いまは仮の画面）が開く（F-04 の AC）。
+    /// 戻るとホームに参加したルームが並ぶ
+    @MainActor
+    func testJoinRoomByInviteCode() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "joinable"]
+        app.launch()
+
+        let joinByCode = app.buttons[Self.joinByCodeButton]
+        XCTAssertTrue(joinByCode.waitForExistence(timeout: Self.timeout))
+        joinByCode.tap()
+
+        let field = app.textFields[Self.joinCodeField]
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+        let submit = app.buttons[Self.joinCodeSubmit]
+        XCTAssertTrue(submit.waitForExistence(timeout: Self.timeout))
+        // 6 文字を入れるまでは押せない
+        XCTAssertFalse(submit.isEnabled)
+
+        field.tap()
+        field.typeText("zzzzzz")
+        XCTAssertEqual(field.value as? String, "ZZZ-ZZZ")
+        submit.tap()
+        let error = app.staticTexts[Self.joinCodeError]
+        XCTAssertTrue(error.waitForExistence(timeout: Self.timeout))
+        XCTAssertEqual(error.label, "招待コードが見つかりません")
+
+        // 入れ直す（全部消してから、デモの参加できるルームのコードを小文字・ハイフンなしで打つ）
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 7))
+        field.typeText("qw58rt")
+        XCTAssertEqual(field.value as? String, "QW5-8RT")
+        XCTAssertFalse(error.exists)
+        submit.tap()
+
+        let card = app.descendants(matching: .any)[Self.joinConfirmCard]
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.otherElements[Self.joinConfirmScreen].exists)
+        XCTAssertTrue(card.label.contains("夏の花火大会"), card.label)
+        XCTAssertTrue(card.label.contains("はるか"), card.label)
+        app.buttons[Self.joinConfirmJoin].tap()
+
+        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.otherElements[Self.joinConfirmScreen].exists)
+        app.buttons["戻る"].tap()
+        XCTAssertTrue(app.otherElements[Self.home].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.buttons["home.room.\(Self.joinableRoomID)"].waitForExistence(timeout: Self.timeout))
     }
 
     /// ナビゲーションバーを隠した画面でも、画面の左端からのスワイプで戻れる（`InteractivePopGesture`）
