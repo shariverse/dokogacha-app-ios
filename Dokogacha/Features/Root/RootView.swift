@@ -13,6 +13,8 @@ struct RootView: View {
     @State private var model: RootModel
     @State private var toasts: DGToastCenter
     @Environment(\.scenePhase) private var scenePhase
+    /// 広告のまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
+    @Environment(AdCoordinator.self) private var ads: AdCoordinator?
     /// 招待リンクで開かれたときの行き先（表示名を登録するまでは覚えておくだけで、ホームが出たら S-06 を開く）
     private let deepLinks: DeepLinkRouter
 
@@ -41,6 +43,18 @@ struct RootView: View {
                     model.retryIfFailed()
                 }
             }
+            // 広告を出すかの判定に、自分が広告非表示を買ったか（`users.adFree`）を渡す（05 の §8）
+            .onChange(of: isAdFree, initial: true) { _, isAdFree in
+                ads?.isAdFree = isAdFree
+            }
+    }
+
+    /// 自分が広告非表示を買ったか（プロフィールが読めるまでは false）
+    private var isAdFree: Bool {
+        if case let .home(profile) = model.route {
+            return profile.adFree
+        }
+        return false
     }
 
     @ViewBuilder private var content: some View {
