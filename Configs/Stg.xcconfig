@@ -17,3 +17,6 @@ DG_FIREBASE_OPTIONS_FILE_NAME = GoogleService-Info-Dev
 EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Prod.plist
 // APNs の環境（Configs/Dokogacha.entitlements の aps-environment）。TestFlight は App Store の配布用の署名なので production
 DG_APS_ENVIRONMENT = production
+// Analytics・Crashlytics の収集の既定（Info.plist の FIREBASE_ANALYTICS_COLLECTION_ENABLED・FirebaseCrashlyticsCollectionEnabled）。
+// TestFlight のアプリは dev に送る（起動ごとの判定は FirebaseCollectionPolicy）
+DG_FIREBASE_COLLECTION_ENABLED = YES

@@ -15,3 +15,6 @@ DG_FIREBASE_OPTIONS_FILE_NAME = GoogleService-Info-Prod
 EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Dev.plist
 // APNs の環境（Configs/Dokogacha.entitlements の aps-environment）。App Store は production
 DG_APS_ENVIRONMENT = production
+// Analytics・Crashlytics の収集の既定（Info.plist の FIREBASE_ANALYTICS_COLLECTION_ENABLED・FirebaseCrashlyticsCollectionEnabled）。
+// App Store のアプリは prod に送る（起動ごとの判定は FirebaseCollectionPolicy）
+DG_FIREBASE_COLLECTION_ENABLED = YES

@@ -224,6 +224,12 @@
 	<!-- FCM の AppDelegate の差し替え（swizzling）を止める。APNs のトークンは AppDelegate から Messaging に渡し、通知は UNUserNotificationCenter の delegate で受ける -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
+	<!-- Analytics・Crashlytics の収集の既定（初回の起動）。値は Configs/*.xcconfig の DG_FIREBASE_COLLECTION_ENABLED（Stg・Release だけ YES）。
+	     起動ごとの値は FirebaseTelemetry が FirebaseCollectionPolicy（-uiTesting・撮影モード・Emulator では送らない）で SDK に渡し直す -->
+	<key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
+	<string>$(DG_FIREBASE_COLLECTION_ENABLED)</string>
+	<key>FirebaseCrashlyticsCollectionEnabled</key>
+	<string>$(DG_FIREBASE_COLLECTION_ENABLED)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<!-- 同梱フォント（Dokogacha/Resources/Fonts/。フォルダ同期グループのリソースは .app の直下にコピーされるのでファイル名だけを書く） -->

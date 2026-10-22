@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         let launch = LaunchContext.current
         let connection = FirebaseBootstrap.configure(plan: FirebaseBootstrap.currentPlan())
+        FirebaseTelemetry.start(connection: connection, launch: launch)
         // Firebase を初期化したら Firebase の実装、テスト・撮影なら擬似のサーバー（`-demo-scenario` のデータ）を使う
         serverSession.start(connection: connection, services: DataServices.make(connection: connection, launch: launch))
         // 本物の広告を読み込むときだけ Google Mobile Ads を初期化する（Unit テストのホスト・`-uiTesting`・撮影モードでは初期化しない）
