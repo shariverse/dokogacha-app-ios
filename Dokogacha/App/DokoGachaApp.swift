@@ -55,6 +55,10 @@ struct DokoGachaApp: App {
             ScreenshotDemo.GachaScene(services: appDelegate.serverSession.services)
         case .result:
             ScreenshotDemo.ResultScene(services: appDelegate.serverSession.services)
+        case .resultMember:
+            ScreenshotDemo.ResultMemberScene(services: appDelegate.serverSession.services)
+        case .homeMemories:
+            ScreenshotDemo.HomeMemoriesScene(session: appDelegate.serverSession, deepLinks: appDelegate.deepLinks)
         }
     }
 }
