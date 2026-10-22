@@ -38,6 +38,8 @@ struct AppErrorTests {
         ("reroll-used", "引き直しは使用済みです"),
         ("reroll-not-voting", "引き直しの投票は終わっています"),
         ("cannot-report-own-candidate", "自分の投稿は報告できません"),
+        ("purchase-invalid", "購入を確認できませんでした"),
+        ("purchase-verification-unavailable", "通信できませんでした"),
         ("invite-code-unavailable", "通信できませんでした"),
         ("internal", "通信できませんでした")
     ]

@@ -170,7 +170,7 @@ final class InMemoryServer {
             .invalidArgument
         case .profileRequired, .roomAlreadyDecided, .ownerCannotLeave, .cannotRemoveOwner, .roomClosed, .postLimitDecrease,
              .unlockRuleLocked, .likeModeLocked, .roomNotUnlocked, .noCandidates, .candidateDrawn, .roomNotDrawn, .rerollUsed,
-             .rerollNotVoting, .cannotReportOwnCandidate:
+             .rerollNotVoting, .cannotReportOwnCandidate, .purchaseInvalid:
             .failedPrecondition
         case .inviteCodeNotFound, .roomNotFound, .memberNotFound, .candidateNotFound:
             .notFound
@@ -178,7 +178,7 @@ final class InMemoryServer {
             .resourceExhausted
         case .notRoomMember, .notRoomOwner, .notCandidateOwner, .permissionDenied:
             .permissionDenied
-        case .inviteCodeUnavailable, .network, .serverUnavailable:
+        case .inviteCodeUnavailable, .purchaseVerificationUnavailable, .network, .serverUnavailable:
             .unavailable
         case .internal, .unreadableData, .notImplemented:
             .internal
