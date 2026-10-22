@@ -202,6 +202,7 @@ final class CandidateDetailModel {
     /// 候補を報告する（`reportCandidate`）。報告できない・送っている途中なら何もしない。
     ///
     /// 成功したら（サーバーがもう報告済みと返したときも）報告した候補として覚え、トースト「報告しました」を出す。
+    /// 覚えるのは cancel を確かめる前にする（サーバーには報告が残っているので、画面を閉じた後でも端末で隠す。PR #91 の持ち越し）。
     /// 失敗したら `AppError` の文言のトーストを出す（cancel のときは出さない）
     func report(reason: ReportReason) async {
         guard canReport, !isReporting else {
@@ -213,10 +214,10 @@ final class CandidateDetailModel {
             try await functions.reportCandidate(
                 ReportCandidateRequest(roomId: room.roomID, candidateId: candidateID, reason: reason)
             )
+            room.reportedCandidates.markReported(roomID: room.roomID, candidateID: candidateID)
             guard !Task.isCancelled else {
                 return
             }
-            room.reportedCandidates.markReported(roomID: room.roomID, candidateID: candidateID)
             toasts.show(Self.reportedMessage)
         } catch {
             toasts.showFailure(error)
