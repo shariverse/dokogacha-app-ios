@@ -33,9 +33,12 @@ struct DGStepper: View {
     /// ＋ のボタンの VoiceOver の名前（「投稿数を増やす」）
     let incrementLabel: LocalizedStringKey
 
+    /// 部品ごと無効にされたか（`.disabled(true)`。S-12 で作成者以外・終了したルームのとき）。無効なら両方のボタンを無効の色にする
+    @Environment(\.isEnabled) private var isEnvironmentEnabled
+
     var body: some View {
         HStack(spacing: DGSpacing.s12) {
-            stepButton(glyph: "−", label: decrementLabel, isEnabled: DGStepperRule.canDecrement(value, in: range)) {
+            stepButton(glyph: "−", label: decrementLabel, isEnabled: isEnvironmentEnabled && DGStepperRule.canDecrement(value, in: range)) {
                 value = DGStepperRule.decremented(value, in: range)
             }
             HStack(alignment: .firstTextBaseline, spacing: DGSpacing.s4) {
@@ -57,7 +60,7 @@ struct DGStepper: View {
                 @unknown default: break
                 }
             }
-            stepButton(glyph: "＋", label: incrementLabel, isEnabled: DGStepperRule.canIncrement(value, in: range)) {
+            stepButton(glyph: "＋", label: incrementLabel, isEnabled: isEnvironmentEnabled && DGStepperRule.canIncrement(value, in: range)) {
                 value = DGStepperRule.incremented(value, in: range)
             }
         }

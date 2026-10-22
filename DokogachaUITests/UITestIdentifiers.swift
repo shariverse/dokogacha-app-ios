@@ -97,8 +97,27 @@ enum UITestID {
     static let roomForceUnlock = "room.forceUnlock"
     /// S-07 の下部の「ガチャを回す」（`RoomView.Identifier.gacha`）
     static let roomGacha = "room.gacha"
+    /// ホームの `several-rooms` のほかの人が作ったルーム（春のお花見）のカード（`HomeView.Identifier.room(DemoScenario.othersRoomID)`）
+    static let othersRoomCard = "home.room.demo-room-others"
+    /// S-07 のルームパネルのメンバー（`RoomView.Identifier.members`）
+    static let roomMembers = "room.members"
+    /// S-07 のヘッダーの設定（`RoomView.Identifier.settings`）
+    static let roomSettings = "room.settings"
+    /// S-11 メンバー一覧（`MembersView.Identifier.screen`）
+    static let membersScreen = "members.screen"
+    /// S-11 の「ルームから退出」（`MembersView.Identifier.leave`）
+    static let membersLeave = "members.leave"
+    /// S-12 ルーム設定（`RoomSettingsView.Identifier.screen`）
+    static let roomSettingsScreen = "roomSettings.screen"
+    /// S-12 の「保存」（`RoomSettingsView.Identifier.save`）
+    static let roomSettingsSave = "roomSettings.save"
     /// 画面が出るのを待つ時間
     static let timeout: TimeInterval = 10
+
+    /// S-11 のメンバーの行（`MembersView.Identifier.row(_:)`）
+    static func membersRow(_ memberID: String) -> String {
+        "members.row.\(memberID)"
+    }
 
     /// S-07 の候補のカード（`RoomView.Identifier.candidate(_:)`）
     static func candidateCard(_ candidateID: String) -> String {

@@ -137,22 +137,18 @@ struct CreateRoomModelTests {
         try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: 22, hour: 12)))
     }
 
-    /// テストで使う画面の状態と、その窓口
-    struct Fixture {
-        let model: CreateRoomModel
-        let functions: ControlledFunctions
-        let toasts: DGToastCenter
-    }
-
-    /// 表示名を登録済みの自分がいる擬似のサーバー（時刻は `now` に固定）と、それを使う画面の状態を作る
-    static func make(behavior: CreateRoomBehavior = .create) throws -> Fixture {
-        let now = try now()
-        let server = InMemoryServer.demo(.empty) { now }
+    /// 表示名を登録済みの自分がいる擬似のサーバー（時刻は `now` から始まる時計）と、それを使う画面の状態を作る
+    /// - Parameters:
+    ///   - behavior: `createRoom` のふるまい
+    ///   - serverOffset: サーバーの時刻の、端末の時計からのずれ（負なら端末の時計が進んでいる）
+    static func make(behavior: CreateRoomBehavior = .create, serverOffset: TimeInterval = 0) throws -> Fixture {
+        let clock = TestClock(try now())
+        let server = InMemoryServer.demo(.empty) { clock.now.addingTimeInterval(serverOffset) }
         let functions = ControlledFunctions(server: server, behavior: behavior)
         // トーストを出したままにする（テストの間に 2.2 秒が過ぎて消えないよう、出しておく時間を長くする）
         let toasts = DGToastCenter(visibleFor: .seconds(3_600))
-        let model = CreateRoomModel(functions: functions, toasts: toasts, now: now, calendar: calendar)
-        return Fixture(model: model, functions: functions, toasts: toasts)
+        let model = CreateRoomModel(functions: functions, toasts: toasts, clock: clock.read, calendar: calendar)
+        return Fixture(model: model, functions: functions, toasts: toasts, clock: clock)
     }
 
     // MARK: 初期値（02 の §2.2 の表）
@@ -169,7 +165,7 @@ struct CreateRoomModelTests {
         let expectedDeadline = try #require(Self.calendar.date(from: DateComponents(year: 2026, month: 10, day: 25, hour: 21)))
         #expect(model.deadline == expectedDeadline)
         let now = try Self.now()
-        #expect(model.deadlineRange == now.addingTimeInterval(60 * 60)...now.addingTimeInterval(30 * 24 * 60 * 60))
+        #expect(model.deadlineRange == now.addingTimeInterval(60 * 60)...now.addingTimeInterval(30 * 24 * 60 * 60 - 5 * 60))
         #expect(!model.showsDeadlinePicker)
         #expect(model.nameLimit == 20)
         #expect(!model.canSubmit)
@@ -403,5 +399,16 @@ struct CreateRoomModelTests {
         await model.submit()
         #expect(toasts.current == nil)
         #expect(model.canSubmit)
+    }
+}
+
+extension CreateRoomModelTests {
+    /// テストで使う画面の状態と、その窓口
+    struct Fixture {
+        let model: CreateRoomModel
+        let functions: ControlledFunctions
+        let toasts: DGToastCenter
+        /// 擬似のサーバーと画面が読む時計（最初は `now`）
+        let clock: TestClock
     }
 }

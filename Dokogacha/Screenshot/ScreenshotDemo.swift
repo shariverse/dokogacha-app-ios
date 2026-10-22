@@ -25,6 +25,8 @@ enum ScreenshotDemo {
         case room
         case candidateDetail
         case addCandidate
+        case members
+        case roomSettings
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）

@@ -10,6 +10,8 @@ import Observation
 ///
 /// 入力の初期値は 02 の §2.2 の表（ルーム名は空・投稿数 3・解禁の条件「全員OK」・締切 3 日後の 21:00・いいねの効き方「共感ブースト」）。
 /// ルーム名の検証は `NameValidation`（backend の `createRoom` と同じ規則）、締切日時の範囲は `RoomDeadline` で行う。
+/// 締切日時の範囲は「今」から決まるので、送る直前（`submit()`）と前面に戻ったとき（画面が `refreshDeadlineRange()` を呼ぶ）に
+/// 計算し直し、範囲の外になった日時を範囲の中に収める（`DeadlineSelection`。画面を開いたまま時間がたっても、断られる値を送らない）。
 /// 作成は Callable の `createRoom` を通し、成功したら `createdRoom` に招待画面（S-04）の行き先を入れる（画面がそれを見て進む）。
 @Observable
 final class CreateRoomModel {
@@ -40,13 +42,21 @@ final class CreateRoomModel {
     }
     /// 解禁の条件
     var unlockRule = UnlockRule.all
-    /// 締切日時（解禁の条件が「締切日時」のときだけ送る）
-    var deadline: Date
+    /// 締切日時と、その選べる範囲（解禁の条件が「締切日時」のときだけ送る）
+    private var deadlineSelection: DeadlineSelection
     /// いいねの効き方
     var likeMode = LikeMode.boost
 
-    /// 締切日時に選べる範囲（画面を開いた時刻から決める。日時ピッカーの範囲）
-    let deadlineRange: ClosedRange<Date>
+    /// 締切日時（解禁の条件が「締切日時」のときだけ送る）
+    var deadline: Date {
+        get { deadlineSelection.date }
+        set { deadlineSelection.date = newValue }
+    }
+
+    /// 締切日時に選べる範囲（日時ピッカーの範囲。最後に計算し直した時刻から決めたもの）
+    var deadlineRange: ClosedRange<Date> {
+        deadlineSelection.range
+    }
 
     /// 作成を送っている途中か（二重に送らないため、ボタンと入力を止める）
     private(set) var isSubmitting = false
@@ -55,24 +65,27 @@ final class CreateRoomModel {
 
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
+    /// 今の時刻（締切の範囲を計算し直すたびに読む）
+    @ObservationIgnored private let clock: () -> Date
     /// ボタンから始めた作成。画面が消えたら（`cancelSubmit`）止める
     @ObservationIgnored private var submitTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - functions: `createRoom` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 通信エラーを出すトーストの窓口
-    ///   - now: 今の時刻（締切の範囲と初期値を決める。テストで固定する）
+    ///   - clock: 今の時刻（締切の範囲と初期値を決める。テストで進める）
     ///   - calendar: 暦（締切の初期値「3日後の21:00」を端末のタイムゾーンで決める）
     init(
         functions: any FunctionsClient,
         toasts: DGToastCenter,
-        now: Date = Date(),
+        clock: @escaping () -> Date = { Date() },
         calendar: Calendar = .current
     ) {
         self.functions = functions
         self.toasts = toasts
-        deadlineRange = RoomDeadline.selectableRange(now: now)
-        deadline = RoomDeadline.defaultDeadline(now: now, calendar: calendar)
+        self.clock = clock
+        let now = clock()
+        deadlineSelection = DeadlineSelection(date: RoomDeadline.defaultDeadline(now: now, calendar: calendar), now: now)
     }
 
     /// 送るルーム名（前後の空白を取り除いたもの）。受け付けない入力なら nil
@@ -113,7 +126,7 @@ final class CreateRoomModel {
         guard let validatedName, Self.postLimitRange.contains(postLimit) else {
             return nil
         }
-        if unlockRule == .deadline, !deadlineRange.contains(deadline) {
+        if unlockRule == .deadline, !deadlineSelection.isInRange {
             return nil
         }
         return CreateRoomRequest(
@@ -133,6 +146,16 @@ final class CreateRoomModel {
     /// 入力を変えられるか（送っている途中・作成済みのときは変えさせない）
     var isEditable: Bool {
         !isSubmitting && createdRoom == nil
+    }
+
+    /// 締切日時の範囲を今の時刻で計算し直し、範囲の外になった締切日時を範囲の中に収める（画面が前面に戻ったときに呼ぶ）。
+    ///
+    /// 送っている途中・作成済みのときは入力を変えない
+    func refreshDeadlineRange() {
+        guard isEditable else {
+            return
+        }
+        deadlineSelection.refresh(now: clock())
     }
 
     /// 「ルームを作成」が押された・キーボードの完了が押された。作成を始める（送っている途中なら何もしない）。
@@ -162,9 +185,13 @@ final class CreateRoomModel {
 
     /// ルームを作る。押せない状態なら何もしない。
     ///
+    /// 送る前に締切日時の範囲を計算し直す（画面を開いてから時間がたち、選んだ日時が下限を割っていたら下限に上げて送る）。
     /// 成功したら `createdRoom` に S-04 の行き先を入れる。失敗したらトースト（文言は `AppError`）を出して、
     /// 入力をそのままにもう一度押せるようにする。cancel（画面を閉じた）のときは、結果によらず何もしない
     func submit() async {
+        if unlockRule == .deadline {
+            refreshDeadlineRange()
+        }
         guard canSubmit, let request else {
             return
         }

@@ -76,6 +76,14 @@ nonisolated struct AppError: Error, Equatable, Sendable {
         reason == .cancelled
     }
 
+    /// セキュリティルールで拒まれたか（permission-denied）。
+    ///
+    /// 購読がこれで終わったら、ルールの `isMember` で読めなくなった（ルームが削除された・メンバーから外れた・無いルームを開いた）ことを表し、
+    /// 購読し直しても読めない（`RoomModel` は「ルームが見つかりません」にする）
+    var isPermissionDenied: Bool {
+        code == .permissionDenied || reason == .permissionDenied
+    }
+
     /// 通信の問題で、同じ操作をもう一度すれば通るかもしれないか（cancel は含めない）
     var isRetryable: Bool {
         switch code {

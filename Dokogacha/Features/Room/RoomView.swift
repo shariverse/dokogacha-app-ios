@@ -40,6 +40,10 @@ struct RoomView: View {
         static let emptyAddCandidate = "room.empty.addCandidate"
         /// 下部の「ガチャを回す」
         static let gacha = "room.gacha"
+        /// ルームが見つからないときの案内
+        static let missing = "room.missing"
+        /// ルームが見つからないときの「ホームに戻る」
+        static let missingBack = "room.missing.back"
 
         /// 候補のカード
         static func candidate(_ candidateID: String) -> String {
@@ -170,11 +174,7 @@ struct RoomView: View {
         case .loading:
             loadingContent
         case .missing:
-            Text("ルームが見つかりません")
-                .font(.dg(.bodyRegular))
-                .foregroundStyle(Color.dgTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            missingContent
         case .loaded:
             VStack(alignment: .leading, spacing: DGSpacing.s14) {
                 if dynamicTypeSize.isAccessibilitySize {
@@ -216,6 +216,31 @@ struct RoomView: View {
                 }
             }
         }
+    }
+
+    /// ルームが無い・読めなくなった（削除された・退出した・作成者に削除された）ときの案内と「ホームに戻る」。
+    ///
+    /// 自動ではホームに戻さない（自分で退出したときは S-11 がホームに戻すので、ここで重ねて戻したり案内のトーストを出したりしない）
+    private var missingContent: some View {
+        VStack(alignment: .leading, spacing: DGSpacing.s12) {
+            Text("ルームが見つかりません")
+                .font(.dg(.displaySection))
+                .foregroundStyle(Color.dgInk)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text("ルームが削除されたか、メンバーから外れました")
+                .font(.dg(.bodyRegular))
+                .foregroundStyle(Color.dgTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            DGButton("ホームに戻る", kind: .secondary) {
+                dismiss()
+            }
+            .accessibilityIdentifier(Identifier.missingBack)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, DGSpacing.s16)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(Identifier.missing)
     }
 
     /// 最初のルームが届くまでの、部品の形を保った読み込み中の表示（03 の §3）
