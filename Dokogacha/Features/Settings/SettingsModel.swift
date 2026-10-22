@@ -24,6 +24,8 @@ import Observation
 /// Sign in with Apple の連携（02 の §1 F-01）は、nonce を作って Apple の認証の画面を出し（`AppleAuthorizing`）、受け取った ID トークンで
 /// 今の匿名のアカウントに連携する（`AuthService.linkWithApple`）。その Apple ID が既に別のアカウントに連携されていたら、
 /// そのアカウントでサインインし直すかを尋ね（`isConfirmingAccountSwitch`）、選ばれたらサインインし直す（参加ルームが戻る。F-01 の AC）。
+/// サインインし直す前に、今の匿名のアカウントを削除する（`AuthService.deleteAccount`）。サインインし直すと今のアカウントには戻れないので、
+/// 残すと、参加中のルームのメンバーに残り続けて「全員OK」のルームが解禁できなくなり、使われないプロフィールがサーバーに残るため。
 ///
 /// アカウントの削除（02 の §2.6 F-06）は、確認（`isConfirmingDeletion`）で「削除する」が選ばれたら、サーバーで削除し
 /// （`AuthService.deleteAccount`）、この端末に残す値を消して（`AccountDeviceData`）、サインアウトする（`AuthService.signOut`）。
@@ -321,9 +323,13 @@ extension SettingsModel {
         }
     }
 
-    /// 既に Apple ID に連携されたアカウントでサインインし直す（サインインし直すと、起動の流れがそのユーザーのホームを開き直す）
+    /// 既に Apple ID に連携されたアカウントでサインインし直す（サインインし直すと、起動の流れがそのユーザーのホームを開き直す）。
+    ///
+    /// 先に今の匿名のアカウントをサーバーで削除する（参加中のルームから退出し、作成したルームは終了する。確認の文言で伝える）。
+    /// 削除に失敗したらサインインし直さない（今のアカウントのまま、もう一度押せる）
     func switchToLinkedAppleAccount() async {
         await perform(.linkApple) {
+            try await auth.deleteAccount()
             _ = try await auth.signInWithLinkedAppleAccount()
         }
     }

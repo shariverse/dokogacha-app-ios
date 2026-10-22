@@ -135,7 +135,7 @@ struct SettingsView: View {
             }
             Button("キャンセル", role: .cancel) {}
         } message: {
-            Text("そのアカウントでサインインし直すと、参加中のルームがそのアカウントのものに切り替わります。今のアカウントには戻れません。")
+            Text("そのアカウントでサインインし直すと、参加中のルームがそのアカウントのものに切り替わります。今のアカウントは削除され、参加中のルームから退出します（作成したルームは終了します）。")
         }
         .alert(Text("アカウントを削除しますか？"), isPresented: $model.isConfirmingDeletion) {
             Button("削除する", role: .destructive) {

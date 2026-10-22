@@ -7,8 +7,8 @@
 import Foundation
 import Testing
 
-/// S-15 設定の「アカウントを削除」（02 の §2.6 F-06）の確認・削除・端末の値の消去・サインアウト・二重送信の防止・失敗のトーストを、
-/// 擬似のサーバーで確かめる
+/// S-15 設定の「アカウントを削除」（02 の §2.6 F-06）の確認・削除・端末の値の消去・サインアウト・二重送信の防止・失敗のトーストと、
+/// Sign in with Apple で別のアカウントにサインインし直す前に今のアカウントを削除すること（PR #100 の持ち越し）を、擬似のサーバーで確かめる
 struct SettingsModelDeleteAccountTests {
     typealias ControlledAuth = OnboardingModelTests.ControlledAuth
 
@@ -96,5 +96,44 @@ struct SettingsModelDeleteAccountTests {
         auth.finishDelete()
         #expect(await AsyncTestSupport.eventually { auth.signOutCount == 1 })
         #expect(auth.deleteCount == 1)
+    }
+
+    /// 別のアカウントにサインインし直すときは、先に今の匿名のアカウントを削除する
+    /// （残すと参加中のルームのメンバーに残り続け、「全員OK」のルームが解禁できなくなる）
+    @Test
+    func switchingAccountDeletesCurrentAccountFirst() async {
+        let auth = ControlledAuth(scenario: .severalRooms)
+        auth.server.appleAccounts["apple-account-1"] = "previous-device-user"
+        let model = Self.makeModel(auth)
+
+        await model.linkApple(using: SettingsModelAppleLinkTests.StubAuthorizer())
+        #expect(model.isConfirmingAccountSwitch)
+        await model.switchToLinkedAppleAccount()
+
+        #expect(auth.deleteCount == 1)
+        #expect(auth.currentUserID == "previous-device-user")
+        #expect(auth.server.users[DemoScenario.myUserID] == nil)
+        // ほかの人が作ったルームからは外れる（作成者だったルームは終了する）
+        #expect(auth.server.rooms[DemoScenario.othersRoomID]?.room.memberIds.contains(DemoScenario.myUserID) == false)
+        #expect(auth.server.rooms[DemoScenario.roomID]?.room.status == .closed)
+        // サインインし直すので、サインアウトはしない（匿名でサインインし直さない）
+        #expect(auth.signOutCount == 0)
+    }
+
+    /// 今のアカウントを削除できなかったら、サインインし直さない（今のアカウントのまま、もう一度押せる）
+    @Test
+    func switchingAccountStopsWhenDeletionFails() async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.server.appleAccounts["apple-account-1"] = "previous-device-user"
+        auth.deleteBehavior = .fail(AppError(.network, code: .unavailable))
+        let toasts = OnboardingModelTests.makeToasts()
+        let model = Self.makeModel(auth, toasts: toasts)
+
+        await model.linkApple(using: SettingsModelAppleLinkTests.StubAuthorizer())
+        await model.switchToLinkedAppleAccount()
+        #expect(toasts.current?.text == "通信できませんでした")
+        #expect(auth.currentUserID == DemoScenario.myUserID)
+        #expect(auth.server.users[DemoScenario.myUserID] != nil)
+        #expect(model.canStartAction)
     }
 }
