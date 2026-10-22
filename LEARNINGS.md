@@ -38,6 +38,8 @@
 - Jest（CommonJS）で `firebase-functions/v2/https`（`HttpsError`・`onCall`）を読み込むと、firebase-admin の auth が ESM だけの `jose` を require して「Must use import to load ES Module」で落ちる（Jest は Node 22 では ESM を require できない）。`jest.shared.cjs` で `jose` だけを ts-jest で CommonJS に変換している（2026-10-22）
 - firebase（JS）12 の `httpsCallable` が失敗したときの `message` は、サーバーの文言の後ろに HTTP のステータス（` [404]` など）が付く。文言は `details.reason`（`functions/src/errors.ts`）で選び、テストで `message` を完全一致で比べない（2026-10-22）
 - Firebase Hosting の既定の `ignore` にある `**/.*` は `.well-known/` も配信から外す（apple-app-site-association が 404 になる）。`firebase.json` では `**/.DS_Store` に替えてある（2026-10-22）
+- Firebase Hosting の `headers` の `"source": "**"` は、ドットで始まるディレクトリ（`/.well-known/…`）に当たらない（Emulator で確かめた）。すべてのパスに付けたセキュリティのヘッダー（CSP など）は apple-app-site-association には付かず、AASA の設定は変わらない。付けたいときは `/.well-known/**` を別に書く（2026-10-22）
+- headless の Chrome（`--headless=new`）で `--window-size=390,…` にすると、ページは広い幅で組まれて右が切れたスクリーンショットになった（520 なら切れない）。Hosting のページは幅 520 で撮る（2026-10-22）
 - Emulator には FCM が無い。通知は `isEmulatorEnvironment`（`FUNCTIONS_EMULATOR` か `FIRESTORE_EMULATOR_HOST`）のとき FCM に送らず `emulatorPushOutbox` に書くので、Emulator のテストはそこを読んで宛先と文面を確かめる。トークンが `emulator-unregistered-` で始まると「登録されていない」で失敗させ、`fcmTokens` から外すのを確かめられる（`notifications/sender.ts`）（2026-10-22）
 - Emulator のテストのファイルどうしは同じ Firestore を使うので、片方の `clearFirestore` がもう片方のデータを消す。`jest.emulator.config.js` は `maxWorkers: 1` で 1 ファイルずつ流す（2026-10-22）
 - Mac が混んでいると（load average 50 前後）、Functions の Emulator がコードを読み込んで関数の一覧を作るのが既定の上限 10 秒を超え、「Cannot determine backend specification. Timeout after 10000」でトリガーも Callable も動かないままテストが待ちで落ちる。環境変数 `FUNCTIONS_DISCOVERY_TIMEOUT`（単位は秒）で延ばせる（`scripts/test-emulator.sh` で 60 にしてある）（2026-10-22）
