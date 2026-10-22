@@ -11,7 +11,9 @@ import SwiftUI
 /// 「追加」で S-09 投稿の確認をシート（ハーフ。03 の §1）で出す。ほかの人が同じ場所を投稿していれば、
 /// S-09 を出さずに「すでに候補にあります。いいねしますか？」を出す（02 の F-10）。
 /// 追加できた・いいねしたら S-07 に戻る（S-09 から戻るときは、シートが閉じ終わってから S-08 を外す）。
-/// 「過去のアイデア」の中身は `PastIdeasSection`（F-13。「持ち込む」も同じ S-09 を出す）。バナー広告（F-50）はタスク 36 で下部に足す。
+/// 「過去のアイデア」の中身は `PastIdeasSection`（F-13。「持ち込む」も同じ S-09 を出す）。
+/// バナー広告（F-50）は下部に置く（`BannerAdSlot`）。検索欄に入力している間（キーボードを出している間）は、キーボードの上に広告が浮いて
+/// 検索結果の「追加」の隣に来ないよう出さない。
 struct AddCandidateView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -66,6 +68,8 @@ struct AddCandidateView: View {
     @State private var model: AddCandidateModel
     /// 検索欄の文字（Model の値を直接つながない。LEARNINGS の「TextField を Model に直接つなぐ」）
     @State private var queryText = ""
+    /// 検索欄に入力しているか（キーボードを出している間はバナーを出さない）
+    @FocusState private var isSearchFocused: Bool
 
     @Environment(\.dismiss) private var dismiss
     @ScaledMetric(relativeTo: .body) private var searchIconSize = AddCandidateView.searchIconSize
@@ -104,6 +108,11 @@ struct AddCandidateView: View {
                 .padding(.bottom, DGSpacing.s16)
             }
             .scrollDismissesKeyboard(.interactively)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !isSearchFocused {
+                BannerAdSlot(screen: .addCandidate, room: model.room)
+            }
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
@@ -202,6 +211,7 @@ struct AddCandidateView: View {
             .onSubmit {
                 model.search.searchNow(queryText)
             }
+            .focused($isSearchFocused)
             .accessibilityIdentifier(Identifier.searchField)
         }
         .padding(.horizontal, DGSpacing.s14)
