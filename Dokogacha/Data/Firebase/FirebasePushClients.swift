@@ -83,7 +83,11 @@ nonisolated final class MessagingTokenObserver: NSObject, MessagingDelegate, Sen
 /// `UNUserNotificationCenterDelegate` を受ける（前面で届いた通知の出し方と、通知を開いたとき）。
 ///
 /// SDK は MainActor の外から呼びうるので nonisolated にし、ペイロードを値（`PushDestination`）にしてから MainActor に渡す。
-/// 状態を持たない（渡す先の関数だけを持つ）ので `Sendable`
+/// 状態を持たない（渡す先の関数だけを持つ）ので `Sendable`。
+///
+/// FCM の AppDelegate の差し替え（swizzling）を止めているので、届いた・開いた通知は自分で `Messaging.appDidReceiveMessage` に渡す
+/// （渡さないと、FCM の配信・開封の計測（Analytics の `notification_foreground`・`notification_open`）が記録されない）。
+/// この delegate は Firebase に繋いだときだけ付ける（`AppDelegate.startPushNotifications`）
 nonisolated final class NotificationCenterObserver: NSObject, UNUserNotificationCenterDelegate, Sendable {
     private let showsBanner: @MainActor @Sendable (PushDestination?) -> Bool
     private let onOpen: @MainActor @Sendable (PushDestination) -> Void
@@ -103,11 +107,13 @@ nonisolated final class NotificationCenterObserver: NSObject, UNUserNotification
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
         let destination = PushDestination(userInfo: notification.request.content.userInfo)
         return await showsBanner(destination) ? [.banner, .list, .sound] : []
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
         guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
               let destination = PushDestination(userInfo: response.notification.request.content.userInfo) else {
             return
