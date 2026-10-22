@@ -169,7 +169,7 @@ struct CreateRoomModelTests {
         let expectedDeadline = try #require(Self.calendar.date(from: DateComponents(year: 2026, month: 10, day: 25, hour: 21)))
         #expect(model.deadline == expectedDeadline)
         let now = try Self.now()
-        #expect(model.deadlineRange == now.addingTimeInterval(60 * 60)...now.addingTimeInterval(30 * 24 * 60 * 60))
+        #expect(model.deadlineRange == now.addingTimeInterval(60 * 60)...now.addingTimeInterval(30 * 24 * 60 * 60 - 5 * 60))
         #expect(!model.showsDeadlinePicker)
         #expect(model.nameLimit == 20)
         #expect(!model.canSubmit)
