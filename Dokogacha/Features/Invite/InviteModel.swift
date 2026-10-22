@@ -51,8 +51,16 @@ final class InviteModel {
     ///
     /// リンクを文面の中に入れて 1 つの文字列で渡す（URL と文面を分けて渡すと、共有先のアプリによっては文面が落ちるため）
     var shareMessage: String {
+        Self.shareMessage(roomName: roomName, inviteCode: destination.inviteCode)
+    }
+
+    /// 共有シートで送る文面（S-04 と、S-11 の「招待する」で同じものを使う。03 の S-11「S-04 と同じ共有」）
+    /// - Parameters:
+    ///   - roomName: ルーム名
+    ///   - inviteCode: 招待コード
+    static func shareMessage(roomName: String, inviteCode: InviteCode) -> String {
         let invitation = String(localized: "「\(roomName)」で行き先ガチャやろう！行きたい場所を投稿してね")
-        return invitation + "\n" + inviteURL.absoluteString
+        return invitation + "\n" + InviteLink.url(for: inviteCode).absoluteString
     }
 
     /// 1 ルームに参加できる人数（「最大20人まで参加できます」）
