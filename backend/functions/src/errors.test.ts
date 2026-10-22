@@ -19,6 +19,22 @@ describe("APP_ERRORS", () => {
     });
   });
 
+  it("設定の変更（02 の F-03）の文言は、どれも今の状態では変えられない failed-precondition", () => {
+    expect(APP_ERRORS["room-closed"]).toEqual({ code: "failed-precondition", message: "このルームは終了しています" });
+    expect(APP_ERRORS["post-limit-decrease"]).toEqual({
+      code: "failed-precondition",
+      message: "投稿数は今より少なくできません",
+    });
+    expect(APP_ERRORS["unlock-rule-locked"]).toEqual({
+      code: "failed-precondition",
+      message: "解禁の条件は候補募集中のときだけ変更できます",
+    });
+    expect(APP_ERRORS["like-mode-locked"]).toEqual({
+      code: "failed-precondition",
+      message: "いいねの効き方はガチャを回す前だけ変更できます",
+    });
+  });
+
   it("想定していないエラーとサインインの無いときは「通信できませんでした」（05 の §6 のトースト）", () => {
     expect(APP_ERRORS.internal.message).toBe("通信できませんでした");
     expect(APP_ERRORS.unauthenticated).toEqual({ code: "unauthenticated", message: "通信できませんでした" });

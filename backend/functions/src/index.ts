@@ -6,16 +6,22 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { logger, setGlobalOptions } from "firebase-functions/v2";
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentUpdated, onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 import { runCallable } from "./callable";
 import * as candidates from "./candidates/service";
 import { FUNCTIONS_REGION } from "./config";
 import { defaultDeps } from "./deps";
+import { DEADLINE_CHECK_INTERVAL_MINUTES, SCHEDULE_TIME_ZONE } from "./domain/constants";
+import type { MemberDoc } from "./domain/models";
 import * as rooms from "./rooms/service";
-import { profileCopyChanged, type ProfileCopy } from "./users/logic";
-import { syncProfileCopies } from "./users/profileSync";
+import * as settings from "./settings/service";
+import { memberWriteAffectsUnlock } from "./unlock/logic";
+import * as unlock from "./unlock/service";
+import type { ProfileCopy } from "./users/logic";
+import { handleProfileUpdate } from "./users/profileSync";
 import * as users from "./users/service";
 
 // すべての関数のリージョンを東京にそろえる。関数ごとに指定し忘れて us-central1 に配置されるのを防ぐ
@@ -34,16 +40,16 @@ export const saveProfile = onCall((request) =>
 /**
  * プロフィールの表示名・アバターの色が変わったら、参加中のルームの複製（メンバー・自分の候補の投稿者名・広告の購入者）に反映する
  * （05 の §5。Firestore のトリガー）。通知のトークンだけの更新などでは何もしない。
+ * 一部のルームで失敗したら、残りを処理してから投げてやり直させる（`retry: true`。反映は冪等）
  */
-export const onUserProfileUpdate = onDocumentUpdated("users/{uid}", async (event) => {
+export const onUserProfileUpdate = onDocumentUpdated({ document: "users/{uid}", retry: true }, async (event) => {
   const before = event.data?.before.data() as Partial<ProfileCopy> | undefined;
   const after = event.data?.after.data() as Partial<ProfileCopy> | undefined;
-  if (!profileCopyChanged(before, after)) {
-    return;
-  }
   const uid = event.params.uid;
-  const result = await syncProfileCopies(getFirestore(), uid);
-  logger.info("プロフィールをルームの複製に反映した", { uid, ...result });
+  const result = await handleProfileUpdate(getFirestore(), uid, before, after);
+  if (result !== null) {
+    logger.info("プロフィールをルームの複製に反映した", { uid, ...result });
+  }
 });
 
 /** ルームを作る（02 の F-02） */
@@ -71,6 +77,11 @@ export const removeMember = onCall((request) =>
   runCallable("removeMember", request, (uid, data) => rooms.removeMember(deps(), uid, data)),
 );
 
+/** 作成者がルームの設定を変える（02 の F-03 の変更ルール。変えた後に解禁を判定し直す） */
+export const updateRoomSettings = onCall((request) =>
+  runCallable("updateRoomSettings", request, (uid, data) => settings.updateRoomSettings(deps(), uid, data)),
+);
+
 /** 候補を追加する（02 の F-10。同じ場所があれば作らずに `{ duplicateOf }` を返す） */
 export const addCandidate = onCall((request) =>
   runCallable("addCandidate", request, (uid, data) => candidates.addCandidate(deps(), uid, data)),
@@ -79,4 +90,45 @@ export const addCandidate = onCall((request) =>
 /** 候補を削除する（02 の F-11。投稿した人か作成者だけ） */
 export const deleteCandidate = onCall((request) =>
   runCallable("deleteCandidate", request, (uid, data) => candidates.deleteCandidate(deps(), uid, data)),
+);
+
+/**
+ * メンバーの参加・退出・削除・準備OKの変更で、`memberCount`・`readyCount` を数え直し、解禁の条件（F-31）を判定して
+ * `status` を `open`⇄`unlocked` に変える（05 の §5。Firestore のトリガー）。`unlocked` にしたら通知の呼び出し口を呼ぶ。
+ * `lastSeenAt`・表示名の複製だけの更新では何もしない。ルームだけに書くので、自分の書き込みでもう一度動かない。
+ * 失敗したらやり直す（`retry: true`。数え直しは冪等）
+ */
+export const onMemberWrite = onDocumentWritten(
+  { document: "rooms/{roomId}/members/{uid}", retry: true },
+  async (event) => {
+    const before = event.data?.before.data() as Partial<MemberDoc> | undefined;
+    const after = event.data?.after.data() as Partial<MemberDoc> | undefined;
+    if (!memberWriteAffectsUnlock(before, after)) {
+      return;
+    }
+    const roomId = event.params.roomId;
+    const result = await unlock.recountRoom(deps(), roomId);
+    if (result.changed) {
+      logger.info("メンバーを数え直して解禁を判定した", { roomId, ...result });
+    }
+  },
+);
+
+/** 作成者が強制解禁する（02 の F-32。open のときだけ） */
+export const forceUnlock = onCall((request) =>
+  runCallable("forceUnlock", request, (uid, data) => unlock.forceUnlock(deps(), uid, data)),
+);
+
+/**
+ * 締切日時を過ぎた open のルームを unlocked にする（02 の §5.2・05 の §5。5 分ごと。06 の §4 の仮決め）。
+ * 一部のルームで失敗しても残りを処理してから投げる（次の実行でもう一度拾う）
+ */
+export const checkDeadlines = onSchedule(
+  { schedule: `every ${String(DEADLINE_CHECK_INTERVAL_MINUTES)} minutes`, timeZone: SCHEDULE_TIME_ZONE },
+  async () => {
+    const result = await unlock.unlockPassedDeadlines(deps());
+    if (result.rooms > 0) {
+      logger.info("締切日時を過ぎたルームを判定した", result);
+    }
+  },
 );

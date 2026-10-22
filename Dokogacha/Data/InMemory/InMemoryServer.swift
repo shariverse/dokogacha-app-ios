@@ -153,7 +153,8 @@ final class InMemoryServer {
             .unauthenticated
         case .invalidArgument:
             .invalidArgument
-        case .profileRequired, .roomAlreadyDecided, .ownerCannotLeave, .cannotRemoveOwner:
+        case .profileRequired, .roomAlreadyDecided, .ownerCannotLeave, .cannotRemoveOwner, .roomClosed, .postLimitDecrease,
+             .unlockRuleLocked, .likeModeLocked:
             .failedPrecondition
         case .inviteCodeNotFound, .roomNotFound, .memberNotFound, .candidateNotFound:
             .notFound

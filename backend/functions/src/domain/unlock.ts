@@ -13,6 +13,10 @@ import type { RoomStatus, UnlockRule } from "./models";
  * 準備OKの数は `rooms.readyCount` のフィールドではなく、呼び出し側が数え直した値を渡す
  * （`onMemberWrite` はメンバーの書き込みのたびに数え直す。フィールドは書き込みの順で古い値のことがある）。
  * 日時は UNIX 時刻のミリ秒（`Timestamp.toMillis()`）。
+ *
+ * 締切日時は分単位（作成画面・設定画面の日時ピッカーで分まで選ぶ）。判定はミリ秒どうしで比べるので、
+ * 秒やミリ秒の端数がある値でもそのまま比べる。締切での解禁は `checkDeadlines` が 5 分ごと
+ * （06 の §4 の仮決め）にまとめて判定するので、`status` が `unlocked` になるのは締切から最大 5 分後になる。
  */
 export interface UnlockInput {
   /** ルームの今の状態 */
@@ -49,14 +53,22 @@ export type UnlockJudgement =
   | { readonly kind: "waitingForDeadline"; readonly deadlineAtMs: number | null }
   | { readonly kind: "notApplicable" };
 
+/**
+ * 人数を 0 以上の数にする。`NaN`・`Infinity`・`undefined`（フィールドが無い壊れたデータを読んだとき）は 0 とみなす
+ * （Swift 側は `Int` なので数でない値にならない。比べた結果を Swift とそろえるため、ここで寄せる）。
+ */
+function countOrZero(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) ? Math.max(value, 0) : 0;
+}
+
 /** 全員OKに要る人数（メンバーの数。0 人なら 1） */
 function allRequired(memberCount: number): number {
-  return Math.max(memberCount, 1);
+  return Math.max(countOrZero(memberCount), 1);
 }
 
 /** 過半数OKに要る人数（`OK人数 > メンバー数 ÷ 2` を満たす最小の整数） */
 function majorityRequired(memberCount: number): number {
-  return Math.floor(Math.max(memberCount, 0) / 2) + 1;
+  return Math.floor(countOrZero(memberCount) / 2) + 1;
 }
 
 /**
@@ -86,8 +98,10 @@ export function requiredReadyCountOf(rule: UnlockRule, memberCount: number): num
  * - 全員OK: `OK人数 = メンバー数`。過半数OK: `OK人数 > メンバー数 ÷ 2`（整数で `OK人数 × 2 > メンバー数`）
  * - 締切日時: `今 ≥ 締切日時`（ちょうどで解禁）。準備OKの数は見ない（02 の §5.2「参考表示のみ」）
  *
- * 数が壊れていても判定できるように、メンバーの数は 0 以上、準備OKの数は 0〜メンバーの数に収めてから比べる。
+ * 数が壊れていても判定できるように、メンバーの数は 0 以上、準備OKの数は 0〜メンバーの数に収めてから比べる
+ * （数でない値（`NaN`・`undefined`）は 0 とみなす）。
  * メンバーが 0 人のルームは、どの条件でも準備OKが 1 人以上要るので解禁しない。
+ * 締切日時は分単位で、`今 ≥ 締切日時` をミリ秒で比べる（ファイルの先頭の説明）。
  * @param input ルームの状態・条件・人数・締切
  * @param nowMs 今の時刻のミリ秒（サーバーでは `Timestamp.now().toMillis()`）
  */
@@ -98,8 +112,8 @@ export function judgeUnlock(input: UnlockInput, nowMs: number): UnlockJudgement 
   if (input.forcedUnlock) {
     return { kind: "unlocked", reason: "forced" };
   }
-  const memberCount = Math.max(input.memberCount, 0);
-  const readyCount = Math.min(Math.max(input.readyCount, 0), memberCount);
+  const memberCount = countOrZero(input.memberCount);
+  const readyCount = Math.min(countOrZero(input.readyCount), memberCount);
   switch (input.rule) {
     case "all": {
       const remaining = allRequired(memberCount) - readyCount;

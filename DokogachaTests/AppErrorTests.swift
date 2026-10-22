@@ -27,6 +27,10 @@ struct AppErrorTests {
         ("room-candidates-full", "このルームの候補は上限に達しています（最大200件）"),
         ("candidate-not-found", "候補が見つかりません"),
         ("not-candidate-owner", "投稿した人と作成者だけが削除できます"),
+        ("room-closed", "このルームは終了しています"),
+        ("post-limit-decrease", "投稿数は今より少なくできません"),
+        ("unlock-rule-locked", "解禁の条件は候補募集中のときだけ変更できます"),
+        ("like-mode-locked", "いいねの効き方はガチャを回す前だけ変更できます"),
         ("invite-code-unavailable", "通信できませんでした"),
         ("internal", "通信できませんでした")
     ]

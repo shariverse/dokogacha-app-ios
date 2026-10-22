@@ -181,6 +181,35 @@ describe("ルームと候補の Callable（Emulator の Functions）", () => {
     expect((await db.doc(`rooms/${roomId}`).get()).get("candidateCount")).toBe(0);
   });
 
+  it("設定の変更（アプリの UpdateRoomSettingsRequest の JSON の形）と強制解禁が通り、作成者以外は断られる", async () => {
+    const gina = await client("gina");
+    const hank = await client("hank");
+    await call(gina.functions, "saveProfile", { displayName: "じーな" });
+    await call(hank.functions, "saveProfile", { displayName: "はんく" });
+    const { roomId, inviteCode } = await call<{ roomId: string; inviteCode: string }>(gina.functions, "createRoom", {
+      name: "週末",
+      postLimit: 1,
+      unlockRule: "all",
+      likeMode: "boost",
+    });
+    await call(hank.functions, "joinRoom", { inviteCode });
+
+    // Swift の JSONEncoder は nil の項目を鍵ごと送らない（変える項目だけが届く）
+    await expect(call(gina.functions, "updateRoomSettings", { roomId, postLimit: 2, likeMode: "equal" })).resolves.toEqual({});
+    expect((await db.doc(`rooms/${roomId}`).get()).get("settings")).toMatchObject({ postLimit: 2, likeMode: "equal" });
+    const decrease = await expectReason(
+      call(gina.functions, "updateRoomSettings", { roomId, postLimit: 1 }),
+      "failed-precondition",
+      "post-limit-decrease",
+    );
+    expect(decrease.message.startsWith("投稿数は今より少なくできません")).toBe(true);
+    await expectReason(call(hank.functions, "updateRoomSettings", { roomId, name: "x" }), "permission-denied", "not-room-owner");
+
+    await expectReason(call(hank.functions, "forceUnlock", { roomId }), "permission-denied", "not-room-owner");
+    await expect(call(gina.functions, "forceUnlock", { roomId })).resolves.toEqual({});
+    expect((await db.doc(`rooms/${roomId}`).get()).data()).toMatchObject({ status: "unlocked", forcedUnlock: true });
+  });
+
   it("入力が正しくなければ invalid-argument", async () => {
     const dave = await client("dave");
     await expectReason(call(dave.functions, "saveProfile", { displayName: "" }), "invalid-argument", "invalid-argument");
