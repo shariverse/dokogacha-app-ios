@@ -54,6 +54,11 @@ protocol RoomRepository {
     /// 読めるのはメンバーだけ（セキュリティルール）。無い候補は nil が流れる
     func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>>
 
+    /// 自分の過去のアイデア（`users/{uid}/pastIdeas`）を、元のルームが終了した日時の新しい順に購読する（F-13。S-08 の「過去のアイデア」）。
+    ///
+    /// 読めるのは本人だけ（セキュリティルール）。作るのはルームが終了したときの Functions だけで、アプリは読むだけ
+    func pastIdeas(userID: String) -> AsyncStream<LiveUpdate<[Identified<PastIdea>]>>
+
     /// 自分の準備OKを変える（F-30。`open`・`unlocked` のときだけ）
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws
 

@@ -41,4 +41,22 @@ struct InMemoryServerPastIdeaTests {
         _ = try await bob.addCandidate(Base.request(roomID, fromPastIdeaID: "idea1"))
         #expect(server.pastIdeas["bob"]?["idea1"] == Self.pastIdea)
     }
+
+    /// 自分の過去のアイデアを、元のルームが終了した新しい順に流し、増えたら流し直す。他人の過去のアイデアは読めない（ルール）
+    @Test
+    func subscribesOwnPastIdeasNewestFirst() async throws {
+        let server = InMemoryServer.demo(.empty)
+        var older = Self.pastIdea
+        older.sourceClosedAt = InMemoryServerTests.now.addingTimeInterval(-86_400)
+        server.pastIdeas[DemoScenario.myUserID] = ["old_c1": older]
+        var ideas = server.pastIdeas(userID: DemoScenario.myUserID).makeAsyncIterator()
+        #expect(await ideas.next()?.value?.map(\.id) == ["old_c1"])
+
+        server.pastIdeas[DemoScenario.myUserID]?["new_c1"] = Self.pastIdea
+        #expect(await ideas.next()?.value?.map(\.id) == ["new_c1", "old_c1"])
+
+        var others = server.pastIdeas(userID: "demo-haruka").makeAsyncIterator()
+        #expect(await others.next() == .failure(InMemoryServer.permissionDenied))
+        #expect(await others.next() == nil)
+    }
 }

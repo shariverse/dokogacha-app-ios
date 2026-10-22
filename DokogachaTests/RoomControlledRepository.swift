@@ -142,6 +142,10 @@ final class RoomControlledRepository: RoomRepository {
         server.candidate(roomID: roomID, candidateID: candidateID)
     }
 
+    func pastIdeas(userID: String) -> AsyncStream<LiveUpdate<[Identified<PastIdea>]>> {
+        server.pastIdeas(userID: userID)
+    }
+
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {
         readyCallCount += 1
         if holdsReady {

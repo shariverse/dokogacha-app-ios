@@ -13,7 +13,8 @@ final class FirestoreRoomRepository: RoomRepository {
     /// ホームに出す、進行中のルームの状態（`closed` 以外。`firestore.indexes.json` の `memberIds`＋`status`＋`createdAt` の索引を使う）
     static let activeStatuses: [RoomStatus] = [.open, .unlocked, .drawn]
 
-    private let gateway: any FirestoreGateway
+    /// SDK の窓口（拡張のファイル `FirestoreRoomRepository+PastIdeas.swift` からも使う）
+    let gateway: any FirestoreGateway
 
     /// SDK の窓口を受け取って作る
     init(gateway: any FirestoreGateway) {

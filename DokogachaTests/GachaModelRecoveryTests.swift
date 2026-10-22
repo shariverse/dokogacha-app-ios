@@ -143,6 +143,10 @@ final class DrawDelayedRepository: RoomRepository {
         server.candidate(roomID: roomID, candidateID: candidateID)
     }
 
+    func pastIdeas(userID: String) -> AsyncStream<LiveUpdate<[Identified<PastIdea>]>> {
+        server.pastIdeas(userID: userID)
+    }
+
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {
         try await server.setReady(ready, roomID: roomID, userID: userID)
     }

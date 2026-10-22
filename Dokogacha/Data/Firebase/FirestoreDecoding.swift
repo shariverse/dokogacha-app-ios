@@ -61,6 +61,11 @@ enum FirestoreDecoding {
         try decode(Draw.self, document).value
     }
 
+    /// `users/{uid}/pastIdeas/{ideaId}` を読む（知らないカテゴリは候補と同じく街歩きにする）
+    static func pastIdea(_ document: FirestoreDocument) throws -> Identified<PastIdea> {
+        try decode(PastIdea.self, document, fallbacks: [categoryFallback])
+    }
+
     /// `users/{uid}` を読む
     static func userProfile(_ document: FirestoreDocument) throws -> UserProfile {
         try decode(UserProfile.self, document).value
