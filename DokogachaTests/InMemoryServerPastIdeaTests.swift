@@ -59,4 +59,16 @@ struct InMemoryServerPastIdeaTests {
         #expect(await others.next() == .failure(InMemoryServer.permissionDenied))
         #expect(await others.next() == nil)
     }
+
+    /// `past-ideas` のデモは、候補のあるデモのルームと、自分の過去のアイデア 2 つのルーム・5 件（起動引数で選べる）
+    @Test
+    func pastIdeasScenario() {
+        #expect(DemoScenario.from(arguments: ["-demo-scenario", "past-ideas"]) == .pastIdeas)
+        let server = InMemoryServer.demo(.pastIdeas) { InMemoryServerTests.now }
+        #expect(server.rooms[DemoScenario.roomID]?.candidates.count == 3)
+        let ideas = server.pastIdeas[DemoScenario.myUserID] ?? [:]
+        #expect(ideas.count == 5)
+        #expect(Set(ideas.values.map(\.sourceRoomId)) == [DemoScenario.pastSummerRoomID, DemoScenario.pastSeminarRoomID])
+        #expect(ideas["\(DemoScenario.pastSummerRoomID)_c2"]?.place.name == "鎌倉大仏")
+    }
 }
