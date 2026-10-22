@@ -53,6 +53,8 @@ struct ResultView: View {
     private let onPlayAgain: () -> Void
     /// きっぷを出し終えたか（ポップインの後の状態）
     @State private var hasPopped = false
+    /// 共有シートに渡している画像（出している間だけ）
+    @State private var sharedImage: SharedImage?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -92,6 +94,11 @@ struct ResultView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
+        .sheet(item: $sharedImage) { shared in
+            ActivityShareSheet(items: [shared.image])
+                .presentationDetents([.medium, .large])
+                .ignoresSafeArea()
+        }
         .task {
             await model.observe()
         }
@@ -186,9 +193,16 @@ struct ResultView: View {
         .accessibilityIdentifier(Identifier.openInMaps)
     }
 
-    /// 「きっぷを共有」（SecondaryButton の見た目の `ShareLink`。画像は共有するときに作る）
+    /// 「きっぷを共有」（SecondaryButton）。押したら `ticket_share` を送り、きっぷの画像を作って共有シートを出す。
+    ///
+    /// `ShareLink` にしないのは、押したことを同時のタップで受けると VoiceOver・Switch Control で送られないため（PR #94 の持ち越し）
     private func shareButton(_ ticket: ResultTicket) -> some View {
-        ShareLink(item: TicketShareImage(ticket: ticket), preview: SharePreview(Text("行き先きっぷ"))) {
+        Button {
+            model.shareTapped()
+            if let image = TicketShareImage(ticket: ticket).image() {
+                sharedImage = SharedImage(image: image)
+            }
+        } label: {
             HStack(spacing: DGSpacing.s6) {
                 Image("ui-share")
                     .renderingMode(.template)
@@ -200,8 +214,6 @@ struct ResultView: View {
             }
         }
         .buttonStyle(.dg(.secondary))
-        // `ShareLink` は押したときの処理を持てないので、押したことを同時のタップで受けて `ticket_share` を送る
-        .simultaneousGesture(TapGesture().onEnded { model.shareTapped() })
         .accessibilityIdentifier(Identifier.share)
     }
 

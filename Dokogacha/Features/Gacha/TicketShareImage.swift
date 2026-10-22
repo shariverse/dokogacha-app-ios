@@ -3,33 +3,27 @@
 //  Dokogacha
 //
 
-import CoreTransferable
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// 「きっぷを共有」で共有シートに渡す画像（02 の §6.3「行き先きっぷを画像にして共有シートで送る（`ImageRenderer` で生成）。
 /// 画像にはアプリ名と App Store のURL（仮）を入れる」・04 の §4「このきっぷを 3倍の解像度で書き出し、下に
 /// 『ドコガチャ｜友達旅行・おでかけの行き先ガチャ』を追加する」）。
 ///
-/// `ShareLink` に渡す `Transferable`。画像は共有先が受け取るときに作る（画面を描くたびに書き出さない）。
-nonisolated struct TicketShareImage: Transferable, Sendable {
+/// 画像は「きっぷを共有」が押されたときに作り、共有シート（`ActivityShareSheet`）に渡す（画面を描くたびに書き出さない）。
+nonisolated struct TicketShareImage: Sendable {
     /// きっぷの値
     let ticket: ResultTicket
 
-    static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .png) { image in
-            guard let data = await image.pngData() else {
-                throw CocoaError(.fileWriteUnknown)
-            }
-            return data
-        }
-        .suggestedFileName("dokogacha-ticket.png")
+    /// 共有する画像（書き出せなければ nil）
+    @MainActor
+    func image() -> UIImage? {
+        Self.renderer(for: ticket).uiImage
     }
 
     /// 共有する画像の PNG（書き出せなければ nil）
     @MainActor
     func pngData() -> Data? {
-        Self.renderer(for: ticket).uiImage?.pngData()
+        image()?.pngData()
     }
 
     /// 画像を書き出す `ImageRenderer`（3 倍の解像度・幅は `TicketShareCard.width`）
