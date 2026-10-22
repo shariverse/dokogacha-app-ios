@@ -32,6 +32,19 @@ final class FirestoreRoomRepository: RoomRepository {
         return FirestoreSubscription.query(query, gateway: gateway) { FirestoreDecoding.list($0, FirestoreDecoding.room) }
     }
 
+    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+        // `firestore.indexes.json` の `memberIds`＋`status`＋`closedAt` の索引を使う
+        let query = FirestoreQuerySpec(
+            collectionPath: FirestorePath.rooms,
+            filters: [
+                .arrayContains(field: "memberIds", value: userID),
+                .isIn(field: "status", values: [RoomStatus.closed.rawValue])
+            ],
+            order: .init(field: "closedAt", descending: true)
+        )
+        return FirestoreSubscription.query(query, gateway: gateway) { FirestoreDecoding.list($0, FirestoreDecoding.room) }
+    }
+
     func room(id roomID: String) -> AsyncStream<LiveUpdate<Identified<Room>?>> {
         FirestoreSubscription.document(FirestorePath.room(roomID), gateway: gateway) { document in
             try document.map(FirestoreDecoding.room)
@@ -57,6 +70,12 @@ final class FirestoreRoomRepository: RoomRepository {
     func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>> {
         FirestoreSubscription.document(FirestorePath.draw(drawID, roomID: roomID), gateway: gateway) { document in
             try document.map(FirestoreDecoding.draw)
+        }
+    }
+
+    func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {
+        FirestoreSubscription.document(FirestorePath.candidate(candidateID, roomID: roomID), gateway: gateway) { document in
+            try document.map(FirestoreDecoding.candidate)
         }
     }
 

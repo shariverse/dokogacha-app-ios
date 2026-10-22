@@ -57,6 +57,10 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
         failedStream()
     }
 
+    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+        failedStream()
+    }
+
     func room(id roomID: String) -> AsyncStream<LiveUpdate<Identified<Room>?>> {
         failedStream()
     }
@@ -70,6 +74,10 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
     }
 
     func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>> {
+        failedStream()
+    }
+
+    func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {
         failedStream()
     }
 

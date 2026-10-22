@@ -281,7 +281,7 @@ extension InMemoryServer: FunctionsClient {
     // MARK: まだ backend に無い Callable（backend のタスクで足すときに、ここにも同じ検証を足す）
 
     func closeRoom(_ request: RoomRequest) async throws {
-        throw AppError(.notImplemented)
+        try closeRoom(request, by: signedInUserID)
     }
 
     func inviteLastMembers(_ request: RoomRequest) async throws -> InviteLastMembersResponse {

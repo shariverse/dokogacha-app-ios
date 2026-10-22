@@ -27,6 +27,19 @@ extension InMemoryServer: RoomRepository {
         }
     }
 
+    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+        subscribe { server in
+            guard server.signedInUserID == userID else {
+                return .failure(Self.permissionDenied)
+            }
+            let rooms = server.rooms
+                .filter { $0.value.room.memberIds.contains(userID) && $0.value.room.status == .closed }
+                .map { Identified(id: $0.key, value: $0.value.room) }
+                .sorted { ($0.closedAt ?? .distantPast, $0.id) > ($1.closedAt ?? .distantPast, $1.id) }
+            return .value(rooms)
+        }
+    }
+
     func room(id roomID: String) -> AsyncStream<LiveUpdate<Identified<Room>?>> {
         // 無いルームはルールの `resource.data.memberIds` を読めず permission-denied になる（本番と同じく失敗で終わる）
         subscribe { server in
@@ -58,6 +71,14 @@ extension InMemoryServer: RoomRepository {
         // ルール: `draws/{drawId}` はメンバーだけが読める
         subscribe { server in
             server.readableRecord(roomID).map { $0.draws[drawID] }
+        }
+    }
+
+    func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {
+        subscribe { server in
+            server.readableRecord(roomID).map { record in
+                record.candidates[candidateID].map { Identified(id: candidateID, value: $0) }
+            }
         }
     }
 

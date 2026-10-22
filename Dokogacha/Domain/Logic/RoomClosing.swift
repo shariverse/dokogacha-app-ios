@@ -1,0 +1,84 @@
+//
+//  RoomClosing.swift
+//  Dokogacha
+//
+
+import Foundation
+
+/// ルームの終了（02 の §6.5 F-44）と、終了したときの過去のアイデア（F-13）の判定。
+///
+/// backend の `functions/src/close/logic.ts`（`decideClose`・`planPastIdeas`）と同じ規則。
+/// 画面（S-14 の「この行き先で決定」を出すか）と、擬似のサーバー（`InMemoryServer+Close.swift`）が使う。
+/// 抽選から 7 日の自動の終了はサーバーのスケジュール（`autoCloseRooms`）だけが判定するので、ここには置かない。
+nonisolated enum RoomClosing {
+    /// S-14 の下部に出すもの（03 の S-14 の 6）
+    enum Footer: Equatable, Sendable {
+        /// 作成者に「この行き先で決定」を出す
+        case decide
+        /// 作成者以外に「作成者が決定するとルームが終了します」を出す
+        case waitingForOwner
+        /// 何も出さない（`closed` の閲覧のみ・引き直しが可決して `unlocked` に戻ったなど）
+        case hidden
+    }
+
+    /// S-14 の下部に出すもの（`drawn` のときだけ。作成者かどうかで変える）
+    /// - Parameters:
+    ///   - room: ルーム
+    ///   - userID: 自分の uid
+    static func footer(for room: Room, userID: String) -> Footer {
+        guard room.status == .drawn else {
+            return .hidden
+        }
+        return room.ownerId == userID ? .decide : .waitingForOwner
+    }
+
+    /// 登録する過去のアイデア 1 件（backend の `PastIdeaWrite`）
+    struct PastIdeaWrite: Equatable, Sendable {
+        /// 登録するメンバーの uid
+        let userID: String
+        /// ドキュメントの ID（`pastIdeaID(roomID:candidateID:)`）
+        let ideaID: String
+        /// 過去のアイデア
+        let idea: PastIdea
+    }
+
+    /// 過去のアイデアのドキュメントの ID（backend の `pastIdeaId`）。元のルームと候補から決まり、登録をやり直しても重ねて作らない
+    static func pastIdeaID(roomID: String, candidateID: String) -> String {
+        "\(roomID)_\(candidateID)"
+    }
+
+    /// 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデアにする（backend の `planPastIdeas`）。
+    ///
+    /// 当選（`winnerCandidateId`）以外のすべて（引き直しで外れた前の当選・自分以外の投稿を含む。02 の §3.4）を、
+    /// `memberIds`（重なりは 1 回）の各メンバーに登録する。並び順は「メンバー（`memberIds` の順）→ 候補の ID」。
+    /// - Parameters:
+    ///   - roomID: ルームの ID
+    ///   - room: 終了したルーム（`closedAt` が無ければ `closedAt` の引数を使う）
+    ///   - candidates: ルームの候補（鍵は候補の ID）
+    ///   - closedAt: 終了の日時
+    static func pastIdeas(roomID: String, room: Room, candidates: [String: Candidate], closedAt: Date) -> [PastIdeaWrite] {
+        let winnerName = room.winnerCandidateId.flatMap { candidates[$0]?.place.name } ?? ""
+        let ideas = candidates
+            .filter { $0.key != room.winnerCandidateId }
+            .sorted { $0.key.utf16.lexicographicallyPrecedes($1.key.utf16) }
+            .map { candidateID, candidate in
+                (
+                    ideaID: pastIdeaID(roomID: roomID, candidateID: candidateID),
+                    idea: PastIdea(
+                        sourceRoomId: roomID,
+                        sourceRoomName: room.name,
+                        sourceClosedAt: room.closedAt ?? closedAt,
+                        sourceWinnerName: winnerName,
+                        place: candidate.place,
+                        category: candidate.category,
+                        prevLikeCount: candidate.likedBy.count
+                    )
+                )
+            }
+        var seen: Set<String> = []
+        let members = room.memberIds.filter { seen.insert($0).inserted }
+        return members.flatMap { userID in
+            ideas.map { PastIdeaWrite(userID: userID, ideaID: $0.ideaID, idea: $0.idea) }
+        }
+    }
+}
