@@ -7,10 +7,12 @@
 import Foundation
 import Testing
 
-/// S-15 設定の「アカウントを削除」（02 の §2.6 F-06）の確認・削除・端末の値の消去・サインアウト・二重送信の防止・失敗のトーストと、
+/// S-15 設定の「アカウントを削除」（02 の §2.6 F-06）の確認・削除・端末の値の消去・サインアウト・二重送信の防止・失敗のトースト、
+/// Sign in with Apple に連携済みのときのトークンの取り消し（審査ガイドライン 5.1.1(v)）、失敗しても Auth のユーザーが消えていれば削除できたことにすること、
 /// Sign in with Apple で別のアカウントにサインインし直す前に今のアカウントを削除すること（PR #100 の持ち越し）を、擬似のサーバーで確かめる
 struct SettingsModelDeleteAccountTests {
     typealias ControlledAuth = OnboardingModelTests.ControlledAuth
+    typealias StubAuthorizer = SettingsModelAppleLinkTests.StubAuthorizer
 
     /// 端末の値を消した回数を数える窓口
     final class DeviceDataSpy {
@@ -42,6 +44,7 @@ struct SettingsModelDeleteAccountTests {
         let auth = ControlledAuth(scenario: .oneRoom)
         let spy = DeviceDataSpy()
         let model = Self.makeModel(auth, deviceData: spy.data)
+        let authorizer = StubAuthorizer()
 
         model.deleteAccountTapped()
         #expect(model.isConfirmingDeletion)
@@ -49,9 +52,12 @@ struct SettingsModelDeleteAccountTests {
         #expect(auth.deleteCount == 0)
 
         model.isConfirmingDeletion = false
-        model.deletionConfirmed()
+        model.deletionConfirmed(using: authorizer)
         #expect(await AsyncTestSupport.eventually { auth.signOutCount == 1 })
         #expect(auth.deleteCount == 1)
+        // Apple に連携していないので、Apple の認証を出さず、トークンも取り消さない
+        #expect(authorizer.authorizationCodeCount == 0)
+        #expect(auth.accountCalls == [.delete])
         #expect(spy.clearCount == 1)
         #expect(auth.currentUserID == nil)
         // 作成者だったルームは終了し、プロフィールは消える
@@ -69,7 +75,7 @@ struct SettingsModelDeleteAccountTests {
         let toasts = OnboardingModelTests.makeToasts()
         let model = Self.makeModel(auth, deviceData: spy.data, toasts: toasts)
 
-        await model.deleteAccount()
+        await model.deleteAccount(using: StubAuthorizer())
         #expect(toasts.current?.text == "通信できませんでした")
         #expect(spy.clearCount == 0)
         #expect(auth.signOutCount == 0)
@@ -85,11 +91,11 @@ struct SettingsModelDeleteAccountTests {
         auth.deleteBehavior = .suspend
         let model = Self.makeModel(auth)
 
-        model.deletionConfirmed()
+        model.deletionConfirmed(using: StubAuthorizer())
         #expect(await AsyncTestSupport.eventually { auth.isWaitingForDelete })
         #expect(model.activeAction == .deleteAccount)
         #expect(!model.canStartAction)
-        model.deletionConfirmed()
+        model.deletionConfirmed(using: StubAuthorizer())
         model.deleteAccountTapped()
         #expect(!model.isConfirmingDeletion)
 
@@ -118,6 +124,9 @@ struct SettingsModelDeleteAccountTests {
         #expect(auth.server.rooms[DemoScenario.roomID]?.room.status == .closed)
         // サインインし直すので、サインアウトはしない（匿名でサインインし直さない）
         #expect(auth.signOutCount == 0)
+        // 今の匿名のアカウントは Apple に連携していないので、トークンを取り消さない
+        #expect(auth.accountCalls == [.delete])
+        #expect(auth.server.revokedAppleAuthorizationCodes.isEmpty)
     }
 
     /// 今のアカウントを削除できなかったら、サインインし直さない（今のアカウントのまま、もう一度押せる）
@@ -134,6 +143,140 @@ struct SettingsModelDeleteAccountTests {
         #expect(toasts.current?.text == "通信できませんでした")
         #expect(auth.currentUserID == DemoScenario.myUserID)
         #expect(auth.server.users[DemoScenario.myUserID] != nil)
+        #expect(model.canStartAction)
+    }
+
+    // MARK: Sign in with Apple のトークンの取り消し
+
+    /// 連携済みのアカウントを削除するときは、Apple の認証をもう一度行い、受け取った authorization code でトークンを取り消してから削除する
+    @Test
+    func linkedAccountRevokesAppleTokenBeforeDeleting() async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.server.appleAccounts["apple-account-1"] = DemoScenario.myUserID
+        let spy = DeviceDataSpy()
+        let model = Self.makeModel(auth, deviceData: spy.data)
+        let authorizer = StubAuthorizer()
+
+        await model.deleteAccount(using: authorizer)
+        #expect(authorizer.authorizationCodeCount == 1)
+        #expect(auth.accountCalls == [.revoke(authorizationCode: "apple-authorization-code-1"), .delete])
+        #expect(auth.server.revokedAppleAuthorizationCodes == ["apple-authorization-code-1"])
+        #expect(auth.server.users[DemoScenario.myUserID] == nil)
+        #expect(spy.clearCount == 1)
+        #expect(auth.signOutCount == 1)
+    }
+
+    /// Apple の画面でやめたら、取り消しも削除もしない（トーストも出さない。もう一度押せる）
+    @Test
+    func cancelingAppleAuthorizationKeepsAccount() async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.server.appleAccounts["apple-account-1"] = DemoScenario.myUserID
+        let spy = DeviceDataSpy()
+        let toasts = OnboardingModelTests.makeToasts()
+        let model = Self.makeModel(auth, deviceData: spy.data, toasts: toasts)
+        let authorizer = StubAuthorizer()
+        authorizer.code = nil
+
+        await model.deleteAccount(using: authorizer)
+        #expect(authorizer.authorizationCodeCount == 1)
+        #expect(auth.accountCalls.isEmpty)
+        #expect(toasts.current == nil)
+        #expect(spy.clearCount == 0)
+        #expect(auth.signOutCount == 0)
+        #expect(auth.server.users[DemoScenario.myUserID] != nil)
+        #expect(model.canStartAction)
+    }
+
+    /// トークンを取り消せなかったら削除せずにトーストを出す（Apple に連携が残ったままアカウントだけ消えるのを避ける。もう一度押せる）
+    @Test(arguments: [
+        (AppError(.network), "通信できませんでした"),
+        (AppError(.appleRevokeFailed), "Apple でサインインの連携を解除できませんでした")
+    ])
+    func revokeFailureKeepsAccount(error: AppError, message: String) async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.server.appleAccounts["apple-account-1"] = DemoScenario.myUserID
+        auth.revokeError = error
+        let spy = DeviceDataSpy()
+        let toasts = OnboardingModelTests.makeToasts()
+        let model = Self.makeModel(auth, deviceData: spy.data, toasts: toasts)
+
+        await model.deleteAccount(using: StubAuthorizer())
+        #expect(toasts.current?.text == message)
+        #expect(auth.deleteCount == 0)
+        #expect(spy.clearCount == 0)
+        #expect(auth.signOutCount == 0)
+        #expect(auth.server.users[DemoScenario.myUserID] != nil)
+        #expect(model.isLinkedWithApple)
+        #expect(model.canStartAction)
+    }
+
+    /// Apple の認証の画面が失敗したら、取り消しも削除もせずにトーストを出す
+    @Test
+    func appleAuthorizationFailureKeepsAccount() async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.server.appleAccounts["apple-account-1"] = DemoScenario.myUserID
+        let toasts = OnboardingModelTests.makeToasts()
+        let model = Self.makeModel(auth, toasts: toasts)
+        let authorizer = StubAuthorizer()
+        authorizer.error = AppError(.appleRevokeFailed)
+
+        await model.deleteAccount(using: authorizer)
+        #expect(toasts.current?.text == "Apple でサインインの連携を解除できませんでした")
+        #expect(auth.accountCalls.isEmpty)
+        #expect(auth.server.users[DemoScenario.myUserID] != nil)
+    }
+
+    // MARK: 失敗しても Auth のユーザーが消えていたとき
+
+    /// 削除が失敗しても（応答が届かなかった）、Auth のユーザーが消えていれば削除できたことにし、端末の値を消してサインアウトする
+    /// （消えた uid のまま S-01 で表示名を登録すると、`users/{uid}` を作り直してしまうため）
+    @Test
+    func failureAfterServerDeletedIsTreatedAsDeleted() async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.deleteErrorAfterDeleting = AppError(.network, code: .unavailable)
+        let spy = DeviceDataSpy()
+        let toasts = OnboardingModelTests.makeToasts()
+        let model = Self.makeModel(auth, deviceData: spy.data, toasts: toasts)
+
+        await model.deleteAccount(using: StubAuthorizer())
+        #expect(toasts.current == nil)
+        #expect(spy.clearCount == 1)
+        #expect(auth.signOutCount == 1)
+        #expect(auth.currentUserID == nil)
+    }
+
+    /// 切り替えで、今のアカウントの削除が失敗しても消えていれば、そのままサインインし直す
+    @Test
+    func switchingAccountContinuesWhenDeletedDespiteFailure() async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.server.appleAccounts["apple-account-1"] = "previous-device-user"
+        auth.deleteErrorAfterDeleting = AppError(.network, code: .unavailable)
+        let toasts = OnboardingModelTests.makeToasts()
+        let model = Self.makeModel(auth, toasts: toasts)
+
+        await model.linkApple(using: StubAuthorizer())
+        await model.switchToLinkedAppleAccount()
+        #expect(toasts.current == nil)
+        #expect(auth.currentUserID == "previous-device-user")
+        #expect(auth.signOutCount == 0)
+    }
+
+    /// 切り替えで、今のアカウントを削除した後にサインインし直せなかったら、サインアウトしてトーストを出す
+    /// （消えたアカウントのまま残らないよう、起動の流れが匿名でサインインし直して S-01 を出す）
+    @Test
+    func switchingAccountSignsOutWhenSignInFailsAfterDeletion() async {
+        let auth = ControlledAuth(scenario: .oneRoom)
+        auth.server.appleAccounts["apple-account-1"] = "previous-device-user"
+        auth.signInWithLinkedError = AppError(.network)
+        let toasts = OnboardingModelTests.makeToasts()
+        let model = Self.makeModel(auth, toasts: toasts)
+
+        await model.linkApple(using: StubAuthorizer())
+        await model.switchToLinkedAppleAccount()
+        #expect(auth.deleteCount == 1)
+        #expect(auth.signOutCount == 1)
+        #expect(auth.currentUserID == nil)
+        #expect(toasts.current?.text == "通信できませんでした")
         #expect(model.canStartAction)
     }
 }

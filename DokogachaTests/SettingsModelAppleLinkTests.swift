@@ -143,7 +143,8 @@ struct SettingsModelAppleLinkTests {
         #expect(auth.isLinkedWithApple)
     }
 
-    /// 確認でやめたら（サインインし直さない）、今のアカウントのまま。確認を経ずにサインインし直そうとしても失敗する
+    /// 確認を経ずにサインインし直そうとしても（サインインし直す Apple のアカウントが無い）失敗し、トーストを出す。
+    /// 先に今のアカウントを削除しているので、消えたアカウントのまま残らないようサインアウトする
     @Test
     func switchingWithoutPendingAccountFails() async {
         let auth = ControlledAuth(scenario: .oneRoom)
@@ -151,8 +152,10 @@ struct SettingsModelAppleLinkTests {
         let model = Self.makeModel(auth, toasts: toasts)
 
         await model.switchToLinkedAppleAccount()
-        #expect(auth.currentUserID == DemoScenario.myUserID)
         #expect(toasts.current?.text == "Apple でサインインできませんでした")
+        #expect(auth.deleteCount == 1)
+        #expect(auth.signOutCount == 1)
+        #expect(auth.currentUserID == nil)
     }
 
     /// 擬似のサーバーでは、1 つのユーザーに Apple のアカウントは 1 つまで（別の Apple ID を連携しようとしても付け替えない）

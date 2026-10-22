@@ -27,7 +27,8 @@ import Observation
 /// サインインし直す前に、今の匿名のアカウントを削除する（`AuthService.deleteAccount`）。サインインし直すと今のアカウントには戻れないので、
 /// 残すと、参加中のルームのメンバーに残り続けて「全員OK」のルームが解禁できなくなり、使われないプロフィールがサーバーに残るため。
 ///
-/// アカウントの削除（02 の §2.6 F-06）は、確認（`isConfirmingDeletion`）で「削除する」が選ばれたら、サーバーで削除し
+/// アカウントの削除（02 の §2.6 F-06）は、確認（`isConfirmingDeletion`）で「削除する」が選ばれたら、Sign in with Apple に連携済みなら
+/// Apple の認証をもう一度行ってトークンを取り消し（`AuthService.revokeAppleToken`）、サーバーで削除し
 /// （`AuthService.deleteAccount`）、この端末に残す値を消して（`AccountDeviceData`）、サインアウトする（`AuthService.signOut`）。
 /// サインアウトすると起動の流れが匿名でサインインし直し、S-01 オンボーディングを出す。失敗したらトーストを出し、何も消さない（もう一度押せる）。
 ///
@@ -326,11 +327,18 @@ extension SettingsModel {
     /// 既に Apple ID に連携されたアカウントでサインインし直す（サインインし直すと、起動の流れがそのユーザーのホームを開き直す）。
     ///
     /// 先に今の匿名のアカウントをサーバーで削除する（参加中のルームから退出し、作成したルームは終了する。確認の文言で伝える）。
-    /// 削除に失敗したらサインインし直さない（今のアカウントのまま、もう一度押せる）
+    /// 今のアカウントは Apple に連携していない（連携しようとした Apple ID は別のアカウントのもの）ので、Apple のトークンは取り消さない。
+    /// 削除に失敗したらサインインし直さない（今のアカウントのまま、もう一度押せる）。
+    /// 削除の後にサインインし直せなかったら、消えたアカウントのまま残らないようサインアウトする（匿名でサインインし直して S-01 に戻る）
     func switchToLinkedAppleAccount() async {
         await perform(.linkApple) {
-            try await auth.deleteAccount()
-            _ = try await auth.signInWithLinkedAppleAccount()
+            try await deleteCurrentAccountOnServer()
+            do {
+                _ = try await auth.signInWithLinkedAppleAccount()
+            } catch {
+                auth.signOut()
+                throw error
+            }
         }
     }
 }
@@ -347,18 +355,46 @@ extension SettingsModel {
     }
 
     /// 確認で「削除する」が押された
-    func deletionConfirmed() {
-        start { model in await model.deleteAccount() }
+    /// - Parameter authorizer: Apple の認証の窓口（画面の環境のもの。`appleAuthorizer` があればそちらを使う）
+    func deletionConfirmed(using authorizer: any AppleAuthorizing) {
+        let authorizer = appleAuthorizer ?? authorizer
+        start { model in await model.deleteAccount(using: authorizer) }
     }
 
     /// アカウントを削除する（02 の F-06）。サーバーで削除できたら、この端末に残す値を消してサインアウトする（S-01 に戻る）。
     ///
-    /// 失敗したらトーストを出し、端末の値もサインインもそのまま（もう一度押せる。サーバーの削除は続きから終わる）
-    func deleteAccount() async {
+    /// Sign in with Apple に連携済みなら、先に Apple の認証をもう一度行って authorization code を受け取り、トークンを取り消す
+    /// （Apple の「Offering account deletion in your app」・審査ガイドライン 5.1.1(v)。サーバーで消すと Auth のユーザーが無くなって取り消せない）。
+    /// Apple の画面でやめたら削除しない（トーストも出さない）。取り消せなかったら削除せずにトーストを出す
+    /// （Apple に連携が残ったままアカウントだけ消えるのを避ける。もう一度押せる）。
+    ///
+    /// 削除に失敗したらトーストを出し、端末の値もサインインもそのまま（もう一度押せる。サーバーの削除は続きから終わる）
+    func deleteAccount(using authorizer: any AppleAuthorizing) async {
         await perform(.deleteAccount) {
-            try await auth.deleteAccount()
+            if auth.isLinkedWithApple {
+                guard let code = try await authorizer.authorizationCode() else {
+                    return
+                }
+                try await auth.revokeAppleToken(authorizationCode: code)
+            }
+            try await deleteCurrentAccountOnServer()
             deviceData.clear()
             auth.signOut()
+        }
+    }
+
+    /// 今のアカウントをサーバーで削除する。
+    ///
+    /// 失敗しても、Auth のユーザーが消えていれば（応答が届かなかった・消し終えた後に失敗した）、削除できたことにする。
+    /// サーバーは `users/{uid}` を先に消すので、失敗として消えた uid のまま残すと、プロフィールが無いので S-01 に替わり、
+    /// 表示名を登録すると `users/{uid}` を作り直してしまうため
+    private func deleteCurrentAccountOnServer() async throws {
+        do {
+            try await auth.deleteAccount()
+        } catch {
+            guard await auth.isCurrentAccountDeleted() else {
+                throw error
+            }
         }
     }
 }

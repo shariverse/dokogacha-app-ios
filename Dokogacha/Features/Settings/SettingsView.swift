@@ -139,11 +139,15 @@ struct SettingsView: View {
         }
         .alert(Text("アカウントを削除しますか？"), isPresented: $model.isConfirmingDeletion) {
             Button("削除する", role: .destructive) {
-                model.deletionConfirmed()
+                model.deletionConfirmed(using: SystemAppleAuthorizer(controller: authorizationController))
             }
             Button("キャンセル", role: .cancel) {}
         } message: {
-            Text("アカウントを削除すると、参加中のルームから退出し、元に戻せません。作成したルームは終了します。")
+            // 連携済みなら、Apple のトークンを取り消すために Apple の確認の画面が出ることを先に伝える
+            // （アラートの本文は Text 1 つだけを出すので、if で分けずに Text を選ぶ）
+            model.isLinkedWithApple
+                ? Text("アカウントを削除すると、参加中のルームから退出し、元に戻せません。作成したルームは終了します。Apple でサインインの連携を解除するため、Apple ID の確認が表示されます。")
+                : Text("アカウントを削除すると、参加中のルームから退出し、元に戻せません。作成したルームは終了します。")
         }
     }
 
