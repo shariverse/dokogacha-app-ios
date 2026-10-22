@@ -280,10 +280,6 @@ extension InMemoryServer: FunctionsClient {
 
     // MARK: まだ backend に無い Callable（backend のタスクで足すときに、ここにも同じ検証を足す）
 
-    func drawGacha(_ request: RoomRequest) async throws -> DrawGachaResponse {
-        throw AppError(.notImplemented)
-    }
-
     func proposeReroll(_ request: RoomRequest) async throws {
         throw AppError(.notImplemented)
     }

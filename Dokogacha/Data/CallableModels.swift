@@ -241,10 +241,14 @@ nonisolated struct ReportCandidateRequest: Codable, Equatable, Sendable {
 
 // MARK: - ガチャ
 
-/// `drawGacha` の結果（F-40。先に誰かが回していれば、その抽選の ID）
+/// `drawGacha` の結果（F-40。backend の `draw/logic.ts` の `DrawGachaResult` と同じ形）
 nonisolated struct DrawGachaResponse: Codable, Equatable, Sendable {
-    /// 抽選の ID（`draws/{drawId}`）
+    /// 抽選の ID（`draws/{drawId}`。先に誰かが回していれば、その抽選の ID）
     var drawId: String
+    /// 当選した候補の ID（回した人の画面が、購読を待たずにカプセルと結果を出せるように返る）
+    var candidateId: String
+    /// 先に誰かが回していたか（true なら今回は抽選していない。02 の §6.1「2人目には既存の結果を返す」）
+    var alreadyDrawn: Bool
 }
 
 /// `voteReroll` の入力（F-43）
