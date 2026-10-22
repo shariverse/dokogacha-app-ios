@@ -29,3 +29,12 @@ OTHER_LDFLAGS = $(inherited) -ObjC -framework JavaScriptCore
 // AdMob の App ID（Info.plist の GADApplicationIdentifier）。本番の値が決まるまでは Google のテスト用 App ID を使う
 // （Discussion #5 の Q6「テスト用の値で実装し、本番の設定は公開前にまとめて用意する」）
 DG_GAD_APPLICATION_IDENTIFIER = ca-app-pub-3940256099942544~1458002511
+
+// Web のドメイン（06 の §4 の仮決め dokogacha.app）。Universal Links の Associated Domains（Configs/Dokogacha.entitlements の
+// applinks:）に使う。Swift の DomainConstants.Web.domain・TypeScript の WEB_DOMAIN と同じ値にする（DomainConstantsTests で確かめる）
+DG_WEB_DOMAIN = dokogacha.app
+
+// アプリ本体の entitlements。xcconfig はプロジェクトのすべてのターゲットに効くので、アプリのターゲット
+// （PRODUCT_TYPE が com.apple.product-type.application）だけに付け、Unit・UI テストのターゲットには付けない
+DG_CODE_SIGN_ENTITLEMENTS_com_apple_product_type_application = Configs/Dokogacha.entitlements
+CODE_SIGN_ENTITLEMENTS = $(DG_CODE_SIGN_ENTITLEMENTS_$(PRODUCT_TYPE:identifier))
