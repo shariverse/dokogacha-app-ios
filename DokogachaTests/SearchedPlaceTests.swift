@@ -3,6 +3,7 @@
 //  DokogachaTests
 //
 
+import Contacts
 @testable import Dokogacha
 import Foundation
 import MapKit
@@ -140,6 +141,42 @@ struct SearchedPlaceTests {
         #expect(DemoPlaceSearchService.results(for: "海").map(\.place.name) == ["鴨川シーワールド", "江の島", "由比ヶ浜海水浴場"])
         #expect(DemoPlaceSearchService.results(for: " ").isEmpty)
         #expect(DemoPlaceSearchService.results(for: "存在しない場所").isEmpty)
+    }
+
+    // MARK: - MapKit の結果の写し
+
+    /// MapKit の結果（`MKMapItem`）の名前・住所・座標・カテゴリを写して、検索結果にする
+    @Test
+    func convertsMapItem() throws {
+        let placemark = MKPlacemark(
+            coordinate: CLLocationCoordinate2D(latitude: 35.710_1, longitude: 139.810_7),
+            addressDictionary: [CNPostalAddressStateKey: "東京都", CNPostalAddressCityKey: "墨田区"]
+        )
+        let item = MKMapItem(placemark: placemark)
+        item.name = "すみだ水族館"
+        item.pointOfInterestCategory = .aquarium
+
+        let place = try #require(MapKitPlaceSearchService.searchedPlace(item))
+
+        #expect(place.place.name == "すみだ水族館")
+        #expect(place.place.area == "東京・墨田区")
+        #expect(place.place.latitude == 35.710_1)
+        #expect(place.place.longitude == 139.810_7)
+        #expect(place.category == .aquarium)
+        // 手で作った `MKMapItem` には識別子が無いので、場所名と座標から ID を作る
+        #expect(place.place.mapItemId == nil)
+        #expect(place.id == "すみだ水族館@35.7101,139.8107")
+    }
+
+    /// 住所もカテゴリも無い MapKit の結果は、エリアを空・カテゴリを街歩きにする
+    /// （名前が無い `MKMapItem` は `name` が「場所: 不明」を返すので、名前が無い場合は `PlaceSearchHit` の段で確かめる）
+    @Test
+    func convertsMapItemWithoutDetails() throws {
+        let bare = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0)))
+        bare.name = "名もない広場"
+        let place = try #require(MapKitPlaceSearchService.searchedPlace(bare))
+        #expect(place.place.area.isEmpty)
+        #expect(place.category == .town)
     }
 
     /// MapKit の検索の範囲は日本全体の定数（`DomainConstants.SearchRegion`）

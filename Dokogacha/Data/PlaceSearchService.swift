@@ -58,8 +58,11 @@ struct MapKitPlaceSearchService: PlaceSearchService {
         return response.mapItems.compactMap(Self.searchedPlace)
     }
 
-    /// MapKit の結果 1 件を、アプリの検索結果にする（投稿できない結果は nil）
-    private static func searchedPlace(_ item: MKMapItem) -> SearchedPlace? {
+    /// MapKit の結果 1 件を、アプリの検索結果にする（投稿できない結果は nil）。
+    ///
+    /// 名前・都道府県・市区町村・座標・識別子（iOS 18 以降）・カテゴリを `PlaceSearchHit` に写してから `SearchedPlace.make` に渡す。
+    /// 写し方を Unit テストで確かめるため、外から呼べるようにしてある（`SearchedPlaceTests`）
+    static func searchedPlace(_ item: MKMapItem) -> SearchedPlace? {
         let placemark = item.placemark
         var mapItemID: String?
         if #available(iOS 18.0, *) {
