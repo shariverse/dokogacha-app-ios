@@ -72,6 +72,17 @@ struct JoinRoomModelTests {
         #expect(model.codeText == value.expected)
     }
 
+    /// ハイフンの直後で削除キーを押すと（入力欄からはハイフンだけが消えた文字列が届く）、ハイフンの前の 1 文字が消える（PR #49 の持ち越し）
+    @Test
+    func deletingSeparatorRemovesPreviousCharacter() {
+        let model = Self.make().codeModel()
+        model.codeText = "QW58RT"
+        #expect(model.codeText == "QW5-8RT")
+        model.codeText = "QW58RT"
+        #expect(model.codeText == "QW8-RT")
+        #expect(model.enteredCount == 5)
+    }
+
     /// 6 文字に満たないと押せず、6 文字なら押せる（使えない文字を含んでも押せる）
     @Test
     func canSubmitOnlyWithSixCharacters() {

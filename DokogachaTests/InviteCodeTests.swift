@@ -140,4 +140,19 @@ struct InviteCodeTests {
         #expect(InviteCode.inputText("dk7-29q") == "DK7-29Q")
         #expect(InviteCode.inputText("dk729q88") == "DK7-29Q")
     }
+
+    /// ハイフンの直後で削除キーを押す（ハイフンだけが消える）と、ハイフンの前の 1 文字を消す（PR #49 の持ち越し）
+    @Test
+    func deletingSeparatorRemovesPreviousCharacter() {
+        #expect(InviteCode.inputText("DK729Q", previous: "DK7-29Q") == "DK2-9Q")
+        #expect(InviteCode.inputText("DK72", previous: "DK7-2") == "DK2")
+        // ハイフンの後ろの文字を消したとき・末尾から消したときは、そのまま
+        #expect(InviteCode.inputText("DK7-9Q", previous: "DK7-29Q") == "DK7-9Q")
+        #expect(InviteCode.inputText("DK7-29", previous: "DK7-29Q") == "DK7-29")
+        #expect(InviteCode.inputText("DK7-", previous: "DK7-2") == "DK7")
+        // 打ち足し・貼り付けは今までどおり
+        #expect(InviteCode.inputText("DK7-29Qx", previous: "DK7-29Q") == "DK7-29Q")
+        #expect(InviteCode.inputText("dk7", previous: "DK") == "DK7")
+        #expect(InviteCode.inputText("abc123", previous: "") == "ABC-123")
+    }
 }
