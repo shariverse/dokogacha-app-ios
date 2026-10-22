@@ -237,7 +237,7 @@ service cloud.firestore {
 | `verifyPurchase` | callable | StoreKit 2 の署名付きトランザクション（JWS）を App Store Server Library で検証し、`users.adFree = true`。参加中ルームの `adFreeSponsor` を更新 |
 | `onUserProfileUpdate` | Firestore トリガー | 参加中ルームの member の表示名を更新 |
 | `deleteAccount` | callable | F-06。参加中ルームからの退出、作成者のルームの終了、ユーザーデータと Auth ユーザーの削除 |
-| `reportCandidate` | callable | F-14。`reports/{id}`（`roomId` `candidateId` `reporterId` `reason` `createdAt`）を作成し、運営にメール通知 |
+| `reportCandidate` | callable | F-14。`reports/{id}`（`roomId` `candidateId` `reporterId` `reason` `createdAt` `candidate`（報告した時点の候補の内容））を作成し、運営にメール通知 |
 
 ### `drawGacha` の擬似コード
 
