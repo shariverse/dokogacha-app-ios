@@ -30,7 +30,8 @@ final class JoinByCodeModel {
     /// 入力欄の文字列（表示の形。`ABC-123`）。入れるたびに正規化し、変わったらエラーを消す
     var codeText = "" {
         didSet {
-            let formatted = InviteCode.inputText(codeText)
+            // ハイフンだけを消したときは、その前の 1 文字を消す（`InviteCode.inputText(_:previous:)`）
+            let formatted = InviteCode.inputText(codeText, previous: oldValue)
             if formatted != codeText {
                 codeText = formatted
             }

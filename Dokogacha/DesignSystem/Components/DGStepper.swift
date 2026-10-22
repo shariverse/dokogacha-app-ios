@@ -33,7 +33,7 @@ struct DGStepper: View {
     /// ＋ のボタンの VoiceOver の名前（「投稿数を増やす」）
     let incrementLabel: LocalizedStringKey
 
-    /// 部品ごと無効にされたか（`.disabled(true)`。S-12 で作成者以外・終了したルームのとき）。無効なら両方のボタンを無効の色にする
+    /// 部品ごと無効にされたか（`.disabled(true)`。S-12 で作成者以外・終了したルームのとき）。無効なら両方のボタン・中央の値・外枠を無効の色にする
     @Environment(\.isEnabled) private var isEnvironmentEnabled
 
     var body: some View {
@@ -47,13 +47,18 @@ struct DGStepper: View {
                 Text(unit)
                     .font(.dgBody(14, weight: .black, relativeTo: .body))
             }
-            .foregroundStyle(Color.dgInk)
+            // 部品ごと無効なら、中央の値も無効の文字の色にする（変えられないことを見た目でも示す）
+            .foregroundStyle(isEnvironmentEnabled ? Color.dgInk : Color.dgTextDisabled)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(valueLabel))
             .accessibilityValue(Text(value, format: .number) + Text(unit))
             .accessibilityAdjustableAction { direction in
+                // 部品ごと無効なときは、VoiceOver の上下のスワイプでも変えない
+                guard isEnvironmentEnabled else {
+                    return
+                }
                 switch direction {
                 case .increment: value = DGStepperRule.incremented(value, in: range)
                 case .decrement: value = DGStepperRule.decremented(value, in: range)
@@ -65,8 +70,14 @@ struct DGStepper: View {
             }
         }
         .padding(DGSpacing.s8)
-        .background(Color.dgSurfaceCard, in: RoundedRectangle(cornerRadius: Self.containerRadius))
-        .overlay(RoundedRectangle(cornerRadius: Self.containerRadius).strokeBorder(Color.dgInk, lineWidth: DGBorder.regular))
+        .background(
+            isEnvironmentEnabled ? Color.dgSurfaceCard : Color.dgSurfaceDisabled,
+            in: RoundedRectangle(cornerRadius: Self.containerRadius)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Self.containerRadius)
+                .strokeBorder(isEnvironmentEnabled ? Color.dgInk : Color.dgSurfaceDisabled, lineWidth: DGBorder.regular)
+        )
     }
 
     /// −／＋ のボタン。範囲の端では無効の色（`surface.disabled`・`text.disabled`・縁も背景と同じ色）にする

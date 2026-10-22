@@ -139,4 +139,30 @@ nonisolated struct InviteCode: Hashable, Sendable {
     static func inputText(_ input: String) -> String {
         formatted(String(normalize(input).prefix(length)))
     }
+
+    /// 入力欄に出す文字列を、直前に出していた文字列から決める（ハイフンだけを消したときの扱いを含む）。
+    ///
+    /// ハイフンは自動で入れるので、カーソルをハイフンの直後に置いて削除キーを押すと、ハイフンだけが消えて
+    /// `inputText(_:)` が同じ文字列に戻し、何も消せない（PR #49 の持ち越し）。
+    /// 直前の文字列からハイフンを 1 つだけ取り除いた入力のときは、ハイフンの前の 1 文字を消したものとして扱う。
+    /// - Parameters:
+    ///   - input: 入力欄の文字列（打った・消した・貼り付けた直後）
+    ///   - previous: 直前に入力欄に出していた文字列
+    /// - Returns: 入力欄に出し直す文字列
+    static func inputText(_ input: String, previous: String) -> String {
+        guard input.count == previous.count - 1,
+              let separatorIndex = previous.firstIndex(of: separator),
+              previous.distance(from: previous.startIndex, to: separatorIndex) == groupLength else {
+            return inputText(input)
+        }
+        var withoutSeparator = previous
+        withoutSeparator.remove(at: separatorIndex)
+        guard input == withoutSeparator else {
+            return inputText(input)
+        }
+        // ハイフンの前の 1 文字（3 文字目）を消す
+        var characters = Array(withoutSeparator)
+        characters.remove(at: groupLength - 1)
+        return inputText(String(characters))
+    }
 }

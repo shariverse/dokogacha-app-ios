@@ -80,7 +80,7 @@ struct LicenseDetailView: View {
     enum Identifier {
         /// 全文の画面
         static let screen = "licenses.detail"
-        /// 全文
+        /// 全文（段落を並べたまとまり）
         static let text = "licenses.detail.text"
     }
 
@@ -88,6 +88,11 @@ struct LicenseDetailView: View {
     let entry: LicenseEntry
 
     @Environment(\.dismiss) private var dismiss
+
+    /// 全文の段落
+    private var paragraphs: [String] {
+        LicenseCatalog.paragraphs(of: LicenseCatalog.text(of: entry) ?? "")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -101,11 +106,19 @@ struct LicenseDetailView: View {
                         .font(.dg(.bodyRegular))
                         .foregroundStyle(Color.dgTextSecondary)
                     DGDashedLine()
-                    Text(verbatim: LicenseCatalog.text(of: entry) ?? "")
-                        .font(.dg(.bodyCaption))
-                        .foregroundStyle(Color.dgTextPrimary)
-                        .textSelection(.enabled)
-                        .accessibilityIdentifier(Identifier.text)
+                    // 段落ごとに分けて出す（文字を大きくしても画面の幅で折り返し、VoiceOver では段落ごとに読める）
+                    VStack(alignment: .leading, spacing: DGSpacing.s10) {
+                        ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                            Text(verbatim: paragraph)
+                                .font(.dg(.bodyCaption))
+                                .foregroundStyle(Color.dgTextPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .textSelection(.enabled)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier(Identifier.text)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(DGSpacing.cardPadding)

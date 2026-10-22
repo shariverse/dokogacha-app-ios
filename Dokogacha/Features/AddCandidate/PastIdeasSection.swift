@@ -41,8 +41,8 @@ struct PastIdeasSection: View {
     private static let groupTitleSize: CGFloat = 15
     /// 見出しの日付・「◯◯ ゆき」の大きさ（プロトタイプの 12）
     private static let groupDetailSize: CGFloat = 12
-    /// 見出しの角丸（プロトタイプの 14）
-    private static let groupRadius: CGFloat = 14
+    /// 見出しの角丸（プロトタイプは 14 だが、トークンに無い値なので、下に並べる PlaceRow と同じ `radius.m` にそろえる。PR #83 の持ち越し）
+    private static let groupRadius: CGFloat = DGRadius.md
     /// 0 件の文言の大きさ（「場所を探す」の「見つかりませんでした」と同じ 13）
     private static let messageSize: CGFloat = 13
     /// 読み込み中に出す行の数

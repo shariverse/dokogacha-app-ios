@@ -39,6 +39,8 @@ struct RoomPanel: View {
     private static let memberColumnWidth: CGFloat = 56
     /// メンバーの名前の大きさ（03 の S-07「名前11pt」）
     private static let memberNameSize: CGFloat = 11
+    /// メンバーの名前を列の幅に収めるときに縮める下限
+    private static let memberNameMinimumScale: CGFloat = 0.7
     /// 「+N」の文字の大きさ
     private static let overflowTextSize: CGFloat = 15
     /// 「+N」を大きくする上限（円の大きさは変えないので、2〜3 文字が円に収まる大きさで止める）
@@ -108,6 +110,8 @@ struct RoomPanel: View {
                 .font(.dgBody(Self.readyTitleSize, weight: .black, relativeTo: .subheadline))
                 .foregroundStyle(Color.dgInk)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // 右の人数を「準備OK n/m人」と読むので、ここでは読まない（同じ語を 2 回読まない）
+                .accessibilityHidden(true)
             let total = Text(verbatim: "/\(memberCount)")
                 .font(.dgDisplay(Self.readyTotalSize, relativeTo: .subheadline))
                 .foregroundStyle(Color.dgTextSecondary)
@@ -165,6 +169,8 @@ struct RoomPanel: View {
                 .font(.dgBody(Self.memberNameSize, relativeTo: .caption2))
                 .foregroundStyle(Color.dgTextSecondary)
                 .lineLimit(1)
+                // 文字を大きくしても、列の幅で名前が「…」で切れにくいように少しだけ縮める
+                .minimumScaleFactor(Self.memberNameMinimumScale)
         }
         .frame(width: memberColumnWidth)
     }

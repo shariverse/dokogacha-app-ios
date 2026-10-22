@@ -134,9 +134,17 @@ final class RoomSettingsModel {
         return current.status == .closed ? .closed : nil
     }
 
-    /// ルーム名を変えられるか（作成者・`closed` 以外）
+    /// ルーム名を変えられるか（作成者・`closed` 以外）。
+    ///
+    /// 保存を送っている途中かは含めない（無効の見た目にすると、保存のたびに全項目が灰色にちらつくため。PR #65 の持ち越し）。
+    /// 送っている途中は `acceptsInput` で操作を止め、入力の値も変えない
     var isNameEditable: Bool {
-        isLoaded && formLock == nil && !isSaving
+        isLoaded && formLock == nil
+    }
+
+    /// 入力を受け付けるか（保存を送っている途中でない）。画面は false の間、見た目を変えずに操作だけを止める
+    var acceptsInput: Bool {
+        !isSaving
     }
 
     /// 投稿数を変えられるか（作成者・`closed` 以外・まだ上限でない）
@@ -165,12 +173,12 @@ final class RoomSettingsModel {
 
     /// 解禁の条件を変えられるか
     var isUnlockRuleEditable: Bool {
-        isLoaded && unlockRuleLock == nil && !isSaving
+        isLoaded && unlockRuleLock == nil
     }
 
     /// いいねの効き方を変えられるか
     var isLikeModeEditable: Bool {
-        isLoaded && likeModeLock == nil && !isSaving
+        isLoaded && likeModeLock == nil
     }
 
     // MARK: - 入力（画面のつなぎ先）
@@ -178,7 +186,12 @@ final class RoomSettingsModel {
     /// ルーム名（触っていなければ今の名前）
     var name: String {
         get { editedName ?? current?.name ?? "" }
-        set { editedName = newValue }
+        set {
+            guard acceptsInput else {
+                return
+            }
+            editedName = newValue
+        }
     }
 
     /// ルーム名の検証の結果（S-03 と同じ数え方）
@@ -189,7 +202,12 @@ final class RoomSettingsModel {
     /// 投稿数（触っていなければ今の値）。選べる範囲（`postLimitChoices`。今の値〜10）の外の値は範囲の端に戻す
     var postLimit: Int {
         get { DGStepperRule.clamped(editedPostLimit ?? currentPostLimit, in: postLimitChoices) }
-        set { editedPostLimit = DGStepperRule.clamped(newValue, in: postLimitChoices) }
+        set {
+            guard acceptsInput else {
+                return
+            }
+            editedPostLimit = DGStepperRule.clamped(newValue, in: postLimitChoices)
+        }
     }
 
     /// 投稿数に選べる範囲（今の値〜10。F-03「引き上げのみ可」）
@@ -208,7 +226,12 @@ final class RoomSettingsModel {
             let live = current?.settings.unlockRule ?? .all
             return unlockRuleLock == nil ? editedUnlockRule ?? live : live
         }
-        set { editedUnlockRule = newValue }
+        set {
+            guard acceptsInput else {
+                return
+            }
+            editedUnlockRule = newValue
+        }
     }
 
     /// 締切日時のピッカーを出すか（解禁の条件が「締切日時」のとき）
@@ -236,6 +259,9 @@ final class RoomSettingsModel {
     var deadline: Date {
         get { usesSelectedDeadline ? deadlineSelection.date : unlockRuleDeadline ?? deadlineSelection.date }
         set {
+            guard acceptsInput else {
+                return
+            }
             if !usesSelectedDeadline, let current = unlockRuleDeadline,
                RoomDeadline.isPickerClamp(newValue, current: current, range: deadlineSelection.range) {
                 return
@@ -256,7 +282,12 @@ final class RoomSettingsModel {
             let live = current?.settings.likeMode ?? .boost
             return likeModeLock == nil ? editedLikeMode ?? live : live
         }
-        set { editedLikeMode = newValue }
+        set {
+            guard acceptsInput else {
+                return
+            }
+            editedLikeMode = newValue
+        }
     }
 
     // MARK: - 送る値

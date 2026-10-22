@@ -8,11 +8,11 @@ import SwiftUI
 /// S-14 の引き直し（F-43）の欄（03 の S-14 の 5。文言は 02 の §6.4 の表示）。
 ///
 /// - 提案前: 点線のボタン「引き直しを提案（過半数の賛成で1回まで）」
-/// - 投票中: 点線の「賛成を集めています…（N/M人）」（押せない）と、その下に賛成／反対のボタン。自分の票は濃いボタンにして選んだことを示し、
+/// - 投票中: 点線の「賛成を集めています…（N/M人）」（ボタンの形の状態の表示。`DGButtonShapedStatus`）と、その下に賛成／反対のボタン。自分の票は濃いボタンにして選んだことを示し、
 ///   もう一方を押すと票を変えられる
 /// - 可決: 「過半数が賛成。もう一度引けます」と「ガチャを回す」（S-13 に進む。03 の §2「S-14 → 引き直し可決 → S-13」）
 /// - 可決の後にほかの人が回し直した: 「新しい行き先が決まりました」と「結果を見る」（S-13 に進み、新しい抽選の演出を見てから S-14 に進む）
-/// - 使用済み: 点線の「引き直しは使用済みです」（押せない）
+/// - 使用済み: 点線の「引き直しは使用済みです」（ボタンの形の状態の表示）
 ///
 /// 送っている途中は押せない。文字を大きくして賛成／反対が横に収まらなければ縦に並べる。
 struct ResultRerollSection: View {
@@ -57,8 +57,7 @@ struct ResultRerollSection: View {
                 .accessibilityIdentifier(Identifier.propose)
         case let .voting(approvals, memberCount, myVote):
             VStack(spacing: DGSpacing.s10) {
-                DGButton("賛成を集めています…（\(approvals)/\(memberCount)人）", kind: .dashed) {}
-                    .disabled(true)
+                DGButtonShapedStatus(title: "賛成を集めています…（\(approvals)/\(memberCount)人）")
                     .accessibilityIdentifier(Identifier.status)
                 voteButtons(myVote)
             }
@@ -85,8 +84,7 @@ struct ResultRerollSection: View {
                     .accessibilityIdentifier(Identifier.showNewResult)
             }
         case .used:
-            DGButton("引き直しは使用済みです", kind: .dashed) {}
-                .disabled(true)
+            DGButtonShapedStatus(title: "引き直しは使用済みです")
                 .accessibilityIdentifier(Identifier.status)
         }
     }

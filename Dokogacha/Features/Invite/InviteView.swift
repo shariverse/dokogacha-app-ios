@@ -116,7 +116,8 @@ struct InviteView: View {
     /// 招待コードカード（03 の S-04 の 2）。コードを長押しするとコピーする。
     ///
     /// VoiceOver では、カード全体を 1 つのボタンとして読み（「招待コード、D K 7 - 2 9 Q、最大20人まで参加できます」）、
-    /// ダブルタップでコピーする（長押しの操作を VoiceOver から使えるようにする）
+    /// ダブルタップでコピーする（長押しの操作を VoiceOver から使えるようにする）。
+    /// ヒントは操作の仕方（「ダブルタップで」）ではなく結果だけを読む（操作の仕方は VoiceOver が読む。PR #43 の持ち越し）
     private var codeCard: some View {
         let shape = RoundedRectangle(cornerRadius: DGRadius.lg)
         return VStack(spacing: DGSpacing.s10) {
@@ -148,7 +149,7 @@ struct InviteView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-        .accessibilityHint(Text("ダブルタップで招待コードをコピーします"))
+        .accessibilityHint(Text("招待コードをコピーします"))
         .accessibilityAction {
             model.copyCode()
         }

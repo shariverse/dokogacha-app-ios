@@ -12,7 +12,11 @@ import SwiftUI
 ///
 /// - 文字数は「n/上限」を見出しフォントで右上に出す（04 の §2「数字（カウント）も見出しフォント」）。上限を超えたら朱色にする
 /// - `errorMessage` があるときは、縁と文字数を朱色（`accent.text`）にし、補足の下にエラーの文言を出す（色だけで伝えない）
-/// - VoiceOver では入力欄の名前をラベルにし、文字数と補足・エラーを値の後に読む
+/// - VoiceOver では入力欄を 1 つの要素として読む。名前はラベル（エラーがあれば後ろにエラー）、値の後のヒントで文字数と補足を読む。
+///   下に出している補足・エラーの文は入力欄と一緒に読むので、別の要素としては読まない（同じ文を 2 回読まない。PR #37 の持ち越し）。
+///   エラーをヒントではなく名前に入れるのは、ヒントの読み上げを切っている人にもエラーを伝えるため
+/// - 無効（`.disabled(true)`。S-12 で変えられない項目）のときは、Stepper の無効のボタンと同じ `surface.disabled` の背景・`text.disabled` の文字・
+///   背景と同じ色の縁にし、変えられないことを見た目でも示す
 struct DGTextField: View {
     /// 入力欄の上のラベル（03 の表記）
     let label: LocalizedStringKey
@@ -32,6 +36,9 @@ struct DGTextField: View {
     var identifier: String?
     /// 文字数（「n/上限」）を出すか（上限が画面の目安にならない入力（参考 URL）では出さない）
     var showsCount = true
+
+    /// 入力欄が有効か（`.disabled(true)` で無効にされたら無効の見た目にする）
+    @Environment(\.isEnabled) private var isEnabled
 
     /// ラベルの文字の大きさ（本文 Bold 14）
     private static let labelSize: CGFloat = 14
@@ -62,12 +69,16 @@ struct DGTextField: View {
                     .font(.dg(.bodyCaption))
                     .foregroundStyle(Color.dgTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    // 入力欄のヒントで読む
+                    .accessibilityHidden(true)
             }
             if let errorMessage {
                 Text(errorMessage)
                     .font(.dgBody(DGTypeScale.bodyCaption.size, weight: .bold, relativeTo: .caption))
                     .foregroundStyle(Color.dgAccentText)
                     .fixedSize(horizontal: false, vertical: true)
+                    // 入力欄の名前で読む
+                    .accessibilityHidden(true)
             }
         }
     }
@@ -97,25 +108,39 @@ struct DGTextField: View {
         let shape = RoundedRectangle(cornerRadius: DGRadius.md)
         return TextField(label, text: $text, prompt: Text(placeholder).foregroundStyle(Color.dgTextSecondary))
             .font(.dgBody(Self.inputSize, weight: .bold, relativeTo: .body))
-            .foregroundStyle(Color.dgInk)
+            .foregroundStyle(isEnabled ? Color.dgInk : Color.dgTextDisabled)
             .tint(Color.dgAccentPrimary)
             .padding(.horizontal, DGSpacing.s14)
             .padding(.vertical, DGSpacing.s10)
             .frame(minHeight: DGMetrics.minTapTarget)
-            .background(Color.dgSurfaceCard, in: shape)
-            .overlay { shape.strokeBorder(isInvalid ? Color.dgAccentText : Color.dgInk, lineWidth: DGBorder.regular) }
+            .background(isEnabled ? Color.dgSurfaceCard : Color.dgSurfaceDisabled, in: shape)
+            .overlay { shape.strokeBorder(borderColor, lineWidth: DGBorder.regular) }
+            .accessibilityLabel(accessibilityLabel)
             .accessibilityHint(accessibilityHint)
             .accessibilityIdentifier(identifier ?? "")
     }
 
-    /// VoiceOver で値の後に読む文言（文字数・エラー・補足）
+    /// 縁の色（無効なら背景と同じ色、正しくないなら朱色）
+    private var borderColor: Color {
+        if !isEnabled {
+            return .dgSurfaceDisabled
+        }
+        return isInvalid ? .dgAccentText : .dgInk
+    }
+
+    /// VoiceOver で読む入力欄の名前（ラベルと、あればエラー）
+    private var accessibilityLabel: Text {
+        guard let errorMessage else {
+            return Text(label)
+        }
+        return Text(label) + Text(verbatim: "、") + Text(errorMessage)
+    }
+
+    /// VoiceOver で値の後に読む文言（文字数・補足）
     private var accessibilityHint: Text {
         var parts: [Text] = []
         if showsCount {
             parts.append(Text("\(limit)文字中\(count)文字"))
-        }
-        if let errorMessage {
-            parts.append(Text(errorMessage))
         }
         if let hint {
             parts.append(Text(hint))

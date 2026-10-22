@@ -37,6 +37,13 @@ enum LaunchRoute: Equatable {
     /// S-02 ホーム（表示名を登録済み）
     case home(UserProfile)
 
+    /// 画面の上端に「オフラインです」のバナーを出してよいか。
+    ///
+    /// `offline` の画面は、それ自体が「オフラインです」と案内するので、バナーを重ねると同じ文言が 2 回並ぶ（PR #113 の持ち越し）
+    var showsOfflineBanner: Bool {
+        self != .offline
+    }
+
     /// 起動の流れの判定。
     ///
     /// 1. 接続できない → `serverUnavailable`。起動の処理の前 → `loading`

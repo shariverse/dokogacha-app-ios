@@ -129,7 +129,7 @@ final class ScenarioUITests: XCTestCase {
         XCTAssertNotEqual(secondWinner, firstWinner)
 
         // 引き直しは 1 回まで
-        let status = app.buttons[UITestID.resultRerollStatus]
+        let status = app.staticTexts[UITestID.resultRerollStatus]
         XCTAssertTrue(status.scrollIntoView(in: app))
         XCTAssertTrue(status.waitForLabel("引き直しは使用済みです"), status.label)
         XCTAssertTrue(app.buttons[UITestID.resultRerollPropose].waitForNonExistence(timeout: UITestID.timeout))

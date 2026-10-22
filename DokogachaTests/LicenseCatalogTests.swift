@@ -58,4 +58,22 @@ struct LicenseCatalogTests {
         #expect(!text.contains("@"))
         #expect(!text.contains(" at nanopb"))
     }
+
+    /// 全文は空の行で段落に分け、段落の中の折り返しと字下げを詰める（PR #100 の持ち越し）
+    @Test
+    func paragraphsJoinWrappedLines() {
+        let text = "\n   Title\n  Version 1\n\n   1. First line\n      continues here.\n\n\nLast\n"
+        #expect(LicenseCatalog.paragraphs(of: text) == ["Title Version 1", "1. First line continues here.", "Last"])
+        #expect(LicenseCatalog.paragraphs(of: "").isEmpty)
+    }
+
+    /// 同梱の全文を段落に分けても、文字（空白を除く）は欠けない
+    @Test(arguments: LicenseCatalog.all)
+    func paragraphsKeepAllText(entry: LicenseEntry) throws {
+        let text = try #require(LicenseCatalog.text(of: entry))
+        let paragraphs = LicenseCatalog.paragraphs(of: text)
+        #expect(paragraphs.count > 1)
+        let letters = { (value: String) in value.filter { !$0.isWhitespace } }
+        #expect(letters(paragraphs.joined()) == letters(text))
+    }
 }

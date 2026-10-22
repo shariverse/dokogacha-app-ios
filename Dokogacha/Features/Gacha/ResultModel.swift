@@ -13,7 +13,7 @@ import Observation
 /// 購読は画面の `.task` で `observe()` を呼び、画面が消えたら止まる。
 ///
 /// - 「マップで開く」: 当選した候補の座標と名前で地図のアプリを開く（候補は座標が必須なので、名前で検索する場合分けは要らない。候補を読めるまでは押せない）
-/// - 「きっぷを共有」: 画面が `TicketShareImage` を共有シートに渡す（画像は共有するときに作る）
+/// - 「きっぷを共有」: 画面が `TicketShareImage` の画像を共有シート（`ActivityShareSheet`）に渡す（画像は押したときに作る）
 /// - 引き直し（F-43）: 欄に出すものは `rerollPanel`（`RerollPanelState`）。提案・投票は Callable（`proposeReroll`・`voteReroll`）で送り、
 ///   結果はルームの購読で受け取る（可決すると `unlocked` に戻り、画面は「もう一度引けます」から S-13 に進む）
 /// - `closed` のルームは閲覧のみ（引き直し・「この行き先で決定」F-44（タスク 30）は出さない）
@@ -208,7 +208,7 @@ final class ResultModel {
         mapOpener.open(winnerPlace)
     }
 
-    /// 「きっぷを共有」が押された（共有シートは画面の `ShareLink` が開く。共有先を選んだかは分からないので、開いたことを送る）
+    /// 「きっぷを共有」が押された（共有シートは画面が開く。共有先を選んだかは分からないので、開いたことを送る）
     func shareTapped() {
         analytics.log(.ticketShare)
     }

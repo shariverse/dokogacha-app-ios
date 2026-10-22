@@ -148,8 +148,15 @@ private struct DGButtonBody<Label: View>: View {
     let fillsWidth: Bool
     let isPressed: Bool
     let label: Label
+    /// 押せるかによらず、無効の見た目で描くか（ボタンではない状態の表示 `DGButtonShapedStatus` で使う）
+    var forcesDisabledLook = false
 
-    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.isEnabled) private var environmentIsEnabled
+
+    /// 有効の見た目で描くか
+    private var isEnabled: Bool {
+        environmentIsEnabled && !forcesDisabledLook
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -186,6 +193,31 @@ private struct DGButtonBody<Label: View>: View {
         } else if kind.borderWidth > 0 {
             shape.strokeBorder(color, lineWidth: kind.borderWidth)
         }
+    }
+}
+
+/// ボタンと同じ形で、無効の見た目に描いた状態の表示（S-14 の「賛成を集めています…」「引き直しは使用済みです」）。
+///
+/// 03 では点線のボタンの見た目だが、押しても何も起きない状態の表示なので、`Button` にしない。
+/// 無効の `Button` にすると、VoiceOver が「淡色表示、ボタン」と読み、押せるはずの操作が押せないように聞こえるため（PR #76 の持ち越し）。
+/// VoiceOver ではふつうの文として読む。
+struct DGButtonShapedStatus: View {
+    /// 表示する文言（03 の表記）
+    let title: LocalizedStringKey
+    /// 形を借りるボタンの種類
+    var kind: DGButtonKind = .dashed
+    /// 横幅いっぱいに広げるか。`nil` なら種類の既定
+    var fillsWidth: Bool?
+
+    var body: some View {
+        DGButtonBody(
+            kind: kind,
+            fillsWidth: fillsWidth ?? kind.fillsWidthByDefault,
+            isPressed: false,
+            label: Text(title),
+            forcesDisabledLook: true
+        )
+        .accessibilityElement(children: .combine)
     }
 }
 

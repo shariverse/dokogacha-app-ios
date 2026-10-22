@@ -241,7 +241,7 @@ struct PostCandidateView: View {
             .buttonStyle(.dgBare)
             .accessibilityLabel(Text("カテゴリ"))
             .accessibilityValue(Text(style.label))
-            .accessibilityHint(Text("タップしてカテゴリを選び直します"))
+            .accessibilityHint(Text("カテゴリを選び直します"))
             .accessibilityIdentifier(Identifier.category)
             if isPickingCategory {
                 categoryOptions(selected: category)

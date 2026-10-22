@@ -8,6 +8,7 @@ import SwiftUI
 /// S-15 設定の 1 行（項目名・値・右端の印）。白いカード（`SettingsSection`）の中に縦に並べる。
 ///
 /// 文字を大きくして項目名と値が折り返さずに 1 行に収まらないときは、項目名の下に値と印を並べる（どちらも切らない）。
+/// 値の無い行は、項目名を折り返して印を右端に残す。
 /// 押せる行は `Button` の中に入れて使い、VoiceOver では項目名と値を 1 つの要素として読む。
 struct SettingsRow: View {
     /// 右端の印
@@ -44,9 +45,19 @@ struct SettingsRow: View {
                 trailing
                     .fixedSize()
             }
-            VStack(alignment: .leading, spacing: DGSpacing.s4) {
-                titleText
-                trailing
+            if value == nil {
+                // 値の無い行は、項目名だけを折り返し、右端の印は右に残す（印だけが下の行に回って何の印か分かりにくくならないように）
+                HStack(spacing: DGSpacing.s8) {
+                    titleText
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    trailing
+                        .fixedSize()
+                }
+            } else {
+                VStack(alignment: .leading, spacing: DGSpacing.s4) {
+                    titleText
+                    trailing
+                }
             }
         }
         .padding(.horizontal, DGSpacing.cardPadding)
