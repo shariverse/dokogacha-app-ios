@@ -19,6 +19,7 @@ import { computeOdds } from "../../functions/src/domain/probability";
 import { cryptoRandomInt, type RandomInt } from "../../functions/src/domain/random";
 import type { ServiceDeps } from "../../functions/src/deps";
 import { drawGacha } from "../../functions/src/draw/service";
+import { proposeReroll, voteReroll } from "../../functions/src/reroll/service";
 import { forceUnlock } from "../../functions/src/unlock/service";
 import { parseHostPort, PROJECT_ID, requireEnv } from "./env";
 import { clearFirestore, closeAdmin, openAdmin } from "./firestore-admin";
@@ -314,6 +315,35 @@ describe("抽選（drawGacha）", () => {
         expect(draw).toMatchObject({ isReroll: true, weights: { "c-b": 2, "c-c": 1 } });
         expect(Object.keys(draw?.weights as object)).not.toContain("c-a");
         expect(await roomData(roomId)).toMatchObject({ status: "drawn", currentDrawId: result.drawId, winnerCandidateId: "c-b" });
+      },
+      TRIGGER_TIMEOUT_MS * 2,
+    );
+
+    it(
+      "02 の F-43 の AC: 引き直しが可決すると、前回の当選候補は次の抽選の対象から外れる。2 回目は提案できない",
+      async () => {
+        const roomId = await addRoom("draw-reroll-flow", { candidates: CANDIDATES });
+        const first = await drawGacha(deps(fixed(0)), "alice", { roomId });
+        expect(first.candidateId).toBe("c-a");
+        // 3 人のルームで、提案者（自動で賛成）と bob の賛成で過半数
+        await proposeReroll(deps(), "carol", { roomId });
+        await voteReroll(deps(), "bob", { roomId, approve: true });
+        expect(await roomData(roomId)).toMatchObject({ status: "unlocked", excludedCandidateIds: ["c-a"] });
+
+        // 前回と同じ乱数でも、前回の当選（いいねが最も多い c-a）は当たらない
+        const second = await drawGacha(deps(fixed(0)), "alice", { roomId });
+        expect(second).toMatchObject({ candidateId: "c-b", alreadyDrawn: false });
+        expect(second.drawId).not.toBe(first.drawId);
+        const draw = (await db.doc(`rooms/${roomId}/draws/${second.drawId}`).get()).data();
+        expect(draw).toMatchObject({ isReroll: true, weights: { "c-b": 2, "c-c": 1 } });
+        expect(Object.keys(draw?.weights as object)).not.toContain("c-a");
+        // どの乱数でも c-a は当たらない（区間の終わりも確かめる）
+        await db.doc(`rooms/${roomId}`).update({ status: "unlocked" });
+        const last = await drawGacha(deps(fixed(DRAW_RANDOM_RANGE - 1)), "bob", { roomId });
+        expect(last.candidateId).toBe("c-c");
+        expect(await drawCount(roomId)).toBe(3);
+
+        await expectReason(proposeReroll(deps(), "alice", { roomId }), "failed-precondition", "reroll-used");
       },
       TRIGGER_TIMEOUT_MS * 2,
     );
