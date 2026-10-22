@@ -21,6 +21,9 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     /// 進行中のルームが 3 つある（ホームの撮影・プレビュー用）。`room-with-candidates` のルームに、解禁済みのルームと、
     /// ほかの人が作ったルームを足したもの
     case severalRooms = "several-rooms"
+    /// 表示名を登録済みで、自分のルームは無い。ほかの人のルームが 3 つあり、招待コードで参加できるもの（`joinableInviteCode`）・
+    /// 満員のもの（`fullInviteCode`）・行き先が決まったもの（`decidedInviteCode`）がある（S-05・S-06 の UI テスト・撮影用）
+    case joinable
 
     /// 起動引数でシナリオを選ぶときの名前（`-demo-scenario <rawValue>`）
     static let argument = "-demo-scenario"
@@ -39,6 +42,14 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     static let othersRoomID = "demo-room-others"
     /// デモのルームの招待コード（`DK7-29Q`）
     static let inviteCode = "DK729Q"
+    /// `joinable` の参加できるルーム（はるかが作った `open` のルーム）の ID
+    static let joinableRoomID = "demo-room-joinable"
+    /// `joinable` の参加できるルームの招待コード（`QW5-8RT`）
+    static let joinableInviteCode = "QW58RT"
+    /// `joinable` の満員（20 人）のルームの招待コード（`MX7-4EP`）
+    static let fullInviteCode = "MX74EP"
+    /// `joinable` の行き先が決まった（`drawn`）ルームの招待コード（`DR6-3WN`）
+    static let decidedInviteCode = "DR63WN"
 
     /// 起動引数から選ぶ（`-demo-scenario` の次の値。無い・知らないなら `fallback`）
     static func from(arguments: [String], fallback: Self = fallback) -> Self {
@@ -101,7 +112,63 @@ extension InMemoryServer {
                 createdAt: now.addingTimeInterval(-86_400)
             )
         }
+        if scenario == .joinable {
+            addJoinableRooms(to: server, now: now)
+        }
         return server
+    }
+
+    /// `joinable` のルーム（どれも自分はメンバーでない）を入れる。
+    ///
+    /// - 「夏の花火大会」: はるかが作った `open` のルーム（はるか・そうた・みお。候補 2 件）。参加できる
+    /// - 「社員旅行」: そうたが作った満員のルーム（そうたとゲスト 19 人の 20 人）
+    /// - 「去年の忘年会」: みおが作った `drawn` のルーム（みお・はるか）
+    private static func addJoinableRooms(to server: InMemoryServer, now: Date) {
+        let haruka = demoPeople[1]
+        let sota = demoPeople[2]
+        let mio = demoPeople[3]
+        let guests = (1..<DomainConstants.Limits.maxMembers).map { index in
+            DemoPerson(id: "demo-guest-\(index)", name: "ゲスト\(index)", colorIndex: index % AvatarPalette.colors.count)
+        }
+        var joinable = othersRoom(name: "夏の花火大会", code: DemoScenario.joinableInviteCode, people: [haruka, sota, mio], now: now)
+        joinable.candidates = demoCandidates(now: now).filter { $0.value.postedBy != DemoScenario.myUserID }
+        joinable.room.candidateCount = joinable.candidates.count
+        var decided = othersRoom(name: "去年の忘年会", code: DemoScenario.decidedInviteCode, people: [mio, haruka], now: now)
+        decided.room.status = .drawn
+        let rooms = [
+            (DemoScenario.joinableRoomID, joinable),
+            ("demo-room-full", othersRoom(name: "社員旅行", code: DemoScenario.fullInviteCode, people: [sota] + guests, now: now)),
+            ("demo-room-decided", decided)
+        ]
+        for (roomID, record) in rooms {
+            server.rooms[roomID] = record
+            server.inviteCodes[record.room.inviteCode] = InviteCodeEntry(roomId: roomID, createdAt: record.room.createdAt)
+        }
+    }
+
+    /// ほかの人（`people` の先頭）が作った `open` のルーム。メンバーは `people`（参加順）で、候補は無い
+    private static func othersRoom(name: String, code: String, people: [DemoPerson], now: Date) -> RoomRecord {
+        var record = demoRoom(now: now)
+        let createdAt = now.addingTimeInterval(-86_400)
+        record.room.name = name
+        record.room.inviteCode = code
+        record.room.ownerId = people.first?.id ?? DemoScenario.myUserID
+        record.room.memberIds = people.map(\.id)
+        record.room.memberCount = people.count
+        record.room.createdAt = createdAt
+        record.members = [:]
+        for (offset, person) in people.enumerated() {
+            let joinedAt = createdAt.addingTimeInterval(Double(offset) * 60)
+            record.members[person.id] = Member(
+                displayName: person.name,
+                avatarColor: AvatarPalette.colors[person.colorIndex],
+                role: offset == 0 ? .owner : .member,
+                ready: false,
+                joinedAt: joinedAt,
+                lastSeenAt: joinedAt
+            )
+        }
+        return record
     }
 
     /// `several-rooms` の解禁済みのルーム（自分・はるか・そうたの全員が準備OK。候補 3 件）。いちばん新しい

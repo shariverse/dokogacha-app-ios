@@ -90,6 +90,35 @@ struct CallableFunctionsClientTests {
         }
     }
 
+    /// `previewRoom` は招待コードを送り、backend の `RoomPreview` の JSON（作成者名が null のときを含む）を読む
+    @Test
+    func previewRoomSendsCodeAndDecodesPreview() async throws {
+        let transport = FakeTransport()
+        let client = CallableFunctionsClient(transport: transport)
+        transport.responseJSON = Data(#"""
+        {"roomId":"r1","name":"夏の花火大会","ownerName":"はるか","memberCount":3,"candidateCount":2,"status":"unlocked","alreadyMember":false}
+        """#.utf8)
+        let preview = try await client.previewRoom(PreviewRoomRequest(inviteCode: "QW5-8RT"))
+        #expect(preview == RoomPreview(
+            roomId: "r1",
+            name: "夏の花火大会",
+            ownerName: "はるか",
+            memberCount: 3,
+            candidateCount: 2,
+            status: .unlocked,
+            alreadyMember: false
+        ))
+        #expect(transport.calls.first?.name == .previewRoom)
+        #expect(transport.calls.first?.json["inviteCode"] as? String == "QW5-8RT")
+
+        transport.responseJSON = Data(#"""
+        {"roomId":"r1","name":"a","ownerName":null,"memberCount":1,"candidateCount":0,"status":"drawn","alreadyMember":true}
+        """#.utf8)
+        let withoutOwner = try await client.previewRoom(PreviewRoomRequest(inviteCode: "QW58RT"))
+        #expect(withoutOwner.ownerName == nil)
+        #expect(withoutOwner.alreadyMember)
+    }
+
     /// 失敗は `AppError` にして投げる（理由で文言を選ぶ）
     @Test
     func failureBecomesAppError() async {

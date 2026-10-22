@@ -27,8 +27,10 @@ import {
   assertJoinable,
   newMemberDoc,
   newRoomDoc,
+  roomPreview,
   sponsorAfterJoin,
   sponsorAfterRemoval,
+  type RoomPreview,
   type SponsorCandidate,
 } from "./logic";
 
@@ -138,6 +140,35 @@ export async function joinRoom(deps: ServiceDeps, uid: string, data: unknown): P
     });
     return { roomId: ref.id, alreadyMember: false };
   });
+}
+
+/**
+ * 招待コードで参加する前に、参加するルームを確かめる（03 の S-06 参加確認。02 の F-04）。
+ * メンバー以外はルームを読めない（セキュリティルール）ので、S-06 に出す値をここで返す。何も書き込まない。
+ *
+ * 入力の検証（招待コードの正規化）・コードからルームを引く・参加できるかの判定は `joinRoom` と同じで、
+ * 断るときの理由と文言も同じ（存在しない・形が正しくないコードは「招待コードが見つかりません」、満員、決定後）。
+ * 表示名の登録（`profile-required`）は確かめない（読むだけなので。参加は `joinRoom` が確かめる）。
+ * @param deps 外部のもの
+ * @param uid 呼んだ人
+ * @param data `request.data`（`{ inviteCode }`。小文字・ハイフン・全角を受け付ける）
+ * @returns S-06 に出すルームの値
+ */
+export async function previewRoom(deps: ServiceDeps, uid: string, data: unknown): Promise<RoomPreview> {
+  const { inviteCode } = parseJoinRoomInput(data);
+  const { db } = deps;
+  const codeEntry = (await inviteCodeRef(db, inviteCode).get()).data() as { roomId?: unknown } | undefined;
+  if (typeof codeEntry?.roomId !== "string") {
+    throw appError("invite-code-not-found");
+  }
+  const ref = roomRef(db, codeEntry.roomId);
+  const room = (await ref.get()).data() as RoomDoc | undefined;
+  if (room === undefined) {
+    throw appError("invite-code-not-found");
+  }
+  const [member, owner] = await Promise.all([membersRef(ref).doc(uid).get(), membersRef(ref).doc(room.ownerId).get()]);
+  const ownerName = (owner.data() as MemberDoc | undefined)?.displayName ?? null;
+  return roomPreview(ref.id, room, ownerName, member.exists);
 }
 
 /**

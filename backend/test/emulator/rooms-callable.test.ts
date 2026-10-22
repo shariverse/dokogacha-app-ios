@@ -186,4 +186,33 @@ describe("ルームと候補の Callable（Emulator の Functions）", () => {
     await expectReason(call(dave.functions, "saveProfile", { displayName: "" }), "invalid-argument", "invalid-argument");
     await expectReason(call(dave.functions, "leaveRoom", { roomId: "a/b" }), "invalid-argument", "invalid-argument");
   });
+
+  it("参加前の確認（previewRoom）は、S-06 に出す値を返し、存在しないコードは「招待コードが見つかりません」", async () => {
+    const grace = await client("grace");
+    const henry = await client("henry");
+    await call(grace.functions, "saveProfile", { displayName: "ぐれいす" });
+    const { roomId, inviteCode } = await call<{ roomId: string; inviteCode: string }>(grace.functions, "createRoom", {
+      name: "夏の花火大会",
+      postLimit: 3,
+      unlockRule: "all",
+      likeMode: "boost",
+    });
+    // サインインしていれば、表示名の登録の前でも確かめられる。アプリの RoomPreview の JSON の形で返る
+    await expect(call(henry.functions, "previewRoom", { inviteCode: inviteCode.toLowerCase() })).resolves.toEqual({
+      roomId,
+      name: "夏の花火大会",
+      ownerName: "ぐれいす",
+      memberCount: 1,
+      candidateCount: 0,
+      status: "open",
+      alreadyMember: false,
+    });
+    await expect(call(grace.functions, "previewRoom", { inviteCode })).resolves.toMatchObject({ alreadyMember: true });
+    const error = await expectReason(
+      call(henry.functions, "previewRoom", { inviteCode: "ZZZ-ZZZ" }),
+      "not-found",
+      "invite-code-not-found",
+    );
+    expect(error.message.startsWith("招待コードが見つかりません")).toBe(true);
+  });
 });

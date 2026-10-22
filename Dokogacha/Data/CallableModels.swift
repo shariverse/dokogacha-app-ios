@@ -14,6 +14,7 @@ nonisolated enum CallableName: String, CaseIterable, Sendable {
     case saveProfile
     case createRoom
     case joinRoom
+    case previewRoom
     case leaveRoom
     case removeMember
     case updateRoomSettings
@@ -126,6 +127,33 @@ nonisolated struct JoinRoomResponse: Codable, Equatable, Sendable {
     /// 参加したルームの ID
     var roomId: String
     /// もとからメンバーだったか（S-06「すでにメンバーなら確認を出さずにルーム画面へ」）
+    var alreadyMember: Bool
+}
+
+/// `previewRoom` の入力（参加前の確認。S-06）
+nonisolated struct PreviewRoomRequest: Codable, Equatable, Sendable {
+    /// 招待コード（`joinRoom` と同じく、小文字・ハイフン・全角もサーバーが正規化する）
+    var inviteCode: String
+}
+
+/// `previewRoom` の結果（S-06 参加確認に出す値。backend の `rooms/logic.ts` の `RoomPreview`）。
+///
+/// メンバー以外はルームを読めない（セキュリティルール）ので、参加の前に見せる値はこの Callable で受け取る。
+/// まだメンバーでなく参加できないルーム（満員・決定後）は、`joinRoom` と同じ理由のエラーになり、この値は返らない
+nonisolated struct RoomPreview: Codable, Hashable, Sendable {
+    /// ルームの ID
+    var roomId: String
+    /// ルーム名
+    var name: String
+    /// 作成者の表示名（作成者のメンバーのドキュメントが無いときは nil）
+    var ownerName: String?
+    /// メンバー数
+    var memberCount: Int
+    /// 候補数
+    var candidateCount: Int
+    /// 状態（S-06 の状態チップ）
+    var status: RoomStatus
+    /// もとからメンバーか（S-06「すでにメンバーなら確認を出さずにルーム画面へ」）
     var alreadyMember: Bool
 }
 

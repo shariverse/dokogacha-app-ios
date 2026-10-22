@@ -66,6 +66,58 @@ export function assertJoinable(room: JoinableRoom): void {
   }
 }
 
+/** 参加前の確認（`previewRoom`）の判定に要るルームの値 */
+export type PreviewableRoom = Pick<RoomDoc, "name" | "status" | "memberCount" | "candidateCount">;
+
+/** 参加前の確認（`previewRoom`）の結果。S-06 参加確認に出す値だけを返す（03 の S-06） */
+export interface RoomPreview {
+  /** ルームの ID */
+  roomId: string;
+  /** ルーム名 */
+  name: string;
+  /** 作成者の表示名（作成者のメンバーのドキュメントが無いときは null） */
+  ownerName: string | null;
+  /** メンバー数 */
+  memberCount: number;
+  /** 候補数 */
+  candidateCount: number;
+  /** 状態（S-06 の状態チップ） */
+  status: RoomStatus;
+  /** 呼んだ人がもとからメンバーか（S-06「すでにメンバーなら確認を出さずにルーム画面へ」） */
+  alreadyMember: boolean;
+}
+
+/**
+ * 参加前の確認の結果を作る。まだメンバーでなければ、`joinRoom` と同じ判定（`assertJoinable`）で参加できるか確かめ、
+ * 参加できないルームは `joinRoom` と同じ理由で断る（確認の画面を出してから「参加する」で断られないように）。
+ * すでにメンバーなら、状態・人数によらず返す（`joinRoom` もメンバーなら何も確かめずに成功する）。
+ * @param roomId ルームの ID
+ * @param room ルーム
+ * @param ownerName 作成者の表示名
+ * @param alreadyMember 呼んだ人がもとからメンバーか
+ * @returns S-06 に出す値
+ * @throws `room-already-decided`・`room-full`
+ */
+export function roomPreview(
+  roomId: string,
+  room: PreviewableRoom,
+  ownerName: string | null,
+  alreadyMember: boolean,
+): RoomPreview {
+  if (!alreadyMember) {
+    assertJoinable(room);
+  }
+  return {
+    roomId,
+    name: room.name,
+    ownerName,
+    memberCount: room.memberCount,
+    candidateCount: room.candidateCount,
+    status: room.status,
+    alreadyMember,
+  };
+}
+
 /** 広告非表示の判定に使う、メンバーの情報 */
 export interface SponsorCandidate {
   /** uid */

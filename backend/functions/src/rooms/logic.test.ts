@@ -7,6 +7,7 @@ import {
   MAX_INVITE_CODE_ATTEMPTS,
   newMemberDoc,
   newRoomDoc,
+  roomPreview,
   sponsorAfterJoin,
   sponsorAfterRemoval,
   type SponsorCandidate,
@@ -184,5 +185,34 @@ describe("作るドキュメント", () => {
       joinedAt: "NOW",
       lastSeenAt: "NOW",
     });
+  });
+});
+
+describe("roomPreview（03 の S-06 参加確認）", () => {
+  const room = { name: "夏の花火大会", status: "open", memberCount: 3, candidateCount: 2 } as const;
+
+  it("S-06 に出す値（ルーム名・作成者名・メンバー数・候補数・状態）を返す", () => {
+    expect(roomPreview("r1", room, "はるか", false)).toEqual({
+      roomId: "r1",
+      name: "夏の花火大会",
+      ownerName: "はるか",
+      memberCount: 3,
+      candidateCount: 2,
+      status: "open",
+      alreadyMember: false,
+    });
+  });
+
+  it("まだメンバーでなければ joinRoom と同じ理由で断る（満員・決定後）", () => {
+    expectReason(() => roomPreview("r1", { ...room, memberCount: MAX_MEMBERS }, "はるか", false), "room-full");
+    for (const status of ["drawn", "closed"] as const) {
+      expectReason(() => roomPreview("r1", { ...room, status, memberCount: MAX_MEMBERS }, "はるか", false), "room-already-decided");
+    }
+    expect(roomPreview("r1", { ...room, status: "unlocked", memberCount: MAX_MEMBERS - 1 }, null, false).status).toBe("unlocked");
+  });
+
+  it("すでにメンバーなら、満員・決定後でも断らずに alreadyMember を返す", () => {
+    const decided = roomPreview("r1", { ...room, status: "drawn", memberCount: MAX_MEMBERS }, "はるか", true);
+    expect(decided).toMatchObject({ status: "drawn", memberCount: MAX_MEMBERS, alreadyMember: true });
   });
 });

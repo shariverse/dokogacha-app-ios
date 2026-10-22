@@ -21,6 +21,7 @@
 - `Color.resolve(in: EnvironmentValues()).red` などは sRGB のガンマ補正済みの値（`linearRed` が線形）。`× 255` して丸めると `Color(.sRGB, red:…)` で作った `#RRGGBB` と一致する（2026-10-22）
 - `.toolbar(.hidden, for: .navigationBar)` で標準のナビゲーションバーを隠すと、iOS 26.5 では端からのスワイプで戻れなくなる。`MainNavigationView` の根元に付けた `InteractivePopGesture` がジェスチャーの delegate を差し替えている。UI テストで確かめるときは `swipeRight()` ではなく、`coordinate(withNormalizedOffset:)` の x 0.005 から `press(forDuration:thenDragTo:)` で動かす（`swipeRight()` は端から始まらない）（2026-10-22）
 - 文字を最大にした画面は、起動引数 `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL` を付けて撮影モードで起動すれば撮れる（Simulator の設定を変えずに済む）（2026-10-22）
+- `TextField` を `@Observable` の Model のプロパティに直接つなぎ、Model の側で値を書き換えても（招待コードの正規化など）、iOS 26.5 の Simulator では入力欄の表示が変わらない。画面の `@State` を挟み、`onChange` で正規化した値を `@State` に入れ直すと表示も変わる（`JoinByCodeView`）（2026-10-22）
 
 ## backend（Firebase）
 

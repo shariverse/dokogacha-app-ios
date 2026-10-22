@@ -16,6 +16,8 @@ protocol FunctionsClient {
     func createRoom(_ request: CreateRoomRequest) async throws -> CreateRoomResponse
     /// 招待コードでルームに参加する（F-04）
     func joinRoom(_ request: JoinRoomRequest) async throws -> JoinRoomResponse
+    /// 招待コードで参加する前に、参加するルームを確かめる（S-06。何も書き換えない。断る理由は `joinRoom` と同じ）
+    func previewRoom(_ request: PreviewRoomRequest) async throws -> RoomPreview
     /// ルームから退出する（F-05）
     func leaveRoom(_ request: RoomRequest) async throws
     /// 作成者がメンバーを削除する（F-05）

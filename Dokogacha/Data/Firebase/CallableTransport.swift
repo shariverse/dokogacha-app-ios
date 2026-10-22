@@ -41,6 +41,10 @@ final class CallableFunctionsClient: FunctionsClient {
         try await call(.joinRoom, request)
     }
 
+    func previewRoom(_ request: PreviewRoomRequest) async throws -> RoomPreview {
+        try await call(.previewRoom, request)
+    }
+
     func leaveRoom(_ request: RoomRequest) async throws {
         try await callWithoutResult(.leaveRoom, request)
     }

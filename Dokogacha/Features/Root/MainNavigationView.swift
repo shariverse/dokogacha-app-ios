@@ -73,7 +73,13 @@ struct MainNavigationView: View {
             InviteView(model: InviteModel(destination: created, toasts: toasts)) {
                 path = AppRoute.pathOpeningRoom(from: path)
             }
-        case .joinByCode, .room:
+        case .joinByCode:
+            // 参加したら（もとからメンバーなら）シートを閉じて、そのルームを開く（03 の §2「S-06 → 参加する → S-07」）
+            JoinRoomFlowView(functions: services.functions) { roomID in
+                sheet = nil
+                path.append(.room(id: roomID))
+            }
+        case .room:
             PendingScreenView(route: route)
         case .settings:
             SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
