@@ -76,13 +76,14 @@ nonisolated enum AdDisplayPolicy {
 /// 起動のしかたごとの広告の扱い。
 ///
 /// Unit テストのホストと `-uiTesting` では、SDK を初期化せず広告を読み込まない・ATT を尋ねない（ダイアログが画面を塞ぐ・ネットワークで揺らぐ）。
-/// 撮影モードでは本物の広告を写さないよう、読み込まずに固定の見た目の枠（`DGAdPlaceholder`）を出す
+/// 撮影モードでは本物の広告を写さない。App Store の撮影では広告の場所を取らず（`disabled`）、
+/// PR の撮影で `-screenshot-ad-placeholder` を付けたときだけ、読み込まずに固定の見た目の枠（`DGAdPlaceholder`）を出す
 nonisolated enum AdMode: Equatable, Sendable {
     /// 本物の広告を読み込む（`adUnitID` の広告ユニット）
     case live(adUnitID: String)
-    /// 読み込まずに、バナーの場所に固定の見た目の枠を出す（撮影モード）
+    /// 読み込まずに、バナーの場所に固定の見た目の枠を出す（撮影モードで `-screenshot-ad-placeholder` を付けたとき）
     case placeholder
-    /// 何も出さない・読み込まない・ATT を尋ねない（テスト・広告ユニット ID の設定漏れ）
+    /// 何も出さない・読み込まない・ATT を尋ねない（テスト・App Store の撮影・広告ユニット ID の設定漏れ）
     case disabled
 
     /// 起動のしかたと Info.plist の広告ユニット ID から決める
@@ -94,7 +95,7 @@ nonisolated enum AdMode: Equatable, Sendable {
             return .disabled
         }
         if launch.isScreenshotDemo {
-            return .placeholder
+            return launch.showsAdPlaceholder ? .placeholder : .disabled
         }
         guard let adUnitID, !adUnitID.isEmpty else {
             return .disabled

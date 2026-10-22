@@ -38,6 +38,8 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let isUITesting: Bool
     /// 撮影モード（`-screenshot-demo`）で起動されたか
     let isScreenshotDemo: Bool
+    /// 撮影モードで、バナー広告の場所に固定の見た目の枠を出すか（`-screenshot-ad-placeholder`。撮影モードのときだけ true になりうる）
+    let showsAdPlaceholder: Bool
     /// 擬似のサーバーに入れるデモのデータ（`-demo-scenario <名前>`。`-uiTesting`・撮影モードのときに使う。
     /// 指定が無ければ、撮影モードでは `DemoScenario.screenshotFallback`、それ以外では `DemoScenario.fallback`）
     let demoScenario: DemoScenario
@@ -55,6 +57,7 @@ nonisolated struct LaunchContext: Equatable, Sendable {
         isUnitTestHost = Self.unitTestHostEnvironmentKeys.contains { environment[$0] != nil }
         isUITesting = arguments.contains(Self.uiTestingArgument)
         isScreenshotDemo = arguments.contains(ScreenshotDemo.argument)
+        showsAdPlaceholder = isScreenshotDemo && arguments.contains(ScreenshotDemo.adPlaceholderArgument)
         autoMembers = isUITesting && arguments.contains(Self.autoMembersArgument)
         networkOffline = (isUITesting || isScreenshotDemo) && arguments.contains(Self.networkOfflineArgument)
         // 撮影モード（App Store の画面）は、シナリオを指定しなければルームが並んだ状態で撮る

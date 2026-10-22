@@ -43,6 +43,13 @@ enum ScreenshotDemo {
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
     nonisolated static let argument = "-screenshot-demo"
 
+    /// 撮影モードで、バナー広告の場所に固定の見た目の枠（`DGAdPlaceholder`）を出す起動引数（`LaunchContext` からも読むので nonisolated）。
+    ///
+    /// App Store の撮影（`Tools/capture_screenshots.sh`）はこれを付けないので、広告の場所を取らずに撮る
+    /// （枠の高さ 50 と本物のアダプティブバナーの高さが違い、App Store の画面に実際と違う見た目を載せないため。PR #89 の持ち越し）。
+    /// PR のスクリーンショットで広告の場所を見せるときに付ける
+    nonisolated static let adPlaceholderArgument = "-screenshot-ad-placeholder"
+
     /// 撮影モードで起動しているか
     static let isEnabled = ProcessInfo.processInfo.arguments.contains(argument)
 

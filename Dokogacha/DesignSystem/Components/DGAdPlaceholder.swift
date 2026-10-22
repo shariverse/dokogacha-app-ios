@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// バナー広告の代わりに出す枠。撮影モード（App Store・PR のスクリーンショット）で、本物の広告を写さずにバナーの場所を見せる。
+/// バナー広告の代わりに出す枠。撮影モードで `-screenshot-ad-placeholder` を付けたとき（PR のスクリーンショット）に、本物の広告を写さずにバナーの場所を見せる。
 ///
 /// 背景 `surface.ad`・点線の縁 `line.dashedStrong`・「広告」のラベル。高さはバナーの目安の 50（03 の §3）。
 struct DGAdPlaceholder: View {
