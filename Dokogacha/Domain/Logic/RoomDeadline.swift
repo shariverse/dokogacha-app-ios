@@ -56,6 +56,19 @@ nonisolated enum RoomDeadline {
     static func clamped(_ date: Date, to range: ClosedRange<Date>) -> Date {
         min(max(date, range.lowerBound), range.upperBound)
     }
+
+    /// 日時ピッカーから届いた値が、ユーザーの操作ではなく、ピッカーが範囲の外の値を範囲に収めて書き戻したものか（PR #65 の持ち越し）。
+    ///
+    /// S-12 は、まだ触っていない今の締切日時を範囲の外（1 時間後より前など）でもそのまま出す。`DatePicker(in:)` は
+    /// 範囲の外の値を表示するときに、範囲に収めた値をバインディングに書き戻すことがあり、それを「触った」とすると、
+    /// 締切日時を変えていないのに保存で書き換えてしまう。今の値が範囲の外で、届いた値がそれを範囲に収めた値と同じなら、書き戻しとみなす
+    /// - Parameters:
+    ///   - newValue: ピッカーから届いた値
+    ///   - current: いま出している値
+    ///   - range: ピッカーの範囲
+    static func isPickerClamp(_ newValue: Date, current: Date, range: ClosedRange<Date>) -> Bool {
+        !range.contains(current) && newValue == clamped(current, to: range)
+    }
 }
 
 /// 画面で選んでいる締切日時と、選べる範囲（S-03・S-12 で共通）。

@@ -119,4 +119,17 @@ struct RoomDeadlineTests {
         #expect(selection.date == soon)
         #expect(!selection.isInRange)
     }
+
+    /// 範囲の外の値を範囲に収めた値が届いたら、ピッカーの書き戻しとみなす。範囲の中の値・別の値はユーザーの操作（PR #65 の持ち越し）
+    @Test
+    func detectsPickerClamp() {
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        let range = RoomDeadline.selectableRange(now: now)
+        let early = now.addingTimeInterval(10 * 60)
+        #expect(RoomDeadline.isPickerClamp(range.lowerBound, current: early, range: range))
+        #expect(!RoomDeadline.isPickerClamp(range.lowerBound.addingTimeInterval(3_600), current: early, range: range))
+        let inside = range.lowerBound.addingTimeInterval(86_400)
+        #expect(!RoomDeadline.isPickerClamp(inside, current: inside, range: range))
+        #expect(!RoomDeadline.isPickerClamp(range.lowerBound, current: inside, range: range))
+    }
 }

@@ -229,10 +229,17 @@ final class RoomSettingsModel {
         return current.settings.deadlineAt
     }
 
-    /// 締切日時（触っていなければ今の締切日時。今の条件が「締切日時」でなければ 3 日後の 21:00）
+    /// 締切日時（触っていなければ今の締切日時。今の条件が「締切日時」でなければ 3 日後の 21:00）。
+    ///
+    /// まだ触っていない今の締切日時が範囲の外のとき、日時ピッカーが範囲に収めて書き戻した値は「触った」としない
+    /// （締切日時を変えずに保存したときに書き換えないため。`RoomDeadline.isPickerClamp`）
     var deadline: Date {
         get { usesSelectedDeadline ? deadlineSelection.date : unlockRuleDeadline ?? deadlineSelection.date }
         set {
+            if !usesSelectedDeadline, let current = unlockRuleDeadline,
+               RoomDeadline.isPickerClamp(newValue, current: current, range: deadlineSelection.range) {
+                return
+            }
             deadlineSelection.date = newValue
             isDeadlineEdited = true
         }
