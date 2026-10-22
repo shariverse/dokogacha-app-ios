@@ -32,6 +32,7 @@ enum ScreenshotDemo {
         case resultMember
         case homeMemories
         case pastIdeas
+        case inviteLastMembers
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
