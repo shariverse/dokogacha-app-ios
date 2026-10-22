@@ -26,6 +26,12 @@ struct PushNotificationCoordinatorTests {
         var freshToken = "fresh"
         var writes: [String] = []
         var saved: PushTokenRegistration?
+        /// true なら、許可を尋ねたときに答え（`answer`）を渡されるまで待つ（尋ねている途中を作る）
+        var holdsAnswer = false
+        /// 待っている答えの渡し先（尋ねている途中だけある）
+        var pendingAnswer: CheckedContinuation<Bool, Never>?
+        /// 起きたことの順
+        var events: [String] = []
 
         func authorizationStatus() async -> PushAuthorizationStatus {
             status
@@ -33,12 +39,20 @@ struct PushNotificationCoordinatorTests {
 
         func requestAuthorization() async throws -> Bool {
             requestCount += 1
-            status = grants ? .authorized : .denied
-            return grants
+            let granted = holdsAnswer ? await withCheckedContinuation { pendingAnswer = $0 } : grants
+            status = granted ? .authorized : .denied
+            return granted
+        }
+
+        /// 尋ねている途中の許可に答える
+        func answer(_ granted: Bool) {
+            pendingAnswer?.resume(returning: granted)
+            pendingAnswer = nil
         }
 
         func registerForRemoteNotifications() {
             registerCount += 1
+            events.append("register")
         }
 
         func setAPNSToken(_ token: Data) {
@@ -104,6 +118,47 @@ struct PushNotificationCoordinatorTests {
         await coordinator.requestAuthorizationIfNeeded()
         #expect(fake.requestCount == 1)
         #expect(fake.registerCount == 0)
+    }
+
+    /// 通知の許可を尋ねている途中なら、答えが出て（登録まで済んで）から返る（ATT のダイアログを重ねて出さないため）
+    @Test
+    func waitForAuthorizationRequestWaitsForAnswer() async {
+        let fake = FakePush()
+        fake.holdsAnswer = true
+        let coordinator = makeEnabled(fake)
+        let request = Task { await coordinator.requestAuthorizationIfNeeded() }
+        while fake.pendingAnswer == nil {
+            await Task.yield()
+        }
+
+        let waiter = Task {
+            await coordinator.waitForAuthorizationRequest()
+            fake.events.append("waited")
+        }
+        for _ in 0..<20 {
+            await Task.yield()
+        }
+        #expect(fake.events.isEmpty)
+
+        fake.answer(true)
+        await waiter.value
+        await request.value
+        #expect(fake.events == ["register", "waited"])
+    }
+
+    /// 尋ねていなければ（まだ・もう終わった・通知を使わない）、待たずにすぐ返る
+    @Test
+    func waitForAuthorizationRequestReturnsImmediatelyWhenNotAsking() async {
+        let fake = FakePush()
+        let coordinator = makeEnabled(fake)
+        await coordinator.waitForAuthorizationRequest()
+        #expect(fake.requestCount == 0)
+
+        await coordinator.requestAuthorizationIfNeeded()
+        await coordinator.waitForAuthorizationRequest()
+        #expect(fake.requestCount == 1)
+
+        await PushNotificationCoordinator(router: DeepLinkRouter()).waitForAuthorizationRequest()
     }
 
     /// 起動したときは尋ねず、許可済みのときだけ APNs に登録する
