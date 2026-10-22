@@ -73,6 +73,16 @@ enum UITestID {
     static let candidateDetailScreen = "candidateDetail.screen"
     /// S-10 の「この候補を削除」（`CandidateDetailView.Identifier.delete`）
     static let candidateDetailDelete = "candidateDetail.delete"
+    /// S-10 の右上の「…」のメニュー（`CandidateDetailView.Identifier.more`）
+    static let candidateDetailMore = "candidateDetail.more"
+    /// S-10 の「…」の「この投稿を報告」（`CandidateDetailView.Identifier.report`）
+    static let candidateDetailReport = "candidateDetail.report"
+    /// S-10 の閉じるボタン（`CandidateDetailView.Identifier.close`）
+    static let candidateDetailClose = "candidateDetail.close"
+    /// S-10 の参考 URL（`CandidateDetailView.Identifier.url`）
+    static let candidateDetailURL = "candidateDetail.url"
+    /// デモのルームの、はるかが投稿したサンシャイン水族館（ひとこと・参考 URL あり。`DemoScenario` の `demo-candidate-1`）
+    static let othersCandidateID = "demo-candidate-1"
     /// S-07 の見出し行の「候補を追加」（`RoomView.Identifier.addCandidate`）
     static let roomAddCandidate = "room.addCandidate"
     /// S-08（`AddCandidateView.Identifier.screen`）
