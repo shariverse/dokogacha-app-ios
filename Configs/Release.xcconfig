@@ -13,3 +13,5 @@ DG_FIREBASE_ENVIRONMENT = prod
 DG_FIREBASE_OPTIONS_FILE_NAME = GoogleService-Info-Prod
 // dev の plist が手元にあっても、App Store 用のアプリには入れない
 EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Dev.plist
+// APNs の環境（Configs/Dokogacha.entitlements の aps-environment）。App Store は production
+DG_APS_ENVIRONMENT = production

@@ -15,3 +15,5 @@ DG_FIREBASE_ENVIRONMENT = dev
 DG_FIREBASE_OPTIONS_FILE_NAME = GoogleService-Info-Dev
 // prod の plist が手元にあっても、TestFlight 用のアプリには入れない
 EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Prod.plist
+// APNs の環境（Configs/Dokogacha.entitlements の aps-environment）。TestFlight は App Store の配布用の署名なので production
+DG_APS_ENVIRONMENT = production

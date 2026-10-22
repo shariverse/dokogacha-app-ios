@@ -3,11 +3,14 @@
 <!--
   アプリ本体（Dokogacha）の entitlements。Configs/Project.xcconfig の CODE_SIGN_ENTITLEMENTS で指定する
   （Dokogacha/ の下に置くとリソースとしてアプリにコピーされるので、ここに置く）。
-  プッシュ通知（タスク 32）・Sign in with Apple（タスク 38）も、このファイルにキーを足す。
+  Sign in with Apple（タスク 38）も、このファイルにキーを足す。
   値に書いた $(…) は、ビルドのときに xcconfig の変数に置き換わる。
 -->
 <plist version="1.0">
 <dict>
+	<!-- プッシュ通知（02 の §8 F-60）。APNs の環境は Configs/*.xcconfig の DG_APS_ENVIRONMENT（Debug は development・Stg / Release は production） -->
+	<key>aps-environment</key>
+	<string>$(DG_APS_ENVIRONMENT)</string>
 	<!-- Universal Links（招待リンク https://dokogacha.app/r/{招待コード}）。ドメインは Configs/Project.xcconfig の DG_WEB_DOMAIN -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>

@@ -11,6 +11,9 @@
 	<!-- 読む GoogleService-Info の名前（拡張子なし）。値は Configs/*.xcconfig の DG_FIREBASE_OPTIONS_FILE_NAME。Debug は空 -->
 	<key>DGFirebaseOptionsFileName</key>
 	<string>$(DG_FIREBASE_OPTIONS_FILE_NAME)</string>
+	<!-- FCM の AppDelegate の差し替え（swizzling）を止める。APNs のトークンは AppDelegate から Messaging に渡し、通知は UNUserNotificationCenter の delegate で受ける -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<!-- 同梱フォント（Dokogacha/Resources/Fonts/。フォルダ同期グループのリソースは .app の直下にコピーされるのでファイル名だけを書く） -->
