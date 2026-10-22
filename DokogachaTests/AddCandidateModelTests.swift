@@ -396,6 +396,31 @@ struct AddCandidateDuplicateTests {
         #expect(model.draft == nil)
     }
 
+    /// サーバーの重複の候補がまだ購読で届いていなければ、いいねせずに閉じる（誰の投稿か分からないため）
+    @Test
+    func serverDuplicateNotYetDeliveredClosesWithoutLike() async throws {
+        let server = Base.makeServer()
+        let repository = RoomControlledRepository(server: server)
+        repository.feedCandidates()
+        let model = Base.makeModel(server: server, repository: repository)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        repository.sendCandidates()
+        #expect(await Base.waitUntilLoaded(model))
+        let aquarium = try Base.place("すみだ水族館")
+        model.addTapped(aquarium)
+        // 別の端末で自分が同じ場所を先に投稿したが、この画面の購読にはまだ届いていない
+        Base.insertCandidate("mine-elsewhere", place: aquarium, by: DemoScenario.myUserID, into: server)
+
+        await model.submit()
+        let prompt = try #require(model.duplicatePrompt)
+        #expect(prompt.candidateID == "mine-elsewhere")
+        await model.likeDuplicate(prompt)
+
+        #expect(model.finish == .fromSheet)
+        #expect(repository.likeCallCount == 0)
+    }
+
     /// いいねの書き込みに失敗したら、トースト「通信できませんでした」を出し、この画面に留まる
     @Test
     func duplicateLikeFailureShowsToast() async throws {

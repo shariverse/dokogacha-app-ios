@@ -335,14 +335,17 @@ final class AddCandidateModel {
 
     /// 重複した候補にいいねして S-07 に戻る（02 の F-10「「いいねする」でその候補にいいね（自分の投稿だった場合はいいねせず閉じる）」）。
     ///
-    /// いいね済みの候補もいいねせずに戻る。失敗したらトースト「通信できませんでした」を出し、この画面に留まる
+    /// いいね済みの候補もいいねせずに戻る。失敗したらトースト「通信できませんでした」を出し、この画面に留まる。
+    ///
+    /// サーバーが返した重複（`duplicateOf`）の候補が、まだ購読で届いていないときも、いいねせずに戻る。
+    /// 誰の投稿か分からないまま送ると、別の端末で自分が投稿した候補だったときにルールで断られるため（届いた後は S-07 で押せる）
     func likeDuplicate(_ prompt: DuplicatePrompt) async {
         guard !isLiking, !isSubmitting, finish == nil else {
             return
         }
         duplicatePrompt = nil
-        let candidate = candidates.first { $0.id == prompt.candidateID }
-        if let candidate, candidate.postedBy == userID || candidate.likedBy.contains(userID) {
+        guard let candidate = candidates.first(where: { $0.id == prompt.candidateID }),
+              candidate.postedBy != userID, !candidate.likedBy.contains(userID) else {
             finishFlow()
             return
         }
