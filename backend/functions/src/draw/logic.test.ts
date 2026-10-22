@@ -75,6 +75,10 @@ describe("decideDraw（02 の F-40・05 の §5 の drawGacha）", () => {
     expectReason(() => decide({ status: "closed", currentDrawId: "d1", winnerCandidateId: "c1" }), "room-already-decided");
   });
 
+  it("知らない状態の壊れたデータは room-not-unlocked（internal にしない）", () => {
+    expectReason(() => decide({ status: "broken" as RoomStatus }), "room-not-unlocked");
+  });
+
   it("open は、準備OKが揃っていても room-not-unlocked（トリガーが unlocked にしてから回す）", () => {
     expectReason(() => decide({ status: "open" }), "room-not-unlocked");
   });
