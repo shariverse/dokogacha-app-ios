@@ -36,6 +36,7 @@ enum ScreenshotDemo {
         case roomAdFree
         case settingsAppleLinked
         case settingsAdFree
+        case settingsDeleteAccount
         case licenses
     }
 
@@ -146,7 +147,8 @@ extension ScreenshotDemo {
     /// S-15 設定を擬似のサーバーで開く（ホームから進まずに、設定の画面を根元にして出す）。
     ///
     /// 既定は Apple に未連携・広告非表示を買っていない状態。`settingsAppleLinked`・`settingsAdFree` の scene では、
-    /// 擬似のサーバーのこの端末のユーザーを連携済み・購入済み（`users.adFree`）にしてから開く
+    /// 擬似のサーバーのこの端末のユーザーを連携済み・購入済み（`users.adFree`）にしてから開く。
+    /// `settingsDeleteAccount` の scene では、「アカウントを削除しますか？」の確認を出した状態で開く（02 の F-06）
     struct SettingsScene: View {
         @State private var toasts: DGToastCenter
         private let model: SettingsModel
@@ -155,7 +157,8 @@ extension ScreenshotDemo {
         ///   - services: データ層の窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
         ///   - appleLinked: Sign in with Apple に連携済みにするか
         ///   - adFree: 広告非表示を購入済みにするか
-        init(services: DataServices, appleLinked: Bool = false, adFree: Bool = false) {
+        ///   - confirmingDeletion: 「アカウントを削除しますか？」の確認を出した状態で開くか
+        init(services: DataServices, appleLinked: Bool = false, adFree: Bool = false, confirmingDeletion: Bool = false) {
             let toasts = DGToastCenter()
             let userID = services.auth.currentUserID ?? DemoScenario.myUserID
             if let server = services.inMemoryServer {
@@ -173,6 +176,7 @@ extension ScreenshotDemo {
                 toasts: toasts,
                 appleAuthorizer: DemoAppleAuthorizer()
             )
+            model.isConfirmingDeletion = confirmingDeletion
             _toasts = State(initialValue: toasts)
         }
 
