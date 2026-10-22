@@ -34,6 +34,9 @@ enum ScreenshotDemo {
         case pastIdeas
         case inviteLastMembers
         case roomAdFree
+        case settingsAppleLinked
+        case settingsAdFree
+        case licenses
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）

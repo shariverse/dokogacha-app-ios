@@ -68,6 +68,14 @@ struct DokoGachaApp: App {
             ScreenshotDemo.InviteLastMembersScene(services: appDelegate.serverSession.services)
         case .roomAdFree:
             ScreenshotDemo.RoomAdFreeScene(services: appDelegate.serverSession.services)
+        case .settingsAppleLinked:
+            ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, appleLinked: true)
+        case .settingsAdFree:
+            ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, adFree: true)
+        case .licenses:
+            NavigationStack {
+                LicensesView()
+            }
         }
     }
 }
