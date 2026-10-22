@@ -11,7 +11,8 @@ import SwiftUI
 ///
 /// 52×52・角丸 14・線なし。ハート 22 ＋下に 11 の文言。背景と色は `like.*`。
 /// いいね済みはハートを塗りつぶす（`ui-heart` は線画のテンプレート画像で塗りを切り替えられないので、塗りつぶした版の `ui-heart-fill` に替える）。
-/// 自分の投稿では押せない（F-20）。押した瞬間にハートを 1.0 → 1.25 → 1.0 に弾ませ（04 の §5 の「いいね」。`DGMotion.like`）、
+/// 自分の投稿（F-20）と、いいねを受け付けないルーム（`drawn`・`closed`。02 の §2.1）では押せない。
+/// 押した瞬間にハートを 1.0 → 1.25 → 1.0 に弾ませ（04 の §5 の「いいね」。`DGMotion.like`）、
 /// 「視差効果を減らす」がオンのときは弾ませない。
 struct DGLikeButton: View {
     /// いいねボタンの状態
@@ -22,47 +23,58 @@ struct DGLikeButton: View {
         case liked
         /// 自分の投稿（いいねできない）
         case mine
+        /// いいねを受け付けないルーム（`drawn`・`closed`）で、いいねしていない
+        case locked
+        /// いいねを受け付けないルーム（`drawn`・`closed`）で、いいね済み（取り消せない）
+        case lockedLiked
 
-        /// ハートの下の文言
+        /// ハートの下の文言（受け付けないときも、いいねしたかどうかは残して見せる）
         var title: LocalizedStringResource {
             switch self {
-            case .notLiked: "いいね"
-            case .liked: "いいね済"
+            case .notLiked, .locked: "いいね"
+            case .liked, .lockedLiked: "いいね済"
             case .mine: "自分"
             }
         }
 
-        /// VoiceOver で読むボタンの名前（押すと何が起きるか）
+        /// VoiceOver で読むボタンの名前（押すと何が起きるか。押せないときは、なぜ押せないか）
         var accessibilityLabel: LocalizedStringResource {
             switch self {
             case .notLiked: "いいね"
             case .liked: "いいねを取り消す"
             case .mine: "自分の投稿にはいいねできません"
+            case .locked: "いいねの受付は終わりました"
+            case .lockedLiked: "いいね済み。いいねの受付は終わりました"
             }
         }
 
-        /// 背景色
+        /// いいね済みか（ハートを塗りつぶし、VoiceOver で選択中として読む）
+        var isLiked: Bool {
+            self == .liked || self == .lockedLiked
+        }
+
+        /// 背景色（いいね済みでも、押せないときは押せる「いいね済」と見分けられるよう未いいねの色にする）
         var background: Color {
             self == .liked ? .dgLikeBgActive : .dgLikeBg
         }
 
-        /// ハートと文言の色
+        /// ハートと文言の色（押せないものは「自分」と同じ薄い色）
         var foreground: Color {
             switch self {
             case .notLiked: .dgLikeIcon
             case .liked: .dgLikeIconActive
-            case .mine: .dgLikeIconMine
+            case .mine, .locked, .lockedLiked: .dgLikeIconMine
             }
         }
 
         /// ハートのアセット名（いいね済みだけ塗りつぶした版）
         var heartIconName: String {
-            self == .liked ? "ui-heart-fill" : "ui-heart"
+            isLiked ? "ui-heart-fill" : "ui-heart"
         }
 
-        /// 押せるか（自分の投稿では押せない）
+        /// 押せるか（自分の投稿と、いいねを受け付けないルームでは押せない）
         var isEnabled: Bool {
-            self != .mine
+            self == .notLiked || self == .liked
         }
     }
 
@@ -120,7 +132,7 @@ struct DGLikeButton: View {
         .disabled(!state.isEnabled)
         .fixedSize()
         .accessibilityLabel(Text(state.accessibilityLabel))
-        .accessibilityAddTraits(state == .liked ? .isSelected : [])
+        .accessibilityAddTraits(state.isLiked ? .isSelected : [])
     }
 }
 
