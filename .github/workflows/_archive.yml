@@ -122,12 +122,14 @@ jobs:
           echo "$destination を書き出しました"
 
       - name: Archive
+        # DerivedData の場所を決めておく（dSYM を上げるときに、SPM が取ってきた firebase-ios-sdk の upload-symbols をここから探す）
         run: |
           xcodebuild archive \
             -project "$PROJECT_NAME.xcodeproj" \
             -scheme "$SCHEME" \
             -sdk iphoneos \
             -configuration "$CONFIGURATION" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -archivePath "$RUNNER_TEMP/build.xcarchive" \
             CODE_SIGNING_ALLOWED=NO
 
@@ -186,7 +188,10 @@ jobs:
             echo "::notice::${name}.plist が無いため、dSYM を Crashlytics に上げません"
             exit 0
           fi
-          upload_symbols=$(find "$HOME/Library/Developer/Xcode/DerivedData" -type f -path '*/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols' 2>/dev/null | head -1 || true)
+          upload_symbols="$RUNNER_TEMP/DerivedData/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols"
+          if [[ ! -f "$upload_symbols" ]]; then
+            upload_symbols=""
+          fi
           dsyms="$RUNNER_TEMP/build.xcarchive/dSYMs"
           message=""
           if [[ -z "$upload_symbols" ]]; then
