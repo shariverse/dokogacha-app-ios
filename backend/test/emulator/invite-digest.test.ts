@@ -170,6 +170,23 @@ describe("前回のメンバーへの招待と新しい候補のまとめ通知"
       expect(await outbox("invite-now", "invited")).toHaveLength(1);
     });
 
+    it("送れた後の処理（無効なトークンの削除）で失敗しても印を残し、もう一度呼んでも 2 通目を送らない", async () => {
+      let sends = 0;
+      const sendThenBreak = {
+        db,
+        sender: async (messages: readonly PushMessage[]) => {
+          sends += 1;
+          // 送れたが、持ち主のドキュメントが消えていてトークンを外せない（`update` が NOT_FOUND で失敗する）
+          await db.doc("users/haruka").delete();
+          return messages.map(() => ({ success: false, errorCode: "messaging/registration-token-not-registered" }));
+        },
+      };
+      await expect(inviteLastMembers(sendThenBreak, "me", { roomId: "invite-now" })).rejects.toThrow();
+      expect((await db.doc("rooms/invite-now/notificationLog/invited-me-invite-prev").get()).exists).toBe(true);
+      expect(await inviteLastMembers(sendThenBreak, "me", { roomId: "invite-now" })).toEqual({ invitedCount: 2 });
+      expect(sends).toBe(1);
+    });
+
     it("終了したルームが無い・招待する人がいないなら、送らずに 0 を返す", async () => {
       await addRoom("invite-solo", { name: "ひとり", status: "open", memberIds: ["ken"], withMembers: ["ken"] });
       await db.doc("rooms/invite-older").delete();

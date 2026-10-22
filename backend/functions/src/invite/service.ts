@@ -10,14 +10,16 @@
  * 招待は「今のルーム × 招待した人 × 前回のルーム」につき 1 回だけ（印は今のルームの下の
  * `rooms/{今のルーム}/notificationLog/invited-{uid}-{前回のルームの ID}`。別の今のルームからは同じ前回のメンバーをまた招待できる）。
  * 同じ今のルームからの 2 回目は送らずに、1 回目に招待した人数を返す（連打・やり直しで同じ人たちに何度も送らない。アプリはトーストを同じ人数で出す）。
- * 送る途中で失敗したら印を消してから投げる（この Callable は招待を送ることそのものなので、もう一度押せば送り直せるようにする）。
+ * 送る前か送ること（`sender`）そのものが失敗したら印を消してから投げる（この Callable は招待を送ることそのものなので、もう一度押せば送り直せるようにする）。
+ * 送れた後の失敗（無効なトークンの削除など）では印を消さない（押し直すと同じ人たちに 2 通目が届くため）。
  */
 import type { Firestore } from "firebase-admin/firestore";
 
 import type { MemberDoc, RoomDoc } from "../domain/models";
 import { appError } from "../errors";
 import type { PushEvent } from "../notifications/logic";
-import { deliver, notificationLogRef, type NotificationDeps } from "../notifications/service";
+import { defaultPushSender, type PushSender } from "../notifications/sender";
+import { deliver, notificationLogRef, type NotificationDeps, type NotificationOutcome } from "../notifications/service";
 import { membersRef, roomRef } from "../paths";
 import { parseRoomIdInput } from "../unlock/input";
 import { assertCanInvite, lastMembersInvitees } from "./logic";
@@ -94,16 +96,30 @@ export async function inviteLastMembers(
     sourceRoomId: previous.id,
     inviteeIds,
   };
+  // 送れたかどうかを、送り方を包んで覚える（送れた後の失敗では印を残す）
+  const send = deps.sender ?? defaultPushSender(deps.db);
+  const progress = { delivered: false };
+  const sender: PushSender = async (messages) => {
+    const results = await send(messages);
+    progress.delivered = true;
+    return results;
+  };
+  let outcome: NotificationOutcome;
   try {
-    const outcome = await deliver(deps, room, event, { [INVITED_COUNT_FIELD]: inviteeIds.length, sourceRoomId: previous.id });
-    if (outcome.kind === "alreadySent") {
-      const logged = (await notificationLogRef(deps.db, event).get()).data()?.[INVITED_COUNT_FIELD] as unknown;
-      return { invitedCount: typeof logged === "number" ? logged : inviteeIds.length };
-    }
+    outcome = await deliver({ ...deps, sender }, room, event, {
+      [INVITED_COUNT_FIELD]: inviteeIds.length,
+      sourceRoomId: previous.id,
+    });
   } catch (error) {
-    // 印だけ残って送れていない状態にしない（もう一度押せば送り直せる）
-    await notificationLogRef(deps.db, event).delete();
+    if (!progress.delivered) {
+      // 印だけ残って送れていない状態にしない（もう一度押せば送り直せる）
+      await notificationLogRef(deps.db, event).delete();
+    }
     throw error;
+  }
+  if (outcome.kind === "alreadySent") {
+    const logged = (await notificationLogRef(deps.db, event).get()).data()?.[INVITED_COUNT_FIELD] as unknown;
+    return { invitedCount: typeof logged === "number" ? logged : inviteeIds.length };
   }
   return { invitedCount: inviteeIds.length };
 }
