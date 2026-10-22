@@ -30,8 +30,10 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
     case members(roomID: String)
     /// S-12 ルーム設定（ルームのヘッダーの設定から。作成者だけ。シート。タスク 25）
     case roomSettings(roomID: String)
-    /// S-13 ガチャ（ルームの「ガチャを回す」から。フルスクリーンカバー。タスク 27）
+    /// S-13 ガチャ（ルームの「ガチャを回す」から。フルスクリーンカバー。タスク 27）。カプセルを開け終えたら同じカバーの中で S-14 に替わる
     case gacha(roomID: String)
+    /// S-14 結果（`drawn`・`closed` のルームを開いたとき・ルームの「行き先きっぷを見る」から。フルスクリーンカバー。タスク 28）
+    case result(roomID: String, drawID: String)
 
     /// 出し方
     enum Presentation: Equatable, Sendable {
@@ -50,7 +52,7 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
             .push
         case .joinByCode, .candidateDetail, .members, .roomSettings:
             .sheet
-        case .gacha:
+        case .gacha, .result:
             .fullScreenCover
         }
     }

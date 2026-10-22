@@ -26,6 +26,7 @@ struct PendingScreenView: View {
             case .members: "pending.members"
             case .roomSettings: "pending.roomSettings"
             case .gacha: "pending.gacha"
+            case .result: "pending.result"
             }
         }
     }
@@ -92,6 +93,7 @@ struct PendingScreenView: View {
         case .members: Text("メンバー")
         case .roomSettings: Text("ルーム設定")
         case .gacha: Text("ガチャ")
+        case .result: Text("結果")
         }
     }
 }

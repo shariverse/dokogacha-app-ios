@@ -12,7 +12,7 @@ import SwiftUI
 /// 標準のナビゲーションバーは使わない（03 の §3）。画面の行き先（S-08・S-10・S-11・S-12・S-13）は `navigate` で親に渡す。
 /// ルームパネルは `RoomPanel`（準備OKのボタン・ヒント文言・強制解禁 F-30〜32 を含む）。強制解禁の確認のダイアログはこの画面で出し、
 /// 送っている途中はヘッダー（戻る・設定）を押せなくする。バナー広告（F-50）はタスク 36 で下部に足す。
-/// `drawn` のルームを開いたときに結果を自動で出す（03 の §2）のはタスク 28。
+/// `drawn`・`closed` のルームを開いたときは結果（S-14）を自動で出す（03 の §2）。下部のボタンは `RoomGachaBar`。
 struct RoomView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -38,8 +38,8 @@ struct RoomView: View {
         static let empty = "room.empty"
         /// 候補が無いときの表示の「候補を追加」
         static let emptyAddCandidate = "room.empty.addCandidate"
-        /// 下部の「ガチャを回す」
-        static let gacha = "room.gacha"
+        /// 下部の「ガチャを回す」（`RoomGachaBar.Identifier.gacha`）
+        static let gacha = RoomGachaBar.Identifier.gacha
         /// ルームが見つからないときの案内
         static let missing = "room.missing"
         /// ルームが見つからないときの「ホームに戻る」
@@ -89,7 +89,11 @@ struct RoomView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            gachaBar
+            RoomGachaBar(state: model.gachaButtonState) {
+                navigate(.gacha(roomID: model.roomID))
+            } onResult: { drawID in
+                navigate(.result(roomID: model.roomID, drawID: drawID))
+            }
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
@@ -119,6 +123,14 @@ struct RoomView: View {
             }
             model.replayOpened()
             navigate(.gacha(roomID: model.roomID))
+        }
+        // 開いたときに行き先が決まっていたら、S-14 を出す（03 の §2。closed は閲覧のみ）
+        .onChange(of: model.resultToOpen) { _, drawID in
+            guard let drawID else {
+                return
+            }
+            model.resultOpened()
+            navigate(.result(roomID: model.roomID, drawID: drawID))
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
@@ -388,37 +400,6 @@ extension RoomView {
         .padding(DGSpacing.s24)
         .overlay {
             shape.strokeBorder(Color.dgLineDashedStrong, style: StrokeStyle(lineWidth: DGBorder.regular, dash: Self.emptyDash))
-        }
-    }
-}
-
-extension RoomView {
-    // MARK: - 下部
-
-    /// 下部に固定する「ガチャを回す」（03 の S-07 の GachaCTA）。`drawn`・`closed` と読み込み中は出さない
-    @ViewBuilder private var gachaBar: some View {
-        if let state = model.gachaButtonState {
-            Group {
-                switch state {
-                case .ready:
-                    DGButton("ガチャを回す") {
-                        navigate(.gacha(roomID: model.roomID))
-                    }
-                case .waiting:
-                    DGButton("準備OKが揃うと回せます") {}
-                        .disabled(true)
-                }
-            }
-            .accessibilityIdentifier(Identifier.gacha)
-            .padding(.horizontal, DGSpacing.screenX)
-            .padding(.vertical, DGSpacing.s10)
-            .frame(maxWidth: .infinity)
-            .background(Color.dgBgBase)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Color.dgInk)
-                    .frame(height: DGBorder.regular)
-            }
         }
     }
 }

@@ -81,17 +81,7 @@ struct MainNavigationView: View {
                 presentation.path.append(.room(id: roomID))
             }
         case let .room(roomID):
-            let model = RoomModel(
-                roomID: roomID,
-                userID: userID,
-                repository: services.rooms,
-                functions: services.functions,
-                toasts: toasts,
-                seenDraws: services.seenDraws
-            )
-            RoomView(model: model) { route in
-                open(route)
-            }
+            room(roomID: roomID)
         case .settings:
             SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
         case let .candidateDetail(roomID, candidateID):
@@ -111,8 +101,39 @@ struct MainNavigationView: View {
             members(roomID: roomID)
         case let .roomSettings(roomID):
             roomSettings(roomID: roomID)
+        case .gacha, .result:
+            cover(route)
+        }
+    }
+
+    /// S-07 ルーム（プッシュ）
+    private func room(roomID: String) -> some View {
+        let model = RoomModel(
+            roomID: roomID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: toasts,
+            seenDraws: services.seenDraws
+        )
+        return RoomView(model: model) { route in
+            open(route)
+        }
+    }
+
+    /// S-13・S-14 のフルスクリーンカバー。S-13 はカプセルを開け終えたら同じカバーの中で S-14 に替わる（`GachaFlowView`）
+    @ViewBuilder private func cover(_ route: AppRoute) -> some View {
+        switch route {
         case let .gacha(roomID):
-            gacha(roomID: roomID)
+            GachaFlowView { onOpened in
+                gacha(roomID: roomID, onOpened: onOpened)
+            } result: { drawID in
+                result(roomID: roomID, drawID: drawID)
+            }
+        case let .result(roomID, drawID):
+            result(roomID: roomID, drawID: drawID)
+        default:
+            PendingScreenView(route: route)
         }
     }
 
@@ -151,9 +172,9 @@ struct MainNavigationView: View {
 
     /// S-13 ガチャ（フルスクリーンカバー）。トーストはカバーの中に重ねるので、カバー用の窓口を作って渡す。
     ///
-    /// カプセルを開け終えたら、いまはカバーを閉じてルーム（S-07）に戻る（S-14 結果はタスク 28 で差し替える）。
+    /// カプセルを開け終えたら `onOpened` で同じカバーの中の S-14 に替える（`GachaFlowView`）。
     /// UI テストでは演出を待たないよう、常に「視差効果を減らす」で動かす
-    private func gacha(roomID: String) -> some View {
+    private func gacha(roomID: String, onOpened: @escaping (String) -> Void) -> GachaView {
         let coverToasts = DGToastCenter()
         let model = GachaModel(
             roomID: roomID,
@@ -163,9 +184,21 @@ struct MainNavigationView: View {
             toasts: coverToasts,
             seenDraws: services.seenDraws
         )
-        return GachaView(model: model, toasts: coverToasts, forcesReducedMotion: LaunchContext.current.isUITesting) { _ in
-            presentation.fullScreen = nil
-        }
+        return GachaView(model: model, toasts: coverToasts, forcesReducedMotion: LaunchContext.current.isUITesting, onOpened: onOpened)
+    }
+
+    /// S-14 結果（フルスクリーンカバー）。トーストはカバーの中に重ねる。UI テストではきっぷとハンコを動かさない
+    private func result(roomID: String, drawID: String) -> ResultView {
+        let coverToasts = DGToastCenter()
+        let model = ResultModel(
+            roomID: roomID,
+            drawID: drawID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: coverToasts
+        )
+        return ResultView(model: model, toasts: coverToasts, animatesIn: !LaunchContext.current.isUITesting)
     }
 
     /// S-10 候補の詳細（シート）。トーストはシートの中に重ねるので、シート用の窓口を作って渡す

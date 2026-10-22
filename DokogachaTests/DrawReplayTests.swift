@@ -62,6 +62,48 @@ struct DrawReplayTests {
         #expect(await AsyncTestSupport.eventually { model.drawToReplay == response.drawId })
         model.replayOpened()
         #expect(model.drawToReplay == nil)
-        #expect(model.gachaButtonState == nil)
+        #expect(model.gachaButtonState == .result(drawID: response.drawId))
+        // 画面を出している間に drawn になったときは、S-14 を自動では出さない（S-13 の演出の後に進む）
+        #expect(model.resultToOpen == nil)
+    }
+
+    /// 開いたときに drawn・closed のルームなら、S-14 を自動で出す（03 の §2・02 の §6.2）。出していた間に変わったとき・抽選の ID が無いときは出さない
+    @Test
+    func resultOpensForAlreadyDrawnRoom() throws {
+        let room = try Self.drawnRoom()
+        #expect(DrawReplay.resultDrawID(previous: nil, room: room) == "d1")
+        var closed = room
+        closed.status = .closed
+        #expect(DrawReplay.resultDrawID(previous: nil, room: closed) == "d1")
+        #expect(DrawReplay.resultDrawID(previous: .unlocked, room: room) == nil)
+        #expect(DrawReplay.resultDrawID(previous: .drawn, room: room) == nil)
+        #expect(DrawReplay.resultDrawID(previous: nil, room: try Self.drawnRoom(drawID: nil)) == nil)
+        #expect(DrawReplay.resultDrawID(previous: nil, room: try Self.drawnRoom(drawID: "")) == nil)
+        var unlocked = room
+        unlocked.status = .unlocked
+        #expect(DrawReplay.resultDrawID(previous: nil, room: unlocked) == nil)
+    }
+
+    /// アプリを閉じていた人がすでに drawn のルームを開くと、S-14 を出す抽選が入る（F-40〜44 の AC「後から開くと、結果画面が表示される」）
+    @Test
+    func roomModelOpensResultForAlreadyDrawnRoom() async throws {
+        let server = InMemoryServer.demo(.severalRooms)
+        let response = try await server.device(of: "demo-haruka").drawGacha(RoomRequest(roomId: DemoScenario.unlockedRoomID))
+        let model = RoomModel(
+            roomID: DemoScenario.unlockedRoomID,
+            userID: DemoScenario.myUserID,
+            repository: server,
+            functions: server,
+            toasts: DGToastCenter(visibleFor: .seconds(3_600)),
+            seenDraws: InMemorySeenDrawStore()
+        )
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+
+        #expect(await AsyncTestSupport.eventually { model.resultToOpen == response.drawId })
+        #expect(model.drawToReplay == nil)
+        model.resultOpened()
+        #expect(model.resultToOpen == nil)
+        #expect(model.gachaButtonState == .result(drawID: response.drawId))
     }
 }
