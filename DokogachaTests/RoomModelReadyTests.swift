@@ -209,21 +209,22 @@ struct RoomModelReadyTests {
         for userID in [Self.haruka, Self.sota, Self.mio] {
             await Self.setReady(true, userID, on: server)
         }
-        #expect(await AsyncTestSupport.eventually { mine.readyHint == .waitingForAll(remaining: 1) })
-        #expect(harukas.readyHint == .waitingForAll(remaining: 1))
+        for model in [mine, harukas] {
+            #expect(await AsyncTestSupport.eventually { model.readyHint == .waitingForAll(remaining: 1) })
+        }
 
         await mine.toggleReady()
         #expect(server.rooms[DemoScenario.roomID]?.room.status == .unlocked)
         for model in [mine, harukas] {
-            #expect(await AsyncTestSupport.eventually { model.room?.status == .unlocked })
+            // ルームとメンバーは別の購読なので、両方が届くまで待つ
+            #expect(await AsyncTestSupport.eventually { model.room?.status == .unlocked && model.readyCount == 4 })
             #expect(model.readyHint == .unlocked)
             #expect(model.gachaButtonState == .ready)
-            #expect(model.readyCount == 4)
         }
 
         await Self.setReady(false, Self.sota, on: server)
         for model in [mine, harukas] {
-            #expect(await AsyncTestSupport.eventually { model.room?.status == .open })
+            #expect(await AsyncTestSupport.eventually { model.room?.status == .open && model.readyCount == 3 })
             #expect(model.readyHint == .waitingForAll(remaining: 1))
             #expect(model.gachaButtonState == .waiting)
         }
