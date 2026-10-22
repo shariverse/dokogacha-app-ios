@@ -54,8 +54,8 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
     （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`。`DemoScenario`。画面のタスクで要るシナリオを足す）
   - データ層は `AuthService`・`RoomRepository`・`FunctionsClient` の protocol の後ろにあり、起動時に `DataServices.make` が実装を選んで
     `ServerSession.services` で渡す。画面の Model は protocol だけを受け取る。backend に Callable を足したら、擬似のサーバーにも同じ検証を足す
-  - Firestore のトリガー（`onUserProfileUpdate` など）に当たる処理は `InMemoryServer+Triggers.swift` に置き、元の書き込みをした Callable の中で続けて呼ぶ
-    （backend では非同期に動くが、擬似のサーバーでは同期で済ませる）
+  - Firestore のトリガー（`onUserProfileUpdate`・`onMemberWrite`）に当たる処理は `InMemoryServer+Triggers.swift` に置き、元の書き込みをした Callable・直接の書き込みの中で続けて呼ぶ
+    （backend では非同期に動くが、擬似のサーバーでは同期で済ませる）。スケジュール（`checkDeadlines`）は時刻で動かないので、テストで `clock` を進めてから `checkDeadlines()` を呼ぶ
   - Callable のエラーの文言は `Dokogacha/Data/AppError.swift` の 1 か所（`details.reason` で引く。backend の `errors.ts` と鍵をそろえる）。
     `isCancellation`（画面を閉じて `Task` を cancel した）のときはトーストを出さない
   - 擬似のサーバーでほかのメンバーの操作（Callable・準備OK・いいね・lastSeenAt）を再現するときは `server.device(of: uid)` から呼ぶ（同じ検証と数え直しを通る）
@@ -85,8 +85,13 @@ npm run build           # Functions を functions/lib/ にビルドする
 - ずらした設定は `scripts/emulator-config.cjs` が `backend/firebase.emulators.local.json`（git 管理外）に書き出し、`scripts/test-emulator.sh` がそれを `emulators:exec --config` に渡す。
   テストは `emulators:exec` が渡す `FIRESTORE_EMULATOR_HOST`・`FIREBASE_EMULATOR_HUB` などの環境変数で接続先を読むので、ポートを直接書かない
 - プロジェクトは Emulator 専用の `demo-dokogacha`（`.firebaserc`）。`firebase deploy`・`firebase login` は人間がする
-- Functions は `functions/src/index.ts` で Callable に包むだけにし、処理は `rooms/`・`users/` の `service.ts`（Firestore）・`logic.ts`（判定）・`input.ts`（入力の検証）に置く。
+- Functions は `functions/src/index.ts` で Callable・トリガー・スケジュールに包むだけにし、処理は `rooms/`・`users/`・`candidates/`・`unlock/`（準備OKの数え直しと解禁）・`settings/`（設定の変更）の
+  `service.ts`（Firestore）・`logic.ts`（判定）・`input.ts`（入力の検証）に置く。トリガーは `retry: true` にし、処理を冪等にする（今の値と同じなら書かない）。
+  多くのルームを処理するもの（`onUserProfileUpdate`・`checkDeadlines`）は `batch.ts` の `settleInGroups` で、失敗があっても残りを処理してから投げる
   Emulator のテストは処理を Admin SDK で直接呼ぶもの（乱数を差し替えられる。`test/emulator/rooms-service.test.ts`）と、client SDK の `httpsCallable` で Functions の Emulator を呼ぶもの（`rooms-callable.test.ts`）の 2 種類
+- Emulator のテストでも Functions の Emulator のトリガーが動く（`members` を書くと `onMemberWrite` がルームの `memberCount`・`readyCount`・`status` を書き直す）。
+  トリガーが書くフィールドは、短い間隔で読み直して待ってから確かめる（`unlock.test.ts` の `waitForRoom`。固定の時間で待たない）。
+  時刻をずらした判定（締切日時）は、遅れて動いたトリガーが実際の時刻で判定し直すので、データの日時の方を動かして実際の時刻で確かめる
 - Callable のエラーは `functions/src/errors.ts` の `APP_ERRORS`（理由 → gRPC のコードとアプリの文言）にまとめる。アプリは `HttpsError` の `details.reason` で文言を選ぶ
 - CI は `.github/workflows/backend.yml`（ubuntu）。`backend/**` だけの変更では iOS の Build（macOS）は動かない
 
