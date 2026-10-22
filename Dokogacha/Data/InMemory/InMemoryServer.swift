@@ -14,7 +14,7 @@ import Foundation
 /// - 時刻（`clock`）・乱数（`randomIndex`）・ID（`makeID`）は注入する（テストで結果を決めるため）
 /// - `signedInUserID` はこの端末でサインインしている人。protocol の Callable と直接の書き込みは、この人がしたものとして扱う。
 ///   ほかのメンバーの操作（Callable・準備OK・いいね・lastSeenAt）は `device(of:)` の端末から行うと、同じ検証と数え直しを通る
-/// - まだ backend に無い Callable（`drawGacha` など）は `AppError(.notImplemented)` を投げる。backend のタスクで足すときに、ここにも足す
+/// - まだ backend に無い Callable（`proposeReroll` など）は `AppError(.notImplemented)` を投げる。backend のタスクで足すときに、ここにも足す
 final class InMemoryServer {
     /// ルーム 1 つ分の状態（`rooms/{roomId}` とその下の `members`・`candidates`）
     nonisolated struct RoomRecord: Equatable, Sendable {
@@ -24,6 +24,8 @@ final class InMemoryServer {
         var members: [String: Member] = [:]
         /// 候補（鍵は候補の ID）
         var candidates: [String: Candidate] = [:]
+        /// 抽選の記録（鍵は抽選の ID。`drawGacha` だけが作る）
+        var draws: [String: Draw] = [:]
     }
 
     /// `users/{uid}`
@@ -154,7 +156,7 @@ final class InMemoryServer {
         case .invalidArgument:
             .invalidArgument
         case .profileRequired, .roomAlreadyDecided, .ownerCannotLeave, .cannotRemoveOwner, .roomClosed, .postLimitDecrease,
-             .unlockRuleLocked, .likeModeLocked:
+             .unlockRuleLocked, .likeModeLocked, .roomNotUnlocked, .noCandidates, .candidateDrawn:
             .failedPrecondition
         case .inviteCodeNotFound, .roomNotFound, .memberNotFound, .candidateNotFound:
             .notFound

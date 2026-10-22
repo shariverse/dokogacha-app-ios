@@ -23,6 +23,11 @@ export function candidatesRef(room: DocumentReference): CollectionReference {
   return room.collection("candidates");
 }
 
+/** `rooms/{roomId}/draws` */
+export function drawsRef(room: DocumentReference): CollectionReference {
+  return room.collection("draws");
+}
+
 /** `inviteCodes/{code}` */
 export function inviteCodeRef(db: Firestore, code: string): DocumentReference {
   return db.collection("inviteCodes").doc(code);

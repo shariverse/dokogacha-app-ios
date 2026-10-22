@@ -1,7 +1,7 @@
 import type { ExistingCandidate } from "../domain/candidate";
 import type { RoomStatus } from "../domain/models";
 import type { AddCandidateInput } from "./input";
-import { assertCanDeleteCandidate, decideAddCandidate, newCandidateDoc } from "./logic";
+import { assertCanDeleteCandidate, decideAddCandidate, isDrawnCandidate, newCandidateDoc } from "./logic";
 
 /** 理由つきの HttpsError を投げることを確かめる */
 function expectReason(run: () => unknown, reason: string): void {
@@ -98,6 +98,14 @@ describe("assertCanDeleteCandidate（02 の F-11）", () => {
     expectReason(() => { assertCanDeleteCandidate(room(), "carol", { postedBy: "bob" }); }, "not-candidate-owner");
   });
 
+  it("ガチャで当選した候補は、引き直しの可決の後（unlocked）でも、投稿した人も作成者も削除できない", () => {
+    for (const uid of ["bob", "alice"]) {
+      expectReason(() => { assertCanDeleteCandidate(room("unlocked"), uid, { postedBy: "bob" }, true); }, "candidate-drawn");
+    }
+    // 投稿した人でも作成者でもなければ、先に not-candidate-owner
+    expectReason(() => { assertCanDeleteCandidate(room("unlocked"), "carol", { postedBy: "bob" }, true); }, "not-candidate-owner");
+  });
+
   it("drawn・closed では、投稿した人も作成者も削除できない", () => {
     for (const status of ["drawn", "closed"] as const) {
       expectReason(() => { assertCanDeleteCandidate(room(status), "bob", { postedBy: "bob" }); }, "room-already-decided");
@@ -128,5 +136,18 @@ describe("newCandidateDoc", () => {
       fromPastIdeaId: "idea1",
       createdAt: "now",
     });
+  });
+});
+
+describe("isDrawnCandidate", () => {
+  it("今の当選・引き直しで除外した前の当選・抽選の記録が指す候補は当選した候補", () => {
+    expect(isDrawnCandidate({ winnerCandidateId: "c1", excludedCandidateIds: [] }, "c1", false)).toBe(true);
+    expect(isDrawnCandidate({ winnerCandidateId: "c2", excludedCandidateIds: ["c1"] }, "c1", false)).toBe(true);
+    expect(isDrawnCandidate({ winnerCandidateId: null, excludedCandidateIds: [] }, "c1", true)).toBe(true);
+  });
+
+  it("どれにも当たらなければ当選した候補ではない（フィールドが無い壊れたデータでも）", () => {
+    expect(isDrawnCandidate({ winnerCandidateId: "c2", excludedCandidateIds: ["c3"] }, "c1", false)).toBe(false);
+    expect(isDrawnCandidate({}, "c1", false)).toBe(false);
   });
 });

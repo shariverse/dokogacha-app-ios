@@ -1,8 +1,10 @@
 import { MAX_MEMBERS } from "./constants";
 import type { LikeMode } from "./models";
 import {
+  compareCandidateIds,
   computeOdds,
   displayPercentOf,
+  eligibleInIdOrder,
   highlightOf,
   levelOf,
   probabilitiesOf,
@@ -18,6 +20,15 @@ import {
 
 /** 02 の §4.2 の例のいいね数 */
 const EXAMPLE_LIKES = [4, 3, 3, 2, 2, 1, 1, 0];
+
+/**
+ * 02 の §4.2 の例の確率（候補の ID 順 c0〜c7 に重みを足したときの値。Swift の `ProbabilityTests.exampleProbabilities` と同じ）。
+ * 浮動小数点の最下位のビットまで比べる（足す順を逆にすると合計が 18.29252873988394 になり、値がずれる）
+ */
+const EXAMPLE_PROBABILITIES = [
+  0.16400138234901213, 0.1493533696963436, 0.1493533696963436, 0.13197812050497354, 0.13197812050497354,
+  0.10933425489934143, 0.10933425489934143, 0.05466712744967071,
+];
 
 /** いいね数の一覧から、`c0`・`c1`… の ID の入力を作る */
 function inputs(likes: readonly number[]): OddsInput[] {
@@ -66,6 +77,26 @@ describe("重み・確率（F-21）", () => {
     expect(round2(sum(odds.map((o) => o.weight)))).toBe(18.29);
     expect(odds.map((o) => o.displayPercent)).toEqual([16, 15, 15, 13, 13, 11, 11, 5]);
     expect(table.maxDisplayPercent).toBe(16);
+  });
+
+  it("02 の §4.2 の例の確率は、渡す順によらず候補の ID 順に足した値と完全に一致する（Swift と同じ値）", () => {
+    const forward = computeOdds(inputs(EXAMPLE_LIKES), "boost");
+    const reversed = computeOdds([...inputs(EXAMPLE_LIKES)].reverse(), "boost");
+    expect(orderedAll(forward, EXAMPLE_LIKES.length).map((odds) => odds.probability)).toEqual(EXAMPLE_PROBABILITIES);
+    expect(orderedAll(reversed, EXAMPLE_LIKES.length).map((odds) => odds.probability)).toEqual(EXAMPLE_PROBABILITIES);
+  });
+
+  it("候補の ID 順は UTF-16 のコード単位の辞書順で、除外した候補を外す", () => {
+    const ids = ["b", "a", "B", "aa", "\u{1F600}", "\uFF21", "c"];
+    expect(eligibleInIdOrder(ids.map((id) => ({ id })), ["c"]).map((candidate) => candidate.id)).toEqual([
+      "B",
+      "a",
+      "aa",
+      "b",
+      "\u{1F600}",
+      "\uFF21",
+    ]);
+    expect(compareCandidateIds("a", "a")).toBe(0);
   });
 
   it("表示 % の合計は 100 にそろえない（例では 99）", () => {

@@ -233,9 +233,12 @@ describe("準備OKと解禁（onMemberWrite・forceUnlock・checkDeadlines）", 
 
         await setReady(roomId, "bob", false);
         await waitForRoom(roomId, { readyCount: 0, status: "unlocked" });
+        // joinRoom は memberCount を自分で 4 にするので、memberCount だけを待つとトリガーが数え直す前に通ってしまう。
+        // readyCount をトリガーしか直さない値にずらしてから参加させ、数え直した後（readyCount が 0 に戻った後）の状態を確かめる
+        await db.doc(`rooms/${roomId}`).update({ readyCount: 99 });
         await addUser("dave");
         await joinRoom(deps(), "dave", { inviteCode });
-        await waitForRoom(roomId, { memberCount: 4, status: "unlocked" });
+        await waitForRoom(roomId, { memberCount: 4, readyCount: 0, status: "unlocked" });
       },
       TRIGGER_TIMEOUT_MS * 3,
     );

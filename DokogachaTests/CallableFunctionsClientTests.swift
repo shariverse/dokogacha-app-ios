@@ -86,6 +86,17 @@ struct CallableFunctionsClientTests {
         #expect(Set(transport.calls[2].json.keys) == ["roomId"])
     }
 
+    /// `drawGacha` は `{ roomId }` だけを送り、backend の `DrawGachaResult` の JSON（抽選の ID・当選・先に回した人がいたか）を読む
+    @Test
+    func drawGachaSendsRoomAndDecodesResult() async throws {
+        let transport = FakeTransport()
+        transport.responseJSON = Data(#"{"drawId":"d1","candidateId":"c2","alreadyDrawn":true}"#.utf8)
+        let response = try await CallableFunctionsClient(transport: transport).drawGacha(RoomRequest(roomId: "r1"))
+        #expect(response == DrawGachaResponse(drawId: "d1", candidateId: "c2", alreadyDrawn: true))
+        #expect(transport.calls.first?.name == .drawGacha)
+        #expect(transport.calls.first.map { Set($0.json.keys) } == ["roomId"])
+    }
+
     @Test
     func addCandidateReturnsDuplicate() async throws {
         let transport = FakeTransport()

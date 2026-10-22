@@ -154,6 +154,20 @@ struct CandidateDetailModelTests {
         #expect(!model.isConfirmingDelete)
     }
 
+    /// 引き直しの可決の後（`unlocked`）でも、前の当選（除外した候補）は削除できない
+    @Test
+    func cannotDeleteDrawnCandidate() async {
+        let server = RoomModelTests.makeServer()
+        let model = Self.makeModel(Self.mine, server: server)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+        #expect(model.canDelete)
+
+        server.rooms[DemoScenario.roomID]?.room.excludedCandidateIds = [Self.mine]
+        #expect(await AsyncTestSupport.eventually { !model.canDelete })
+    }
+
     // MARK: - 削除
 
     /// 「この候補を削除」で確認のダイアログを出し、「削除する」で `deleteCandidate` を送る。

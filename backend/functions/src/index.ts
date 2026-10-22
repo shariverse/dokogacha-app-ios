@@ -1,7 +1,7 @@
 /**
  * Cloud Functions（2nd gen）の入口。
  * Callable やトリガーの関数は、機能を作るタスクでここから export する（05_architecture.md の §5）。
- * 処理の中身は `rooms/`・`users/`・`candidates/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
+ * 処理の中身は `rooms/`・`users/`・`candidates/`・`unlock/`・`settings/`・`draw/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -15,7 +15,10 @@ import * as candidates from "./candidates/service";
 import { FUNCTIONS_REGION } from "./config";
 import { defaultDeps } from "./deps";
 import { DEADLINE_CHECK_INTERVAL_MINUTES, SCHEDULE_TIME_ZONE } from "./domain/constants";
-import type { MemberDoc } from "./domain/models";
+import type { MemberDoc, RoomDoc } from "./domain/models";
+import { drawnEventOf } from "./draw/logic";
+import { notifyRoomDrawn } from "./draw/notify";
+import * as draw from "./draw/service";
 import * as rooms from "./rooms/service";
 import * as settings from "./settings/service";
 import { memberWriteAffectsUnlock } from "./unlock/logic";
@@ -132,3 +135,26 @@ export const checkDeadlines = onSchedule(
     }
   },
 );
+
+/**
+ * ガチャを回す（02 の F-40。サーバーの乱数 `crypto.randomInt` で抽選する）。
+ * 先に誰かが回していれば、抽選せずにその結果（同じ `drawId`）を返す
+ */
+export const drawGacha = onCall((request) =>
+  runCallable("drawGacha", request, (uid, data) => draw.drawGacha(deps(), uid, data)),
+);
+
+/**
+ * ルームが `drawn` になったら（引き直しの後にもう一度回したときも）、回した人以外に結果を知らせる通知の呼び出し口を呼ぶ
+ * （05 の §5。Firestore のトリガー。通知を送る処理はタスク 32）。`drawn` のままの更新（数え直しなど）では何もしない。
+ * 失敗したらやり直す（`retry: true`。今はログだけなので冪等）
+ */
+export const onRoomDrawn = onDocumentUpdated({ document: "rooms/{roomId}", retry: true }, async (event) => {
+  const before = event.data?.before.data() as Partial<RoomDoc> | undefined;
+  const after = event.data?.after.data() as Partial<RoomDoc> | undefined;
+  const drawn = drawnEventOf(before, after);
+  if (drawn === null) {
+    return;
+  }
+  await notifyRoomDrawn(event.params.roomId, drawn.drawId);
+});

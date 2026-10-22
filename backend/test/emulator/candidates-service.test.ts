@@ -276,6 +276,30 @@ describe("候補の Functions の処理（Emulator の Firestore）", () => {
       expect(await candidateCount(roomId)).toBe(1);
     });
 
+    it("ガチャで当選した候補（今の当選・引き直しで除外した前の当選・抽選の記録が指す候補）は、unlocked でも消せない", async () => {
+      const roomId = await room(5);
+      const winner = await add("bob", roomId);
+      const excluded = await add("bob", roomId, { ...enoshima, name: "鎌倉" });
+      const recorded = await add("bob", roomId, { ...enoshima, name: "葉山" });
+      const free = await add("bob", roomId, { ...enoshima, name: "逗子" });
+      // 引き直しが可決して unlocked に戻ったルーム（前の当選は除外に入る。抽選の記録だけが指す候補もある）
+      await db.doc(`rooms/${roomId}`).update({
+        status: "unlocked",
+        forcedUnlock: true,
+        winnerCandidateId: winner,
+        excludedCandidateIds: [excluded],
+      });
+      await db.collection(`rooms/${roomId}/draws`).add({ candidateId: recorded, drawnBy: "alice", isReroll: false });
+      for (const candidateId of [winner, excluded, recorded]) {
+        for (const uid of ["bob", "alice"]) {
+          await expectReason(deleteCandidate(deps(), uid, { roomId, candidateId }), "failed-precondition", "candidate-drawn");
+        }
+      }
+      await deleteCandidate(deps(), "bob", { roomId, candidateId: free });
+      expect(await candidateIds(roomId)).toEqual([winner, excluded, recorded].sort());
+      expect(await candidateCount(roomId)).toBe(3);
+    });
+
     it("候補が無ければ candidate-not-found・メンバーでなければ not-room-member", async () => {
       const roomId = await room();
       const id = await add("bob", roomId);

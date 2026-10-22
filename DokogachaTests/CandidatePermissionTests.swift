@@ -48,6 +48,27 @@ struct CandidatePermissionTests {
         )
     }
 
+    /// ガチャで当選した候補は、引き直しの可決の後（unlocked）でも、投稿した本人も作成者も削除できない（backend の `candidate-drawn`）
+    @Test
+    func cannotDeleteDrawnCandidate() {
+        for userID in ["me", "owner"] {
+            #expect(!CandidatePermission.canDelete(
+                postedBy: "me", ownerID: "owner", roomStatus: .unlocked, userID: userID, isDrawn: true
+            ))
+        }
+    }
+
+    /// 当選した候補は、今の当選と引き直しで除外した前の当選（backend の `isDrawnCandidate` のルームのフィールドの分）
+    @Test
+    func drawnCandidatesAreWinnerAndExcluded() {
+        var room = DomainModelsTests.sampleRoom()
+        room.winnerCandidateId = "c2"
+        room.excludedCandidateIds = ["c1"]
+        #expect(CandidatePermission.isDrawn(candidateID: "c1", in: room))
+        #expect(CandidatePermission.isDrawn(candidateID: "c2", in: room))
+        #expect(!CandidatePermission.isDrawn(candidateID: "c3", in: room))
+    }
+
     /// 報告できるのは他人の投稿だけ
     @Test
     func canReportOnlyOthersPosts() {

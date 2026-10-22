@@ -13,7 +13,7 @@ import Observation
 /// （02 の §3.3 の「ルーム画面を離れたとき」は S-07 が書く。S-10 はその上に重ねるシート）。
 ///
 /// 削除（F-11）は確認のダイアログを挟み、Callable の `deleteCandidate` を呼ぶ:
-/// - 出すのは投稿した本人か作成者で、ルームが `open`・`unlocked` のとき（`CandidatePermission.canDelete`）
+/// - 出すのは投稿した本人か作成者で、ルームが `open`・`unlocked` のとき（`CandidatePermission.canDelete`。ガチャで当選した候補は出さない）
 /// - 送っている途中は二度押しを受け付けず、画面は閉じる操作（閉じるボタン・下スワイプ）を止める
 /// - 通信エラーや、権限・状態で断られたとき（`AppError` の文言）はトーストを出し、シートは閉じない
 /// - 成功したら `shouldClose` を立て、画面はシートを閉じて S-07 に戻る
@@ -106,7 +106,7 @@ final class CandidateDetailModel {
         row?.likers.map(\.name).filter { !$0.isEmpty } ?? []
     }
 
-    /// 「この候補を削除」を出すか（投稿した本人か作成者で、ルームが `open`・`unlocked`）
+    /// 「この候補を削除」を出すか（投稿した本人か作成者で、ルームが `open`・`unlocked`。ガチャで当選した候補は出さない）
     var canDelete: Bool {
         guard let candidate, let current = room.room else {
             return false
@@ -115,7 +115,8 @@ final class CandidateDetailModel {
             postedBy: candidate.postedBy,
             ownerID: current.ownerId,
             roomStatus: current.status,
-            userID: room.userID
+            userID: room.userID,
+            isDrawn: CandidatePermission.isDrawn(candidateID: candidateID, in: current)
         )
     }
 

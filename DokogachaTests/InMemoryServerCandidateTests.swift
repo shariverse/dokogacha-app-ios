@@ -282,6 +282,38 @@ struct InMemoryServerCandidateTests {
         #expect(server.rooms[roomID]?.room.candidateCount == 1)
     }
 
+    /// ガチャで当選した候補（今の当選・引き直しで除外した前の当選・抽選の記録が指す候補）は、unlocked でも消せない（backend と同じ）
+    @Test
+    func cannotDeleteDrawnCandidate() async throws {
+        let server = InMemoryServerTests.makeServer()
+        let roomID = try await Self.makeRoom(server, postLimit: 5)
+        let winner = try await Self.add(server, "bob", roomID)
+        let excluded = try await Self.add(server, "bob", roomID, place: Self.place(named: "鎌倉"))
+        let recorded = try await Self.add(server, "bob", roomID, place: Self.place(named: "葉山"))
+        let free = try await Self.add(server, "bob", roomID, place: Self.place(named: "逗子"))
+        server.rooms[roomID]?.room.status = .unlocked
+        server.rooms[roomID]?.room.winnerCandidateId = winner
+        server.rooms[roomID]?.room.excludedCandidateIds = [excluded]
+        server.rooms[roomID]?.draws["d0"] = Draw(
+            candidateId: recorded,
+            probability: 0.5,
+            weights: [:],
+            drawnBy: "owner",
+            drawnByName: "owner",
+            isReroll: false,
+            createdAt: InMemoryServerTests.now
+        )
+        for candidateID in [winner, excluded, recorded] {
+            for userID in ["bob", "owner"] {
+                await #expect(throws: InMemoryServer.error(.candidateDrawn)) {
+                    try await server.device(of: userID).deleteCandidate(CandidateRequest(roomId: roomID, candidateId: candidateID))
+                }
+            }
+        }
+        try await server.device(of: "bob").deleteCandidate(CandidateRequest(roomId: roomID, candidateId: free))
+        #expect(server.rooms[roomID]?.room.candidateCount == 3)
+    }
+
     /// 候補が無ければ「候補が見つかりません」・メンバーでなければ削除できない
     @Test
     func deleteMissingCandidateOrNonMember() async throws {

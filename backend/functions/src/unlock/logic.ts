@@ -123,6 +123,19 @@ export function planUnlock(room: RoomUnlockState, counts: MemberCounts, nowMs: n
   return { update, unlockedBy: judgement.kind === "unlocked" ? judgement.reason : null };
 }
 
+/**
+ * 数え直した準備OKで判定し直した後の状態（`planUnlock` が書く `status`、書かなければ今の状態）。
+ * `drawGacha` が、回す前にトランザクションの中で解禁を確かめるのに使う（`status` のフィールドだけで回させない。
+ * 参加の直後は `onMemberWrite` が `open` に戻すまでの数秒、新しい人の準備OK無しで `unlocked` のままになり得るため）。
+ * 規則は `planUnlock` と同じ（強制解禁・締切日時・引き直しの可決の後は、準備OKの数で `open` に戻さない）。
+ * @param room ルームの値
+ * @param counts 数え直したメンバーの数
+ * @param nowMs 今の時刻のミリ秒
+ */
+export function statusAfterRecount(room: RoomUnlockState, counts: MemberCounts, nowMs: number): RoomStatus {
+  return planUnlock(room, counts, nowMs).update.status ?? room.status;
+}
+
 /** 強制解禁の判定の結果。`unlock` = 強制解禁する・`alreadyUnlocked` = もう解禁している（何も書かない） */
 export type ForceUnlockDecision = "unlock" | "alreadyUnlocked";
 

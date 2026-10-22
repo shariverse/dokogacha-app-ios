@@ -65,7 +65,7 @@ nonisolated struct OddsTable: Equatable, Sendable {
 /// 出やすさ（F-21〜F-23）の計算。
 ///
 /// どれも副作用の無い純粋な関数。同じ式を TypeScript（`probability.ts`）でも持つので、計算の順番
-/// （重みの合計は渡した順に左から足す・丸めは 0.5 を切り上げる）までそろえ、浮動小数点の結果を一致させる。
+/// （重みの合計は候補の ID 順に左から足す・丸めは 0.5 を切り上げる）までそろえ、浮動小数点の結果を一致させる。
 nonisolated enum Probability {
     /// 候補の重み（F-21）。
     ///
@@ -82,7 +82,8 @@ nonisolated enum Probability {
 
     /// 重みから確率を出す（F-21「確率 = 重み ÷ Σ重み」）。
     ///
-    /// 合計は渡した順に左から足す（TypeScript と同じ順にして結果を一致させる）。合計が 0 以下なら（候補が無いなど）すべて 0。
+    /// 合計は渡した順に左から足す（TypeScript と同じ順にして結果を一致させる。`odds(of:)`・抽選は候補の ID 順で渡す）。
+    /// 合計が 0 以下なら（候補が無いなど）すべて 0。
     /// - Parameter weights: 抽選の対象の候補の重み
     /// - Returns: 同じ順の確率
     static func probabilities(weights: [Double]) -> [Double] {
@@ -125,16 +126,37 @@ nonisolated enum Probability {
         return .low
     }
 
+    /// 候補の ID の順（UTF-16 のコード単位の辞書順。TypeScript の `compareCandidateIds`・`Array.prototype.sort` の既定と同じ）。
+    ///
+    /// Swift の `String` の `<` は Unicode の正準等価で比べるので、TypeScript と順が変わりうる。そのため `utf16` で比べる
+    static func precedesInIDOrder(_ lhs: String, _ rhs: String) -> Bool {
+        lhs.utf16.lexicographicallyPrecedes(rhs.utf16)
+    }
+
+    /// 抽選の対象の候補を、候補の ID 順に並べる（引き直しで除外された候補は外す。TypeScript の `eligibleInIdOrder`）。
+    ///
+    /// 浮動小数点の足し算は順番で最下位のビットが変わるので、重みの合計（確率の分母）は必ずこの順で足す。
+    /// 画面の並び（新着順・いいね順）で足すと、同じ候補でも確率が TypeScript（`drawGacha` の抽選記録）とわずかに食い違う
+    /// - Parameters:
+    ///   - candidates: 候補（どの順でもよい）
+    ///   - excludedIDs: 抽選の対象から外す候補の ID
+    static func eligibleInIDOrder<Item>(_ candidates: [Item], id: (Item) -> String, excluding excludedIDs: Set<String>) -> [Item] {
+        candidates
+            .filter { !excludedIDs.contains(id($0)) }
+            .sorted { precedesInIDOrder(id($0), id($1)) }
+    }
+
     /// ルームの全候補の出やすさ（F-21・F-22）をまとめて出す。
     ///
     /// 引き直しで除外された候補（`rooms.excludedCandidateIds`）は、`drawGacha` と同じく抽選の対象から外し、
     /// 重みの合計にも平均 % の分母にも入れない（表に入らない）。除外した候補を画面でどう見せるかは画面の側で決める。
+    /// 重みの合計は、渡した順ではなく候補の ID 順に足す（`eligibleInIDOrder`）。
     /// - Parameters:
-    ///   - candidates: 候補（並びの順に重みを足す）
+    ///   - candidates: 候補（どの順でもよい）
     ///   - mode: ルームのいいねの効き方
     ///   - excludedIDs: 抽選の対象から外す候補の ID
     static func odds(of candidates: [OddsInput], mode: LikeMode, excluding excludedIDs: Set<String> = []) -> OddsTable {
-        let eligible = candidates.filter { !excludedIDs.contains($0.id) }
+        let eligible = eligibleInIDOrder(candidates, id: \.id, excluding: excludedIDs)
         let weights = eligible.map { weight(likeCount: $0.likeCount, mode: mode) }
         let chances = probabilities(weights: weights)
         var odds: [String: CandidateOdds] = [:]

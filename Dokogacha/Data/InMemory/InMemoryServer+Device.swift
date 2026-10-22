@@ -69,6 +69,11 @@ extension InMemoryServer {
             try server.forceUnlock(request, by: userID)
         }
 
+        /// ガチャを回す（`drawGacha`）
+        func drawGacha(_ request: RoomRequest) async throws -> DrawGachaResponse {
+            try server.drawGacha(request, by: userID)
+        }
+
         /// 自分の準備OKを変える（直接の書き込み）
         func setReady(_ ready: Bool, roomID: String) async {
             server.applyDirectWrite { try server.writeReady(ready, roomID: roomID, userID: userID, by: userID) }

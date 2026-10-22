@@ -9,9 +9,9 @@ import type { ExistingCandidate } from "../domain/candidate";
 import type { CandidateDoc, MemberDoc, RoomDoc } from "../domain/models";
 import type { ServiceDeps } from "../deps";
 import { appError } from "../errors";
-import { candidatesRef, membersRef, roomRef } from "../paths";
+import { candidatesRef, drawsRef, membersRef, roomRef } from "../paths";
 import { parseAddCandidateInput, parseDeleteCandidateInput } from "./input";
-import { assertCanDeleteCandidate, decideAddCandidate, newCandidateDoc } from "./logic";
+import { assertCanDeleteCandidate, decideAddCandidate, isDrawnCandidate, newCandidateDoc } from "./logic";
 
 /**
  * トランザクションの中で、ルームと呼んだ人のメンバーのドキュメントを読む。
@@ -84,7 +84,7 @@ export async function addCandidate(deps: ServiceDeps, uid: string, data: unknown
 }
 
 /**
- * 候補を削除する（02 の F-11。投稿した人か作成者だけ・`open`・`unlocked` のときだけ）。
+ * 候補を削除する（02 の F-11。投稿した人か作成者だけ・`open`・`unlocked` のときだけ・ガチャで当選した候補は消せない）。
  * いいね（`likedBy`）は候補のドキュメントの中にあるので、候補と一緒に消える。
  * 報告（`reports`。F-14・タスク 40）は運営が確かめるための記録なので、候補を消しても残す。
  * @param deps 外部のもの
@@ -102,7 +102,9 @@ export async function deleteCandidate(deps: ServiceDeps, uid: string, data: unkn
     if (candidate === undefined) {
       throw appError("candidate-not-found");
     }
-    assertCanDeleteCandidate(room, uid, candidate);
+    // 抽選の記録がこの候補を指しているか（ルームのフィールドから外れた古い当選も拾う。単一フィールドのインデックスで引ける）
+    const draws = await tx.get(drawsRef(ref).where("candidateId", "==", candidateId).limit(1));
+    assertCanDeleteCandidate(room, uid, candidate, isDrawnCandidate(room, candidateId, !draws.empty));
     tx.delete(candidateRef);
     tx.update(ref, { candidateCount: FieldValue.increment(-1) });
   });

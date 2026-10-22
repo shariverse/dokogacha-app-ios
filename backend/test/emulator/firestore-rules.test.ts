@@ -347,7 +347,8 @@ describe("firestore.rules", () => {
     it("他人の候補にいいねを付けて、取り消せる（open・unlocked）", async () => {
       for (const status of ["open", "unlocked"]) {
         await retryWhileLocked(() => testEnv.clearFirestore(), isLockTimeout);
-        await seed(status);
+        // unlocked は強制解禁で作る（準備OKが 0 人の全員OK条件の unlocked は、トリガーが open に戻す）
+        await seed(status, status === "unlocked");
         await assertSucceeds(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("dave") }));
         expect(await likedBy("c1")).toEqual(["bob", "dave"]);
         await assertSucceeds(updateDoc(candidate("bob", "c1"), { likedBy: arrayRemove("bob") }));
@@ -411,6 +412,50 @@ describe("firestore.rules", () => {
     });
   });
 
+  describe("抽選の記録（draws。05 の §4）", () => {
+    /** 抽選の記録 */
+    const drawData = {
+      candidateId: "c2",
+      probability: 0.5,
+      weights: { c1: 2, c2: 1 },
+      drawnBy: "bob",
+      drawnByName: "ぼぶ",
+      isReroll: false,
+      createdAt: Timestamp.fromMillis(0),
+    };
+
+    beforeEach(async () => {
+      await seed("drawn");
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), "rooms/room1/draws/d1"), drawData);
+      });
+    });
+
+    it("メンバーは読める（ほかの人が回した結果を受け取る。F-41）", async () => {
+      await assertSucceeds(getDoc(doc(as("bob"), "rooms/room1/draws/d1")));
+      await assertSucceeds(getDocs(collection(as("alice"), "rooms/room1/draws")));
+    });
+
+    it("メンバー以外・サインインしていない人は読めない", async () => {
+      await assertFails(getDoc(doc(as("carol"), "rooms/room1/draws/d1")));
+      await assertFails(getDocs(collection(as(null), "rooms/room1/draws")));
+    });
+
+    it("メンバーでも作成・変更・削除できない（抽選は drawGacha だけ。作成者でも）", async () => {
+      await assertFails(setDoc(doc(as("bob"), "rooms/room1/draws/d2"), { ...drawData, drawnBy: "bob" }));
+      await assertFails(setDoc(doc(as("alice"), "rooms/room1/draws/d2"), { ...drawData, drawnBy: "alice" }));
+      await assertFails(updateDoc(doc(as("bob"), "rooms/room1/draws/d1"), { candidateId: "c1" }));
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1/draws/d1"), { probability: 1 }));
+      await assertFails(deleteDoc(doc(as("alice"), "rooms/room1/draws/d1")));
+      await assertFails(setDoc(doc(as("carol"), "rooms/room1/draws/d3"), drawData));
+    });
+
+    it("ルームの当選・状態は直接書き換えられない（作成者でも）", async () => {
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { winnerCandidateId: "c1" }));
+      await assertFails(updateDoc(doc(as("bob"), "rooms/room1"), { status: "unlocked", currentDrawId: null }));
+    });
+  });
+
   describe("まだ作っていないコレクション", () => {
     beforeEach(() => seed());
 
@@ -419,8 +464,7 @@ describe("firestore.rules", () => {
       await assertFails(setDoc(doc(as("carol"), "inviteCodes/AAAAAA"), { roomId: "room1" }));
     });
 
-    it("抽選・過去のアイデア・報告は、メンバーでも読み書きできない", async () => {
-      await assertFails(getDocs(collection(as("bob"), "rooms/room1/draws")));
+    it("過去のアイデア・報告は、本人・メンバーでも読み書きできない", async () => {
       await assertFails(getDocs(collection(as("alice"), "users/alice/pastIdeas")));
       await assertFails(setDoc(doc(as("bob"), "reports/r1"), { roomId: "room1" }));
     });

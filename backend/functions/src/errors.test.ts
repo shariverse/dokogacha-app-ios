@@ -35,6 +35,18 @@ describe("APP_ERRORS", () => {
     });
   });
 
+  it("抽選（02 の F-40「候補がありません」）と、当選した候補の削除の文言", () => {
+    expect(APP_ERRORS["room-not-unlocked"]).toEqual({
+      code: "failed-precondition",
+      message: "まだガチャは解禁されていません",
+    });
+    expect(APP_ERRORS["no-candidates"]).toEqual({ code: "failed-precondition", message: "候補がありません" });
+    expect(APP_ERRORS["candidate-drawn"]).toEqual({
+      code: "failed-precondition",
+      message: "ガチャで当選した候補は削除できません",
+    });
+  });
+
   it("想定していないエラーとサインインの無いときは「通信できませんでした」（05 の §6 のトースト）", () => {
     expect(APP_ERRORS.internal.message).toBe("通信できませんでした");
     expect(APP_ERRORS.unauthenticated).toEqual({ code: "unauthenticated", message: "通信できませんでした" });
