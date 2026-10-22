@@ -197,7 +197,8 @@ extension InMemoryServer: FunctionsClient {
 
     /// 候補を追加する（backend の `candidates/service.ts` の `addCandidate`。判定の順は `logic.ts` の `decideAddCandidate`）。
     ///
-    /// 入力の検証 → ルーム → メンバー → 状態（open・unlocked）→ 重複（作らずに既存の候補を返す。自分の投稿でも・上限でも）
+    /// 入力の検証 → ルーム → メンバー → 持ち込み元（`fromPastIdeaId` があれば、自分の過去のアイデアにあるか。無ければ `invalid-argument`）
+    /// → 状態（open・unlocked）→ 重複（作らずに既存の候補を返す。自分の投稿でも・上限でも）
     /// → 自分の投稿数の上限 → ルームの候補の上限（200 件）の順に確かめ、`colorIndex` は既存の最大 + 1 にする
     func addCandidate(_ request: AddCandidateRequest, by callerID: String?) throws -> AddCandidateResult {
         let userID = try Self.requireCaller(callerID)
@@ -213,6 +214,9 @@ extension InMemoryServer: FunctionsClient {
         }
         guard let member = record.members[userID] else {
             throw Self.error(.notRoomMember)
+        }
+        if let fromPastIdeaID, pastIdeas[userID]?[fromPastIdeaID] == nil {
+            throw Self.error(.invalidArgument)
         }
         guard CandidateRules.editableStatuses.contains(record.room.status) else {
             throw Self.error(.roomAlreadyDecided)

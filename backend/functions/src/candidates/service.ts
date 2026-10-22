@@ -9,7 +9,7 @@ import type { ExistingCandidate } from "../domain/candidate";
 import type { CandidateDoc, MemberDoc, RoomDoc } from "../domain/models";
 import type { ServiceDeps } from "../deps";
 import { appError } from "../errors";
-import { candidatesRef, drawsRef, membersRef, roomRef } from "../paths";
+import { candidatesRef, drawsRef, membersRef, roomRef, userRef } from "../paths";
 import { parseAddCandidateInput, parseDeleteCandidateInput } from "./input";
 import { assertCanDeleteCandidate, decideAddCandidate, isDrawnCandidate, newCandidateDoc } from "./logic";
 
@@ -45,9 +45,27 @@ function createdAtMs(value: unknown): number {
 export type AddCandidateResult = { candidateId: string } | { duplicateOf: string };
 
 /**
- * 候補を追加する（02 の F-10）。
+ * 過去のアイデアから持ち込むとき（`fromPastIdeaId` があるとき）、それが呼んだ人の過去のアイデアにあるか、トランザクションの中で確かめる。
+ * 無ければ（他人の・作り話の ID）`invalid-argument`。アプリは自分の過去のアイデアの一覧から選んだ ID だけを送るので、通常は出ない。
+ * 過去のアイデアは本人しか読めず、消えるのはアカウントの削除のときだけ（02 の F-06）。
+ * @throws `invalid-argument`
+ */
+async function assertOwnPastIdea(tx: Transaction, deps: ServiceDeps, uid: string, pastIdeaId: string | null): Promise<void> {
+  if (pastIdeaId === null) {
+    return;
+  }
+  const idea = await tx.get(userRef(deps.db, uid).collection("pastIdeas").doc(pastIdeaId));
+  if (!idea.exists) {
+    throw appError("invalid-argument");
+  }
+}
+
+/**
+ * 候補を追加する（02 の F-10。過去のアイデアからの持ち込み（F-13）も同じ判定で追加する）。
  * ルームの候補をすべて（最大 200 件）トランザクションの中で読み、状態・重複・上限を確かめてから作る。
  * 同じ場所があれば作らずに `{ duplicateOf }` を返す（アプリは「すでに候補にあります。いいねしますか？」を出す）。
+ * 持ち込みのときは、持ち込み元が自分の過去のアイデアにあることも確かめ、`fromPastIdeaId` に残す
+ * （いいねは 0 から・投稿者は自分。02 の §3.4。過去のアイデアは消さずに残す）。
  * @param deps 外部のもの
  * @param uid 投稿する人
  * @param data `request.data`（`{ roomId, place, category, note, url?, fromPastIdeaId? }`）
@@ -59,6 +77,7 @@ export async function addCandidate(deps: ServiceDeps, uid: string, data: unknown
   const ref = roomRef(db, input.roomId);
   return db.runTransaction(async (tx) => {
     const { room, member } = await getRoomAsMember(tx, ref, uid);
+    await assertOwnPastIdea(tx, deps, uid, input.fromPastIdeaId);
     const snapshot = await tx.get(candidatesRef(ref));
     const existing = snapshot.docs.map((doc): ExistingCandidate => {
       const candidate = doc.data() as CandidateDoc;
