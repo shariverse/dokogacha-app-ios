@@ -35,6 +35,9 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     /// `room-with-candidates` に、自分の過去のアイデア（2 つのルームの 5 件）を足したもの
     /// （S-08 の「過去のアイデア」から持ち込む UI テスト・撮影用。`DemoScenario+PastIdeas.swift`）
     case pastIdeas = "past-ideas"
+    /// `room-with-candidates` の、ほかのメンバー（はるか）が広告非表示を買っていて、ルームが広告なしのもの
+    /// （S-07 の「◯◯さんのおかげで、このルームは広告なし」の UI テスト・撮影用。F-51。`DemoScenario+AdFree.swift`）
+    case adFreeRoom = "ad-free-room"
 
     /// 表示名をまだ登録していないシナリオか（自分とほかのメンバーのプロフィールを入れない）
     var isFirstLaunch: Bool {
@@ -107,12 +110,12 @@ extension InMemoryServer {
                 )
             }
         }
-        if [.oneRoom, .roomWithCandidates, .severalRooms, .pastIdeas].contains(scenario) {
+        if [.oneRoom, .roomWithCandidates, .severalRooms, .pastIdeas, .adFreeRoom].contains(scenario) {
             server.rooms[DemoScenario.roomID] = demoRoom(now: now)
             let codeEntry = InviteCodeEntry(roomId: DemoScenario.roomID, createdAt: now.addingTimeInterval(-7_200))
             server.inviteCodes[DemoScenario.inviteCode] = codeEntry
         }
-        if [.roomWithCandidates, .severalRooms, .pastIdeas].contains(scenario) {
+        if [.roomWithCandidates, .severalRooms, .pastIdeas, .adFreeRoom].contains(scenario) {
             server.rooms[DemoScenario.roomID]?.candidates = demoCandidates(now: now)
             server.rooms[DemoScenario.roomID]?.room.candidateCount = 3
         }
@@ -134,6 +137,9 @@ extension InMemoryServer {
         addClosingDemoRooms(scenario, to: server, now: now)
         if scenario == .pastIdeas {
             addPastIdeaDemo(to: server, now: now)
+        }
+        if scenario == .adFreeRoom {
+            addAdFreeDemo(to: server)
         }
         return server
     }

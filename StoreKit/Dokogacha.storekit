@@ -1,0 +1,38 @@
+{
+  "identifier" : "D0C06AC1",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "480",
+      "familyShareable" : false,
+      "internalID" : "D0C06AC2",
+      "localizations" : [
+        {
+          "description" : "すべての画面の広告を非表示にします。あなたが参加しているルームでは、メンバー全員の広告も消えます。",
+          "displayName" : "広告を非表示にする",
+          "locale" : "ja"
+        }
+      ],
+      "productID" : "remove_ads",
+      "referenceName" : "広告非表示（買い切り）",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "ja",
+    "_storefront" : "JPN",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

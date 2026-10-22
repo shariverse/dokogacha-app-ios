@@ -1,7 +1,7 @@
 /**
  * Cloud Functions（2nd gen）の入口。
  * Callable やトリガーの関数は、機能を作るタスクでここから export する（05_architecture.md の §5）。
- * 処理の中身は `rooms/`・`users/`・`candidates/`・`unlock/`・`settings/`・`draw/`・`reroll/`・`reports/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
+ * 処理の中身は `rooms/`・`users/`・`candidates/`・`unlock/`・`settings/`・`draw/`・`reroll/`・`reports/`・`purchase/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -97,6 +97,9 @@ export { notifyNewCandidates } from "./digest/functions";
 
 /** 投稿の報告（02 の §3.5 F-14）: reportCandidate（`reports` に保存し、Trigger Email 拡張の `mail` に運営向けのメールを書く） */
 export { reportCandidate } from "./reports/functions";
+
+/** 広告非表示の買い切り（02 の §7.2 F-51）: verifyPurchase（署名付きトランザクションを確かめ、`users.adFree` と参加中のルームの `adFreeSponsor` を更新） */
+export { verifyPurchase } from "./purchase/functions";
 
 /** 候補を追加する（02 の F-10。同じ場所があれば作らずに `{ duplicateOf }` を返す） */
 export const addCandidate = onCall((request) =>

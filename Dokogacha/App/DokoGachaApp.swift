@@ -21,6 +21,7 @@ struct DokoGachaApp: App {
                 .environment(appDelegate.serverSession)
                 .environment(appDelegate.push)
                 .environment(appDelegate.ads)
+                .environment(appDelegate.purchases)
                 .onOpenURL { url in
                     appDelegate.deepLinks.handle(url)
                 }
@@ -65,6 +66,8 @@ struct DokoGachaApp: App {
             ScreenshotDemo.PastIdeasScene(services: appDelegate.serverSession.services)
         case .inviteLastMembers:
             ScreenshotDemo.InviteLastMembersScene(services: appDelegate.serverSession.services)
+        case .roomAdFree:
+            ScreenshotDemo.RoomAdFreeScene(services: appDelegate.serverSession.services)
         }
     }
 }

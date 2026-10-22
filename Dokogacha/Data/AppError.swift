@@ -203,6 +203,10 @@ extension AppError {
         case rerollNotVoting = "reroll-not-voting"
         /// 自分の投稿を報告しようとした（F-14。画面は自分の投稿に「この投稿を報告」を出さないので、通常は出ない）
         case cannotReportOwnCandidate = "cannot-report-own-candidate"
+        /// 広告非表示の購入を確かめられなかった（署名・別のアプリやアイテム・取り消された購入。F-51）
+        case purchaseInvalid = "purchase-invalid"
+        /// 購入の検証が一時的にできなかった（もう一度で通る見込みがある）
+        case purchaseVerificationUnavailable = "purchase-verification-unavailable"
         /// 招待コードを決められなかった（もう一度で通る見込みが高い）
         case inviteCodeUnavailable = "invite-code-unavailable"
         /// 想定していないエラー
@@ -289,9 +293,11 @@ extension AppError {
                 String(localized: "引き直しの投票は終わっています")
             case .cannotReportOwnCandidate:
                 String(localized: "自分の投稿は報告できません")
+            case .purchaseInvalid:
+                String(localized: "購入を確認できませんでした")
             case .permissionDenied:
                 String(localized: "この操作はできません")
-            case .unauthenticated, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,
+            case .unauthenticated, .purchaseVerificationUnavailable, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,
                  .unreadableData, .notImplemented, .cancelled:
                 String(localized: "通信できませんでした")
             }

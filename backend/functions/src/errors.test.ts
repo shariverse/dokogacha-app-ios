@@ -63,6 +63,11 @@ describe("APP_ERRORS", () => {
     });
   });
 
+  it("広告非表示の購入（02 の F-51）を確かめられないときの文言。一時的な失敗は再試行できる unavailable", () => {
+    expect(APP_ERRORS["purchase-invalid"]).toEqual({ code: "failed-precondition", message: "購入を確認できませんでした" });
+    expect(APP_ERRORS["purchase-verification-unavailable"]).toEqual({ code: "unavailable", message: "通信できませんでした" });
+  });
+
   it("想定していないエラーとサインインの無いときは「通信できませんでした」（05 の §6 のトースト）", () => {
     expect(APP_ERRORS.internal.message).toBe("通信できませんでした");
     expect(APP_ERRORS.unauthenticated).toEqual({ code: "unauthenticated", message: "通信できませんでした" });

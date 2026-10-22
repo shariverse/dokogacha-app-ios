@@ -184,6 +184,8 @@ describe("firestore.rules", () => {
 
     it("購入済み・色・表示名は直接変えられない", async () => {
       await assertFails(updateDoc(doc(as("alice"), "users/alice"), { adFree: true }));
+      // 通知トークンと一緒でも、購入済みにはできない（adFree は verifyPurchase だけが書く。F-51）
+      await assertFails(updateDoc(doc(as("alice"), "users/alice"), { fcmTokens: ["t"], adFree: true }));
       await assertFails(updateDoc(doc(as("alice"), "users/alice"), { avatarColor: "#000000" }));
       await assertFails(updateDoc(doc(as("alice"), "users/alice"), { displayName: "あ" }));
     });
@@ -243,6 +245,17 @@ describe("firestore.rules", () => {
       await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { status: "unlocked" }));
       await assertFails(updateDoc(doc(as("bob"), "rooms/room1"), { memberIds: ["alice", "bob", "carol"] }));
       await assertFails(deleteDoc(doc(as("alice"), "rooms/room1")));
+    });
+
+    it("広告なしの購入者（adFreeSponsor）は直接書けない（自分を入れることも、外すこともできない。verifyPurchase・参加と退出の Callable だけ。F-51）", async () => {
+      await assertFails(updateDoc(doc(as("bob"), "rooms/room1"), { adFreeSponsor: { uid: "bob", displayName: "ぼぶ" } }));
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { adFreeSponsor: { uid: "alice", displayName: "ありす" } }));
+      await assertFails(updateDoc(doc(as("carol"), "rooms/room1"), { adFreeSponsor: { uid: "carol", displayName: "きゃろる" } }));
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await updateDoc(doc(context.firestore(), "rooms/room1"), { adFreeSponsor: { uid: "dave", displayName: "でいぶ" } });
+      });
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { adFreeSponsor: null }));
+      await assertFails(updateDoc(doc(as("dave"), "rooms/room1"), { "adFreeSponsor.displayName": "なりすまし" }));
     });
   });
 
