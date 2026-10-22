@@ -11,9 +11,10 @@
  */
 import type { Firestore, Transaction } from "firebase-admin/firestore";
 
+import { chunk } from "../batch";
 import type { MemberDoc, RoomDoc, UserDoc } from "../domain/models";
 import { candidatesRef, membersRef, roomRef, userRef } from "../paths";
-import { chunk, countRoomCopyWrites, planRoomCopyUpdates } from "./logic";
+import { countRoomCopyWrites, planRoomCopyUpdates } from "./logic";
 
 /** 同時に処理するルームの数（ルームが多い人でも、トランザクションを一度に開きすぎない） */
 export const PROFILE_SYNC_PARALLEL_ROOMS = 10;
