@@ -194,7 +194,16 @@ struct MembersView: View {
         .background(Color.dgSurfaceCard, in: shape)
         .overlay(shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular))
         .accessibilityElement(children: .combine)
-        .accessibilityHint(row.canRemove ? Text("左にスワイプすると削除できます") : Text(verbatim: ""))
+        // VoiceOver ではスワイプの代わりに、ローターの「アクション」から削除する（ヒントで操作の仕方を読まない。PR #65 の持ち越し）
+        .accessibilityActions {
+            if row.canRemove {
+                Button {
+                    model.removeTapped(row)
+                } label: {
+                    Text("削除")
+                }
+            }
+        }
         .accessibilityIdentifier(Identifier.row(row.id))
     }
 
