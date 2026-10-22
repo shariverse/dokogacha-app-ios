@@ -84,7 +84,7 @@ export async function updateRoomSettings(deps: ServiceDeps, uid: string, data: u
     return plan.unlockedBy;
   });
   if (unlockedBy !== null) {
-    await notifyRoomUnlocked(input.roomId, unlockedBy);
+    await notifyRoomUnlocked(deps, input.roomId, unlockedBy);
   }
   return {};
 }

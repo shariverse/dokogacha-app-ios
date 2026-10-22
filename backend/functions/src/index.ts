@@ -149,9 +149,9 @@ export const drawGacha = onCall((request) =>
 );
 
 /**
- * ルームが `drawn` になったら（引き直しの後にもう一度回したときも）、回した人以外に結果を知らせる通知の呼び出し口を呼ぶ
- * （05 の §5。Firestore のトリガー。通知を送る処理はタスク 32）。`drawn` のままの更新（数え直しなど）では何もしない。
- * 失敗したらやり直す（`retry: true`。今はログだけなので冪等）
+ * ルームが `drawn` になったら（引き直しの後にもう一度回したときも）、回した人以外に結果を知らせる通知を送る
+ * （05 の §5。Firestore のトリガー）。`drawn` のままの更新（数え直しなど）では何もしない。
+ * 失敗したらやり直す（`retry: true`。通知は抽選の ID ごとに 1 回しか送らないので、やり直しても 2 回届かない）
  */
 export const onRoomDrawn = onDocumentUpdated({ document: "rooms/{roomId}", retry: true }, async (event) => {
   const before = event.data?.before.data() as Partial<RoomDoc> | undefined;
@@ -160,7 +160,7 @@ export const onRoomDrawn = onDocumentUpdated({ document: "rooms/{roomId}", retry
   if (drawn === null) {
     return;
   }
-  await notifyRoomDrawn(event.params.roomId, drawn.drawId);
+  await notifyRoomDrawn(deps(), event.params.roomId, drawn.drawId);
 });
 
 /** 引き直しを提案する（02 の F-43。drawn のときだけ・ルームにつき 1 回・提案者は自動で賛成） */

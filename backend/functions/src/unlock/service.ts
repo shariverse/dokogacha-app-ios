@@ -83,7 +83,7 @@ export async function recountRoom(deps: Pick<ServiceDeps, "db" | "nowMs">, roomI
     return { changed: false, unlockedBy: null };
   }
   if (plan.unlockedBy !== null) {
-    await notifyRoomUnlocked(roomId, plan.unlockedBy);
+    await notifyRoomUnlocked(deps, roomId, plan.unlockedBy);
   }
   return { changed: Object.keys(plan.update).length > 0, unlockedBy: plan.unlockedBy };
 }
@@ -110,7 +110,7 @@ export async function forceUnlock(deps: ServiceDeps, uid: string, data: unknown)
     return result;
   });
   if (decision === "unlock") {
-    await notifyRoomUnlocked(roomId, "forced");
+    await notifyRoomUnlocked(deps, roomId, "forced");
   }
   return {};
 }
