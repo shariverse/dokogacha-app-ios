@@ -12,6 +12,8 @@
 - 「仮決め」の項目（`06_implementation_plan.md` の §4）は確認せずに仮決めどおりに実装し、値は定数にまとめる
 - 見た目は `04_design_system.md` と `design/tokens.json` の値だけを使う（色・フォント・寸法を直接書かない）
 - ユーザーに見える文言は日本語で、`03_screens.md` の表記に合わせる
+- 人間向けの説明（画面の一覧・構成・CI・撮影モードの起動引数の一覧）は `README.md`、公開までに人間が用意するもの（Firebase・Apple・AdMob・ドメイン・規約・申請）と値の置き場所は `docs/setup-human.md`。
+  資料と実装で違うところは README の「実装で決めたこと」と判断ログ（Issue #11）にある
 
 ## 環境
 
@@ -19,6 +21,18 @@
 - Swift 6（言語モード 6・Strict Concurrency complete・既定の分離は MainActor。UI テストのターゲットだけ nonisolated）
 - SwiftUI・`@Observable` / Swift Testing（Unit）/ XCTest（UI テスト）/ SwiftLint 0.65.1（Build Tool Plugin と CI の `--strict`）
 - SPM で導入済み（アプリのターゲットにリンク済み）: firebase-ios-sdk 13（`FirebaseAuth` `FirebaseFirestore` `FirebaseFunctions` `FirebaseMessaging` `FirebaseAnalytics` `FirebaseCrashlytics`）、Google Mobile Ads 13
+
+## コードの置き場所
+
+05 の §2 のフォルダに置く。
+
+- `Dokogacha/App/`: 入口（`DokoGachaApp`・`AppDelegate`）・起動引数（`LaunchContext`）・通知・広告・課金・招待リンクの振り分け（`DeepLinkRouter`）
+- `Dokogacha/Features/<画面>/`: 画面ごとの `XxxView` と `XxxModel`（`@Observable`）。起動の流れと画面の積み方は `Root/`、画面をまたぐものは `Shared/`
+- `Dokogacha/DesignSystem/`: `Tokens/`（tokens.json の値）と `Components/`（`DG` を付けた部品。1 部品 1 ファイルで Preview 付き）
+- `Dokogacha/Domain/`: `Models/`（Firestore のデータの値の型）・`Logic/`（`nonisolated` の純粋関数。Swift Testing で確かめる）・`DomainConstants.swift`（06 の §4 の仮決めの値・ドメイン・URL）
+- `Dokogacha/Data/`: protocol（`AuthService`・`RoomRepository`・`FunctionsClient`・`AdService`・`PurchaseService`・`AnalyticsService` など）と、`Firebase/`・`InMemory/`（擬似のサーバー）・`GoogleMobileAds/`・`StoreKit/` の実装
+- `Dokogacha/Screenshot/`: 撮影モード（`ScreenshotDemo`）。`ScreenshotDemo.Scene` は `enum Scene: String {` の形（1 行 1 case）を保つ（`Tools/app_store_config.py` が正規表現で読む）
+- `StoreKit/Dokogacha.storekit`（`Dokogacha/` の外。中に置くとアプリに入る）・`Configs/Dokogacha.entitlements`（同じ理由で `Configs/`）
 
 ## ビルド・テスト
 
@@ -29,11 +43,14 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
   -derivedDataPath <リポジトリの外> \
   -skipPackagePluginValidation -skipMacroValidation -parallel-testing-enabled NO
 # Unit テストだけ: -only-testing:DokogachaTests を足す
+# UI テストを 1 件だけ: -only-testing:DokogachaUITests/<クラス>/<メソッド> を別の xcodebuild で渡す（Unit と一緒に渡すと Executed 0 tests で終わる）
 # SwiftLint（CI と同じ。SPM が解決したバイナリを使う）
 "$(find <DerivedData>/SourcePackages/artifacts -type f -name swiftlint -path '*macos*' | head -1)" lint --strict
 ```
 
 - `-skipPackagePluginValidation -skipMacroValidation` を付けないと、Xcode の GUI で信頼していない DerivedData では SwiftLint のプラグインで止まる
+- 文字列を足したら `Dokogacha/Resources/Localizable.xcstrings` にも入れる（`xcodebuild` は足さない。`xcodebuild build` の後に `xcrun xcstringstool sync`。手順は `LEARNINGS.md`）
+- 画面の見た目は撮影モードで確かめる（`-screenshot-demo -screenshot-scene <名前>`。起動引数の一覧は README の「撮影モード」）。画面を足したら、要るなら scene を足す
 - ビルド構成は 3 つ: **Debug**（開発・テスト。Firebase は Emulator）/ **Stg**（TestFlight 用。`develop` の Upload。Firebase は dev）/ **Release**（App Store 用。Firebase は prod）。
   Stg は Release と同じ最適化。構成ごとの値は `Configs/<構成>.xcconfig` に書く
 
@@ -51,7 +68,9 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - plist が無い・読めないときは落とさずに起動し、`ServerSession.connection` が `.unavailable` になる（サーバーに接続できない状態）
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化しない（`.disabled`）
   - そのときはメモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動く。UI テストはデモのデータを `-uiTesting -demo-scenario <名前>` で選ぶ
-    （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`。`DemoScenario`。画面のタスクで要るシナリオを足す）
+    （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`・`several-rooms`（撮影モードの既定）・`joinable`・`first-launch-invited`・`drawn-rooms`・`memories`・`past-ideas`・`ad-free-room`。`DemoScenario`。要るシナリオを足す）
+  - 起動引数は `LaunchContext` にまとめる: `-open-url <URL>`・`-open-notification <JSON>`（招待リンク・通知から開いたことにする）・`-network-offline`（オフラインのことにする）は `-uiTesting`・撮影モードで、
+    `-ui-auto-members`（ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが返す）は `-uiTesting` だけで効く
   - データ層は `AuthService`・`RoomRepository`・`FunctionsClient` の protocol の後ろにあり、起動時に `DataServices.make` が実装を選んで
     `ServerSession.services` で渡す。画面の Model は protocol だけを受け取る。backend に Callable を足したら、擬似のサーバーにも同じ検証を足す
   - Firestore のトリガー（`onUserProfileUpdate`・`onMemberWrite`）に当たる処理は `InMemoryServer+Triggers.swift` に置き、元の書き込みをした Callable・直接の書き込みの中で続けて呼ぶ
@@ -85,7 +104,8 @@ npm run build           # Functions を functions/lib/ にビルドする
 - ずらした設定は `scripts/emulator-config.cjs` が `backend/firebase.emulators.local.json`（git 管理外）に書き出し、`scripts/test-emulator.sh` がそれを `emulators:exec --config` に渡す。
   テストは `emulators:exec` が渡す `FIRESTORE_EMULATOR_HOST`・`FIREBASE_EMULATOR_HUB` などの環境変数で接続先を読むので、ポートを直接書かない
 - プロジェクトは Emulator 専用の `demo-dokogacha`（`.firebaserc`）。`firebase deploy`・`firebase login` は人間がする
-- Functions は `functions/src/index.ts` で Callable・トリガー・スケジュールに包むだけにし、処理は `rooms/`・`users/`・`candidates/`・`unlock/`（準備OKの数え直しと解禁）・`settings/`（設定の変更）・`draw/`（抽選。重み付きの選択は `domain/draw.ts`、Swift は `Domain/Logic/GachaDraw.swift`）の
+- Functions は `functions/src/index.ts`（と各フォルダの `functions.ts`）で Callable・トリガー・スケジュールに包むだけにし、処理は `rooms/`・`users/`・`candidates/`・`unlock/`（準備OKの数え直しと解禁）・`settings/`（設定の変更）・`draw/`（抽選。重み付きの選択は `domain/draw.ts`、Swift は `Domain/Logic/GachaDraw.swift`）・
+  `reroll/`（引き直し）・`close/`（決定と自動の終了・過去のアイデア）・`notifications/`（FCM）・`digest/`（まとめ通知）・`invite/`（前回のメンバーの招待）・`purchase/`（広告非表示の検証）・`reports/`（報告）・`account/`（アカウントの削除）の
   `service.ts`（Firestore）・`logic.ts`（判定）・`input.ts`（入力の検証）に置く。トリガーは `retry: true` にし、処理を冪等にする（今の値と同じなら書かない）。
   多くのルームを処理するもの（`onUserProfileUpdate`・`checkDeadlines`）は `batch.ts` の `settleInGroups` で、失敗があっても残りを処理してから投げる
   Emulator のテストは処理を Admin SDK で直接呼ぶもの（乱数を差し替えられる。`test/emulator/rooms-service.test.ts`）と、client SDK の `httpsCallable` で Functions の Emulator を呼ぶもの（`rooms-callable.test.ts`）の 2 種類
@@ -94,6 +114,11 @@ npm run build           # Functions を functions/lib/ にビルドする
   時刻をずらした判定（締切日時）は、遅れて動いたトリガーが実際の時刻で判定し直すので、データの日時の方を動かして実際の時刻で確かめる
 - Callable のエラーは `functions/src/errors.ts` の `APP_ERRORS`（理由 → gRPC のコードとアプリの文言）にまとめる。アプリは `HttpsError` の `details.reason` で文言を選ぶ
 - CI は `.github/workflows/backend.yml`（ubuntu）。`backend/**` だけの変更では iOS の Build（macOS）は動かない
+- Functions のパラメータ（`REPORT_MAIL_TO`・`APP_STORE_APP_APPLE_ID`）は `defineString`。Emulator は `functions/.env.demo-dokogacha` の目印の値を読む（値が無いと Emulator が対話で聞いて止まる）。
+  実プロジェクトの `functions/.env`・`.env.<プロジェクト ID>` と `extensions/*.env.<プロジェクト ID>` は git の管理外で、人間が書く（`docs/setup-human.md`）
+- `firebase.json` の `extensions`（Trigger Email）は、Emulator の設定を書き出すときに外している（`scripts/emulator-config.cjs`）
+- Hosting（`hosting/public/`）のページは Jest（`hosting/test/`）と Emulator（`test/emulator/hosting.test.ts`）で確かめる。アプリと同じ値（App Store の URL・ドメイン・規約の URL）は
+  Swift のテスト（`UniversalLinksConfigTests`・`HostingPagesConfigTests`・`DomainConstantsTests`・`AppStoreMetadataTests`）が突き合わせるので、片方を変えたら両方を変える
 
 ## プロジェクトの決まり
 
@@ -102,6 +127,9 @@ npm run build           # Functions を functions/lib/ にビルドする
 - ビルド設定は `Configs/*.xcconfig`、Info.plist のキーは `Dokogacha/Info.plist`（`GENERATE_INFOPLIST_FILE = YES` と併用。値を構成で変えるときは xcconfig の変数を `$(…)` で参照する）
 - entitlements が要るときは `Configs/` に置き、xcconfig の `CODE_SIGN_ENTITLEMENTS` で指定する（`Dokogacha/` に置くとリソースとしてコピーされる）
 - `GoogleService-Info.plist` はコミットしない（public リポジトリ。CI が GitHub Secrets から書き出す）。鍵・トークン・メールアドレスもコミットしない
+- 本番の値（AdMob の ID・App Store の URL・`app-ads.txt`・規約の運営者名など）はテスト用の値・目印のまま実装し、入れるのは人間（`docs/setup-human.md`）
+- xcconfig はプロジェクトの階層に付いていて Unit・UI テストのターゲットにも効く。アプリのターゲットだけに付ける設定は `X = $(DG_X_$(PRODUCT_TYPE:identifier))` の形で分ける（`CODE_SIGN_ENTITLEMENTS`）
+- 収集するデータ・理由の申告が要る API を足したら、`Dokogacha/PrivacyInfo.xcprivacy`（`PrivacyManifestTests`）と `backend/hosting/public/privacy.html` も直す
 - Firebase の Cloud Functions・セキュリティルール・Hosting はリポジトリ直下の `backend/` に置く（`05_architecture.md` の §2）
 
 ## コードレビュー観点
