@@ -67,23 +67,47 @@ export function decideAddCandidate(
 }
 
 /**
+ * ガチャで当選した候補か（今の当選 `winnerCandidateId`・引き直しで除外した前の当選 `excludedCandidateIds`・抽選の記録が指す候補）。
+ * 引き直しが可決するとルームは `unlocked` に戻る（02 の §6.4）ので、状態だけでは当選した候補の削除を止められない。
+ * 消すと、抽選の記録（`draws`）・行き先きっぷ・過去のアイデアが指す候補が無くなる。
+ * Swift 側の `CandidatePermission.isDrawn` と同じ規則（アプリは抽選の記録を読まないので、ルームの 2 つのフィールドで判定する）。
+ * @param room ルーム
+ * @param candidateId 候補の ID
+ * @param referencedByDraw 抽選の記録（`draws`）がこの候補を指しているか（`service.ts` がトランザクションの中で調べる）
+ */
+export function isDrawnCandidate(
+  room: Partial<Pick<RoomDoc, "winnerCandidateId" | "excludedCandidateIds">>,
+  candidateId: string,
+  referencedByDraw: boolean,
+): boolean {
+  const excluded = Array.isArray(room.excludedCandidateIds) ? room.excludedCandidateIds : [];
+  return referencedByDraw || room.winnerCandidateId === candidateId || excluded.includes(candidateId);
+}
+
+/**
  * 候補を削除してよいか確かめる（02 の F-11「投稿者本人は open・unlocked のときに自分の候補を削除できる」
  * 「作成者は誰の候補でも削除できる」）。作成者の削除も `open`・`unlocked` のときだけにする
  * （`drawn` で消すと当選した候補・抽選の記録と合わなくなり、`closed` は閲覧のみ（02 の §2.1））。
+ * 引き直しの可決の後（`unlocked`）でも、当選した候補（`isDrawnCandidate`）は消せない。
  * @param room ルーム
  * @param uid 削除する人
  * @param candidate 削除する候補
- * @throws `not-candidate-owner`・`room-already-decided`
+ * @param drawn ガチャで当選した候補か（`isDrawnCandidate`）
+ * @throws `not-candidate-owner`・`room-already-decided`・`candidate-drawn`
  */
 export function assertCanDeleteCandidate(
   room: Pick<RoomDoc, "status" | "ownerId">,
   uid: string,
   candidate: Pick<CandidateDoc, "postedBy">,
+  drawn = false,
 ): void {
   if (candidate.postedBy !== uid && room.ownerId !== uid) {
     throw appError("not-candidate-owner");
   }
   assertCandidatesEditable(room);
+  if (drawn) {
+    throw appError("candidate-drawn");
+  }
 }
 
 /** 作る候補のドキュメント（投稿日時は書き込むときの値） */

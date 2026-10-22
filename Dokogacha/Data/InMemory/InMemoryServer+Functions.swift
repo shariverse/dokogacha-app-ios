@@ -247,7 +247,9 @@ extension InMemoryServer: FunctionsClient {
         return .added(candidateID: candidateID)
     }
 
-    /// 候補を削除する（backend の `deleteCandidate`。投稿した人か作成者だけ・open・unlocked のときだけ。いいねも一緒に消える）
+    /// 候補を削除する（backend の `deleteCandidate`。投稿した人か作成者だけ・open・unlocked のときだけ。いいねも一緒に消える）。
+    ///
+    /// ガチャで当選した候補（今の当選・引き直しで除外した前の当選・抽選の記録が指す候補）は `candidate-drawn`（backend の `isDrawnCandidate`）
     func deleteCandidate(_ request: CandidateRequest, by callerID: String?) throws {
         let userID = try Self.requireCaller(callerID)
         let roomID = try Self.documentID(request.roomId)
@@ -266,6 +268,10 @@ extension InMemoryServer: FunctionsClient {
         }
         guard Self.candidateEditableStatuses.contains(record.room.status) else {
             throw Self.error(.roomAlreadyDecided)
+        }
+        let referencedByDraw = record.draws.values.contains { $0.candidateId == candidateID }
+        guard !referencedByDraw, !CandidatePermission.isDrawn(candidateID: candidateID, in: record.room) else {
+            throw Self.error(.candidateDrawn)
         }
         record.candidates[candidateID] = nil
         record.room.candidateCount -= 1

@@ -24,6 +24,8 @@ final class InMemoryServer {
         var members: [String: Member] = [:]
         /// 候補（鍵は候補の ID）
         var candidates: [String: Candidate] = [:]
+        /// 抽選の記録（鍵は抽選の ID。`drawGacha` だけが作る）
+        var draws: [String: Draw] = [:]
     }
 
     /// `users/{uid}`
