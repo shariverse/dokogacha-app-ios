@@ -45,14 +45,16 @@ extension InMemoryServer {
         registerPastIdeas(roomID: roomID)
     }
 
-    /// 終了したルームの過去のアイデアを登録する（backend の `registerPastIdeas`。`closed` でなければ何もしない。何度呼んでも同じ値）
+    /// 終了したルームの過去のアイデアを登録する（backend の `registerPastIdeas`。`closed` でなければ何もしない。何度呼んでも同じ値）。
+    ///
+    /// backend と同じく、`users/{uid}` が無い人（アカウントを削除した人）には登録しない
     func registerPastIdeas(roomID: String) {
         guard let record = rooms[roomID], record.room.status == .closed else {
             return
         }
         let writes = RoomClosing.pastIdeas(roomID: roomID, room: record.room, candidates: record.candidates, closedAt: clock())
         var updated = pastIdeas
-        for write in writes {
+        for write in writes where users[write.userID] != nil {
             updated[write.userID, default: [:]][write.ideaID] = write.idea
         }
         pastIdeas = updated

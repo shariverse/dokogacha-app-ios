@@ -108,4 +108,17 @@ struct InMemoryServerAccountTests {
             try await server.deleteAccount()
         }
     }
+
+    /// 終了の後の過去のアイデアの登録は、アカウントを削除した人（`users/{uid}` が無い）を飛ばす（backend の `registerPastIdeas`）
+    @Test
+    func pastIdeasSkipDeletedUsers() throws {
+        let server = InMemoryServer.demo(.drawnRooms) { RoomModelTests.now }
+        server.users[Self.sota] = nil
+
+        try server.closeRoom(RoomRequest(roomId: DemoScenario.drawnRoomID), by: DemoScenario.myUserID)
+
+        #expect(server.pastIdeas[Self.sota] == nil)
+        #expect(server.pastIdeas[Self.haruka]?.count == 2)
+        #expect(server.pastIdeas[DemoScenario.myUserID]?.count == 2)
+    }
 }
