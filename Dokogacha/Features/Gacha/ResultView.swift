@@ -55,6 +55,8 @@ struct ResultView: View {
     @State private var hasPopped = false
     /// 共有シートに渡している画像（出している間だけ）
     @State private var sharedImage: SharedImage?
+    /// VoiceOver の選択を「行き先が決まりました」に置くか（きっぷが出たときに 1 回だけ移す）
+    @AccessibilityFocusState private var isTitleFocused: Bool
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -133,7 +135,11 @@ struct ResultView: View {
             ResultTicketView(ticket: ticket, stampAnimatesIn: animatesIn)
                 .scaleEffect(hasPopped || reduceMotion ? 1 : Self.popStartScale)
                 .opacity(hasPopped ? 1 : 0)
-                .onAppear(perform: popIn)
+                .onAppear {
+                    popIn()
+                    // S-13 から替わったとき・ルームから開いたときに、VoiceOver で結果の見出しから読めるようにする（PR #72 の持ち越し）
+                    isTitleFocused = true
+                }
                 .accessibilityIdentifier(Identifier.ticket)
             actions(ticket)
                 .padding(.top, DGSpacing.s4)
@@ -157,6 +163,7 @@ struct ResultView: View {
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityAddTraits(.isHeader)
             .accessibilityIdentifier(Identifier.title)
+            .accessibilityFocused($isTitleFocused)
     }
 
     /// 「レア当選」のバッジ（黒地に黄色の文字。プロトタイプの見た目）

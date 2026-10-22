@@ -63,10 +63,14 @@ struct GachaFlowView<Gacha: View, Result: View>: View {
         }
     }
 
-    /// 画面を替える
+    /// 画面を替え、VoiceOver に画面が替わったことを知らせる。
+    ///
+    /// 同じカバーの中の切り替えなので、知らせないと VoiceOver は前の画面の要素を選んだまま変化に気づかない（PR #72 の持ち越し）。
+    /// S-14 では、出てきたときに「行き先が決まりました」の見出しへ VoiceOver の選択を移す（`ResultView`）
     private func move(to next: Stage) {
         withAnimation(reduceMotion ? DGMotion.reducedFade : .easeInOut(duration: DGMotion.pop.duration)) {
             stage = next
         }
+        AccessibilityNotification.ScreenChanged().post()
     }
 }

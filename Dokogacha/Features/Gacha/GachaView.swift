@@ -10,7 +10,7 @@ import SwiftUI
 ///
 /// レバーを押す → 回転中（揺れ・レバーの回転・0.2 秒ごとの触覚）→ カプセルが落ちる → カプセルを押す → 開く → `onOpened`（S-14 はタスク 28）。
 /// ほかの人が回したときは、購読で知って同じ演出を自動で再生する（`GachaModel`）。
-/// 演出の段階が変わるたびに、タイトルとサブ文言を VoiceOver で読み上げる。
+/// 演出の段階が変わるたびに、タイトルとサブ文言を VoiceOver で読み上げる（開け終えたときは S-14 への切り替えで伝える）。
 /// バナー広告は出さない（02 の F-50「表示しない画面：ガチャ」）。トーストはフルスクリーンカバーの中に重ねる。
 struct GachaView: View {
     /// UI テストが探す ID
@@ -133,19 +133,19 @@ struct GachaView: View {
             .accessibilityIdentifier(Identifier.capsuleCount)
     }
 
-    /// 段階が変わったことを VoiceOver で読み上げる（待機は読まない。開け終えたら「行き先が決まりました」）
+    /// 段階が変わったことを VoiceOver で読み上げる（待機は読まない）。
+    ///
+    /// 開け終えたときは読まない。S-14 に替わり、画面の切り替えの通知と S-14 の見出し「行き先が決まりました」で伝えるため
+    /// （読み上げと画面の切り替えが重なると、どちらかが途中で切れる。`GachaFlowView`）
     private func announce(_ phase: GachaPhase) {
-        let text: String
         switch phase {
-        case .idle, .dropping, .opening:
+        case .idle, .dropping, .opening, .opened:
             return
         case .spinning, .dispensed:
             let caption = model.caption
-            text = "\(String(localized: caption.title)) \(String(localized: caption.subtitle))"
-        case .opened:
-            text = String(localized: "行き先が決まりました")
+            let text = "\(String(localized: caption.title)) \(String(localized: caption.subtitle))"
+            AccessibilityNotification.Announcement(text).post()
         }
-        AccessibilityNotification.Announcement(text).post()
     }
 }
 
