@@ -1,20 +1,21 @@
 /**
  * 解禁したときの通知（02 の §5.2「解禁されたらメンバー全員にプッシュ通知（F-60）」）の呼び出し口。
- * 通知を送る処理（宛先の決め方・FCM の送信）はタスク 32 で足す。今はログに残すだけで、何も送らない。
+ * 送る処理は `notifications/service.ts`（`sendRoomUnlocked`）。送れなくてもログに残すだけで投げない。
  *
  * 呼ぶのは、`open` から `unlocked` に変えたトランザクションが確定した後（トランザクションの中で呼ぶと、
  * 競合でやり直したときに 2 回送る）。トリガーのやり直し（`retry`）では、もう `unlocked` なので呼ばれない。
+ * 準備OKの付け外しで `open`⇄`unlocked` を繰り返しても、送るのはルームにつき 1 回（`notificationLogKey`）。
  */
-import { logger } from "firebase-functions/v2";
-
 import type { UnlockReason } from "../domain/unlock";
+import { notifyQuietly, sendRoomUnlocked, type NotificationDeps } from "../notifications/service";
 
 /**
- * ルームが解禁されたことをメンバーに知らせる（タスク 32 で FCM を送る。今は何もしない）。
+ * ルームが解禁されたことをメンバー全員に知らせる。
+ * 文面は理由（強制解禁を含む）によらず 02 の §8 の「「{ルーム名}」のガチャが解禁されました！」にする。
+ * @param deps 外部のもの（`ServiceDeps` をそのまま渡せる）
  * @param roomId 解禁したルームの ID
- * @param reason 解禁した理由（`forced` なら「作成者が解禁しました」の文面にする）
+ * @param reason 解禁した理由（ログに残す）
  */
-export function notifyRoomUnlocked(roomId: string, reason: UnlockReason): Promise<void> {
-  logger.info("ルームを解禁した（通知はまだ送らない）", { roomId, reason });
-  return Promise.resolve();
+export function notifyRoomUnlocked(deps: NotificationDeps, roomId: string, reason: UnlockReason): Promise<void> {
+  return notifyQuietly("unlocked", { roomId, reason }, () => sendRoomUnlocked(deps, roomId));
 }

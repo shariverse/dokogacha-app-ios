@@ -14,3 +14,5 @@ DG_FIREBASE_ENVIRONMENT = emulator
 DG_FIREBASE_OPTIONS_FILE_NAME =
 // Dokogacha/Resources/Firebase/ に置いた plist は、どれもこの構成のアプリに入れない
 EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Dev.plist GoogleService-Info-Prod.plist
+// APNs の環境（Configs/Dokogacha.entitlements の aps-environment）。Xcode から実機に入れる開発用の署名は development
+DG_APS_ENVIRONMENT = development

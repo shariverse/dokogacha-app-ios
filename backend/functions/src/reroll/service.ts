@@ -47,7 +47,7 @@ export async function proposeReroll(deps: ServiceDeps, uid: string, data: unknow
     return result.kind;
   });
   if (decision === "propose") {
-    await notifyRerollProposed(roomId, uid);
+    await notifyRerollProposed(deps, roomId, uid);
   }
   return {};
 }

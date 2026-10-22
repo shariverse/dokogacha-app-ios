@@ -5,7 +5,7 @@
 //  擬似のサーバーの抽選の Callable（backend の `draw/service.ts` の `drawGacha`）。
 //  backend の `draw/logic.ts` の `decideDraw` と同じ順で検証し、同じ理由で失敗する（`InMemoryServerDrawTests` で確かめる）。
 //  当選は `GachaDraw`（backend の `domain/draw.ts` と同じ式）で、乱数は注入した `randomIndex` で選ぶ。
-//  抽選の後の通知（`onRoomDrawn`）は、backend でもまだログだけなので、ここでは何もしない。
+//  抽選の後の通知（`onRoomDrawn`）は送らない（擬似のサーバーを使う UI テスト・撮影モードでは通知を使わない。`PushNotificationPolicy`）。
 //
 
 import Foundation

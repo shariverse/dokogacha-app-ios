@@ -19,6 +19,7 @@ struct DokoGachaApp: App {
         WindowGroup {
             rootView
                 .environment(appDelegate.serverSession)
+                .environment(appDelegate.push)
                 .onOpenURL { url in
                     appDelegate.deepLinks.handle(url)
                 }

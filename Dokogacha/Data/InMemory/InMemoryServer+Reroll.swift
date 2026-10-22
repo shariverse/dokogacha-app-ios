@@ -5,7 +5,7 @@
 //  擬似のサーバーの引き直しの Callable（backend の `reroll/service.ts` の `proposeReroll`・`voteReroll`）と、
 //  期限のスケジュール（`expireRerolls`）。backend の `reroll/logic.ts` と同じ順で検証し、同じ理由で失敗する
 //  （`InMemoryServerRerollTests` で確かめる）。過半数の判定は `RerollRule`（backend の `domain/reroll.ts` と同じ式）。
-//  提案の通知（`notifyRerollProposed`）は、backend でもまだログだけなので、ここでは何もしない。
+//  提案の通知（`notifyRerollProposed`）は送らない（擬似のサーバーを使う UI テスト・撮影モードでは通知を使わない。`PushNotificationPolicy`）。
 //
 
 import Foundation

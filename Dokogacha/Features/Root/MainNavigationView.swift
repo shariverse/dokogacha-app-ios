@@ -15,6 +15,9 @@ import SwiftUI
 ///
 /// 招待リンクで開かれたら（`DeepLinkRouter` に招待コードが入ったら）、いま出している画面の上に S-05・S-06 のシートを
 /// そのコードで開く（03 の §2「招待リンク → S-06」）。表示名を登録する前に届いたコードは、この画面が出たときに開く。
+///
+/// プッシュ通知を開いたら、そのルームを開く（`PushNotificationRouting`）。通知の許可は、ルームを作成・参加したときに尋ねる
+/// （02 の §8「初めてルームを作成または参加したときに表示」。まだ尋ねていないときだけ）。
 struct MainNavigationView: View {
     /// 出している行き先（積み・シート・フルスクリーンカバー）
     @State private var presentation = AppPresentation()
@@ -27,6 +30,8 @@ struct MainNavigationView: View {
     private let toasts: DGToastCenter
     /// 招待リンクで開かれたときの行き先
     private let deepLinks: DeepLinkRouter
+    /// プッシュ通知のまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
+    @Environment(PushNotificationCoordinator.self) private var push: PushNotificationCoordinator?
 
     /// - Parameters:
     ///   - userID: 自分の uid
@@ -80,6 +85,12 @@ struct MainNavigationView: View {
                 openInviteLink(code)
             }
         }
+        .modifier(PushNotificationRouting(presentation: $presentation, userID: userID, deepLinks: deepLinks, push: push))
+    }
+
+    /// ルームを作成・参加した。まだ尋ねていなければ、通知の許可を尋ねる
+    private func requestNotificationPermission() {
+        Task { await push?.requestAuthorizationIfNeeded() }
     }
 
     /// 招待リンクのコードで S-05・S-06 のシートを開く。
@@ -102,6 +113,7 @@ struct MainNavigationView: View {
         case .createRoom:
             CreateRoomView(model: CreateRoomModel(functions: services.functions, toasts: toasts)) { created in
                 presentation.path = AppRoute.pathAfterCreating(created, from: presentation.path)
+                requestNotificationPermission()
             }
         case let .invite(created):
             InviteView(model: InviteModel(destination: created, toasts: toasts)) {
@@ -170,6 +182,7 @@ struct MainNavigationView: View {
         JoinRoomFlowView(functions: services.functions, initialCode: initialCode) { roomID in
             presentation.sheet = nil
             presentation.path.append(.room(id: roomID))
+            requestNotificationPermission()
         }
     }
 
