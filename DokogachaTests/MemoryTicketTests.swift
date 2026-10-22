@@ -69,10 +69,19 @@ struct MemoryTicketTests {
         let tickets = MemoryTicket.tickets(rooms: rooms, winners: Self.winners(ids))
         #expect(MemoryTicket.visibleLimit == 5)
         #expect(MemoryTicket.visible(tickets, showsAll: false).map(\.id) == ["r1", "r2", "r3", "r4", "r5"])
-        #expect(MemoryTicket.hasMore(tickets, showsAll: false))
+        #expect(MemoryTicket.hasMore(roomCount: 6, showsAll: false))
         #expect(MemoryTicket.visible(tickets, showsAll: true).count == 6)
-        #expect(!MemoryTicket.hasMore(tickets, showsAll: true))
-        let five = Array(tickets.prefix(5))
-        #expect(!MemoryTicket.hasMore(five, showsAll: false))
+        #expect(!MemoryTicket.hasMore(roomCount: 6, showsAll: true))
+        #expect(!MemoryTicket.hasMore(roomCount: 5, showsAll: false))
+    }
+
+    /// 「すべて見る」を押す前は 6 件だけ読み、当選した候補は先頭の 5 つだけ購読する。押した後はすべて
+    @Test
+    func watchesOnlyVisibleRooms() {
+        let rooms = (1...6).enumerated().map { Self.closedRoom("r\($1)", daysAgo: Double($0)) }
+        #expect(MemoryTicket.queryLimit == 6)
+        #expect(MemoryTicket.watchedRooms(rooms, showsAll: false).map(\.id) == ["r1", "r2", "r3", "r4", "r5"])
+        #expect(MemoryTicket.watchedRooms(rooms, showsAll: true).count == 6)
+        #expect(MemoryTicket.watchedRooms(Array(rooms.prefix(2)), showsAll: false).count == 2)
     }
 }

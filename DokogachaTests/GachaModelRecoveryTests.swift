@@ -135,8 +135,8 @@ final class DrawDelayedRepository: RoomRepository {
         server.draw(roomID: roomID, drawID: drawID)
     }
 
-    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
-        server.closedRooms(userID: userID)
+    func closedRooms(userID: String, limit: Int?) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+        server.closedRooms(userID: userID, limit: limit)
     }
 
     func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {

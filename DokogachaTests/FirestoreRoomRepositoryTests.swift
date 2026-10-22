@@ -197,6 +197,24 @@ struct FirestoreRoomRepositoryTests {
         #expect(await iterator.next() == .value(nil))
     }
 
+    /// 思い出のきっぷの終了したルームは、自分が入っている `closed` を終了の新しい順に、上限の数だけ読む（上限なしも選べる）
+    @Test
+    func closedRoomsQueriesWithLimit() {
+        let gateway = FakeGateway()
+        let repository = FirestoreRoomRepository(gateway: gateway)
+        _ = repository.closedRooms(userID: "me", limit: 6)
+        _ = repository.closedRooms(userID: "me", limit: nil)
+        let limited = FirestoreQuerySpec(
+            collectionPath: "rooms",
+            filters: [.arrayContains(field: "memberIds", value: "me"), .isIn(field: "status", values: ["closed"])],
+            order: .init(field: "closedAt", descending: true),
+            limit: 6
+        )
+        var unlimited = limited
+        unlimited.limit = nil
+        #expect(gateway.queryHandlers.map(\.query) == [limited, unlimited])
+    }
+
     /// リスナーが失敗したら（メンバーから外されて読めなくなったなど）、失敗を流して終わる
     @Test
     func listenerFailureFinishesStream() async throws {

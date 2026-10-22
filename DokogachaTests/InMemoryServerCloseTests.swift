@@ -97,7 +97,7 @@ struct InMemoryServerCloseTests {
     @Test
     func closedRoomsAreSubscribable() async throws {
         let server = InMemoryServer.demo(.memories) { RoomModelTests.now }
-        var closed = server.closedRooms(userID: DemoScenario.myUserID).makeAsyncIterator()
+        var closed = server.closedRooms(userID: DemoScenario.myUserID, limit: nil).makeAsyncIterator()
         let first = try #require(await closed.next()?.value)
         #expect(first.count == 6)
         #expect(first.map(\.id) == (1...6).map { "\(DemoScenario.closedRoomIDPrefix)\($0)" })

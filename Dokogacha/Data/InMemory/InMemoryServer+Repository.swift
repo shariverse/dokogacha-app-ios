@@ -27,7 +27,7 @@ extension InMemoryServer: RoomRepository {
         }
     }
 
-    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+    func closedRooms(userID: String, limit: Int?) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
         subscribe { server in
             guard server.signedInUserID == userID else {
                 return .failure(Self.permissionDenied)
@@ -36,7 +36,7 @@ extension InMemoryServer: RoomRepository {
                 .filter { $0.value.room.memberIds.contains(userID) && $0.value.room.status == .closed }
                 .map { Identified(id: $0.key, value: $0.value.room) }
                 .sorted { ($0.closedAt ?? .distantPast, $0.id) > ($1.closedAt ?? .distantPast, $1.id) }
-            return .value(rooms)
+            return .value(limit.map { Array(rooms.prefix($0)) } ?? rooms)
         }
     }
 

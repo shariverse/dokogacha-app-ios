@@ -23,6 +23,8 @@ import Observation
 ///
 /// 「思い出のきっぷ」（03 の S-02 の 3・F-44）は、終了したルームを `RoomRepository.closedRooms` で購読し、
 /// ルームごとに当選した候補 1 件だけを `candidate(roomID:candidateID:)` で購読して「◯◯ ゆき」を出す（候補をまるごと読まない）。
+/// 終了したルームは増え続けるので、「すべて見る」を押すまでは 6 件（`MemoryTicket.queryLimit`）だけを読み、
+/// 当選した候補は出す 5 枚の分だけ購読する。押したら上限なしで購読し直し、残りのルームの当選した候補も購読する。
 /// 進行中のルームと並べて動かし（`async let`）、どちらも `observe()` を呼んだ `Task` の cancel で止まる。
 /// 思い出のきっぷの購読の失敗はトーストを出さずに読み直す（同じ通信の失敗で、進行中のルームの購読が 1 回だけトーストを出す）。
 @Observable
@@ -50,11 +52,13 @@ final class HomeModel {
     /// 終了したルームの当選した候補（ルームの ID → 候補）
     private(set) var winnersByRoom: [String: Candidate] = [:]
     /// 「すべて見る」を押したか（押したら 6 枚目からも出す）
-    var showsAllMemories = false
+    private(set) var showsAllMemories = false
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
+    /// 「すべて見る」が押されたことを、購読している `observe()` に伝える口（`observe()` の呼び出しごと）
+    @ObservationIgnored private var showAllListeners: [UUID: () -> Void] = [:]
 
     /// - Parameters:
     ///   - userID: 自分の uid
@@ -95,7 +99,7 @@ final class HomeModel {
 
     /// 「すべて見る」を出すか
     var hasMoreMemories: Bool {
-        MemoryTicket.hasMore(memoryTickets, showsAll: showsAllMemories)
+        MemoryTicket.hasMore(roomCount: closedRooms.count, showsAll: showsAllMemories)
     }
 
     /// 終了したルームが 1 つも無いと分かったか（空の表示を出す）
@@ -108,9 +112,15 @@ final class HomeModel {
         memoriesState == .loading || (!closedRooms.isEmpty && memoryTickets.isEmpty)
     }
 
-    /// 「すべて見る」が押された
+    /// 「すべて見る」が押された（終了したルームを上限なしで購読し直す）
     func showAllMemoriesTapped() {
+        guard !showsAllMemories else {
+            return
+        }
         showsAllMemories = true
+        for listener in showAllListeners.values {
+            listener()
+        }
     }
 
     /// 進行中のルームと思い出のきっぷを購読し、呼んだ `Task` が cancel されるまで続ける
@@ -178,38 +188,72 @@ final class HomeModel {
         }
     }
 
-    /// 終了したルームを購読し続ける（失敗したらトーストを出さずに読み直す）
+    /// 終了したルームの購読から届くもの
+    private enum MemoriesEvent: Sendable {
+        /// 終了したルームの一覧が届いた
+        case rooms([Identified<Room>])
+        /// 「すべて見る」が押された
+        case showAll
+    }
+
+    /// 終了したルームを購読し続ける（失敗したらトーストを出さずに読み直す）。
+    ///
+    /// 「すべて見る」を押す前は `MemoryTicket.queryLimit` 件だけを読み、押されたら上限なしの購読に替える。
+    /// 購読の値と「すべて見る」を 1 本のストリームにまとめ、この呼び出しの中で順に映す（当選した候補の購読をこの呼び出しが持つため）
     private func observeClosedRooms() async {
+        let (events, continuation) = AsyncStream.makeStream(of: MemoriesEvent.self)
+        let listenerID = UUID()
+        showAllListeners[listenerID] = { continuation.yield(.showAll) }
         var winnerTasks: [String: Task<Void, Never>] = [:]
+        var feed = followClosedRooms(limit: showsAllMemories ? nil : MemoryTicket.queryLimit, into: continuation)
         defer {
+            showAllListeners[listenerID] = nil
+            feed.cancel()
+            continuation.finish()
             for task in winnerTasks.values {
                 task.cancel()
             }
         }
-        while !Task.isCancelled {
-            for await update in repository.closedRooms(userID: userID) {
-                guard !Task.isCancelled else {
-                    break
+        // 呼んだ Task が cancel されると、`for await` は次の値を待たずに終わる
+        for await event in events {
+            switch event {
+            case let .rooms(value):
+                applyClosed(value, winnerTasks: &winnerTasks)
+            case .showAll:
+                feed.cancel()
+                feed = followClosedRooms(limit: nil, into: continuation)
+                // 上限なしの一覧が届く前に、読んである 6 つ目のルームの当選した候補も購読し始める
+                if memoriesState == .loaded {
+                    applyClosed(closedRooms, winnerTasks: &winnerTasks)
                 }
-                if let value = update.value {
-                    applyClosed(value, winnerTasks: &winnerTasks)
-                }
-            }
-            guard await resubscribeDelay.wait() else {
-                break
             }
         }
     }
 
-    /// 届いた終了したルームを映し、当選した候補の購読を一覧に合わせる
+    /// 終了したルームを `limit` 件まで購読し続ける `Task` を始め、届いた一覧を `continuation` に流す
+    private func followClosedRooms(
+        limit: Int?,
+        into continuation: AsyncStream<MemoriesEvent>.Continuation
+    ) -> Task<Void, Never> {
+        let repository = repository
+        let userID = userID
+        return Self.follow(
+            { repository.closedRooms(userID: userID, limit: limit) },
+            resubscribeDelay: resubscribeDelay,
+            onValue: { continuation.yield(.rooms($0)) }
+        )
+    }
+
+    /// 届いた終了したルームを映し、当選した候補の購読を、きっぷを出すルーム（`MemoryTicket.watchedRooms`）に合わせる
     /// - Parameters:
     ///   - value: 届いた終了したルーム
     ///   - winnerTasks: この `observe()` が持つ当選した候補の購読（ルームの ID ごと）
     private func applyClosed(_ value: [Identified<Room>], winnerTasks: inout [String: Task<Void, Never>]) {
         closedRooms = value
         memoriesState = .loaded
+        let watched = MemoryTicket.watchedRooms(value, showsAll: showsAllMemories)
         let winners = Dictionary(
-            value.compactMap { room in room.winnerCandidateId.map { (room.id, $0) } },
+            watched.compactMap { room in room.winnerCandidateId.map { (room.id, $0) } },
             uniquingKeysWith: { first, _ in first }
         )
         for (roomID, task) in winnerTasks where winners[roomID] == nil {

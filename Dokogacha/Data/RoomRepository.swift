@@ -24,8 +24,11 @@ protocol RoomRepository {
     /// ホームの進行中のルーム（`open`・`unlocked`・`drawn`）を、作成日時の新しい順に購読する（05 の §6）
     func activeRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>>
 
-    /// ホームの「思い出のきっぷ」の、終了したルーム（`closed`）を、終了の日時の新しい順に購読する（03 の S-02・F-44）
-    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>>
+    /// ホームの「思い出のきっぷ」の、終了したルーム（`closed`）を、終了の日時の新しい順に購読する（03 の S-02・F-44）。
+    ///
+    /// `limit` を渡すと、新しい順の先頭からその数だけを読む（ホームは「すべて見る」を押すまで 6 件。終了したルームは増え続けるため）。
+    /// nil ならすべて
+    func closedRooms(userID: String, limit: Int?) -> AsyncStream<LiveUpdate<[Identified<Room>]>>
 
     /// ルームを購読する。
     ///

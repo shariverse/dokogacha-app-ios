@@ -80,6 +80,9 @@ final class FirebaseFirestoreGateway: FirestoreGateway {
         if let order = query.order {
             result = result.order(by: order.field, descending: order.descending)
         }
+        if let limit = query.limit {
+            result = result.limit(to: limit)
+        }
         return result
     }
 
