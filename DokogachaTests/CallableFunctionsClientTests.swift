@@ -68,6 +68,24 @@ struct CallableFunctionsClientTests {
         #expect(transport.calls[2].json["approve"] as? Bool == true)
     }
 
+    /// 設定の変更は変える項目だけを送り（nil の鍵を送らない。backend の `parseUpdateRoomSettingsInput` が「変えない」とみなす）、
+    /// 締切日時はミリ秒で送る。強制解禁は `{ roomId }` だけ。どちらも結果は `{}`
+    @Test
+    func updateRoomSettingsAndForceUnlockSendBackendShape() async throws {
+        let transport = FakeTransport()
+        let client = CallableFunctionsClient(transport: transport)
+        try await client.updateRoomSettings(UpdateRoomSettingsRequest(roomId: "r1", postLimit: 5))
+        try await client.updateRoomSettings(UpdateRoomSettingsRequest(roomId: "r1", unlockRule: .deadline, deadlineAt: 1_790_000_000_500))
+        try await client.forceUnlock(RoomRequest(roomId: "r1"))
+        #expect(transport.calls.map(\.name) == [.updateRoomSettings, .updateRoomSettings, .forceUnlock])
+        #expect(Set(transport.calls[0].json.keys) == ["roomId", "postLimit"])
+        #expect(transport.calls[0].json["postLimit"] as? Int == 5)
+        #expect(Set(transport.calls[1].json.keys) == ["roomId", "unlockRule", "deadlineAt"])
+        #expect(transport.calls[1].json["deadlineAt"] as? Int64 == 1_790_000_000_500)
+        #expect(transport.calls[1].json["unlockRule"] as? String == "deadline")
+        #expect(Set(transport.calls[2].json.keys) == ["roomId"])
+    }
+
     @Test
     func addCandidateReturnsDuplicate() async throws {
         let transport = FakeTransport()
