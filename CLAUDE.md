@@ -85,7 +85,7 @@ npm run build           # Functions を functions/lib/ にビルドする
 - ずらした設定は `scripts/emulator-config.cjs` が `backend/firebase.emulators.local.json`（git 管理外）に書き出し、`scripts/test-emulator.sh` がそれを `emulators:exec --config` に渡す。
   テストは `emulators:exec` が渡す `FIRESTORE_EMULATOR_HOST`・`FIREBASE_EMULATOR_HUB` などの環境変数で接続先を読むので、ポートを直接書かない
 - プロジェクトは Emulator 専用の `demo-dokogacha`（`.firebaserc`）。`firebase deploy`・`firebase login` は人間がする
-- Functions は `functions/src/index.ts` で Callable・トリガー・スケジュールに包むだけにし、処理は `rooms/`・`users/`・`candidates/`・`unlock/`（準備OKの数え直しと解禁）・`settings/`（設定の変更）の
+- Functions は `functions/src/index.ts` で Callable・トリガー・スケジュールに包むだけにし、処理は `rooms/`・`users/`・`candidates/`・`unlock/`（準備OKの数え直しと解禁）・`settings/`（設定の変更）・`draw/`（抽選。重み付きの選択は `domain/draw.ts`、Swift は `Domain/Logic/GachaDraw.swift`）の
   `service.ts`（Firestore）・`logic.ts`（判定）・`input.ts`（入力の検証）に置く。トリガーは `retry: true` にし、処理を冪等にする（今の値と同じなら書かない）。
   多くのルームを処理するもの（`onUserProfileUpdate`・`checkDeadlines`）は `batch.ts` の `settleInGroups` で、失敗があっても残りを処理してから投げる
   Emulator のテストは処理を Admin SDK で直接呼ぶもの（乱数を差し替えられる。`test/emulator/rooms-service.test.ts`）と、client SDK の `httpsCallable` で Functions の Emulator を呼ぶもの（`rooms-callable.test.ts`）の 2 種類
