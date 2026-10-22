@@ -154,7 +154,7 @@ extension RoomSettingsModelTests {
         #expect(fixture.toasts.current == nil)
     }
 
-    /// 保存を送っている途中は、もう一度押しても送らない（二重送信の防止）。入力も変えられない
+    /// 保存を送っている途中は、もう一度押しても送らない（二重送信の防止）。入力も変えられないが、項目は無効の見た目にしない（ちらつかせない）
     @Test
     func preventsDoubleSave() async throws {
         let fixture = try Self.make()
@@ -169,7 +169,12 @@ extension RoomSettingsModelTests {
         #expect(await AsyncTestSupport.eventually { fixture.functions.isWaiting })
         #expect(model.isSaving)
         #expect(!model.canSave)
-        #expect(!model.isNameEditable)
+        #expect(!model.acceptsInput)
+        #expect(model.isNameEditable && model.isPostLimitEditable)
+        model.name = "変えた名前"
+        model.postLimit = 5
+        #expect(model.name != "変えた名前")
+        #expect(model.postLimit == 4)
         await model.save()
         #expect(fixture.functions.updateRequests.count == 1)
 

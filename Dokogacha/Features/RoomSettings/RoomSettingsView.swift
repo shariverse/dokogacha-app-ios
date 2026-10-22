@@ -142,6 +142,9 @@ struct RoomSettingsView: View {
         }
         .redacted(reason: model.isLoaded ? [] : .placeholder)
         .disabled(!model.isLoaded)
+        // 保存を送っている途中は、見た目を変えずに操作だけを止める（無効の見た目にすると全項目が灰色にちらつく）
+        .allowsHitTesting(model.acceptsInput)
+        .accessibilityRespondsToUserInteraction(model.acceptsInput)
     }
 
     /// 作成者以外・終了したルームの案内（どの項目も変えられない理由）
@@ -208,7 +211,7 @@ struct RoomSettingsView: View {
     /// 見出し・中身・補足を縦に並べた項目（間隔 8。S-03 と同じ）
     private func section(
         _ title: LocalizedStringKey,
-        hint: LocalizedStringKey,
+        hint: LocalizedStringKey?,
         @ViewBuilder content: () -> some View
     ) -> some View {
         VStack(alignment: .leading, spacing: DGSpacing.s8) {
@@ -218,10 +221,12 @@ struct RoomSettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             content()
-            Text(hint)
-                .font(.dg(.bodyCaption))
-                .foregroundStyle(Color.dgTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if let hint {
+                Text(hint)
+                    .font(.dg(.bodyCaption))
+                    .foregroundStyle(Color.dgTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -244,9 +249,15 @@ struct RoomSettingsView: View {
         "引き上げのみできます（今は\(model.currentPostLimit)件まで）"
     }
 
-    /// 解禁の条件の補足（状態で変えられないときは、その理由）
-    private var unlockRuleHint: LocalizedStringKey {
-        model.unlockRuleLock == .status ? "解禁の条件は候補募集中のときだけ変更できます" : "作成者はいつでも強制解禁できます"
+    /// 解禁の条件の補足（状態で変えられないときは、その理由）。
+    ///
+    /// 作成者以外・終了したルームでは、上の案内が理由を伝え、強制解禁もできないので出さない（PR #65 の持ち越し）
+    private var unlockRuleHint: LocalizedStringKey? {
+        switch model.unlockRuleLock {
+        case .status: "解禁の条件は候補募集中のときだけ変更できます"
+        case .notOwner, .closed: nil
+        case nil: "作成者はいつでも強制解禁できます"
+        }
     }
 
     /// いいねの効き方の補足（状態で変えられないときは、その理由。変えられるときは S-03 と同じく選択に応じて切り替える）
