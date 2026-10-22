@@ -151,7 +151,7 @@ extension AppError {
         case inviteCodeNotFound = "invite-code-not-found"
         /// メンバーが上限に達している（F-04 の AC）
         case roomFull = "room-full"
-        /// ルームが `drawn`・`closed` で参加できない（F-04 の AC）。候補の追加・削除を `drawn`・`closed` でしたときも
+        /// ルームが `drawn`・`closed` で参加できない（F-04 の AC）。候補の追加・削除・強制解禁を `drawn`・`closed` でしたときも
         case roomAlreadyDecided = "room-already-decided"
         /// ルームが存在しない
         case roomNotFound = "room-not-found"
@@ -173,6 +173,14 @@ extension AppError {
         case candidateNotFound = "candidate-not-found"
         /// 投稿した人と作成者以外が候補を削除しようとした（F-11）
         case notCandidateOwner = "not-candidate-owner"
+        /// ルームが `closed` で設定を変えられない（F-03）
+        case roomClosed = "room-closed"
+        /// 投稿数を今より少なくしようとした（F-03「引き上げのみ可」）
+        case postLimitDecrease = "post-limit-decrease"
+        /// `open` 以外で解禁の条件を変えようとした（F-03）
+        case unlockRuleLocked = "unlock-rule-locked"
+        /// `drawn`・`closed` でいいねの効き方を変えようとした（F-03）
+        case likeModeLocked = "like-mode-locked"
         /// 招待コードを決められなかった（もう一度で通る見込みが高い）
         case inviteCodeUnavailable = "invite-code-unavailable"
         /// 想定していないエラー
@@ -237,6 +245,14 @@ extension AppError {
                 String(localized: "候補が見つかりません")
             case .notCandidateOwner:
                 String(localized: "投稿した人と作成者だけが削除できます")
+            case .roomClosed:
+                String(localized: "このルームは終了しています")
+            case .postLimitDecrease:
+                String(localized: "投稿数は今より少なくできません")
+            case .unlockRuleLocked:
+                String(localized: "解禁の条件は候補募集中のときだけ変更できます")
+            case .likeModeLocked:
+                String(localized: "いいねの効き方はガチャを回す前だけ変更できます")
             case .permissionDenied:
                 String(localized: "この操作はできません")
             case .unauthenticated, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,

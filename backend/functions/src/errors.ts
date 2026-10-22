@@ -25,7 +25,8 @@ export const APP_ERRORS = {
   "room-full": { code: "resource-exhausted", message: `このルームは満員です（最大${String(MAX_MEMBERS)}人）` },
   /**
    * ルームが `drawn`・`closed` で参加できない（02 の F-04 の AC）。
-   * 候補の追加・削除（02 の §2.1「投稿・削除は open・unlocked のときだけ」）を `drawn`・`closed` で呼んだときにも使う
+   * 候補の追加・削除（02 の §2.1「投稿・削除は open・unlocked のときだけ」）・強制解禁（02 の F-32「未解禁のとき」）を
+   * `drawn`・`closed` で呼んだときにも使う
    */
   "room-already-decided": { code: "failed-precondition", message: "このルームはもう行き先が決まっています" },
   /** ルームが存在しない */
@@ -51,6 +52,17 @@ export const APP_ERRORS = {
   "candidate-not-found": { code: "not-found", message: "候補が見つかりません" },
   /** 投稿した人と作成者以外が候補を削除しようとした（02 の F-11） */
   "not-candidate-owner": { code: "permission-denied", message: "投稿した人と作成者だけが削除できます" },
+  /**
+   * ルームが `closed` で設定を変えられない（02 の F-03「ルーム名 いつでも変更可（closed 以外）」。
+   * 終了したルームは閲覧のみ（02 の §2.1）なので、ほかの項目も変えられない）
+   */
+  "room-closed": { code: "failed-precondition", message: "このルームは終了しています" },
+  /** 投稿数を今より少なくしようとした（02 の F-03「引き上げのみ可（下げられない）」） */
+  "post-limit-decrease": { code: "failed-precondition", message: "投稿数は今より少なくできません" },
+  /** `open` 以外で解禁の条件（締切日時を含む）を変えようとした（02 の F-03「open のときのみ変更可」） */
+  "unlock-rule-locked": { code: "failed-precondition", message: "解禁の条件は候補募集中のときだけ変更できます" },
+  /** `drawn`・`closed` でいいねの効き方を変えようとした（02 の F-03「open/unlocked のときのみ変更可」） */
+  "like-mode-locked": { code: "failed-precondition", message: "いいねの効き方はガチャを回す前だけ変更できます" },
   /** 招待コードを決められなかった（重複が続いた。もう一度呼べば通る見込みが高い） */
   "invite-code-unavailable": { code: "unavailable", message: "通信できませんでした" },
   /** 想定していないエラー */
