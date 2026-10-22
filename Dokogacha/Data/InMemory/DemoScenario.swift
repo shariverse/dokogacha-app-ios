@@ -27,6 +27,11 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     /// 表示名をまだ登録していない（S-01 を出す）。`joinable` と同じ、ほかの人のルームが 3 つある
     /// （登録する前に招待リンクで開かれ、登録した後に S-06 が開く UI テスト用）
     case firstLaunchInvited = "first-launch-invited"
+    /// 表示名を登録済みで、行き先が決まった（`drawn`）ルームが 2 つある（自分が作ったもの・はるかが作ったもの）。
+    /// 終了したルームは無い（S-14 の「この行き先で決定」から思い出のきっぷが出るまでの UI テスト用。`DemoScenario+Closed.swift`）
+    case drawnRooms = "drawn-rooms"
+    /// `drawn-rooms` に、終了した（`closed`）ルームを 6 つ足したもの（ホームの思い出のきっぷの撮影・プレビュー用）
+    case memories
 
     /// 表示名をまだ登録していないシナリオか（自分とほかのメンバーのプロフィールを入れない）
     var isFirstLaunch: Bool {
@@ -123,6 +128,7 @@ extension InMemoryServer {
         if scenario == .joinable || scenario == .firstLaunchInvited {
             addJoinableRooms(to: server, now: now)
         }
+        addClosingDemoRooms(scenario, to: server, now: now)
         return server
     }
 

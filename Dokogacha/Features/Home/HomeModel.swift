@@ -21,10 +21,13 @@ import Observation
 ///   少し待って購読し直す
 /// - メンバーの購読の失敗はトーストを出さずに読み直す（カードは人数だけ先に出せる。ルームから外れた直後の拒否でトーストを出さないため）
 ///
-/// 「思い出のきっぷ」（`closed` のルーム）の購読はタスク 30 で足す。いまは空の表示だけ。
+/// 「思い出のきっぷ」（03 の S-02 の 3・F-44）は、終了したルームを `RoomRepository.closedRooms` で購読し、
+/// ルームごとに当選した候補 1 件だけを `candidate(roomID:candidateID:)` で購読して「◯◯ ゆき」を出す（候補をまるごと読まない）。
+/// 進行中のルームと並べて動かし（`async let`）、どちらも `observe()` を呼んだ `Task` の cancel で止まる。
+/// 思い出のきっぷの購読の失敗はトーストを出さずに読み直す（同じ通信の失敗で、進行中のルームの購読が 1 回だけトーストを出す）。
 @Observable
 final class HomeModel {
-    /// 進行中のルームの読み込みの状態
+    /// 進行中のルーム・思い出のきっぷの読み込みの状態
     enum RoomsState: Equatable {
         /// 最初の一覧がまだ届いていない（部品の形を保ったまま `redacted` で出す）
         case loading
@@ -40,6 +43,14 @@ final class HomeModel {
     private(set) var rooms: [Identified<Room>] = []
     /// ルームごとのメンバー（ルームの ID → 参加の早い順）
     private(set) var membersByRoom: [String: [Identified<Member>]] = [:]
+    /// 思い出のきっぷの読み込みの状態
+    private(set) var memoriesState: RoomsState = .loading
+    /// 購読で届いた終了したルーム
+    private(set) var closedRooms: [Identified<Room>] = []
+    /// 終了したルームの当選した候補（ルームの ID → 候補）
+    private(set) var winnersByRoom: [String: Candidate] = [:]
+    /// 「すべて見る」を押したか（押したら 6 枚目からも出す）
+    var showsAllMemories = false
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let toasts: DGToastCenter
@@ -72,8 +83,46 @@ final class HomeModel {
         roomsState == .loaded && cards.isEmpty
     }
 
-    /// 進行中のルームを購読し、呼んだ `Task` が cancel されるまで続ける（cancel されたら、この呼び出しが始めたメンバーの購読も止める）
+    /// 思い出のきっぷ（新しい順。当選した候補が届いたルームだけ）
+    var memoryTickets: [MemoryTicket] {
+        MemoryTicket.tickets(rooms: closedRooms, winners: winnersByRoom)
+    }
+
+    /// ホームに出す思い出のきっぷ（「すべて見る」を押す前は 5 枚まで）
+    var visibleMemoryTickets: [MemoryTicket] {
+        MemoryTicket.visible(memoryTickets, showsAll: showsAllMemories)
+    }
+
+    /// 「すべて見る」を出すか
+    var hasMoreMemories: Bool {
+        MemoryTicket.hasMore(memoryTickets, showsAll: showsAllMemories)
+    }
+
+    /// 終了したルームが 1 つも無いと分かったか（空の表示を出す）
+    var isMemoriesEmpty: Bool {
+        memoriesState == .loaded && closedRooms.isEmpty
+    }
+
+    /// 思い出のきっぷを読み込み中の形で出すか（一覧がまだ届いていない・ルームはあるが当選した候補がまだ 1 件も届いていない）
+    var isMemoriesLoading: Bool {
+        memoriesState == .loading || (!closedRooms.isEmpty && memoryTickets.isEmpty)
+    }
+
+    /// 「すべて見る」が押された
+    func showAllMemoriesTapped() {
+        showsAllMemories = true
+    }
+
+    /// 進行中のルームと思い出のきっぷを購読し、呼んだ `Task` が cancel されるまで続ける
+    /// （cancel されたら、この呼び出しが始めたメンバー・当選した候補の購読も止める）
     func observe() async {
+        async let active: Void = observeActiveRooms()
+        async let memories: Void = observeClosedRooms()
+        _ = await (active, memories)
+    }
+
+    /// 進行中のルームを購読し続ける（失敗したらトーストを 1 回出して読み直す）
+    private func observeActiveRooms() async {
         var memberTasks: [String: Task<Void, Never>] = [:]
         defer {
             for task in memberTasks.values {
@@ -129,10 +178,58 @@ final class HomeModel {
         }
     }
 
+    /// 終了したルームを購読し続ける（失敗したらトーストを出さずに読み直す）
+    private func observeClosedRooms() async {
+        var winnerTasks: [String: Task<Void, Never>] = [:]
+        defer {
+            for task in winnerTasks.values {
+                task.cancel()
+            }
+        }
+        while !Task.isCancelled {
+            for await update in repository.closedRooms(userID: userID) {
+                guard !Task.isCancelled else {
+                    break
+                }
+                if let value = update.value {
+                    applyClosed(value, winnerTasks: &winnerTasks)
+                }
+            }
+            guard await resubscribeDelay.wait() else {
+                break
+            }
+        }
+    }
+
+    /// 届いた終了したルームを映し、当選した候補の購読を一覧に合わせる
+    /// - Parameters:
+    ///   - value: 届いた終了したルーム
+    ///   - winnerTasks: この `observe()` が持つ当選した候補の購読（ルームの ID ごと）
+    private func applyClosed(_ value: [Identified<Room>], winnerTasks: inout [String: Task<Void, Never>]) {
+        closedRooms = value
+        memoriesState = .loaded
+        let winners = Dictionary(
+            value.compactMap { room in room.winnerCandidateId.map { (room.id, $0) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (roomID, task) in winnerTasks where winners[roomID] == nil {
+            task.cancel()
+            winnerTasks[roomID] = nil
+            winnersByRoom[roomID] = nil
+        }
+        for (roomID, candidateID) in winners where winnerTasks[roomID] == nil {
+            let repository = repository
+            winnerTasks[roomID] = Self.follow(
+                { repository.candidate(roomID: roomID, candidateID: candidateID) },
+                resubscribeDelay: resubscribeDelay,
+                onValue: { [weak self] candidate in
+                    self?.winnersByRoom[roomID] = candidate?.value
+                }
+            )
+        }
+    }
+
     /// ルームのメンバーを購読し続ける `Task` を始める。失敗で終わったら、少し待って購読し直す（トーストは出さない）。
-    ///
-    /// `Task` には self を渡さず、値が届いたときに `onValue`（self を弱く持つ）で映す。
-    /// `self?.method()` の形で await すると、待っている間ずっと self を強く持ち、`[weak self]` が効かないため
     /// - Parameters:
     ///   - roomID: ルームの ID
     ///   - repository: 購読の窓口
@@ -144,15 +241,31 @@ final class HomeModel {
         resubscribeDelay: ResubscribeDelay,
         onValue: @escaping ([Identified<Member>]) -> Void
     ) -> Task<Void, Never> {
+        follow({ repository.members(roomID: roomID) }, resubscribeDelay: resubscribeDelay, onValue: onValue)
+    }
+
+    /// 購読し続ける `Task` を始める。失敗で終わったら、少し待って購読し直す（トーストは出さない）。
+    ///
+    /// `Task` には self を渡さず、値が届いたときに `onValue`（self を弱く持つ）で映す。
+    /// `self?.method()` の形で await すると、待っている間ずっと self を強く持ち、`[weak self]` が効かないため
+    /// - Parameters:
+    ///   - subscribe: 購読を始める（購読し直すたびに呼ぶ）
+    ///   - resubscribeDelay: 購読し直すまでの待ち方
+    ///   - onValue: 値が届いたときの処理
+    private static func follow<Value: Sendable>(
+        _ subscribe: @escaping () -> AsyncStream<LiveUpdate<Value>>,
+        resubscribeDelay: ResubscribeDelay,
+        onValue: @escaping (Value) -> Void
+    ) -> Task<Void, Never> {
         Task {
             while !Task.isCancelled {
-                for await update in repository.members(roomID: roomID) {
+                for await update in subscribe() {
                     // 一覧から消えて止めた後に、流れ残りの値で戻さない
                     guard !Task.isCancelled else {
                         return
                     }
-                    if let members = update.value {
-                        onValue(members)
+                    if let value = update.value {
+                        onValue(value)
                     }
                 }
                 guard await resubscribeDelay.wait() else {

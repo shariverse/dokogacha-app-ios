@@ -37,6 +37,8 @@ final class ResultModel {
     private(set) var draw: Draw?
     /// 引き直しの提案・投票を送っている途中か（送っている間はボタンを押せない）
     private(set) var isSendingReroll = false
+    /// 「この行き先で決定」（F-44。作成者だけが使う）
+    let closing: ResultCloseModel
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let functions: any FunctionsClient
@@ -74,6 +76,7 @@ final class ResultModel {
             toasts: toasts,
             resubscribeDelay: resubscribeDelay
         )
+        closing = ResultCloseModel(roomID: roomID, functions: functions, toasts: toasts)
         self.repository = repository
         self.functions = functions
         self.mapOpener = mapOpener

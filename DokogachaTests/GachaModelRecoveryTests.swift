@@ -135,6 +135,14 @@ final class DrawDelayedRepository: RoomRepository {
         server.draw(roomID: roomID, drawID: drawID)
     }
 
+    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+        server.closedRooms(userID: userID)
+    }
+
+    func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {
+        server.candidate(roomID: roomID, candidateID: candidateID)
+    }
+
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {
         try await server.setReady(ready, roomID: roomID, userID: userID)
     }

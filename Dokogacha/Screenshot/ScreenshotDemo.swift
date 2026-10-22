@@ -29,6 +29,8 @@ enum ScreenshotDemo {
         case roomSettings
         case gacha
         case result
+        case resultMember
+        case homeMemories
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）

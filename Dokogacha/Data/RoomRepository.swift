@@ -24,6 +24,9 @@ protocol RoomRepository {
     /// ホームの進行中のルーム（`open`・`unlocked`・`drawn`）を、作成日時の新しい順に購読する（05 の §6）
     func activeRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>>
 
+    /// ホームの「思い出のきっぷ」の、終了したルーム（`closed`）を、終了の日時の新しい順に購読する（03 の S-02・F-44）
+    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>>
+
     /// ルームを購読する。
     ///
     /// 読めるのはメンバーだけ（セキュリティルール）。無いルーム（招待のリンクの先が消えたなど）を購読すると、ルールが
@@ -42,6 +45,11 @@ protocol RoomRepository {
     /// 読めるのはメンバーだけ（セキュリティルール）。記録は `drawGacha` が作った後は変わらないので、画面は最初の値だけを使ってよい。
     /// 無い記録は nil が流れる
     func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>>
+
+    /// 候補を 1 つ購読する（思い出のきっぷの「◯◯ ゆき」に当選した候補の名前を出す。ルームの候補をまるごと読まない）。
+    ///
+    /// 読めるのはメンバーだけ（セキュリティルール）。無い候補は nil が流れる
+    func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>>
 
     /// 自分の準備OKを変える（F-30。`open`・`unlocked` のときだけ）
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws

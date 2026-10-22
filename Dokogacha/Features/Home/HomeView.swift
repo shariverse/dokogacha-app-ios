@@ -184,12 +184,16 @@ struct HomeView: View {
 
     // MARK: - 思い出のきっぷ
 
-    /// 思い出のきっぷ（03 の S-02 の 3）。`closed` のルームの購読と TicketStub の一覧はタスク 30 で足す。いまは空の表示だけ
+    /// 思い出のきっぷ（03 の S-02 の 3）。`closed` のルームを新しい順に TicketStub で並べる（`HomeMemoryTickets`）。0 件なら空の表示
     private var memoriesSection: some View {
         VStack(alignment: .leading, spacing: DGSpacing.s10) {
             sectionTitle("思い出のきっぷ")
-            emptyMessage("まだ思い出のきっぷはありません。行き先が決まったルームがここに残ります")
-                .accessibilityIdentifier(Identifier.memoriesEmpty)
+            if model.isMemoriesEmpty {
+                emptyMessage("まだ思い出のきっぷはありません。行き先が決まったルームがここに残ります")
+                    .accessibilityIdentifier(Identifier.memoriesEmpty)
+            } else {
+                HomeMemoryTickets(model: model, navigate: navigate)
+            }
         }
     }
 

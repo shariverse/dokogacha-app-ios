@@ -3,7 +3,7 @@ rules_version = '2';
 // ドコガチャの Firestore のセキュリティルール（05_architecture.md の §4）。
 // 整合性が要る書き込みは Callable Functions（Admin SDK。ルールを通らない）で行い、
 // クライアントが直接書けるのは「自分の準備OK」「いいね」「lastSeenAt」（と自分の通知トークン）だけにする。
-// まだ作っていないコレクション（pastIdeas・inviteCodes・reports など）は、
+// まだ作っていないコレクション（inviteCodes・reports など）は、
 // 最後の match ですべて拒否する。機能を作るタスクで許可を足していく。
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -56,6 +56,12 @@ service cloud.firestore {
       allow update: if signedIn() && request.auth.uid == uid
         && changesOnly(['fcmTokens'])
         && validFcmTokens(request.resource.data.fcmTokens);
+
+      // users/{uid}/pastIdeas/{ideaId}: 過去のアイデア（F-13）。本人だけが読める（05 の §4）。
+      // 作るのはルームが終了したときの Functions（onRoomClosed）だけ。直接は作成・変更・削除できない
+      match /pastIdeas/{ideaId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+      }
     }
 
     // rooms/{roomId}: メンバーだけが読める（ホームの memberIds array-contains の一覧も、この条件で許可される）。

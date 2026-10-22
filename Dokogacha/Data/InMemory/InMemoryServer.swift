@@ -43,6 +43,11 @@ final class InMemoryServer {
         didSet { notifySubscribers() }
     }
 
+    /// `users/{uid}/pastIdeas/{ideaId}`（鍵は uid → 過去のアイデアの ID。ルームが終了したときに作る。F-13）
+    var pastIdeas: [String: [String: PastIdea]] = [:] {
+        didSet { notifySubscribers() }
+    }
+
     /// この端末でサインインしているユーザー（nil ならサインインしていない）
     var signedInUserID: String? {
         didSet { notifySubscribers() }

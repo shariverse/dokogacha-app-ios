@@ -61,6 +61,14 @@ struct HomeModelTests {
             server.draw(roomID: roomID, drawID: drawID)
         }
 
+        func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+            server.closedRooms(userID: userID)
+        }
+
+        func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {
+            server.candidate(roomID: roomID, candidateID: candidateID)
+        }
+
         func setReady(_ ready: Bool, roomID: String, userID: String) async throws {}
 
         func setLike(_ liked: Bool, candidateID: String, roomID: String, userID: String) async throws {}
@@ -156,11 +164,12 @@ struct HomeModelTests {
         let model = Self.makeModel(server)
         let observing = Task { await model.observe() }
         defer { observing.cancel() }
-        // ルーム 1 つ＋メンバー 3 つ
-        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 && model.membersByRoom.count == 3 })
+        // 進行中のルーム 1 つ＋メンバー 3 つ＋思い出のきっぷのルーム 1 つ
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 5 && model.membersByRoom.count == 3 })
 
+        // 当選の無い closed にする（思い出のきっぷの当選した候補の購読は増えない）
         server.rooms[DemoScenario.othersRoomID]?.room.status = .closed
-        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 3 })
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 })
         #expect(model.membersByRoom[DemoScenario.othersRoomID] == nil)
         // 消えたルームのメンバーが後から変わっても、映さない
         server.rooms[DemoScenario.othersRoomID]?.members["demo-mio"]?.ready = true
@@ -174,14 +183,14 @@ struct HomeModelTests {
         let server = InMemoryServer.demo(.severalRooms)
         let model = Self.makeModel(server)
         let first = Task { await model.observe() }
-        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 })
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 5 })
 
         first.cancel()
         let second = Task { await model.observe() }
         defer { second.cancel() }
         await first.value
-        // 前の分（4）が外れ、次の分（ルーム 1 つ＋メンバー 3 つ）だけが残る
-        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 })
+        // 前の分（5）が外れ、次の分（進行中のルーム 1 つ＋メンバー 3 つ＋思い出のきっぷのルーム 1 つ）だけが残る
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 5 })
 
         server.rooms[DemoScenario.roomID]?.members["demo-sota"]?.ready = true
         #expect(await AsyncTestSupport.eventually {
@@ -230,8 +239,8 @@ struct HomeModelTests {
         let server = InMemoryServer.demo(.severalRooms)
         let model = Self.makeModel(server)
         let observing = Task { await model.observe() }
-        // ルーム 1 つ＋メンバー 3 つ
-        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 })
+        // 進行中のルーム 1 つ＋メンバー 3 つ＋思い出のきっぷのルーム 1 つ
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 5 })
 
         observing.cancel()
         await observing.value

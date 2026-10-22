@@ -76,7 +76,10 @@ export const APP_ERRORS = {
    * 抽選の記録（`draws`）と行き先きっぷ・過去のアイデアが指す候補が消えないようにする
    */
   "candidate-drawn": { code: "failed-precondition", message: "ガチャで当選した候補は削除できません" },
-  /** 行き先が決まる前（`open`・`unlocked`）に引き直しを提案した（02 の §6.4「drawn のとき、メンバーの誰かが提案」） */
+  /**
+   * 行き先が決まる前（`open`・`unlocked`）に、引き直しを提案した（02 の §6.4「drawn のとき、メンバーの誰かが提案」）か、
+   * 「この行き先で決定」（`closeRoom`）を呼んだ（02 の §6.5「drawn → closed」）
+   */
   "room-not-drawn": { code: "failed-precondition", message: "まだ行き先が決まっていません" },
   /**
    * 引き直しの権利を使った後に、もう一度提案した（02 の §6.4「ルームにつき1回まで」「否決後は再提案できない」・

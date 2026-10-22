@@ -195,7 +195,7 @@ extension AppError {
         case noCandidates = "no-candidates"
         /// ガチャで当選した候補（今の当選・引き直しで除外した前の当選）を削除しようとした
         case candidateDrawn = "candidate-drawn"
-        /// 行き先が決まる前（`open`・`unlocked`）に引き直しを提案した（F-43）
+        /// 行き先が決まる前（`open`・`unlocked`）に、引き直しを提案した（F-43）か「この行き先で決定」をした（F-44）
         case roomNotDrawn = "room-not-drawn"
         /// 引き直しの権利を使った後に、もう一度提案した（F-43 の AC「引き直しは2回目を提案できない」）
         case rerollUsed = "reroll-used"

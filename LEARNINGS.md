@@ -37,3 +37,4 @@
 - Emulator のテストのファイルどうしは同じ Firestore を使うので、片方の `clearFirestore` がもう片方のデータを消す。`jest.emulator.config.js` は `maxWorkers: 1` で 1 ファイルずつ流す（2026-10-22）
 - Mac が混んでいると（load average 50 前後）、Functions の Emulator がコードを読み込んで関数の一覧を作るのが既定の上限 10 秒を超え、「Cannot determine backend specification. Timeout after 10000」でトリガーも Callable も動かないままテストが待ちで落ちる。環境変数 `FUNCTIONS_DISCOVERY_TIMEOUT`（単位は秒）で延ばせる（`scripts/test-emulator.sh` で 60 にしてある）（2026-10-22）
 - Firestore のトリガー（`onMemberWrite`）がトランザクションでルームとメンバーを読んでいる間に Emulator のデータを消す（`DELETE …/documents`・`clearFirestore`）と、409「Transaction lock timeout」（ABORTED）で失敗する。前のテストの書き込みでトリガーが遅れて動くので、消すのを間隔を空けてやり直す（`test/emulator/firestore-admin.ts` の `retryWhileLocked`）（2026-10-22）
+- Emulator のテストで、前のテストの書き込みで遅れて動いたトリガー（`onRoomClosed` の過去のアイデアの登録など）が、次のテストの `clearFirestore` の後に書くことがある。トリガーが書くドキュメントを確かめるときは、ほかのテストのデータを数えないようにテストのルームの ID などで絞って読む（`test/emulator/close.test.ts` の `pastIdeas`）（2026-10-22）
