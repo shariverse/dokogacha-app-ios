@@ -146,6 +146,22 @@ describe("広告非表示の購入（verifyPurchase。Emulator）", () => {
     expect(await sponsorOf(replaced.roomId)).toEqual({ uid: "bob", displayName: "bobさん" });
   });
 
+  it("ルームを引いた後、adFree を書く前に確定した参加のルームにも購入者を入れる（PR #97 の持ち越し）", async () => {
+    for (const uid of ["alice", "bob"]) {
+      await addUser(uid);
+    }
+    const first = await room("alice", ["bob"]);
+    const late = await room("alice", [], "週末");
+    const result = await verifyPurchase(deps(), "bob", { signedTransaction: SIGNED }, verifierReturning(), async () => {
+      // まだ adFree でないプロフィールで参加が確定する（joinRoom は購入者を入れない）
+      await joinRoom(deps(), "bob", { inviteCode: late.inviteCode });
+      expect(await sponsorOf(late.roomId)).toBeNull();
+    });
+    expect(result).toMatchObject({ rooms: 2, sponsorUpdates: 2 });
+    expect(await sponsorOf(first.roomId)).toEqual({ uid: "bob", displayName: "bobさん" });
+    expect(await sponsorOf(late.roomId)).toEqual({ uid: "bob", displayName: "bobさん" });
+  });
+
   it("何度呼んでも同じ（復元・端末の入れ替え）。2 回目はルームを書き換えない", async () => {
     await addUser("alice");
     await addUser("bob");
