@@ -247,6 +247,32 @@ struct PurchaseCoordinatorTests {
         #expect(functions.verifyRequests.count == 2)
     }
 
+    /// アカウントを削除した後（F-06）は、送ったトランザクションとサーバーの記録を忘れ、次のプロフィールが読めるまで送らない。
+    /// 次のユーザーのプロフィールが読めたら、端末の購入（Apple ID に付く）をその人にもう一度送る
+    @Test
+    func forgetAccountSendsEntitlementToNextUser() async {
+        let fake = FakePurchaseService()
+        fake.entitlement = Self.purchase
+        let functions = Self.makeFunctions()
+        let purchases = PurchaseCoordinator(service: fake)
+        await Self.startAndFinishUpdates(purchases, fake)
+        purchases.connect(functions: functions, userID: Self.me, serverAdFree: false)
+        await purchases.verifyTask?.value
+        #expect(functions.verifyRequests.count == 1)
+
+        purchases.forgetAccount()
+        // 端末の購入は残るので、広告は出さないまま
+        #expect(purchases.isAdFree(serverAdFree: false))
+        #expect(purchases.verifyTask == nil)
+
+        functions.server.signedInUserID = "next-user"
+        _ = try? await functions.server.saveProfile(SaveProfileRequest(displayName: "つぎ"))
+        purchases.connect(functions: functions, userID: "next-user", serverAdFree: false)
+        await purchases.verifyTask?.value
+        #expect(functions.verifyRequests.count == 2)
+        #expect(functions.server.users["next-user"]?.adFree == true)
+    }
+
     /// 買えたら端末の購入にし、サーバーにも送る（S-15 の「広告を非表示にする」。タスク 38 の画面から呼ぶ）
     @Test
     func purchaseSendsToServer() async throws {

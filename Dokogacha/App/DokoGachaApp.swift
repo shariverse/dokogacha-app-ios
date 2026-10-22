@@ -72,6 +72,8 @@ struct DokoGachaApp: App {
             ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, appleLinked: true)
         case .settingsAdFree:
             ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, adFree: true)
+        case .settingsDeleteAccount:
+            ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, confirmingDeletion: true)
         case .licenses:
             NavigationStack {
                 LicensesView()

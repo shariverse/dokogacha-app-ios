@@ -118,6 +118,8 @@ struct MainNavigationView: View {
             auth: services.auth,
             purchases: purchases ?? .disabled,
             toasts: toasts,
+            // アカウントを削除したら、この端末に残す値（見た抽選・報告した候補・通知のトークンの記録・購入の送信済み）を消す
+            deviceData: .make(services: services, push: push, purchases: purchases),
             // 擬似のサーバーでは Apple の認証の画面を出さない（Simulator の画面はテストで操作できない）
             appleAuthorizer: services.inMemoryServer == nil ? nil : DemoAppleAuthorizer()
         )

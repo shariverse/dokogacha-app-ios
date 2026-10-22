@@ -20,9 +20,6 @@ import { appError } from "../errors";
  */
 export const AUTO_CLOSE_SCHEDULE = "every day 04:00";
 
-/** 過去のアイデアを書くバッチ 1 つの最大の件数（Firestore のバッチの上限 500 より少なくする） */
-export const PAST_IDEA_BATCH_SIZE = 400;
-
 /** `closeRoom` の判定の結果。`close` = 終了する・`alreadyClosed` = もう終了している（何も書かない） */
 export type CloseDecision = "close" | "alreadyClosed";
 

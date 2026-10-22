@@ -301,13 +301,6 @@ struct InMemoryServerTests {
             try await server.removeMember(RemoveMemberRequest(roomId: room.roomId, memberId: "b"))
         }
     }
-
-    @Test
-    func laterCallablesAreNotImplementedYet() async {
-        await #expect(throws: AppError(.notImplemented)) {
-            try await Self.makeServer().deleteAccount()
-        }
-    }
 }
 
 // MARK: - テストの道具

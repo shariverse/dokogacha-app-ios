@@ -49,6 +49,12 @@ final class InMemoryServer {
     /// 直前の連携で「既に別のアカウントに連携されている」と返った Apple のアカウント（`signInWithLinkedAppleAccount` で使う）
     var pendingAppleAccount: String?
 
+    /// Sign in with Apple のトークンの取り消しに渡された authorization code（渡された順。`InMemoryServer+Apple.swift`）
+    var revokedAppleAuthorizationCodes: [String] = []
+
+    /// アカウントの削除で消した Auth のユーザーの uid（`isCurrentAccountDeleted` で確かめる。`InMemoryServer+Account.swift`）
+    var deletedUserIDs: Set<String> = []
+
     /// `users/{uid}/pastIdeas/{ideaId}`（鍵は uid → 過去のアイデアの ID。ルームが終了したときに作る。F-13）
     var pastIdeas: [String: [String: PastIdea]] = [:] {
         didSet { notifySubscribers() }
@@ -186,7 +192,7 @@ final class InMemoryServer {
             .permissionDenied
         case .inviteCodeUnavailable, .purchaseVerificationUnavailable, .network, .serverUnavailable:
             .unavailable
-        case .internal, .unreadableData, .notImplemented, .appleSignInFailed:
+        case .internal, .unreadableData, .notImplemented, .appleSignInFailed, .appleRevokeFailed:
             .internal
         case .cancelled:
             .cancelled
@@ -226,6 +232,10 @@ extension InMemoryServer: AuthService {
 
     func saveDisplayName(_ displayName: String) async throws -> SaveProfileResponse {
         try await saveProfile(SaveProfileRequest(displayName: displayName))
+    }
+
+    func signOut() {
+        signedInUserID = nil
     }
 
     /// サーバー側でサインアウトされたことを再現する（ユーザーの削除・トークンの更新の失敗）

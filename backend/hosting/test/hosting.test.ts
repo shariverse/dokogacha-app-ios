@@ -385,9 +385,17 @@ describe("利用規約・プライバシーポリシーの HTML", () => {
     const section = visible(pages.privacy).match(/<section[^>]*aria-labelledby="privacy-6"[\s\S]*?<\/section>/)?.[0] ?? "";
     // 消えるもの: users/{uid}（表示名・通知トークン・購入の情報）・pastIdeas・Auth のユーザー
     expect(section).toMatch(/アカウントと、アカウントに結び付く情報（表示名・通知トークン・購入の情報・過去のアイデア）を削除します/);
-    // 残るもの: 候補の postedBy・postedByName、draws の drawnBy・drawnByName、ルームの ownerId
-    expect(section).toMatch(/ルームに残る記録（[^）]*投稿した候補[^）]*ガチャを回した記録[^）]*作成者）[^。]*ユーザー ID と、そのときの表示名が残ります/);
+    // 外れるもの: members・memberIds・adFreeSponsor・候補の likedBy（deleteAccount が退出と同じ処理で外す）
+    expect(section).toMatch(/ルームのメンバーの一覧と、「広告を非表示にする」を購入した利用者の表示からも外れ、付けたいいねは取り消されます/);
+    // 残るもの: 候補の postedBy・postedByName（プロフィールの同期で書き換わるので、ルームから外れたときの名前）
+    expect(section).toMatch(/投稿した候補には、ユーザー ID と、ルームから退出したとき（アカウントを削除したときを含みます）の表示名が残ります/);
+    // 残るもの: draws の drawnBy・drawnByName（回したときの名前のまま。onUserProfileUpdate は書き換えない）
+    expect(section).toMatch(/ガチャを回した記録には、ユーザー ID と、ガチャを回したときの表示名が残ります/);
+    // 残るもの: ルームの ownerId・reroll.proposedBy・notificationLog の invited-{uid}-…（表示名は持たない）
+    expect(section).toMatch(/作成したルームの作成者、引き直しの提案、前回のメンバーへの招待を送った記録には、ユーザー ID だけが残ります/);
     expect(section).toContain("「退出したメンバー」の投稿");
+    // 「そのときの表示名」のように、いつの名前かを書き分けない書き方に戻さない
+    expect(section).not.toContain("そのときの表示名");
     // 削除するものの括弧の中に、ルームに残るユーザー ID を入れない
     expect(section).not.toMatch(/（[^）]*ユーザー ID[^）]*）を削除します/);
   });

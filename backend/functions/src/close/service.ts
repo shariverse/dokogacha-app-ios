@@ -9,7 +9,7 @@
  */
 import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 
-import { chunk, settleInGroups } from "../batch";
+import { settleInGroups } from "../batch";
 import type { RoomDoc } from "../domain/models";
 import type { ServiceDeps } from "../deps";
 import { appError } from "../errors";
@@ -19,19 +19,20 @@ import {
   autoCloseCutoffMs,
   decideClose,
   isAutoCloseDue,
-  PAST_IDEA_BATCH_SIZE,
   planPastIdeas,
   rerollUpdateOnClose,
+  type PastIdeaWrite,
 } from "./logic";
 
 /** 自動の終了で、同時に処理するルームの数（トランザクションを一度に開きすぎない） */
 export const AUTO_CLOSE_PARALLEL_ROOMS = 10;
 
 /**
- * 終了のトランザクションで書く値（引き直しの投票中なら、同じ書き込みで否決にする。`rerollUpdateOnClose`）
+ * 終了のトランザクションで書く値（引き直しの投票中なら、同じ書き込みで否決にする。`rerollUpdateOnClose`）。
+ * アカウントの削除（`account/service.ts`）で作成者のルームを終了するときにも使う
  * @param room トランザクションで読んだルーム
  */
-function closedUpdate(room: Partial<RoomDoc>): Record<string, unknown> {
+export function closedUpdate(room: Partial<RoomDoc>): Record<string, unknown> {
   return { ...rerollUpdateOnClose(room), status: "closed", closedAt: FieldValue.serverTimestamp() };
 }
 
@@ -125,11 +126,16 @@ export async function closeOverdueRooms(deps: Pick<ServiceDeps, "db" | "nowMs">)
  * （終了のトランザクションに候補の写しを入れると、最大 199 件を書くことになるので入れない）。
  *
  * ID は元のルームと候補から決まり（`pastIdeaId`）、値もルームと候補から決まるので、何度呼んでも同じドキュメントに同じ値を書く
- * （冪等。トリガーのやり直しで重ねて作らない）。件数が多いときは `PAST_IDEA_BATCH_SIZE` 件ずつのバッチで書く。
+ * （冪等。トリガーのやり直しで重ねて作らない）。
+ *
+ * メンバーごとに 1 つのトランザクションで、`users/{uid}` があることを確かめてから書く。アカウントを削除した人（終了の直後・トリガーが
+ * 動く前に削除した人。`event.data.after` の `memberIds` には残っている）には書かない（02 の F-06「pastIdeas を削除」の後に作り直さない）。
+ * 削除（`account/service.ts`）は `users/{uid}` を消してから過去のアイデアを消すので、このトランザクションが先に書いても後で消える。
+ * 1 人に書くのは当選以外の候補の数（最大 `MAX_CANDIDATES` − 1 件）なので、トランザクションの書き込みの上限（500）を超えない。
  * @param db Firestore
  * @param roomId ルームの ID
  * @param closedRoom 終了した時点のルームの値（トリガーの `event.data.after`。無ければ読み直す）
- * @returns 書いた過去のアイデアの数（メンバー × 候補）
+ * @returns 書いた過去のアイデアの数（`users/{uid}` があるメンバー × 候補）
  */
 export async function registerPastIdeas(db: Firestore, roomId: string, closedRoom?: Partial<RoomDoc>): Promise<number> {
   const ref = roomRef(db, roomId);
@@ -148,12 +154,23 @@ export async function registerPastIdeas(db: Firestore, roomId: string, closedRoo
     },
     candidates.docs.map((doc) => ({ id: doc.id, data: doc.data() })),
   );
-  for (const group of chunk(writes, PAST_IDEA_BATCH_SIZE)) {
-    const batch = db.batch();
-    for (const write of group) {
-      batch.set(userRef(db, write.uid).collection("pastIdeas").doc(write.ideaId), write.doc);
-    }
-    await batch.commit();
+  const byUser = new Map<string, PastIdeaWrite[]>();
+  for (const write of writes) {
+    byUser.set(write.uid, [...(byUser.get(write.uid) ?? []), write]);
   }
-  return writes.length;
+  const counts = await Promise.all(
+    [...byUser].map(([uid, userWrites]) =>
+      db.runTransaction(async (tx) => {
+        const user = userRef(db, uid);
+        if (!(await tx.get(user)).exists) {
+          return 0;
+        }
+        for (const write of userWrites) {
+          tx.set(user.collection("pastIdeas").doc(write.ideaId), write.doc);
+        }
+        return userWrites.length;
+      }),
+    ),
+  );
+  return counts.reduce((sum, count) => sum + count, 0);
 }

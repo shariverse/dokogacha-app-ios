@@ -5,6 +5,7 @@
 
 @preconcurrency import FirebaseAuth
 import Foundation
+import os
 
 /// Firebase Auth を使う `AuthService`。`FirebaseApp.configure` の後でだけ作る。
 ///
@@ -15,6 +16,8 @@ final class FirebaseAuthService: AuthService {
     enum SignInError: Error {
         case missingUser
     }
+
+    nonisolated private static let logger = Logger(subsystem: "jp.shilokuma.Dokogacha", category: "Auth")
 
     private let gateway: any FirestoreGateway
     private let functions: any FunctionsClient
@@ -129,6 +132,49 @@ final class FirebaseAuthService: AuthService {
         }
     }
 
+    func deleteAccount() async throws {
+        try await functions.deleteAccount()
+    }
+
+    func revokeAppleToken(authorizationCode: String) async throws {
+        // サインインしていないと SDK は完了を呼ばないので、先に確かめる
+        guard Auth.auth().currentUser != nil else {
+            throw AppError(.unauthenticated)
+        }
+        // SDK は完了をメインスレッドで呼ぶ（async 版は Sendable でない Auth を MainActor の外へ渡すので、完了の版を使う）
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            Auth.auth().revokeToken(withAuthorizationCode: authorizationCode) { error in
+                if let error {
+                    continuation.resume(throwing: Self.revokeError(from: error as NSError))
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    func isCurrentAccountDeleted() async -> Bool {
+        guard let user = Auth.auth().currentUser else {
+            return false
+        }
+        // サーバーで Auth のユーザーが消えていれば、reload は userNotFound で失敗する（通信の失敗などでは確かめられないので false）
+        return await withCheckedContinuation { continuation in
+            user.reload { error in
+                let code = (error as NSError?).map { AuthErrorCode(rawValue: $0.code) }
+                continuation.resume(returning: code == .userNotFound)
+            }
+        }
+    }
+
+    func signOut() {
+        do {
+            try Auth.auth().signOut()
+        } catch {
+            // キーチェーンから消せなかったときだけ失敗する。サーバーでユーザーを消してあるので、トークンが切れるとサインアウトされる
+            Self.logger.error("サインアウトできない: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     /// Firebase Auth のエラーをアプリのエラーにする（通信の失敗は「通信できませんでした」、それ以外は「Apple でサインインできませんでした」）
     nonisolated private static func appError(from error: NSError) -> AppError {
         switch AuthErrorCode(rawValue: error.code) {
@@ -136,6 +182,16 @@ final class FirebaseAuthService: AuthService {
             AppError(.network)
         default:
             AppError(.appleSignInFailed)
+        }
+    }
+
+    /// トークンの取り消しのエラーをアプリのエラーにする（通信の失敗は「通信できませんでした」、それ以外は「連携を解除できませんでした」）
+    nonisolated private static func revokeError(from error: NSError) -> AppError {
+        switch AuthErrorCode(rawValue: error.code) {
+        case .networkError:
+            AppError(.network)
+        default:
+            AppError(.appleRevokeFailed)
         }
     }
 }

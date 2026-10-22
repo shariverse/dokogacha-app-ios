@@ -46,6 +46,14 @@ extension InMemoryServer {
         signedInUserID = userID
         return userID
     }
+
+    /// Sign in with Apple のトークンを取り消す（擬似のサーバーでは、受け取った authorization code を記録するだけ）
+    func revokeAppleToken(authorizationCode: String) async throws {
+        guard signedInUserID != nil else {
+            throw Self.error(.unauthenticated)
+        }
+        revokedAppleAuthorizationCodes.append(authorizationCode)
+    }
 }
 
 /// 擬似のサーバーでの Sign in with Apple の認証（Apple の認証の画面を出さずに、決まった ID トークンを返す）。
@@ -55,10 +63,17 @@ struct DemoAppleAuthorizer: AppleAuthorizing {
     /// 返す ID トークン（擬似のサーバーの Apple のアカウントの目印）
     static let demoIDToken = "demo-apple-account"
 
+    /// 返す authorization code（トークンの取り消しに使う）
+    static let demoAuthorizationCode = "demo-apple-authorization-code"
+
     /// 返す ID トークン
     var idToken = Self.demoIDToken
 
     func authorize(nonceHash: String) async throws -> String? {
         idToken
+    }
+
+    func authorizationCode() async throws -> String? {
+        Self.demoAuthorizationCode
     }
 }

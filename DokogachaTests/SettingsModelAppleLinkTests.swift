@@ -12,10 +12,14 @@ import Testing
 struct SettingsModelAppleLinkTests {
     typealias ControlledAuth = OnboardingModelTests.ControlledAuth
 
-    /// Apple の認証を差し替えたもの（渡された nonce のハッシュを記録し、決めた ID トークンを返す。nil ならやめた）
+    /// Apple の認証を差し替えたもの（渡された nonce のハッシュを記録し、決めた ID トークン・authorization code を返す。nil ならやめた）
     final class StubAuthorizer: AppleAuthorizing {
         var idToken: String?
         var error: AppError?
+        /// トークンの取り消しのために返す authorization code（nil ならやめた）
+        var code: String? = "apple-authorization-code-1"
+        /// authorization code を求められた回数
+        private(set) var authorizationCodeCount = 0
         private(set) var nonceHashes: [String] = []
 
         init(idToken: String? = "apple-account-1") {
@@ -28,6 +32,14 @@ struct SettingsModelAppleLinkTests {
                 throw error
             }
             return idToken
+        }
+
+        func authorizationCode() async throws -> String? {
+            authorizationCodeCount += 1
+            if let error {
+                throw error
+            }
+            return code
         }
     }
 
@@ -131,7 +143,8 @@ struct SettingsModelAppleLinkTests {
         #expect(auth.isLinkedWithApple)
     }
 
-    /// 確認でやめたら（サインインし直さない）、今のアカウントのまま。確認を経ずにサインインし直そうとしても失敗する
+    /// 確認を経ずにサインインし直そうとしても（サインインし直す Apple のアカウントが無い）失敗し、トーストを出す。
+    /// 先に今のアカウントを削除しているので、消えたアカウントのまま残らないようサインアウトする
     @Test
     func switchingWithoutPendingAccountFails() async {
         let auth = ControlledAuth(scenario: .oneRoom)
@@ -139,8 +152,10 @@ struct SettingsModelAppleLinkTests {
         let model = Self.makeModel(auth, toasts: toasts)
 
         await model.switchToLinkedAppleAccount()
-        #expect(auth.currentUserID == DemoScenario.myUserID)
         #expect(toasts.current?.text == "Apple でサインインできませんでした")
+        #expect(auth.deleteCount == 1)
+        #expect(auth.signOutCount == 1)
+        #expect(auth.currentUserID == nil)
     }
 
     /// 擬似のサーバーでは、1 つのユーザーに Apple のアカウントは 1 つまで（別の Apple ID を連携しようとしても付け替えない）

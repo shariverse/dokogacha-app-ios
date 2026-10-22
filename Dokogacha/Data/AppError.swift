@@ -226,6 +226,8 @@ extension AppError {
         case notImplemented = "app/not-implemented"
         /// Sign in with Apple の連携・サインインに失敗した（Apple の認証の画面のエラー・Firebase Auth が資格情報を受け付けなかった）
         case appleSignInFailed = "app/apple-sign-in-failed"
+        /// アカウントの削除の前に、Sign in with Apple のトークンを取り消せなかった（Apple の確認の画面のエラー・Firebase Auth が取り消しを受け付けなかった）
+        case appleRevokeFailed = "app/apple-revoke-failed"
         /// cancel した（`Task` の cancel・SDK の cancel）。通信の失敗ではないので、画面はトーストを出さない（`isCancellation`）
         case cancelled = "app/cancelled"
 
@@ -301,6 +303,8 @@ extension AppError {
                 String(localized: "この操作はできません")
             case .appleSignInFailed:
                 String(localized: "Apple でサインインできませんでした")
+            case .appleRevokeFailed:
+                String(localized: "Apple でサインインの連携を解除できませんでした")
             case .unauthenticated, .purchaseVerificationUnavailable, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,
                  .unreadableData, .notImplemented, .cancelled:
                 String(localized: "通信できませんでした")

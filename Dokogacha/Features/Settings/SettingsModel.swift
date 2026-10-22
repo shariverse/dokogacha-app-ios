@@ -24,9 +24,15 @@ import Observation
 /// Sign in with Apple の連携（02 の §1 F-01）は、nonce を作って Apple の認証の画面を出し（`AppleAuthorizing`）、受け取った ID トークンで
 /// 今の匿名のアカウントに連携する（`AuthService.linkWithApple`）。その Apple ID が既に別のアカウントに連携されていたら、
 /// そのアカウントでサインインし直すかを尋ね（`isConfirmingAccountSwitch`）、選ばれたらサインインし直す（参加ルームが戻る。F-01 の AC）。
+/// サインインし直す前に、今の匿名のアカウントを削除する（`AuthService.deleteAccount`）。サインインし直すと今のアカウントには戻れないので、
+/// 残すと、参加中のルームのメンバーに残り続けて「全員OK」のルームが解禁できなくなり、使われないプロフィールがサーバーに残るため。
 ///
-/// 購入・復元・連携は 1 つずつ行い（`activeAction`）、行っている途中はほかの行も押せない。
-/// アカウントの削除（F-06）はタスク 39 で足す。
+/// アカウントの削除（02 の §2.6 F-06）は、確認（`isConfirmingDeletion`）で「削除する」が選ばれたら、Sign in with Apple に連携済みなら
+/// Apple の認証をもう一度行ってトークンを取り消し（`AuthService.revokeAppleToken`）、サーバーで削除し
+/// （`AuthService.deleteAccount`）、この端末に残す値を消して（`AccountDeviceData`）、サインアウトする（`AuthService.signOut`）。
+/// サインアウトすると起動の流れが匿名でサインインし直し、S-01 オンボーディングを出す。失敗したらトーストを出し、何も消さない（もう一度押せる）。
+///
+/// 購入・復元・連携・削除は 1 つずつ行い（`activeAction`）、行っている途中はほかの行も押せない。
 @Observable
 final class SettingsModel {
     /// 表示名の文字数の範囲（02 の §1「1〜10文字、必須」）
@@ -54,10 +60,13 @@ final class SettingsModel {
     private(set) var isLinkedWithApple: Bool
     /// 「この Apple ID は別のアカウントで使われています」の確認を出しているか
     var isConfirmingAccountSwitch = false
+    /// 「アカウントを削除しますか？」の確認を出しているか
+    var isConfirmingDeletion = false
 
     @ObservationIgnored private let auth: any AuthService
     @ObservationIgnored private let purchases: PurchaseCoordinator
     @ObservationIgnored private let toasts: DGToastCenter
+    @ObservationIgnored private let deviceData: AccountDeviceData
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
     /// Apple の認証の窓口を差し替えるとき（擬似のサーバー・テスト）。nil なら画面の環境の `authorizationController` を使う
     @ObservationIgnored let appleAuthorizer: (any AppleAuthorizing)?
@@ -68,7 +77,7 @@ final class SettingsModel {
     /// ボタンから始めた購入・復元・連携。画面が無くなったら止める
     @ObservationIgnored private var actionTask: Task<Void, Never>?
 
-    /// 購入・復元・連携のどれを行っているか
+    /// 購入・復元・連携・削除のどれを行っているか
     enum Action: Equatable {
         /// 広告非表示の購入
         case purchase
@@ -76,6 +85,8 @@ final class SettingsModel {
         case restore
         /// Sign in with Apple の連携（別のアカウントでのサインインし直しを含む）
         case linkApple
+        /// アカウントの削除
+        case deleteAccount
     }
 
     /// - Parameters:
@@ -83,6 +94,7 @@ final class SettingsModel {
     ///   - auth: プロフィールの購読・表示名の保存・Apple の連携の窓口（Firebase か擬似のサーバー）
     ///   - purchases: 広告非表示の買い切りのまとめ役
     ///   - toasts: 通信エラーを出すトーストの窓口
+    ///   - deviceData: アカウントを削除した後に、この端末に残す値を消す窓口
     ///   - appleAuthorizer: Apple の認証の窓口（nil なら画面の環境のものを使う）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
     ///   - makeNonce: Sign in with Apple の nonce を作る
@@ -91,6 +103,7 @@ final class SettingsModel {
         auth: any AuthService,
         purchases: PurchaseCoordinator,
         toasts: DGToastCenter,
+        deviceData: AccountDeviceData = .none,
         appleAuthorizer: (any AppleAuthorizing)? = nil,
         resubscribeDelay: ResubscribeDelay = .standard,
         makeNonce: @escaping () -> String = { AppleSignInNonce.make() }
@@ -99,6 +112,7 @@ final class SettingsModel {
         self.auth = auth
         self.purchases = purchases
         self.toasts = toasts
+        self.deviceData = deviceData
         self.appleAuthorizer = appleAuthorizer
         self.resubscribeDelay = resubscribeDelay
         self.makeNonce = makeNonce
@@ -228,7 +242,7 @@ extension SettingsModel {
         RemoveAdsRowState.make(isAdFree: purchases.isAdFree(serverAdFree: profile?.adFree ?? false), displayPrice: displayPrice)
     }
 
-    /// 購入・復元・連携の行を押せるか（どれかを行っている途中は押せない）
+    /// 購入・復元・連携・削除の行を押せるか（どれかを行っている途中は押せない）
     var canStartAction: Bool {
         activeAction == nil
     }
@@ -310,10 +324,77 @@ extension SettingsModel {
         }
     }
 
-    /// 既に Apple ID に連携されたアカウントでサインインし直す（サインインし直すと、起動の流れがそのユーザーのホームを開き直す）
+    /// 既に Apple ID に連携されたアカウントでサインインし直す（サインインし直すと、起動の流れがそのユーザーのホームを開き直す）。
+    ///
+    /// 先に今の匿名のアカウントをサーバーで削除する（参加中のルームから退出し、作成したルームは終了する。確認の文言で伝える）。
+    /// 今のアカウントは Apple に連携していない（連携しようとした Apple ID は別のアカウントのもの）ので、Apple のトークンは取り消さない。
+    /// 削除に失敗したらサインインし直さない（今のアカウントのまま、もう一度押せる）。
+    /// 削除の後にサインインし直せなかったら、消えたアカウントのまま残らないようサインアウトする（匿名でサインインし直して S-01 に戻る）
     func switchToLinkedAppleAccount() async {
         await perform(.linkApple) {
-            _ = try await auth.signInWithLinkedAppleAccount()
+            try await deleteCurrentAccountOnServer()
+            do {
+                _ = try await auth.signInWithLinkedAppleAccount()
+            } catch {
+                auth.signOut()
+                throw error
+            }
+        }
+    }
+}
+
+// MARK: - アカウントの削除
+
+extension SettingsModel {
+    /// 「アカウントを削除」が押された。確認を出す（ほかの操作を行っている途中は出さない）
+    func deleteAccountTapped() {
+        guard canStartAction else {
+            return
+        }
+        isConfirmingDeletion = true
+    }
+
+    /// 確認で「削除する」が押された
+    /// - Parameter authorizer: Apple の認証の窓口（画面の環境のもの。`appleAuthorizer` があればそちらを使う）
+    func deletionConfirmed(using authorizer: any AppleAuthorizing) {
+        let authorizer = appleAuthorizer ?? authorizer
+        start { model in await model.deleteAccount(using: authorizer) }
+    }
+
+    /// アカウントを削除する（02 の F-06）。サーバーで削除できたら、この端末に残す値を消してサインアウトする（S-01 に戻る）。
+    ///
+    /// Sign in with Apple に連携済みなら、先に Apple の認証をもう一度行って authorization code を受け取り、トークンを取り消す
+    /// （Apple の「Offering account deletion in your app」・審査ガイドライン 5.1.1(v)。サーバーで消すと Auth のユーザーが無くなって取り消せない）。
+    /// Apple の画面でやめたら削除しない（トーストも出さない）。取り消せなかったら削除せずにトーストを出す
+    /// （Apple に連携が残ったままアカウントだけ消えるのを避ける。もう一度押せる）。
+    ///
+    /// 削除に失敗したらトーストを出し、端末の値もサインインもそのまま（もう一度押せる。サーバーの削除は続きから終わる）
+    func deleteAccount(using authorizer: any AppleAuthorizing) async {
+        await perform(.deleteAccount) {
+            if auth.isLinkedWithApple {
+                guard let code = try await authorizer.authorizationCode() else {
+                    return
+                }
+                try await auth.revokeAppleToken(authorizationCode: code)
+            }
+            try await deleteCurrentAccountOnServer()
+            deviceData.clear()
+            auth.signOut()
+        }
+    }
+
+    /// 今のアカウントをサーバーで削除する。
+    ///
+    /// 失敗しても、Auth のユーザーが消えていれば（応答が届かなかった・消し終えた後に失敗した）、削除できたことにする。
+    /// サーバーは `users/{uid}` を先に消すので、失敗として消えた uid のまま残すと、プロフィールが無いので S-01 に替わり、
+    /// 表示名を登録すると `users/{uid}` を作り直してしまうため
+    private func deleteCurrentAccountOnServer() async throws {
+        do {
+            try await auth.deleteAccount()
+        } catch {
+            guard await auth.isCurrentAccountDeleted() else {
+                throw error
+            }
         }
     }
 }

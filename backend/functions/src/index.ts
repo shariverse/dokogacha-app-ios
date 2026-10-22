@@ -1,7 +1,7 @@
 /**
  * Cloud Functions（2nd gen）の入口。
  * Callable やトリガーの関数は、機能を作るタスクでここから export する（05_architecture.md の §5）。
- * 処理の中身は `rooms/`・`users/`・`candidates/`・`unlock/`・`settings/`・`draw/`・`reroll/`・`reports/`・`purchase/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
+ * 処理の中身は `rooms/`・`users/`・`candidates/`・`unlock/`・`settings/`・`draw/`・`reroll/`・`reports/`・`purchase/`・`account/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -25,8 +25,10 @@ import * as settings from "./settings/service";
 import { memberWriteAffectsUnlock } from "./unlock/logic";
 import * as unlock from "./unlock/service";
 import type { ProfileCopy } from "./users/logic";
+import { shouldTrimFcmTokens } from "./users/fcmTokens";
 import { handleProfileUpdate } from "./users/profileSync";
 import * as users from "./users/service";
+import { trimFcmTokens } from "./users/tokenTrim";
 
 // すべての関数のリージョンを東京にそろえる。関数ごとに指定し忘れて us-central1 に配置されるのを防ぐ
 setGlobalOptions({ region: FUNCTIONS_REGION });
@@ -43,13 +45,18 @@ export const saveProfile = onCall((request) =>
 
 /**
  * プロフィールの表示名・アバターの色が変わったら、参加中のルームの複製（メンバー・自分の候補の投稿者名・広告の購入者）に反映する
- * （05 の §5。Firestore のトリガー）。通知のトークンだけの更新などでは何もしない。
- * 一部のルームで失敗したら、残りを処理してから投げてやり直させる（`retry: true`。反映は冪等）
+ * （05 の §5。Firestore のトリガー）。通知のトークンだけの更新などでは反映しない。
+ * 通知のトークンが残す数（ルールの上限 − 1）を超えたら、古いものから外す（新しい端末のトークンがルールに拒否されないように。`users/fcmTokens.ts`）。
+ * 一部のルームで失敗したら、残りを処理してから投げてやり直させる（`retry: true`。反映もトークンの整理も冪等）
  */
 export const onUserProfileUpdate = onDocumentUpdated({ document: "users/{uid}", retry: true }, async (event) => {
   const before = event.data?.before.data() as Partial<ProfileCopy> | undefined;
-  const after = event.data?.after.data() as Partial<ProfileCopy> | undefined;
+  const after = event.data?.after.data() as (Partial<ProfileCopy> & { fcmTokens?: unknown }) | undefined;
   const uid = event.params.uid;
+  if (shouldTrimFcmTokens(after)) {
+    const removed = await trimFcmTokens(getFirestore(), uid);
+    logger.info("古い通知のトークンを外した", { uid, removed });
+  }
   const result = await handleProfileUpdate(getFirestore(), uid, before, after);
   if (result !== null) {
     logger.info("プロフィールをルームの複製に反映した", { uid, ...result });
@@ -97,6 +104,9 @@ export { notifyNewCandidates } from "./digest/functions";
 
 /** 投稿の報告（02 の §3.5 F-14）: reportCandidate（`reports` に保存し、Trigger Email 拡張の `mail` に運営向けのメールを書く） */
 export { reportCandidate } from "./reports/functions";
+
+/** アカウントの削除（02 の §2.6 F-06）: deleteAccount（参加中のルームから退出・作成者のルームは終了・ユーザーのデータと Auth のユーザーを削除） */
+export { deleteAccount } from "./account/functions";
 
 /** 広告非表示の買い切り（02 の §7.2 F-51）: verifyPurchase（署名付きトランザクションを確かめ、`users.adFree` と参加中のルームの `adFreeSponsor` を更新） */
 export { verifyPurchase } from "./purchase/functions";

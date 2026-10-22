@@ -100,6 +100,16 @@ final class PurchaseCoordinator {
         verifyIfNeeded()
     }
 
+    /// アカウントを削除した後（02 の F-06）。今のユーザーと、そのユーザーに送ったトランザクションとサーバーの記録を忘れる。
+    ///
+    /// 端末の購入（Apple ID に付く）は残るので、次にサインインした人のプロフィールが読めたら（`connect`）、その人にもう一度送る
+    func forgetAccount() {
+        userID = nil
+        functions = nil
+        serverAdFree = nil
+        sentTransactionIDs = []
+    }
+
     /// 広告非表示のアイテム（S-15 の価格の表示に使う。App Store に無ければ nil）
     func product() async throws -> PurchaseProduct? {
         try await service.product()

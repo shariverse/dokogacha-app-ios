@@ -16,9 +16,7 @@ struct SettingsRow: View {
         case none
         /// 押すと先へ進む（シェブロン）
         case disclosure
-        /// まだ作っていない（「準備中」。押しても何もしない）
-        case pending
-        /// 行の操作を行っている途中（購入・復元・連携。くるくる回る印）
+        /// 行の操作を行っている途中（購入・復元・連携・削除。くるくる回る印）
         case progress
     }
 
@@ -83,10 +81,6 @@ struct SettingsRow: View {
                     .fontWeight(.bold)
                     .foregroundStyle(Color.dgTextSecondary)
                     .accessibilityHidden(true)
-            case .pending:
-                Text("準備中")
-                    .font(.dg(.bodyCaption))
-                    .foregroundStyle(Color.dgTextSecondary)
             case .progress:
                 ProgressView()
                     .tint(Color.dgTextSecondary)
@@ -117,12 +111,12 @@ struct SettingsSection<Content: View>: View {
         SettingsSection {
             SettingsRow(title: Text("表示名"), value: Text(verbatim: "たくみ"), accessory: .disclosure)
             DGDashedLine()
-            SettingsRow(title: Text("購入を復元"), accessory: .pending)
+            SettingsRow(title: Text("購入を復元"), accessory: .progress)
             DGDashedLine()
             SettingsRow(title: Text("バージョン"), value: Text(verbatim: "1.0"))
         }
         SettingsSection {
-            SettingsRow(title: Text("アカウントを削除"), accessory: .pending, isDestructive: true)
+            SettingsRow(title: Text("アカウントを削除"), isDestructive: true)
         }
     }
     .padding(DGSpacing.screenX)

@@ -16,7 +16,8 @@ import UIKit
 /// - 利用規約・プライバシーポリシーは Web のページ（`DomainConstants.Web`）をアプリの中の Safari（`SFSafariViewController`）で開く
 /// - ライセンスは、同梱のフォントの OFL と主要なライブラリのライセンスの画面（`LicensesView`）を積む
 /// - バージョンはアプリの `CFBundleShortVersionString`（`CFBundleVersion`）を出す
-/// - 「アカウントを削除」はタスク 39 で中身を作る（いまは「準備中」）
+/// - 「アカウントを削除」（赤文字）を押すと確認のダイアログを出し、「削除する」でアカウントを削除して S-01 に戻る（02 の §2.6 F-06）。
+///   確認の文言は 02 の F-06 のとおりで、作成したルームが終了することを書き足す（02 の F-06「作成者だったルームは closed にする」）
 ///
 /// 標準のナビゲーションバーは使わず、画面のヘッダー（`DGHeader`）を置く（03 の §3）。
 struct SettingsView: View {
@@ -42,6 +43,8 @@ struct SettingsView: View {
         static let licenses = "settings.licenses"
         /// 「バージョン」の行
         static let version = "settings.version"
+        /// 「アカウントを削除」の行
+        static let deleteAccount = "settings.deleteAccount"
     }
 
     /// アプリの中の Safari で開く Web のページ
@@ -94,7 +97,7 @@ struct SettingsView: View {
                     }
                     aboutSection
                     SettingsSection {
-                        SettingsRow(title: Text("アカウントを削除"), accessory: .pending, isDestructive: true)
+                        deleteAccountRow
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
@@ -132,8 +135,33 @@ struct SettingsView: View {
             }
             Button("キャンセル", role: .cancel) {}
         } message: {
-            Text("そのアカウントでサインインし直すと、参加中のルームがそのアカウントのものに切り替わります。今のアカウントには戻れません。")
+            Text("そのアカウントでサインインし直すと、参加中のルームがそのアカウントのものに切り替わります。今のアカウントは削除され、参加中のルームから退出します（作成したルームは終了します）。")
         }
+        .alert(Text("アカウントを削除しますか？"), isPresented: $model.isConfirmingDeletion) {
+            Button("削除する", role: .destructive) {
+                model.deletionConfirmed(using: SystemAppleAuthorizer(controller: authorizationController))
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            // 連携済みなら、Apple のトークンを取り消すために Apple の確認の画面が出ることを先に伝える
+            // （アラートの本文は Text 1 つだけを出すので、if で分けずに Text を選ぶ）
+            model.isLinkedWithApple
+                ? Text("アカウントを削除すると、参加中のルームから退出し、元に戻せません。作成したルームは終了します。Apple でサインインの連携を解除するため、Apple ID の確認が表示されます。")
+                : Text("アカウントを削除すると、参加中のルームから退出し、元に戻せません。作成したルームは終了します。")
+        }
+    }
+
+    /// 「アカウントを削除」（赤文字。押すと確認のダイアログ。削除している途中は、くるくる回る印にして押せなくする）
+    private var deleteAccountRow: some View {
+        Button {
+            model.deleteAccountTapped()
+        } label: {
+            SettingsRow(title: Text("アカウントを削除"), accessory: accessory(for: .deleteAccount, idle: .none), isDestructive: true)
+        }
+        .buttonStyle(.dgBare)
+        .disabled(!model.canStartAction)
+        .accessibilityHint(Text("参加中のルームから退出し、元に戻せません"))
+        .accessibilityIdentifier(Identifier.deleteAccount)
     }
 
     /// 表示名（押すと編集のシート）。今の名前が届くまでは、行の形を保ったまま読み込み中の形で出す
@@ -253,9 +281,9 @@ struct SettingsView: View {
         .accessibilityIdentifier(identifier)
     }
 
-    /// 操作の行の右端の印（その操作を行っている途中なら、くるくる回る印）
-    private func accessory(for action: SettingsModel.Action) -> SettingsRow.Accessory {
-        model.activeAction == action ? .progress : .disclosure
+    /// 操作の行の右端の印（その操作を行っている途中なら、くるくる回る印。ほかのときは `idle`）
+    private func accessory(for action: SettingsModel.Action, idle: SettingsRow.Accessory = .disclosure) -> SettingsRow.Accessory {
+        model.activeAction == action ? .progress : idle
     }
 
     /// アプリのバージョン（「1.0.0（1）」）
