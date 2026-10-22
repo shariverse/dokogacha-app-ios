@@ -18,8 +18,6 @@ import SwiftUI
 struct MainNavigationView: View {
     /// 出している行き先（積み・シート・フルスクリーンカバー）
     @State private var presentation = AppPresentation()
-    /// フルスクリーンカバーを閉じた後に出すシート（カバーを出したままではシートを出せないため、閉じ終わってから出す）
-    @State private var sheetAfterFullScreen: AppRoute?
     @State private var homeModel: HomeModel
     /// 自分の uid
     private let userID: String
@@ -62,9 +60,14 @@ struct MainNavigationView: View {
                 destination(route)
             }
         )
-        .fullScreenCover(item: $presentation.fullScreen, onDismiss: showSheetAfterFullScreen) { route in
-            destination(route)
-        }
+        // カバーを閉じ終えたら、その間に開こうとしたシート（招待リンクの S-05・S-06）を出す（`AppPresentation`）
+        .fullScreenCover(
+            item: $presentation.fullScreen,
+            onDismiss: { presentation.fullScreenDismissed() },
+            content: { route in
+                destination(route)
+            }
+        )
         // 招待リンクで開かれたら、そのコードで S-05・S-06 を開く（この画面が出る前に届いていたものも、出たときに開く）
         .onChange(of: deepLinks.pendingInviteCode, initial: true) {
             if let code = deepLinks.takePendingInviteCode() {
@@ -76,23 +79,10 @@ struct MainNavigationView: View {
     /// 招待リンクのコードで S-05・S-06 のシートを開く。
     ///
     /// 積んだ画面はそのまま残す（参加したら、その上にルームを積む）。別のシートを出していたら差し替える。
-    /// フルスクリーンカバー（S-13 など）を出していたら閉じ、閉じ終わってからシートを出す
+    /// フルスクリーンカバー（S-13・S-14）を出していたら閉じずに待たせ、ユーザーがカバーを閉じてからシートを出す
+    /// （S-13 は演出中に閉じられない。`AppPresentation`）
     private func openInviteLink(_ code: InviteCode) {
-        let route = AppRoute.joinByInviteLink(code)
-        if presentation.fullScreen != nil {
-            sheetAfterFullScreen = route
-            presentation.fullScreen = nil
-        } else {
-            presentation.sheet = route
-        }
-    }
-
-    /// フルスクリーンカバーを閉じ終えたとき、待たせていたシートを出す
-    private func showSheetAfterFullScreen() {
-        if let route = sheetAfterFullScreen {
-            sheetAfterFullScreen = nil
-            presentation.sheet = route
-        }
+        presentation.open(.joinByInviteLink(code))
     }
 
     /// 行き先を開く（積む・シート・フルスクリーンカバーで出す。シートが出ていればシートを閉じてからカバーを出す）

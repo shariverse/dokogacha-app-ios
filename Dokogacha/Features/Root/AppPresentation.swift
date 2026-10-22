@@ -10,6 +10,9 @@ import Foundation
 /// シート（S-09〜S-12）を出したままフルスクリーンカバー（S-13・S-14）を出そうとすると、根元からはシートの上にカバーを重ねられず、
 /// カバーが出ないまま捨てられる（ほかの人が回したときの自動再生が消える。PR #67 の持ち越し）。
 /// そのため、シートが出ているときは先にシートを閉じ、閉じ終えた（`sheetDismissed()`）ところでカバーを出す。
+/// 逆に、カバーを出している間（S-13 の演出中を含む）にシートを開こうとしたとき（招待リンクが届いたときなど）は、カバーを閉じずに待たせ、
+/// ユーザーがカバーを閉じ終えた（`fullScreenDismissed()`）ところでシートを出す。S-13 は演出中に閉じられない取り決めで、
+/// 閉じると本人が結果を見ないまま演出が止まり、見た印（`markSeen`）も付かないため。
 /// 画面の状態を値の型にして、開く順を Unit テストで確かめる。
 nonisolated struct AppPresentation: Equatable, Sendable {
     /// 積んでいる行き先
@@ -20,6 +23,8 @@ nonisolated struct AppPresentation: Equatable, Sendable {
     var fullScreen: AppRoute?
     /// シートを閉じ終えたら出すフルスクリーンカバー
     private(set) var pendingFullScreen: AppRoute?
+    /// フルスクリーンカバーを閉じ終えたら出すシート
+    private(set) var pendingSheet: AppRoute?
 
     /// 行き先を開く（`AppRoute.presentation` に合わせて積む・シート・フルスクリーンカバーで出す）
     mutating func open(_ route: AppRoute) {
@@ -27,7 +32,12 @@ nonisolated struct AppPresentation: Equatable, Sendable {
         case .push:
             path.append(route)
         case .sheet:
-            sheet = route
+            if fullScreen == nil, pendingFullScreen == nil {
+                sheet = route
+            } else {
+                // カバーを出している（シートを閉じてカバーを出す途中を含む）。カバーは閉じず、閉じ終えてから出す
+                pendingSheet = route
+            }
         case .fullScreenCover:
             if sheet == nil {
                 fullScreen = route
@@ -45,5 +55,14 @@ nonisolated struct AppPresentation: Equatable, Sendable {
         }
         pendingFullScreen = nil
         fullScreen = pending
+    }
+
+    /// フルスクリーンカバーが閉じ終えた（`fullScreenCover(item:onDismiss:)` の `onDismiss`）。待たせていたシートがあれば出す
+    mutating func fullScreenDismissed() {
+        guard let pending = pendingSheet else {
+            return
+        }
+        pendingSheet = nil
+        sheet = pending
     }
 }
