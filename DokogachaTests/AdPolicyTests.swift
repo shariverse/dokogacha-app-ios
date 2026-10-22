@@ -140,4 +140,32 @@ struct AdPolicyTests {
             #expect(AdTrackingPolicy.requestParameters(status: status) == ["npa": "1"])
         }
     }
+
+    // MARK: - 読み込み直し
+
+    @Test
+    func bannerLoadsFirstTime() {
+        let conditions = BannerLoadConditions(width: 361, requestParameters: ["npa": "1"])
+        #expect(conditions.needsReload(since: nil))
+    }
+
+    @Test
+    func bannerDoesNotReloadWithSameConditions() {
+        let conditions = BannerLoadConditions(width: 361, requestParameters: ["npa": "1"])
+        #expect(!conditions.needsReload(since: conditions))
+    }
+
+    @Test
+    func bannerReloadsWhenWidthChanges() {
+        let loaded = BannerLoadConditions(width: 361, requestParameters: ["npa": "1"])
+        #expect(BannerLoadConditions(width: 402, requestParameters: ["npa": "1"]).needsReload(since: loaded))
+    }
+
+    @Test
+    func bannerReloadsWhenTrackingIsAuthorized() {
+        // ATT で「許可」したら、表示中のバナーも非パーソナライズ（npa=1）のリクエストのままにしない
+        let loaded = BannerLoadConditions(width: 361, requestParameters: AdTrackingPolicy.requestParameters(status: .notDetermined))
+        let authorized = BannerLoadConditions(width: 361, requestParameters: AdTrackingPolicy.requestParameters(status: .authorized))
+        #expect(authorized.needsReload(since: loaded))
+    }
 }

@@ -53,7 +53,7 @@ struct GoogleBannerAdView: View {
     }
 }
 
-/// SDK の `BannerView` を包む。大きさ（幅）が変わったら読み込み直す
+/// SDK の `BannerView` を包む。大きさ（幅）かリクエストのパラメータ（ATT の答え）が変わったら読み込み直す
 private struct BannerRepresentable: UIViewRepresentable {
     let adSize: AdSize
     let adUnitID: String
@@ -70,18 +70,25 @@ private struct BannerRepresentable: UIViewRepresentable {
         banner.adUnitID = adUnitID
         banner.delegate = context.coordinator
         load(banner)
-        context.coordinator.loadedWidth = adSize.size.width
+        context.coordinator.loaded = conditions
         return banner
     }
 
     func updateUIView(_ banner: BannerView, context: Context) {
         context.coordinator.onFailure = onFailure
-        guard context.coordinator.loadedWidth != adSize.size.width else {
+        guard conditions.needsReload(since: context.coordinator.loaded) else {
             return
         }
-        banner.adSize = adSize
+        if banner.adSize.size.width != adSize.size.width {
+            banner.adSize = adSize
+        }
         load(banner)
-        context.coordinator.loadedWidth = adSize.size.width
+        context.coordinator.loaded = conditions
+    }
+
+    /// いまの読み込みの条件
+    private var conditions: BannerLoadConditions {
+        BannerLoadConditions(width: Double(adSize.size.width), requestParameters: requestParameters)
     }
 
     /// 置いた場所（SwiftUI が決めた幅とバナーの高さ）に収める。SDK のビューの intrinsicContentSize（広告の素材の大きさ）に
@@ -105,8 +112,8 @@ private struct BannerRepresentable: UIViewRepresentable {
     final class Coordinator: NSObject, BannerViewDelegate {
         /// 読み込めなかったときに呼ぶ
         var onFailure: () -> Void
-        /// 最後に読み込んだ幅
-        var loadedWidth: CGFloat = 0
+        /// 最後に読み込んだときの条件（幅とリクエストのパラメータ）
+        var loaded: BannerLoadConditions?
 
         init(onFailure: @escaping () -> Void) {
             self.onFailure = onFailure

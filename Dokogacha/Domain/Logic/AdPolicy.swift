@@ -145,3 +145,20 @@ nonisolated enum AdTrackingPolicy {
         status == .authorized ? [:] : nonPersonalizedParameters
     }
 }
+
+/// バナーを読み込んだときの条件（幅とリクエストのパラメータ）。
+///
+/// 表示中のバナーは、条件が変わったときだけ読み込み直す。幅が変わったとき（置いた場所の大きさ）と、
+/// ATT の答えでパーソナライズかどうかが変わったとき（許可したら `npa` を外したリクエストにする。02 の F-50）
+nonisolated struct BannerLoadConditions: Equatable, Sendable {
+    /// バナーの幅
+    let width: Double
+    /// リクエストに足すパラメータ（`AdTrackingPolicy.requestParameters`）
+    let requestParameters: [String: String]
+
+    /// 前に読み込んだ条件（まだ読み込んでいなければ nil）から、いまの条件で読み込み直すか
+    /// - Parameter loaded: 最後に読み込んだときの条件
+    func needsReload(since loaded: Self?) -> Bool {
+        loaded != self
+    }
+}
