@@ -116,7 +116,8 @@ struct RoomView: View {
         .onDisappear {
             model.leftRoom()
         }
-        // ほかの人が回したら、S-13 を開いて同じ演出を再生する（F-41）
+        // ほかの人が回したら、S-13 を開いて同じ演出を再生する（F-41）。
+        // このルームの S-13・S-14 のカバーを出しているときは開き直さない（カバーの中の S-13 が再生する。`AppPresentation.open`）
         .onChange(of: model.drawToReplay) { _, drawID in
             guard drawID != nil else {
                 return
