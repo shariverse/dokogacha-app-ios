@@ -140,15 +140,36 @@ extension ScreenshotDemo {
         }
     }
 
-    /// S-15 設定を擬似のサーバーで開く（ホームから進まずに、設定の画面を根元にして出す）
+    /// S-15 設定を擬似のサーバーで開く（ホームから進まずに、設定の画面を根元にして出す）。
+    ///
+    /// 既定は Apple に未連携・広告非表示を買っていない状態。`settingsAppleLinked`・`settingsAdFree` の scene では、
+    /// 擬似のサーバーのこの端末のユーザーを連携済み・購入済み（`users.adFree`）にしてから開く
     struct SettingsScene: View {
         @State private var toasts: DGToastCenter
         private let model: SettingsModel
 
-        /// - Parameter auth: プロフィールの窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
-        init(auth: any AuthService) {
+        /// - Parameters:
+        ///   - services: データ層の窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
+        ///   - appleLinked: Sign in with Apple に連携済みにするか
+        ///   - adFree: 広告非表示を購入済みにするか
+        init(services: DataServices, appleLinked: Bool = false, adFree: Bool = false) {
             let toasts = DGToastCenter()
-            model = SettingsModel(userID: auth.currentUserID ?? DemoScenario.myUserID, auth: auth, toasts: toasts)
+            let userID = services.auth.currentUserID ?? DemoScenario.myUserID
+            if let server = services.inMemoryServer {
+                if appleLinked {
+                    server.appleAccounts[DemoAppleAuthorizer.demoIDToken] = userID
+                }
+                if adFree {
+                    server.users[userID]?.adFree = true
+                }
+            }
+            model = SettingsModel(
+                userID: userID,
+                auth: services.auth,
+                purchases: .disabled,
+                toasts: toasts,
+                appleAuthorizer: DemoAppleAuthorizer()
+            )
             _toasts = State(initialValue: toasts)
         }
 

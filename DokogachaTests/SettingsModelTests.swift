@@ -27,7 +27,7 @@ struct SettingsModelTests {
         userID: String = DemoScenario.myUserID,
         resubscribeDelay: ResubscribeDelay = immediateResubscribe
     ) -> SettingsModel {
-        SettingsModel(userID: userID, auth: auth, toasts: toasts, resubscribeDelay: resubscribeDelay)
+        SettingsModel(userID: userID, auth: auth, purchases: .disabled, toasts: toasts, resubscribeDelay: resubscribeDelay)
     }
 
     /// プロフィールを購読し、届いた今の表示名を出せる状態にして返す（購読の Task も返す。テストの終わりに cancel する）

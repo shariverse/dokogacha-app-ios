@@ -4,13 +4,19 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// S-15 設定（プッシュ）。03 の S-15 の並びで、項目を白いカードにまとめて縦にスクロールで並べる。
 ///
 /// - 表示名の行を押すと、編集のシート（`DisplayNameEditor`）を出す（02 の F-01「表示名は設定画面から変更できる」）
-/// - 広告非表示の購入と復元・Apple の連携・通知設定・利用規約・プライバシーポリシー・ライセンス・アカウント削除は、
-///   置き場所だけを先に作り「準備中」と出す（押しても何もしない）。タスク 38・39 で中身に差し替える
-/// - バージョンはアプリの `CFBundleShortVersionString` を出す
+/// - 「広告を非表示にする（¥480）」「購入を復元」で買い切りの購入と復元（02 の §7.2 F-51）。購入済みなら「広告非表示：購入済み」にして押せなくする
+/// - 「Apple でサインインを連携」で Sign in with Apple に連携する（02 の §1 F-01）。連携済みなら「連携済み」にして押せなくする。
+///   その Apple ID が別のアカウントで使われていたら、そのアカウントでサインインし直すかを尋ねる
+/// - 「通知設定」は iOS の設定アプリのこのアプリの通知の画面を開く（03 の S-15「iOS の設定アプリを開く」。アプリの中にオン／オフは持たない）
+/// - 利用規約・プライバシーポリシーは Web のページ（`DomainConstants.Web`）をアプリの中の Safari（`SFSafariViewController`）で開く
+/// - ライセンスは、同梱のフォントの OFL と主要なライブラリのライセンスの画面（`LicensesView`）を積む
+/// - バージョンはアプリの `CFBundleShortVersionString`（`CFBundleVersion`）を出す
+/// - 「アカウントを削除」はタスク 39 で中身を作る（いまは「準備中」）
 ///
 /// 標準のナビゲーションバーは使わず、画面のヘッダー（`DGHeader`）を置く（03 の §3）。
 struct SettingsView: View {
@@ -20,13 +26,50 @@ struct SettingsView: View {
         static let screen = "settings.screen"
         /// 表示名の行
         static let displayName = "settings.displayName"
+        /// 「広告を非表示にする（¥480）」／「広告非表示：購入済み」の行
+        static let removeAds = "settings.removeAds"
+        /// 「購入を復元」の行
+        static let restore = "settings.restore"
+        /// 「Apple でサインインを連携」の行
+        static let appleLink = "settings.appleLink"
+        /// 「通知設定」の行
+        static let notifications = "settings.notifications"
+        /// 「利用規約」の行
+        static let terms = "settings.terms"
+        /// 「プライバシーポリシー」の行
+        static let privacy = "settings.privacy"
+        /// 「ライセンス」の行
+        static let licenses = "settings.licenses"
+        /// 「バージョン」の行
+        static let version = "settings.version"
+    }
+
+    /// アプリの中の Safari で開く Web のページ
+    private enum WebPage: String, Identifiable {
+        case terms
+        case privacy
+
+        var id: String { rawValue }
+
+        var url: URL? {
+            switch self {
+            case .terms: URL(string: DomainConstants.Web.termsURL)
+            case .privacy: URL(string: DomainConstants.Web.privacyPolicyURL)
+            }
+        }
     }
 
     @State private var model: SettingsModel
+    /// 開いている Web のページ（利用規約・プライバシーポリシー）
+    @State private var webPage: WebPage?
+    /// ライセンスの画面を積んでいるか
+    @State private var isShowingLicenses = false
     /// 編集のシートにもトーストを重ねるための窓口（シートは画面の根元のトーストより上に出るため）
     private let toasts: DGToastCenter
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @Environment(\.authorizationController) private var authorizationController
 
     /// - Parameters:
     ///   - model: 画面の状態（最初の 1 回だけ使う）
@@ -44,10 +87,10 @@ struct SettingsView: View {
                     profileSection
                     purchaseSection
                     SettingsSection {
-                        SettingsRow(title: Text("Apple でサインインを連携"), accessory: .pending)
+                        appleLinkRow
                     }
                     SettingsSection {
-                        SettingsRow(title: Text("通知設定"), accessory: .pending)
+                        notificationsRow
                     }
                     aboutSection
                     SettingsSection {
@@ -67,9 +110,29 @@ struct SettingsView: View {
         .task {
             await model.observe()
         }
+        .task {
+            await model.loadProduct()
+        }
         .sheet(isPresented: $model.isEditingName) {
             DisplayNameEditor(model: model)
                 .dgToast(toasts)
+        }
+        .sheet(item: $webPage) { page in
+            if let url = page.url {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
+        .navigationDestination(isPresented: $isShowingLicenses) {
+            LicensesView()
+        }
+        .alert(Text("この Apple ID は別のアカウントで使われています"), isPresented: $model.isConfirmingAccountSwitch) {
+            Button("サインインし直す") {
+                model.switchAccountConfirmed()
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("そのアカウントでサインインし直すと、参加中のルームがそのアカウントのものに切り替わります。今のアカウントには戻れません。")
         }
     }
 
@@ -93,38 +156,124 @@ struct SettingsView: View {
         }
     }
 
-    /// 広告非表示の購入と復元（タスク 38）
+    /// 広告非表示の購入と復元（02 の §7.2 F-51）
     private var purchaseSection: some View {
         SettingsSection {
-            SettingsRow(title: Text("広告を非表示にする（¥\(DomainConstants.RemoveAds.priceYen)）"), accessory: .pending)
+            removeAdsRow
             DGDashedLine()
-            SettingsRow(title: Text("購入を復元"), accessory: .pending)
+            Button {
+                model.restoreTapped()
+            } label: {
+                SettingsRow(title: Text("購入を復元"), accessory: accessory(for: .restore))
+            }
+            .buttonStyle(.dgBare)
+            .disabled(!model.canStartAction)
+            .accessibilityIdentifier(Identifier.restore)
         }
     }
 
-    /// 利用規約・プライバシーポリシー・ライセンス（タスク 38）とバージョン
+    /// 「広告を非表示にする（¥480）」（購入済みなら「広告非表示：購入済み」で押せない）
+    @ViewBuilder private var removeAdsRow: some View {
+        switch model.removeAdsRow {
+        case let .available(price):
+            Button {
+                model.purchaseTapped()
+            } label: {
+                SettingsRow(title: Text("広告を非表示にする（\(price)）"), accessory: accessory(for: .purchase))
+            }
+            .buttonStyle(.dgBare)
+            .disabled(!model.canStartAction)
+            .accessibilityIdentifier(Identifier.removeAds)
+        case .purchased:
+            SettingsRow(title: Text("広告非表示：購入済み"))
+                .accessibilityIdentifier(Identifier.removeAds)
+        }
+    }
+
+    /// 「Apple でサインインを連携」（連携済みなら「連携済み」で押せない）
+    @ViewBuilder private var appleLinkRow: some View {
+        if model.isLinkedWithApple {
+            SettingsRow(title: Text("Apple でサインインを連携"), value: Text("連携済み"))
+                .accessibilityIdentifier(Identifier.appleLink)
+        } else {
+            Button {
+                model.linkAppleTapped(using: SystemAppleAuthorizer(controller: authorizationController))
+            } label: {
+                SettingsRow(title: Text("Apple でサインインを連携"), accessory: accessory(for: .linkApple))
+            }
+            .buttonStyle(.dgBare)
+            .disabled(!model.canStartAction)
+            .accessibilityHint(Text("機種を変更したときに、同じ Apple ID でサインインすると参加中のルームが戻ります"))
+            .accessibilityIdentifier(Identifier.appleLink)
+        }
+    }
+
+    /// 「通知設定」（iOS の設定アプリのこのアプリの通知の画面を開く）
+    private var notificationsRow: some View {
+        Button {
+            if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                openURL(url)
+            }
+        } label: {
+            SettingsRow(title: Text("通知設定"), accessory: .disclosure)
+        }
+        .buttonStyle(.dgBare)
+        .accessibilityHint(Text("設定アプリを開きます"))
+        .accessibilityIdentifier(Identifier.notifications)
+    }
+
+    /// 利用規約・プライバシーポリシー・ライセンスとバージョン
     private var aboutSection: some View {
         SettingsSection {
-            SettingsRow(title: Text("利用規約"), accessory: .pending)
+            webRow(Text("利用規約"), page: .terms, identifier: Identifier.terms)
             DGDashedLine()
-            SettingsRow(title: Text("プライバシーポリシー"), accessory: .pending)
+            webRow(Text("プライバシーポリシー"), page: .privacy, identifier: Identifier.privacy)
             DGDashedLine()
-            SettingsRow(title: Text("ライセンス"), accessory: .pending)
+            Button {
+                isShowingLicenses = true
+            } label: {
+                SettingsRow(title: Text("ライセンス"), accessory: .disclosure)
+            }
+            .buttonStyle(.dgBare)
+            .accessibilityIdentifier(Identifier.licenses)
             DGDashedLine()
             SettingsRow(title: Text("バージョン"), value: Text(verbatim: Self.appVersion))
+                .accessibilityIdentifier(Identifier.version)
         }
     }
 
-    /// アプリのバージョン（`CFBundleShortVersionString`）。読めなければ空
+    /// Web のページを開く行
+    private func webRow(_ title: Text, page: WebPage, identifier: String) -> some View {
+        Button {
+            webPage = page
+        } label: {
+            SettingsRow(title: title, accessory: .disclosure)
+        }
+        .buttonStyle(.dgBare)
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// 操作の行の右端の印（その操作を行っている途中なら、くるくる回る印）
+    private func accessory(for action: SettingsModel.Action) -> SettingsRow.Accessory {
+        model.activeAction == action ? .progress : .disclosure
+    }
+
+    /// アプリのバージョン（「1.0.0（1）」）
     private static var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        AppVersionText.make(bundle: .main)
     }
 }
 
 /// プレビュー用の S-15（擬似のサーバーの `one-room` のデータ）
 @MainActor private func settingsPreview() -> some View {
     let toasts = DGToastCenter()
-    let model = SettingsModel(userID: DemoScenario.myUserID, auth: InMemoryServer.demo(.oneRoom), toasts: toasts)
+    let model = SettingsModel(
+        userID: DemoScenario.myUserID,
+        auth: InMemoryServer.demo(.oneRoom),
+        purchases: .disabled,
+        toasts: toasts,
+        appleAuthorizer: DemoAppleAuthorizer()
+    )
     return NavigationStack {
         SettingsView(model: model, toasts: toasts)
     }

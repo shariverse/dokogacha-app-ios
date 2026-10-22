@@ -43,7 +43,7 @@ struct DokoGachaApp: App {
         case .invite:
             ScreenshotDemo.InviteScene()
         case .settings:
-            ScreenshotDemo.SettingsScene(auth: appDelegate.serverSession.services.auth)
+            ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services)
         case .room:
             ScreenshotDemo.RoomScene(services: appDelegate.serverSession.services)
         case .candidateDetail:

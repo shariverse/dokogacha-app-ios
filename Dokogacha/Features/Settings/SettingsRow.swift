@@ -18,6 +18,8 @@ struct SettingsRow: View {
         case disclosure
         /// まだ作っていない（「準備中」。押しても何もしない）
         case pending
+        /// 行の操作を行っている途中（購入・復元・連携。くるくる回る印）
+        case progress
     }
 
     /// 項目名
@@ -85,6 +87,10 @@ struct SettingsRow: View {
                 Text("準備中")
                     .font(.dg(.bodyCaption))
                     .foregroundStyle(Color.dgTextSecondary)
+            case .progress:
+                ProgressView()
+                    .tint(Color.dgTextSecondary)
+                    .accessibilityLabel(Text("処理中"))
             }
         }
     }

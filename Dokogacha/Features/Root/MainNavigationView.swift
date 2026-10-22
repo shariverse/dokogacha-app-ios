@@ -33,6 +33,8 @@ struct MainNavigationView: View {
     private let deepLinks: DeepLinkRouter
     /// プッシュ通知のまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
     @Environment(PushNotificationCoordinator.self) private var push: PushNotificationCoordinator?
+    /// 広告非表示の買い切りのまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
+    @Environment(PurchaseCoordinator.self) private var purchases: PurchaseCoordinator?
 
     /// - Parameters:
     ///   - userID: 自分の uid
@@ -109,6 +111,19 @@ struct MainNavigationView: View {
         presentation.open(route)
     }
 
+    /// S-15 設定
+    private func settings() -> some View {
+        let model = SettingsModel(
+            userID: userID,
+            auth: services.auth,
+            purchases: purchases ?? .disabled,
+            toasts: toasts,
+            // 擬似のサーバーでは Apple の認証の画面を出さない（Simulator の画面はテストで操作できない）
+            appleAuthorizer: services.inMemoryServer == nil ? nil : DemoAppleAuthorizer()
+        )
+        return SettingsView(model: model, toasts: toasts)
+    }
+
     /// 行き先の画面
     @ViewBuilder private func destination(_ route: AppRoute) -> some View {
         switch route {
@@ -136,7 +151,7 @@ struct MainNavigationView: View {
         case let .room(roomID):
             room(roomID: roomID)
         case .settings:
-            SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
+            settings()
         case let .candidateDetail(roomID, candidateID):
             candidateDetail(roomID: roomID, candidateID: candidateID)
         case let .addCandidate(roomID):

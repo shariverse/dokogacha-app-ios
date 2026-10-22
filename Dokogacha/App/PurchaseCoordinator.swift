@@ -100,6 +100,11 @@ final class PurchaseCoordinator {
         verifyIfNeeded()
     }
 
+    /// 広告非表示のアイテム（S-15 の価格の表示に使う。App Store に無ければ nil）
+    func product() async throws -> PurchaseProduct? {
+        try await service.product()
+    }
+
     /// 広告非表示のアイテムを買う（S-15 の「広告を非表示にする（¥480）」）。買えたらサーバーにも送る（送れなければ投げる）
     func purchase() async throws -> PurchaseOutcome {
         let outcome = try await service.purchase()
