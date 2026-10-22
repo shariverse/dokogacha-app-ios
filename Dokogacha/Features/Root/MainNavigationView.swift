@@ -94,7 +94,18 @@ struct MainNavigationView: View {
             SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
         case let .candidateDetail(roomID, candidateID):
             candidateDetail(roomID: roomID, candidateID: candidateID)
-        case .addCandidate, .members, .roomSettings, .gacha:
+        case let .addCandidate(roomID):
+            AddCandidateView(
+                model: AddCandidateModel(
+                    roomID: roomID,
+                    userID: userID,
+                    repository: services.rooms,
+                    functions: services.functions,
+                    places: services.places,
+                    toasts: toasts
+                )
+            )
+        case .members, .roomSettings, .gacha:
             PendingScreenView(route: route)
         }
     }
