@@ -3,7 +3,7 @@ rules_version = '2';
 // ドコガチャの Firestore のセキュリティルール（05_architecture.md の §4）。
 // 整合性が要る書き込みは Callable Functions（Admin SDK。ルールを通らない）で行い、
 // クライアントが直接書けるのは「自分の準備OK」「いいね」「lastSeenAt」（と自分の通知トークン）だけにする。
-// まだ作っていないコレクション（inviteCodes・reports など）は、
+// まだ作っていないコレクションと、Functions だけが使うコレクション（inviteCodes・reports・mail など）は、
 // 最後の match ですべて拒否する。機能を作るタスクで許可を足していく。
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -82,7 +82,7 @@ service cloud.firestore {
               || request.resource.data.lastSeenAt == request.time);
       }
 
-      // candidates/{candidateId}: メンバーだけが読める（報告した人の画面でひとこと・URL を隠すのはアプリ。F-14・タスク 40）。
+      // candidates/{candidateId}: メンバーだけが読める（報告した人の画面でひとこと・URL を隠すのはアプリ。F-14）。
       // 作成・削除は Callable の addCandidate・deleteCandidate（上限・重複・状態を確かめる）。
       // 直接変えられるのは、いいね（likedBy に自分の uid を足す・取り除く）だけ（F-20）:
       // - open・unlocked のときだけ・自分の投稿にはいいねできない（取り消しもできない。そもそも付けられない）
@@ -120,6 +120,11 @@ service cloud.firestore {
       return after.toSet() == before.toSet().difference([uid].toSet())
         && after.size() == before.size() - (uid in before ? 1 : 0);
     }
+
+    // reports/{reportId}: 投稿の報告（F-14）。作るのは Callable の reportCandidate だけ。報告した人も含め、クライアントからは読めない
+    // （誰が報告したかを投稿した人・ほかのメンバーに知られないため。報告した人の画面でひとこと・URL を隠すのは、アプリが端末に覚えて行う）。
+    // mail/{mailId}: Trigger Email 拡張が読んで送る運営向けのメール（宛先と報告の内容を含む）。Functions と拡張だけが読み書きする。
+    // どちらも許可を書かず、下の match で拒否する
 
     // ここまでで許可していないものは、すべて拒否する
     match /{document=**} {
