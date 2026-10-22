@@ -43,6 +43,9 @@
     ],
     "rewrites": [{ "source": "/r/**", "destination": "/invite.html" }]
   },
+  "extensions": {
+    "firestore-send-email": "firebase/firestore-send-email@0.2.10"
+  },
   "emulators": {
     "singleProjectMode": true,
     "auth": { "port": 9099 },

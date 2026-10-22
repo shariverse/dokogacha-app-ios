@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // firebase.json の Emulator のポートに DG_EMULATOR_PORT_OFFSET（既定 0）を足した設定ファイルを書き出し、そのパスを出力する。
 // 2 つの作業スロットで同時に Emulator を起動してもポートがぶつからないようにするため（スロット a は 0、b は 100）。
+// Emulator で動かせない拡張（extensions）は外す（withoutExtensions）。
 // 書き出すファイルは firebase.json と同じディレクトリに置く（rules・functions・hosting の相対パスをそのまま使うため）。git の管理外。
 "use strict";
 
@@ -90,7 +91,21 @@ function shiftEmulatorPorts(config, offset) {
   return shifted;
 }
 
-module.exports = { GENERATED_CONFIG_NAME, parseOffset, shiftEmulatorPorts };
+/**
+ * Emulator で動かさない拡張（`extensions`）を外した設定を作る。元のオブジェクトは変えない。
+ * firebase.json の Trigger Email 拡張（firestore-send-email）は、Emulator では拡張のコードを取りに行き（ネットワーク）、
+ * SMTP の接続先・送り主（人間が入れる値で、リポジトリには無い）を要るので起動できない。
+ * テストは `reportCandidate` が `mail` に書いたドキュメントを読んで確かめる（拡張が送るところは本番でしか確かめられない）。
+ * @param {Record<string, unknown>} config firebase.json の内容
+ * @returns {Record<string, unknown>}
+ */
+function withoutExtensions(config) {
+  const copy = structuredClone(config);
+  delete copy.extensions;
+  return copy;
+}
+
+module.exports = { GENERATED_CONFIG_NAME, parseOffset, shiftEmulatorPorts, withoutExtensions };
 
 // スクリプトとして実行されたときだけ書き出す（テストから関数だけ読み込めるように）
 if (require.main === module) {
@@ -100,6 +115,6 @@ if (require.main === module) {
   );
   const offset = parseOffset(process.env.DG_EMULATOR_PORT_OFFSET);
   const outPath = join(backendDir, GENERATED_CONFIG_NAME);
-  writeFileSync(outPath, `${JSON.stringify(shiftEmulatorPorts(config, offset), null, 2)}\n`);
+  writeFileSync(outPath, `${JSON.stringify(shiftEmulatorPorts(withoutExtensions(config), offset), null, 2)}\n`);
   process.stdout.write(`${outPath}\n`);
 }
