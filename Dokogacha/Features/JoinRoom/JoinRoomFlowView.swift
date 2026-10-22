@@ -22,6 +22,10 @@ struct JoinRoomFlowView: View {
 
     /// `previewRoom`・`joinRoom` を呼ぶ窓口
     private let functions: any FunctionsClient
+    /// 開いた道（`room_join` の `via`）
+    private let via: RoomJoinVia
+    /// 参加できたら `room_join` を送る窓口
+    private let analytics: any AnalyticsService
     /// 参加した（もとからメンバーだった）ときの処理。値はルームの ID
     private let onJoined: (String) -> Void
 
@@ -30,12 +34,22 @@ struct JoinRoomFlowView: View {
     /// - Parameters:
     ///   - functions: `previewRoom`・`joinRoom` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - initialCode: 招待リンクで開いたときの招待コード。S-05 に入れた状態で始め、すぐに確かめて S-06 を積む
+    ///   - via: 開いた道（招待リンク・招待コード・前回のメンバーへの招待の通知。`room_join` の `via`）
+    ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
     ///   - onJoined: 参加した（もとからメンバーだった）ときの処理。値はルームの ID
-    init(functions: any FunctionsClient, initialCode: InviteCode? = nil, onJoined: @escaping (String) -> Void) {
+    init(
+        functions: any FunctionsClient,
+        initialCode: InviteCode? = nil,
+        via: RoomJoinVia = .code,
+        analytics: any AnalyticsService = DisabledAnalyticsService(),
+        onJoined: @escaping (String) -> Void
+    ) {
         let toasts = DGToastCenter()
         _toasts = State(initialValue: toasts)
         _codeModel = State(initialValue: JoinByCodeModel(functions: functions, toasts: toasts, initialCode: initialCode))
         self.functions = functions
+        self.via = via
+        self.analytics = analytics
         self.onJoined = onJoined
     }
 
@@ -58,7 +72,7 @@ struct JoinRoomFlowView: View {
             }
             .navigationDestination(for: JoinConfirmDestination.self) { destination in
                 JoinConfirmView(
-                    model: JoinConfirmModel(destination: destination, functions: functions, toasts: toasts),
+                    model: JoinConfirmModel(destination: destination, functions: functions, toasts: toasts, via: via, analytics: analytics),
                     onCancel: { dismiss() },
                     onJoined: onJoined
                 )

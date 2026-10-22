@@ -25,6 +25,10 @@ final class JoinConfirmModel {
 
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
+    /// どの道で参加したか（`room_join` の `via`）
+    @ObservationIgnored private let via: RoomJoinVia
+    /// 参加できたら `room_join` を送る窓口
+    @ObservationIgnored private let analytics: any AnalyticsService
     /// ボタンから始めた参加。画面が消えたら（`cancelJoin`）止める
     @ObservationIgnored private var joinTask: Task<Void, Never>?
 
@@ -32,11 +36,21 @@ final class JoinConfirmModel {
     ///   - destination: 確かめたルームと招待コード
     ///   - functions: `joinRoom` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 失敗を出すトーストの窓口
-    init(destination: JoinConfirmDestination, functions: any FunctionsClient, toasts: DGToastCenter) {
+    ///   - via: どの道で参加の画面を開いたか（招待リンク・招待コード・前回のメンバーへの招待の通知）
+    ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
+    init(
+        destination: JoinConfirmDestination,
+        functions: any FunctionsClient,
+        toasts: DGToastCenter,
+        via: RoomJoinVia = .code,
+        analytics: any AnalyticsService = DisabledAnalyticsService()
+    ) {
         preview = destination.preview
         inviteCode = destination.inviteCode
         self.functions = functions
         self.toasts = toasts
+        self.via = via
+        self.analytics = analytics
     }
 
     /// 「参加する」を押せるか（送っている途中・参加済みのときは押せない）
@@ -85,6 +99,9 @@ final class JoinConfirmModel {
                 return
             }
             joinedRoomID = response.roomId
+            if !response.alreadyMember {
+                analytics.log(.roomJoin(via: via))
+            }
         } catch {
             let appError = AppError.wrapping(error)
             if !appError.isCancellation, !Task.isCancelled {

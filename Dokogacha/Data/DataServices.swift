@@ -35,6 +35,8 @@ struct DataServices {
     var seenDraws: any SeenDrawStore = UserDefaultsSeenDrawStore()
     /// 報告した候補（F-14。ひとこととURLを隠す）。既定は端末に残す。擬似のサーバーのときはメモリだけ（起動ごとに空から始める）
     var reportedCandidates: any ReportedCandidateStore = UserDefaultsReportedCandidateStore()
+    /// Analytics のイベントを送る窓口（05 の §9）。既定は何も送らない。Firebase に繋いだときだけ Firebase Analytics に送る
+    var analytics: any AnalyticsService = DisabledAnalyticsService()
 
     /// サインインしてよいか（接続できないときは、サインインを試みない）
     var allowsSignIn: Bool {
@@ -70,7 +72,8 @@ struct DataServices {
             auth: FirebaseAuthService(gateway: gateway, functions: functions),
             rooms: FirestoreRoomRepository(gateway: gateway),
             functions: functions,
-            inMemoryServer: nil
+            inMemoryServer: nil,
+            analytics: FirebaseAnalyticsService()
         )
     }
 

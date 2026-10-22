@@ -24,6 +24,8 @@ final class ResultCloseModel {
 
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
+    /// 終了できたら `room_close` を送る窓口
+    @ObservationIgnored private let analytics: any AnalyticsService
     /// 確認のダイアログから始めた終了（二重に始めないために持つ）
     @ObservationIgnored private var closeTask: Task<Void, Never>?
 
@@ -31,10 +33,17 @@ final class ResultCloseModel {
     ///   - roomID: ルームの ID
     ///   - functions: `closeRoom` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 失敗を出すトーストの窓口（フルスクリーンカバーの中に重ねるもの）
-    init(roomID: String, functions: any FunctionsClient, toasts: DGToastCenter) {
+    ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
+    init(
+        roomID: String,
+        functions: any FunctionsClient,
+        toasts: DGToastCenter,
+        analytics: any AnalyticsService = DisabledAnalyticsService()
+    ) {
         self.roomID = roomID
         self.functions = functions
         self.toasts = toasts
+        self.analytics = analytics
     }
 
     /// 「この行き先で決定」が押された。確認のダイアログを出す（送っている途中なら出さない）
@@ -70,6 +79,8 @@ final class ResultCloseModel {
         defer { isClosing = false }
         do {
             try await functions.closeRoom(RoomRequest(roomId: roomID))
+            // 自動の終了（抽選の 7 日後）は Functions が行い、アプリからは分からないので、ここで送るのは作成者が決めたときだけ
+            analytics.log(.roomClose(auto: false))
             return true
         } catch {
             let appError = AppError.wrapping(error)

@@ -47,6 +47,8 @@ final class ResultModel {
     @ObservationIgnored private let mapOpener: any MapOpener
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
+    /// 共有・引き直しの提案で `ticket_share`・`reroll_propose` を送る窓口
+    @ObservationIgnored private let analytics: any AnalyticsService
 
     /// - Parameters:
     ///   - roomID: ルームの ID
@@ -58,6 +60,7 @@ final class ResultModel {
     ///   - mapOpener: 「マップで開く」の窓口（テストでは呼び出しを記録するもの）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
     ///   - reportedCandidates: 自分が報告した候補（きっぷのひとことを隠す。F-14）
+    ///   - analytics: Analytics のイベント（05 の §9。共有・引き直しの提案・終了）を送る窓口
     init(
         roomID: String,
         drawID: String,
@@ -67,7 +70,8 @@ final class ResultModel {
         toasts: DGToastCenter,
         mapOpener: any MapOpener = AppleMapsOpener(),
         resubscribeDelay: ResubscribeDelay = .standard,
-        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore()
+        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore(),
+        analytics: any AnalyticsService = DisabledAnalyticsService()
     ) {
         self.drawID = drawID
         room = RoomModel(
@@ -79,12 +83,13 @@ final class ResultModel {
             resubscribeDelay: resubscribeDelay,
             reportedCandidates: reportedCandidates
         )
-        closing = ResultCloseModel(roomID: roomID, functions: functions, toasts: toasts)
+        closing = ResultCloseModel(roomID: roomID, functions: functions, toasts: toasts, analytics: analytics)
         self.repository = repository
         self.functions = functions
         self.mapOpener = mapOpener
         self.toasts = toasts
         self.resubscribeDelay = resubscribeDelay
+        self.analytics = analytics
     }
 
     // MARK: - 表示の値
@@ -186,6 +191,11 @@ final class ResultModel {
         mapOpener.open(winnerPlace)
     }
 
+    /// 「きっぷを共有」が押された（共有シートは画面の `ShareLink` が開く。共有先を選んだかは分からないので、開いたことを送る）
+    func shareTapped() {
+        analytics.log(.ticketShare)
+    }
+
     // MARK: - 引き直し（F-43）
 
     /// 「引き直しを提案（過半数の賛成で1回まで）」が押された。提案を送る（送っている途中・提案できないときは何もしない）
@@ -208,8 +218,11 @@ final class ResultModel {
         guard rerollPanel == .proposable, !isSendingReroll else {
             return
         }
-        await sendReroll {
+        let proposed = await sendReroll {
             try await functions.proposeReroll(RoomRequest(roomId: room.roomID))
+        }
+        if proposed {
+            analytics.log(.rerollPropose)
         }
     }
 
@@ -248,16 +261,20 @@ final class ResultModel {
     }
 
     /// 送っている途中の印を立てて Callable を呼び、失敗したら `AppError` の文言のトーストを出す（cancel・画面が消えた後は出さない）
-    private func sendReroll(_ operation: () async throws -> Void) async {
+    /// - Returns: 送れたか
+    @discardableResult
+    private func sendReroll(_ operation: () async throws -> Void) async -> Bool {
         isSendingReroll = true
         defer { isSendingReroll = false }
         do {
             try await operation()
+            return true
         } catch {
             let appError = AppError.wrapping(error)
             if !appError.isCancellation, !Task.isCancelled {
                 toasts.show(text: appError.message)
             }
+            return false
         }
     }
 }

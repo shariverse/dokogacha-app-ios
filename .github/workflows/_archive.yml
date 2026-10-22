@@ -168,6 +168,42 @@ jobs:
             echo "$expected_name.plist は無いので、このアプリは Firebase に接続できません"
           fi
 
+      - name: Upload dSYMs to Crashlytics
+        # TestFlight・App Store に上げるビルドの dSYM を Crashlytics に上げ、クラッシュの記録を記号化できるようにする
+        # （Xcode の Run Script のビルドフェーズは project.pbxproj を変えるので使わず、SPM が取ってきた firebase-ios-sdk の upload-symbols を Archive の後に呼ぶ）。
+        # アップロードしない Archive（main の確認）は配らないビルドなので上げない。
+        # 書き出した GoogleService-Info の plist が無い（Secret が無い Fork など）ときは上げずに進む。
+        # 上げるのに失敗しても TestFlight・App Store へのアップロードは止めない（注釈と Job Summary で知らせる）
+        if: ${{ inputs.upload }}
+        run: |
+          if [[ "$CONFIGURATION" == "Release" ]]; then
+            name=GoogleService-Info-Prod
+          else
+            name=GoogleService-Info-Dev
+          fi
+          plist="$PROJECT_NAME/Resources/Firebase/${name}.plist"
+          if [[ ! -f "$plist" ]]; then
+            echo "::notice::${name}.plist が無いため、dSYM を Crashlytics に上げません"
+            exit 0
+          fi
+          upload_symbols=$(find "$HOME/Library/Developer/Xcode/DerivedData" -type f -path '*/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols' 2>/dev/null | head -1 || true)
+          dsyms="$RUNNER_TEMP/build.xcarchive/dSYMs"
+          message=""
+          if [[ -z "$upload_symbols" ]]; then
+            message="firebase-ios-sdk の Crashlytics/upload-symbols が見つからないため、dSYM を Crashlytics に上げませんでした"
+          elif [[ ! -d "$dsyms" ]] || [[ -z "$(ls -A "$dsyms")" ]]; then
+            message="Archive に dSYM が無いため、Crashlytics に上げませんでした"
+          elif ! "$upload_symbols" --google-service-plist "$plist" --platform ios "$dsyms"; then
+            message="dSYM を Crashlytics に上げられませんでした（クラッシュの記録が記号化されません）"
+          fi
+          if [[ -n "$message" ]]; then
+            echo "::warning::${message}"
+            echo "> [!WARNING]" >> "$GITHUB_STEP_SUMMARY"
+            echo "> ${message}" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "dSYM を Crashlytics に上げました（${name}）"
+
       - name: Create ExportOptions.plist and API private key
         # Secrets はシェル展開ではなく env 経由で渡す
         env:
