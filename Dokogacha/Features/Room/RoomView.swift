@@ -57,6 +57,7 @@ struct RoomView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.calendar) private var calendar
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title3) private var settingsIconSize = RoomView.settingsIconSize
 
     /// - Parameters:
@@ -100,13 +101,15 @@ struct RoomView: View {
 
     // MARK: - ヘッダー
 
-    /// 戻る・ルーム名・状態チップ・（作成者だけ）設定
+    /// 戻る・ルーム名・状態チップ・（作成者だけ）設定。
+    ///
+    /// アクセシビリティの文字サイズでは、チップを横に並べるとルーム名の幅が 1 文字ほどに潰れるので、
+    /// チップはヘッダーから外してスクロールの先頭に置く（`statusChipRow`）
     private var header: some View {
         DGHeader(Text(verbatim: model.room?.name ?? ""), onBack: { dismiss() }, trailing: {
             HStack(spacing: DGSpacing.s4) {
-                if let status = model.room?.status {
-                    DGStatusChip(status: DGStatusChip.Status(status))
-                        .fixedSize()
+                if !dynamicTypeSize.isAccessibilitySize {
+                    statusChip
                 }
                 if model.isOwner {
                     settingsButton
@@ -114,6 +117,14 @@ struct RoomView: View {
             }
             .padding(.trailing, model.isOwner ? 0 : DGSpacing.s8)
         })
+    }
+
+    /// 状態チップ（ルームが届くまでは出さない）
+    @ViewBuilder private var statusChip: some View {
+        if let status = model.room?.status {
+            DGStatusChip(status: DGStatusChip.Status(status))
+                .fixedSize()
+        }
     }
 
     /// ルーム設定（S-12）の入口。作成者だけに出す
@@ -148,6 +159,9 @@ struct RoomView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .loaded:
             VStack(alignment: .leading, spacing: DGSpacing.s14) {
+                if dynamicTypeSize.isAccessibilitySize {
+                    statusChip
+                }
                 RoomPanel(
                     capsuleCount: model.capsuleCount,
                     readyCount: model.readyCount,
