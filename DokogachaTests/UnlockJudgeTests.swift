@@ -166,6 +166,30 @@ struct UnlockJudgeTests {
         #expect(UnlockJudge.nextStatus(input, now: Self.now) == .open)
     }
 
+    /// `unlocked` のルームで条件を満たしたままなら `unlocked` のまま（全員OK・過半数OK。過半数を超えていた人が 1 人取り消しても）
+    @Test
+    func unlockedRoomStaysUnlockedWhileConditionHolds() {
+        #expect(UnlockJudge.nextStatus(Self.input(.all, members: 3, ready: 3, status: .unlocked), now: Self.now) == .unlocked)
+        #expect(UnlockJudge.nextStatus(Self.input(.majority, members: 5, ready: 3, status: .unlocked), now: Self.now) == .unlocked)
+        #expect(UnlockJudge.nextStatus(Self.input(.majority, members: 5, ready: 4, status: .unlocked), now: Self.now) == .unlocked)
+    }
+
+    /// 過半数OKで解禁した後に取り消して過半数を割ると `open` に戻る
+    @Test
+    func majorityRoomFallsBackToOpen() {
+        let input = Self.input(.majority, members: 5, ready: 2, status: .unlocked)
+        #expect(UnlockJudge.judge(input, now: Self.now) == .waitingForMajority(remaining: 1))
+        #expect(UnlockJudge.nextStatus(input, now: Self.now) == .open)
+    }
+
+    /// 締切日時で解禁した後は、準備OKを取り消しても `unlocked` のまま
+    @Test
+    func deadlineRoomStaysUnlockedAfterCancel() {
+        let input = Self.input(.deadline, members: 5, ready: 0, status: .unlocked, deadlineAt: Self.now.addingTimeInterval(-1))
+        #expect(UnlockJudge.judge(input, now: Self.now) == .unlocked(.deadlinePassed))
+        #expect(UnlockJudge.nextStatus(input, now: Self.now) == .unlocked)
+    }
+
     /// 強制解禁したルームは、取り消しがあっても `unlocked` のまま（F-30〜32 の AC）
     @Test
     func forcedRoomStaysUnlocked() {

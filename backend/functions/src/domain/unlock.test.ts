@@ -157,6 +157,25 @@ describe("ルームの状態", () => {
     expect(nextStatusOf(value, NOW_MS)).toBe("open");
   });
 
+  test("unlocked のルームで条件を満たしたままなら unlocked のまま（全員OK・過半数OK）", () => {
+    expect(nextStatusOf(input("all", 3, 3, { status: "unlocked" }), NOW_MS)).toBe("unlocked");
+    expect(nextStatusOf(input("majority", 5, 3, { status: "unlocked" }), NOW_MS)).toBe("unlocked");
+    // 過半数を超えて OK にしていた人が 1 人取り消しても、まだ過半数なら unlocked のまま
+    expect(nextStatusOf(input("majority", 5, 4, { status: "unlocked" }), NOW_MS)).toBe("unlocked");
+  });
+
+  test("過半数OKで解禁した後に取り消して過半数を割ると open に戻る", () => {
+    const value = input("majority", 5, 2, { status: "unlocked" });
+    expect(judgeUnlock(value, NOW_MS)).toEqual({ kind: "waitingForMajority", remaining: 1 });
+    expect(nextStatusOf(value, NOW_MS)).toBe("open");
+  });
+
+  test("締切日時で解禁した後は、準備OKを取り消しても unlocked のまま", () => {
+    const value = input("deadline", 5, 0, { status: "unlocked", deadlineAtMs: NOW_MS - 1000 });
+    expect(judgeUnlock(value, NOW_MS)).toEqual({ kind: "unlocked", reason: "deadlinePassed" });
+    expect(nextStatusOf(value, NOW_MS)).toBe("unlocked");
+  });
+
   test("強制解禁したルームは、取り消しがあっても unlocked のまま", () => {
     expect(nextStatusOf(input("all", 5, 0, { status: "unlocked", forced: true }), NOW_MS)).toBe("unlocked");
   });
