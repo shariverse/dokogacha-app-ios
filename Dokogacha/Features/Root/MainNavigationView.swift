@@ -92,8 +92,24 @@ struct MainNavigationView: View {
             }
         case .settings:
             SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
-        case .addCandidate, .candidateDetail, .members, .roomSettings, .gacha:
+        case let .candidateDetail(roomID, candidateID):
+            candidateDetail(roomID: roomID, candidateID: candidateID)
+        case .addCandidate, .members, .roomSettings, .gacha:
             PendingScreenView(route: route)
         }
+    }
+
+    /// S-10 候補の詳細（シート）。トーストはシートの中に重ねるので、シート用の窓口を作って渡す
+    private func candidateDetail(roomID: String, candidateID: String) -> some View {
+        let sheetToasts = DGToastCenter()
+        let model = CandidateDetailModel(
+            roomID: roomID,
+            candidateID: candidateID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: sheetToasts
+        )
+        return CandidateDetailView(model: model, toasts: sheetToasts)
     }
 }
