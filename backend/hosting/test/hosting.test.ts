@@ -405,6 +405,14 @@ describe("利用規約・プライバシーポリシーの HTML", () => {
     );
   });
 
+  it("プライバシーポリシーは、外部のサービスの節に、報告のメールを運営者に送ること（F-14）と、報告した利用者を含めないことを書く", () => {
+    const section = visible(pages.privacy).match(/<section[^>]*aria-labelledby="privacy-4"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(section).toContain("<h3>投稿の報告のメール</h3>");
+    expect(section).toMatch(/投稿が報告されたときは、報告の内容（[^）]*ひとこと[^）]*参考 URL[^）]*理由[^）]*）をメールで運営者に送ります/);
+    expect(section).toContain("報告した利用者のユーザー ID と表示名は、メールに含めません");
+    expect(section).toContain("メールの送信サービス");
+  });
+
   it.each([
     ["保存期間・削除（F-06）", "アカウントを削除"],
     ["未成年", "未成年の方"],
