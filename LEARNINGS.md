@@ -17,6 +17,8 @@
 - Emulator の Auth のユーザー一覧は `POST http://localhost:9099/identitytoolkit.googleapis.com/v1/projects/demo-dokogacha/accounts:query`（ヘッダー `Authorization: Bearer owner`・本文 `{}`）で取れる（2026-10-22）
 - Google Mobile Ads 13 には `currentOrientationAnchoredAdaptiveBanner` が無く、アンカー型アダプティブバナーの大きさは `largeAnchoredAdaptiveBanner(width:)`（高さ 50〜150。iPhone 17 Pro の幅 370 で約 115）で取る。`BannerView` を `UIViewRepresentable` で置くと、SwiftUI は広告の素材の intrinsicContentSize で並べるので、枠からはみ出して下のボタンに重なる。`sizeThatFits(_:uiView:context:)` で提案された大きさを返し、`.clipped()` する（`GoogleBannerAdView`）（2026-10-22）
 - Simulator でも Google のテスト用の広告ユニット ID なら、テスト広告（「Test mode」）が読み込まれる。撮影モードは本物の広告を写さないよう固定の枠（`DGAdPlaceholder`）にしてあるので、見た目を確かめるときは `AdMode.make` の撮影モードの分岐を一時的に外してビルドする（コミットしない）（2026-10-22）
+- Crashlytics・Analytics の収集の設定は、コードで渡した値（`setCrashlyticsCollectionEnabled`・`setAnalyticsCollectionEnabled`）が端末に残り、Info.plist の `FirebaseCrashlyticsCollectionEnabled`・`FIREBASE_ANALYTICS_COLLECTION_ENABLED` より優先される（plist は初回の既定だけ）。同じ端末に Stg と Debug を入れ替えても取り違えないよう、起動ごとに渡し直している（`FirebaseTelemetry`）。xcconfig の変数で入れた plist の値は文字列の `YES`・`NO` になり、Crashlytics は文字列も `boolValue` で読む（2026-10-22）
+- Crashlytics の `upload-symbols`（universal binary）と `run` は、SPM が取ってきた `SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/` にある。CI の Archive は `-derivedDataPath` を付けないので `~/Library/Developer/Xcode/DerivedData` の下を探し、Archive の後に `--google-service-plist <plist> --platform ios <xcarchive>/dSYMs` で上げている（`_archive.yml`。Run Script のビルドフェーズは pbxproj を変えるので使わない）（2026-10-22）
 
 ## テスト
 
