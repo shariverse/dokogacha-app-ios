@@ -17,7 +17,8 @@ import Observation
 ///
 /// いいね（F-20）は楽観的更新にする:
 /// - 押したらすぐに `pendingLikes` に入れて表示を変え、直接の書き込み（`setLike`）を送る
-/// - 送れたら、次に届いた候補の値で確定する（購読の値をそのまま映す。サーバーに拒まれたときも、SDK が戻した値が届く）
+/// - 押した候補の自分のいいねが、届いた値で楽観的な値と一致したときに確定する（`OptimisticWrite`）。
+///   送っている途中にほかの人のいいねや別の候補の変化が届いても、押した候補の値が追いつくまでは楽観的な表示を続ける
 /// - 送る前に分かる失敗（接続できないなど）なら、表示を戻してトースト「通信できませんでした」を出す
 /// - 送っている途中（確定する前）は同じ候補をもう一度押しても何もしない（二度押し）。自分の投稿・`drawn`・`closed` も押せない
 ///
@@ -41,14 +42,6 @@ final class RoomModel {
         case ready
         /// 解禁していない（「準備OKが揃うと回せます」。押せない）
         case waiting
-    }
-
-    /// 送っている途中のいいね
-    struct PendingLike: Equatable {
-        /// 付けるか（false なら外す）
-        let liked: Bool
-        /// 送り終えたか（送り終えたら、次に届いた候補の値で確定する）
-        var isSent = false
     }
 
     /// 購読の種類（どれが失敗しているかを覚えて、トーストを 1 回にする）
@@ -76,7 +69,7 @@ final class RoomModel {
     /// 候補の最初の値が届いたか（届くまでは空の表示を出さない）
     private(set) var hasLoadedCandidates = false
     /// 送っている途中のいいね（候補の ID ごと）
-    private(set) var pendingLikes: [String: PendingLike] = [:]
+    private(set) var pendingLikes: [String: OptimisticWrite<Bool>] = [:]
     /// NEW の判定に使う、画面を開いて最初に届いた自分の `lastSeenAt`（まだ届いていなければ nil）
     private(set) var seenBaseline: Date?
 
@@ -119,7 +112,7 @@ final class RoomModel {
             room: room,
             myUserID: userID,
             lastSeenAt: seenBaseline,
-            pendingLikes: pendingLikes.mapValues(\.liked)
+            pendingLikes: pendingLikes.mapValues(\.value)
         )
     }
 
@@ -264,13 +257,18 @@ final class RoomModel {
         }
     }
 
-    /// 届いた候補を映す。送り終えたいいねは、この値で確定する（表示は購読の値に戻す）。消えた候補のいいねも捨てる
+    /// 届いた候補を映す。送っている途中のいいねは、押した候補の自分のいいねが一致したら確定する（`OptimisticWrite`）。
+    /// 消えた候補のいいねは捨てる（削除された候補へのいいねは拒まれ、一致する値が届かないため）
     private func applyCandidates(_ value: [Identified<Candidate>]) {
         candidates = value
         hasLoadedCandidates = true
-        let ids = Set(value.map(\.id))
-        pendingLikes = pendingLikes.filter { id, pending in
-            ids.contains(id) && !pending.isSent
+        let byID = Dictionary(value.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for (id, var pending) in pendingLikes {
+            guard let candidate = byID[id] else {
+                pendingLikes[id] = nil
+                continue
+            }
+            pendingLikes[id] = pending.received(candidate.likedBy.contains(userID)) ? nil : pending
         }
     }
 
@@ -294,18 +292,15 @@ final class RoomModel {
             return
         }
         let liked = !candidate.likedBy.contains(userID)
-        pendingLikes[candidateID] = PendingLike(liked: liked)
+        pendingLikes[candidateID] = OptimisticWrite(liked)
         do {
             try await repository.setLike(liked, candidateID: candidateID, roomID: roomID, userID: userID)
-            guard pendingLikes[candidateID] != nil else {
+            guard var pending = pendingLikes[candidateID] else {
                 return
             }
-            // 送っている間に購読の値がもう追いついていれば確定し、まだなら次に届いた値で確定する
-            if candidates.first(where: { $0.id == candidateID })?.likedBy.contains(userID) == liked {
-                pendingLikes[candidateID] = nil
-            } else {
-                pendingLikes[candidateID]?.isSent = true
-            }
+            // 送っている間に一致した値が届いていれば・今の値がもう一致していれば確定し、まだなら一致した値が届いたときに確定する
+            let current = candidates.first { $0.id == candidateID }?.likedBy.contains(userID)
+            pendingLikes[candidateID] = pending.sent(current: current) ? nil : pending
         } catch {
             pendingLikes[candidateID] = nil
             if !AppError.wrapping(error).isCancellation {
