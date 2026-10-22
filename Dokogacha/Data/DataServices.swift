@@ -23,10 +23,10 @@ struct DataServices {
     let backend: Backend
     /// 認証とプロフィール
     let auth: any AuthService
-    /// ルーム・メンバー・候補
-    let rooms: any RoomRepository
-    /// Callable Functions
-    let functions: any FunctionsClient
+    /// ルーム・メンバー・候補（`requiringOnline` で、オフラインのときはいいね・準備OKを止める窓口に包む）
+    var rooms: any RoomRepository
+    /// Callable Functions（`requiringOnline` で、オフラインのときは送らない窓口に包む）
+    var functions: any FunctionsClient
     /// 擬似のサーバー（擬似のときだけ。UI テストのシナリオやプレビューで状態を足すのに使う）
     let inMemoryServer: InMemoryServer?
     /// 場所検索（F-10）。既定は MapKit、擬似のサーバーのときは決まった結果を返す擬似の検索
@@ -64,14 +64,17 @@ struct DataServices {
     }
 
     /// Firebase の窓口。`FirebaseApp.configure` の後でだけ作る
-    static func firebase() -> Self {
+    /// - Parameter network: 回線の状態（あれば、認証の窓口が中で使う Callable もオフラインのときは送らない窓口に包む）
+    static func firebase(network: NetworkStatus? = nil) -> Self {
         let gateway = FirebaseFirestoreGateway()
-        let functions = CallableFunctionsClient(transport: FirebaseCallableTransport())
+        let callable = CallableFunctionsClient(transport: FirebaseCallableTransport())
+        // 認証の窓口が中で呼ぶ Callable（表示名の登録・アカウントの削除）。`functions` の方は `make` が `requiringOnline` で包む
+        let authFunctions: any FunctionsClient = network.map { OnlineRequiredFunctionsClient(base: callable, network: $0) } ?? callable
         return Self(
             backend: .firebase,
-            auth: FirebaseAuthService(gateway: gateway, functions: functions),
+            auth: FirebaseAuthService(gateway: gateway, functions: authFunctions),
             rooms: FirestoreRoomRepository(gateway: gateway),
-            functions: functions,
+            functions: callable,
             inMemoryServer: nil,
             analytics: FirebaseAnalyticsService()
         )
@@ -83,15 +86,19 @@ struct DataServices {
     /// - テスト・撮影のために初期化しなかった → 擬似のサーバー。`-uiTesting`・撮影モードでは `-demo-scenario` のデータを入れる
     ///   （Unit テストのホストは、テストが自分でサーバーを作るので空のまま）
     /// - 設定が無い・読めない → 接続できない窓口
-    static func make(connection: ServerConnection, launch: LaunchContext) -> Self {
+    ///
+    /// `network` を渡すと、オンライン必須の操作をオフラインのときに止める窓口に包む（`requiringOnline`。02 の §9）
+    static func make(connection: ServerConnection, launch: LaunchContext, network: NetworkStatus? = nil) -> Self {
+        let services: Self
         switch connection {
         case .firebase:
-            return firebase()
+            services = firebase(network: network)
         case let .disabled(reason):
             let scenario: DemoScenario = reason == .unitTestHost ? .empty : launch.demoScenario
-            return inMemory(InMemoryServer.demo(scenario), scenario: scenario)
+            services = inMemory(InMemoryServer.demo(scenario), scenario: scenario)
         case .unavailable, .notStarted:
             return unavailable
         }
+        return network.map(services.requiringOnline) ?? services
     }
 }

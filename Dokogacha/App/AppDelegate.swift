@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     let ads: AdCoordinator
     /// 広告非表示の買い切りのまとめ役（`DokoGachaApp` が `@Environment` で画面に渡す）。テスト・撮影モードでは StoreKit を使わない
     let purchases = PurchaseCoordinator.make(launch: .current)
+    /// 端末の回線の状態（`DokoGachaApp` が `@Environment` で画面に渡す。オフラインのバナーと、オンライン必須の操作を止めるのに使う）
+    let network = NetworkStatus()
 
     /// `UNUserNotificationCenter`・`Messaging` の delegate（どちらも弱い参照なので、ここで持つ）
     private var notificationObserver: NotificationCenterObserver?
@@ -37,10 +39,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         let launch = LaunchContext.current
+        // 回線の監視は、データ層の窓口を作る前に始める（オンライン必須の操作を止める窓口がこれを見る）
+        network.start(monitor: NetworkStatus.monitor(for: launch))
         let connection = FirebaseBootstrap.configure(plan: FirebaseBootstrap.currentPlan())
         FirebaseTelemetry.start(connection: connection, launch: launch)
         // Firebase を初期化したら Firebase の実装、テスト・撮影なら擬似のサーバー（`-demo-scenario` のデータ）を使う
-        let services = DataServices.make(connection: connection, launch: launch)
+        let services = DataServices.make(connection: connection, launch: launch, network: network)
         serverSession.start(connection: connection, services: services)
         if launch.autoMembers, let server = services.inMemoryServer {
             autoMembers = InMemoryAutoMembers(server: server)

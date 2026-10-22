@@ -190,7 +190,7 @@ final class InMemoryServer {
             .resourceExhausted
         case .notRoomMember, .notRoomOwner, .notCandidateOwner, .permissionDenied:
             .permissionDenied
-        case .inviteCodeUnavailable, .purchaseVerificationUnavailable, .network, .serverUnavailable:
+        case .inviteCodeUnavailable, .purchaseVerificationUnavailable, .network, .offline, .serverUnavailable:
             .unavailable
         case .internal, .unreadableData, .notImplemented, .appleSignInFailed, .appleRevokeFailed:
             .internal

@@ -24,6 +24,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// UI テストは 1 台の端末しか操作できないので、06 の §2 の通しのシナリオで使う。`-uiTesting` のときだけ効く
     static let autoMembersArgument = "-ui-auto-members"
 
+    /// UI テスト・撮影モードで、端末がオフラインのことにする起動引数（`NetworkStatus`。「オフラインです」のバナーと、
+    /// オンライン必須の操作を止めることを確かめる。Simulator の回線はテストから切れないため）
+    static let networkOfflineArgument = "-network-offline"
+
     /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
     /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
     static let unitTestHostEnvironmentKeys = ["XCTestConfigurationFilePath", "XCTestBundlePath", "XCTestSessionIdentifier"]
@@ -43,6 +47,8 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let openNotification: [String: String]?
     /// ほかのメンバーの操作を擬似のサーバーが自動で返すか（`-ui-auto-members`。`-uiTesting` のときだけ true になりうる）
     let autoMembers: Bool
+    /// オフラインのことにするか（`-network-offline`。`-uiTesting`・撮影モードのときだけ true になりうる）
+    let networkOffline: Bool
 
     /// 起動引数と環境変数から作る
     init(arguments: [String], environment: [String: String]) {
@@ -50,6 +56,7 @@ nonisolated struct LaunchContext: Equatable, Sendable {
         isUITesting = arguments.contains(Self.uiTestingArgument)
         isScreenshotDemo = arguments.contains(ScreenshotDemo.argument)
         autoMembers = isUITesting && arguments.contains(Self.autoMembersArgument)
+        networkOffline = (isUITesting || isScreenshotDemo) && arguments.contains(Self.networkOfflineArgument)
         // 撮影モード（App Store の画面）は、シナリオを指定しなければルームが並んだ状態で撮る
         demoScenario = DemoScenario.from(
             arguments: arguments,
