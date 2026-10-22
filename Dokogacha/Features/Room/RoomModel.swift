@@ -14,6 +14,8 @@ import Observation
 ///
 /// 通信エラーでは画面を壊さない: 購読が失敗したら、出していた値のまま少し待って購読し直す。
 /// トーストは「どの購読も失敗していない状態から失敗したとき」の 1 回だけ出し、失敗した購読が値を受け取り直すまで出し直さない。
+/// ただし permission-denied（ルームが削除された・退出した・作成者に削除された・無いルームを開いた）は、購読し直しても読めないので、
+/// 購読し直さずトーストも出さずに `.missing`（「ルームが見つかりません」）にする。
 ///
 /// いいね（F-20）は楽観的更新にする:
 /// - 押したらすぐに `pendingLikes` に入れて表示を変え、直接の書き込み（`setLike`）を送る
@@ -39,7 +41,7 @@ final class RoomModel {
         case loading
         /// ルームが届いた
         case loaded
-        /// ルームが無い（削除された）
+        /// ルームが無い・読めなくなった（削除された・退出した・作成者に削除された）
         case missing
     }
 
@@ -281,6 +283,9 @@ final class RoomModel {
                 case let .value(value):
                     failingSources.remove(source)
                     apply(value)
+                case let .failure(error) where error.isPermissionDenied:
+                    markMissing()
+                    return
                 case let .failure(error):
                     noteFailure(error, from: source)
                 }
@@ -289,6 +294,12 @@ final class RoomModel {
                 return
             }
         }
+    }
+
+    /// ルームを読めなくなった。`.missing` にし、出していた値と送っている途中の表示を捨てる（購読し直さない）
+    private func markMissing() {
+        (room, members, candidates, loadState, pendingLikes, pendingReady) = (nil, [], [], .missing, [:], nil)
+        failingSources.removeAll()
     }
 
     /// 購読の失敗を覚え、どの購読も失敗していなかったときだけトーストを出す（失敗が続いても 1 回）

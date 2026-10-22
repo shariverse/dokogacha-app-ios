@@ -354,7 +354,7 @@ struct RoomModelTests {
     @Test
     func repeatedFailuresShowToastOnce() async {
         let repository = RoomControlledRepository(server: Self.makeServer())
-        repository.roomFailures = [AppError(.network, code: .unavailable), AppError(.permissionDenied, code: .permissionDenied)]
+        repository.roomFailures = [AppError(.network, code: .unavailable), AppError(.internal, code: .internal)]
         repository.memberFailures = [AppError(.internal)]
         repository.candidateFailures = [AppError(.unreadableData)]
         let toasts = DGToastCenter(visibleFor: .seconds(3_600))
