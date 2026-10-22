@@ -120,7 +120,10 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(app.otherElements[Self.licenseDetail].waitForExistence(timeout: UITestID.timeout))
         let text = element(Self.licenseText, in: app)
         XCTAssertTrue(text.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(text.label.contains("SIL OPEN FONT LICENSE"))
+        // 全文は段落ごとの文として並べる（VoiceOver で段落ごとに読める。PR #100 の持ち越し）
+        let heading = text.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "SIL OPEN FONT LICENSE")).firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertGreaterThan(text.staticTexts.count, 1)
 
         app.buttons["戻る"].tap()
         XCTAssertTrue(app.otherElements[Self.licensesScreen].waitForExistence(timeout: UITestID.timeout))
