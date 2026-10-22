@@ -355,6 +355,7 @@ describe("利用規約・プライバシーポリシーの HTML", () => {
     ["アカウントの削除（F-06）", "アカウントを削除"],
     ["有料の機能（F-51）", "広告を非表示にする"],
     ["購入の復元（F-51）", "購入を復元"],
+    ["返金の窓口（Apple）", "Apple に申請"],
     ["免責", "第11条（免責）"],
     ["規約の変更", "本規約の変更"],
     ["準拠法", "日本の法律"],
@@ -378,6 +379,17 @@ describe("利用規約・プライバシーポリシーの HTML", () => {
     "Google Analytics for Firebase",
   ])("プライバシーポリシーは収集するデータ「%s」を書く", (phrase) => {
     expect(visible(pages.privacy)).toContain(phrase);
+  });
+
+  it("プライバシーポリシーは、アカウントの削除で消えるものと、ルームに残る記録（ユーザー ID・表示名）を分けて書く（02 の F-05・F-06）", () => {
+    const section = visible(pages.privacy).match(/<section[^>]*aria-labelledby="privacy-6"[\s\S]*?<\/section>/)?.[0] ?? "";
+    // 消えるもの: users/{uid}（表示名・通知トークン・購入の情報）・pastIdeas・Auth のユーザー
+    expect(section).toMatch(/アカウントと、アカウントに結び付く情報（表示名・通知トークン・購入の情報・過去のアイデア）を削除します/);
+    // 残るもの: 候補の postedBy・postedByName、draws の drawnBy・drawnByName、ルームの ownerId
+    expect(section).toMatch(/ルームに残る記録（[^）]*投稿した候補[^）]*ガチャを回した記録[^）]*作成者）[^。]*ユーザー ID と、そのときの表示名が残ります/);
+    expect(section).toContain("「退出したメンバー」の投稿");
+    // 削除するものの括弧の中に、ルームに残るユーザー ID を入れない
+    expect(section).not.toMatch(/（[^）]*ユーザー ID[^）]*）を削除します/);
   });
 
   it("プライバシーポリシーは、第三者の提供先に AdMob と Firebase（Google）を挙げ、各社のポリシーにリンクする", () => {
