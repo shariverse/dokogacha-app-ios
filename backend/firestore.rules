@@ -3,7 +3,7 @@ rules_version = '2';
 // ドコガチャの Firestore のセキュリティルール（05_architecture.md の §4）。
 // 整合性が要る書き込みは Callable Functions（Admin SDK。ルールを通らない）で行い、
 // クライアントが直接書けるのは「自分の準備OK」「いいね」「lastSeenAt」（と自分の通知トークン）だけにする。
-// まだ作っていないコレクション（draws・pastIdeas・inviteCodes・reports など）は、
+// まだ作っていないコレクション（pastIdeas・inviteCodes・reports など）は、
 // 最後の match ですべて拒否する。機能を作るタスクで許可を足していく。
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -94,6 +94,12 @@ service cloud.firestore {
           && request.resource.data.likedBy is list
           && (isLikeAdded(resource.data.likedBy, request.resource.data.likedBy, request.auth.uid)
               || isLikeRemoved(resource.data.likedBy, request.resource.data.likedBy, request.auth.uid));
+      }
+
+      // draws/{drawId}: 抽選の記録。メンバーだけが読める（ほかの人が回したときの「◯◯さんがガチャを回しました」・結果の画面。F-41・F-42）。
+      // 作成は Callable の drawGacha だけ（サーバーの乱数で抽選し、ルームと同じトランザクションで書く）。直接は作成・変更・削除できない
+      match /draws/{drawId} {
+        allow read: if isMember(roomId);
       }
     }
 
