@@ -181,25 +181,29 @@ export async function previewRoom(deps: ServiceDeps, uid: string, data: unknown)
  * - 広告非表示の購入者だったら、残りのメンバーから参加の早い順に探し直す
  *
  * トランザクションは読み取りを書き込みより先に済ませる決まりなので、読み取りをすべて終えてから書く。
+ *
+ * アカウントの削除（`account/service.ts`）では、作成者のルームを終了する書き込み（`options.closing`）を同じ更新に重ねる。
+ * そのときは引き直しの判定し直しをしない（終了の書き込みが投票中の引き直しを否決にするので、可決させて `unlocked` に戻さない）。
+ * また、メンバーのドキュメントが無くても失敗にしない（`options.notMember` が null。`memberIds` などから取り除くだけにする）。
  * @param tx トランザクション
  * @param db Firestore
  * @param ref ルーム
  * @param room ルームの値（同じトランザクションで読んだもの）
  * @param memberId 外す人
- * @param notMember 外す人がメンバーでないときの理由
+ * @param options 外す人がメンバーでないときの理由（null なら失敗にしない）と、同じ更新で書くルームの終了
  */
-async function removeFromRoom(
+export async function removeFromRoom(
   tx: Transaction,
   db: Firestore,
   ref: DocumentReference,
   room: RoomDoc,
   memberId: string,
-  notMember: AppErrorReason,
+  options: { notMember: AppErrorReason | null; closing?: Record<string, unknown> },
 ): Promise<void> {
   const memberRef = membersRef(ref).doc(memberId);
   const member = (await tx.get(memberRef)).data() as MemberDoc | undefined;
-  if (member === undefined) {
-    throw appError(notMember);
+  if (member === undefined && options.notMember !== null) {
+    throw appError(options.notMember);
   }
 
   const sponsorChanges = room.adFreeSponsor?.uid === memberId;
@@ -216,18 +220,24 @@ async function removeFromRoom(
   }
   const liked = await tx.get(candidatesRef(ref).where("likedBy", "array-contains", memberId));
 
-  tx.delete(memberRef);
   // ネストしたフィールド（`reroll.votesFor`）を書くので、キーを文字列で持つ
   const update: Record<string, unknown> = {
     memberIds: FieldValue.arrayRemove(memberId),
-    memberCount: FieldValue.increment(-1),
     "reroll.votesFor": FieldValue.arrayRemove(memberId),
     "reroll.votesAgainst": FieldValue.arrayRemove(memberId),
   };
-  // 引き直しの投票中なら、残りのメンバーで判定し直す（賛成が過半数になれば、その場で可決して unlocked に戻す）
-  const reroll = planAfterLeave(room, memberId);
-  if (reroll !== null) {
-    Object.assign(update, rerollUpdateOf(reroll));
+  if (member !== undefined) {
+    tx.delete(memberRef);
+    update.memberCount = FieldValue.increment(-1);
+  }
+  if (options.closing !== undefined) {
+    Object.assign(update, options.closing);
+  } else {
+    // 引き直しの投票中なら、残りのメンバーで判定し直す（賛成が過半数になれば、その場で可決して unlocked に戻す）
+    const reroll = planAfterLeave(room, memberId);
+    if (reroll !== null) {
+      Object.assign(update, rerollUpdateOf(reroll));
+    }
   }
   if (sponsorChanges) {
     update.adFreeSponsor = sponsor;
@@ -251,7 +261,7 @@ export async function leaveRoom(deps: ServiceDeps, uid: string, data: unknown): 
   await db.runTransaction(async (tx) => {
     const room = await getRoom(tx, ref, "room-not-found");
     assertCanLeave(room, uid);
-    await removeFromRoom(tx, db, ref, room, uid, "not-room-member");
+    await removeFromRoom(tx, db, ref, room, uid, { notMember: "not-room-member" });
   });
   return {};
 }
@@ -269,7 +279,7 @@ export async function removeMember(deps: ServiceDeps, uid: string, data: unknown
   await db.runTransaction(async (tx) => {
     const room = await getRoom(tx, ref, "room-not-found");
     assertCanRemove(room, uid, memberId);
-    await removeFromRoom(tx, db, ref, room, memberId, "member-not-found");
+    await removeFromRoom(tx, db, ref, room, memberId, { notMember: "member-not-found" });
   });
   return {};
 }

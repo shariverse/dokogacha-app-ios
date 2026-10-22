@@ -28,10 +28,11 @@ import {
 export const AUTO_CLOSE_PARALLEL_ROOMS = 10;
 
 /**
- * 終了のトランザクションで書く値（引き直しの投票中なら、同じ書き込みで否決にする。`rerollUpdateOnClose`）
+ * 終了のトランザクションで書く値（引き直しの投票中なら、同じ書き込みで否決にする。`rerollUpdateOnClose`）。
+ * アカウントの削除（`account/service.ts`）で作成者のルームを終了するときにも使う
  * @param room トランザクションで読んだルーム
  */
-function closedUpdate(room: Partial<RoomDoc>): Record<string, unknown> {
+export function closedUpdate(room: Partial<RoomDoc>): Record<string, unknown> {
   return { ...rerollUpdateOnClose(room), status: "closed", closedAt: FieldValue.serverTimestamp() };
 }
 
