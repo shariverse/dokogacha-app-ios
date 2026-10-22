@@ -14,6 +14,13 @@ struct ProbabilityTests {
     /// 02 の §4.2 の例のいいね数
     nonisolated static let exampleLikes = [4, 3, 3, 2, 2, 1, 1, 0]
 
+    /// 02 の §4.2 の例の確率（候補の ID 順 c0〜c7 に重みを足したときの値。Jest の `EXAMPLE_PROBABILITIES` と同じ）。
+    /// 浮動小数点の最下位のビットまで比べる（足す順を逆にすると合計が 18.29252873988394 になり、値がずれる）
+    nonisolated static let exampleProbabilities = [
+        0.16400138234901213, 0.1493533696963436, 0.1493533696963436, 0.13197812050497354, 0.13197812050497354,
+        0.10933425489934143, 0.10933425489934143, 0.05466712744967071
+    ]
+
     /// いいね数の一覧から、`c0`・`c1`… の ID の入力を作る
     static func inputs(_ likes: [Int]) -> [OddsInput] {
         likes.enumerated().map { OddsInput(id: "c\($0.offset)", likeCount: $0.element) }
@@ -40,6 +47,23 @@ struct ProbabilityTests {
         #expect(Self.round2(odds.map(\.weight).reduce(0, +)) == 18.29)
         #expect(odds.map(\.displayPercent) == [16, 15, 15, 13, 13, 11, 11, 5])
         #expect(table.maxDisplayPercent == 16)
+    }
+
+    /// 02 の §4.2 の例の確率は、渡す順によらず候補の ID 順に足した値と完全に一致する（TypeScript と同じ値）
+    @Test
+    func exampleProbabilitiesMatchTypeScriptExactly() {
+        let forward = Probability.odds(of: Self.inputs(Self.exampleLikes), mode: .boost)
+        let reversed = Probability.odds(of: Array(Self.inputs(Self.exampleLikes).reversed()), mode: .boost)
+        #expect(Self.ordered(forward, count: Self.exampleLikes.count).compactMap { $0?.probability } == Self.exampleProbabilities)
+        #expect(Self.ordered(reversed, count: Self.exampleLikes.count).compactMap { $0?.probability } == Self.exampleProbabilities)
+    }
+
+    /// 候補の ID 順は UTF-16 のコード単位の辞書順で、除外した候補を外す（TypeScript の `eligibleInIdOrder` と同じ順）
+    @Test
+    func eligibleCandidatesAreInUTF16Order() {
+        let ids = ["b", "a", "B", "aa", "\u{1F600}", "\u{FF21}", "c"]
+        let sorted = Probability.eligibleInIDOrder(ids, id: { $0 }, excluding: ["c"])
+        #expect(sorted == ["B", "a", "aa", "b", "\u{1F600}", "\u{FF21}"])
     }
 
     /// 表示 % の合計は 100 にそろえない（02 の §4.2「合計が100にならなくてもよい」。例では 99）

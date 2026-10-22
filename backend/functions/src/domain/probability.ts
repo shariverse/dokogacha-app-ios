@@ -3,7 +3,7 @@
  * Swift 側の `Dokogacha/Domain/Logic/Probability.swift` と同じ式で、06 の §2 の同じケースを両方で確かめる。
  *
  * 抽選（`drawGacha`）は `weightOf` の重みで選び、`probabilitiesOf` の確率を抽選記録に残す。
- * 同じ値をアプリが表示に使うので、計算の順番（重みの合計は渡した順に左から足す・丸めは 0.5 を切り上げる）までそろえ、
+ * 同じ値をアプリが表示に使うので、計算の順番（重みの合計は候補の ID 順に左から足す・丸めは 0.5 を切り上げる）までそろえ、
  * 浮動小数点の結果を Swift と一致させる。
  */
 import {
@@ -61,7 +61,8 @@ export function weightOf(likeCount: number, mode: LikeMode): number {
 
 /**
  * 重みから確率を出す（F-21「確率 = 重み ÷ Σ重み」）。
- * 合計は渡した順に左から足す（Swift と同じ順にして結果を一致させる）。合計が 0 以下なら（候補が無いなど）すべて 0。
+ * 合計は渡した順に左から足す（Swift と同じ順にして結果を一致させる。`computeOdds`・`drawGacha` は候補の ID 順で渡す）。
+ * 合計が 0 以下なら（候補が無いなど）すべて 0。
  * @param weights 抽選の対象の候補の重み
  * @returns 同じ順の確率
  */
@@ -107,10 +108,41 @@ export function levelOf(displayPercent: number, candidateCount: number, mode: Li
 }
 
 /**
+ * 候補の ID を比べる（UTF-16 のコード単位の辞書順。`Array.prototype.sort` の既定と同じ）。
+ * Swift 側は `utf16.lexicographicallyPrecedes` で同じ順にする（Swift の `<` は Unicode の正準等価で比べるので、順が変わりうる）。
+ */
+export function compareCandidateIds(a: string, b: string): number {
+  if (a < b) {
+    return -1;
+  }
+  return a > b ? 1 : 0;
+}
+
+/**
+ * 抽選の対象の候補を、候補の ID 順に並べる（引き直しで除外された候補は外す）。
+ *
+ * 浮動小数点の足し算は順番で最下位のビットが変わるので、重みの合計（確率の分母）は必ずこの順で足す。
+ * アプリの一覧の並び（新着順・いいね順）や Firestore から読んだ順で足すと、同じ候補でも確率が Swift と TypeScript で、
+ * また `drawGacha` の抽選記録と画面の表示とで、わずかに食い違う。
+ * @param candidates 候補（どの順でもよい）
+ * @param excludedIds 抽選の対象から外す候補の ID
+ */
+export function eligibleInIdOrder<T extends { readonly id: string }>(
+  candidates: readonly T[],
+  excludedIds: readonly string[] = [],
+): T[] {
+  const excluded = new Set(excludedIds);
+  return candidates
+    .filter((candidate) => !excluded.has(candidate.id))
+    .sort((a, b) => compareCandidateIds(a.id, b.id));
+}
+
+/**
  * ルームの全候補の出やすさ（F-21・F-22）をまとめて出す。
  * 引き直しで除外された候補（`rooms.excludedCandidateIds`）は抽選の対象から外し、
  * 重みの合計にも平均 % の分母にも入れない（表に入らない）。
- * @param candidates 候補（並びの順に重みを足す）
+ * 重みの合計は、渡した順ではなく候補の ID 順に足す（`eligibleInIdOrder`）。
+ * @param candidates 候補（どの順でもよい）
  * @param mode ルームのいいねの効き方
  * @param excludedIds 抽選の対象から外す候補の ID
  */
@@ -119,8 +151,7 @@ export function computeOdds(
   mode: LikeMode,
   excludedIds: readonly string[] = [],
 ): OddsTable {
-  const excluded = new Set(excludedIds);
-  const eligible = candidates.filter((candidate) => !excluded.has(candidate.id));
+  const eligible = eligibleInIdOrder(candidates, excludedIds);
   const weights = eligible.map((candidate) => weightOf(candidate.likeCount, mode));
   const probabilities = probabilitiesOf(weights);
   const odds = new Map<string, CandidateOdds>();
