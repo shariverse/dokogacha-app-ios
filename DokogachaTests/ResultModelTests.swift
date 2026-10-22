@@ -65,6 +65,32 @@ struct ResultModelTests {
         #expect(model.canOpenMap)
     }
 
+    /// 抽選の記録がサーバーに無いときは、読み込み中のまま止めずに「読み込めませんでした」にする（PR #72 の持ち越し）
+    @Test
+    func missingDrawRecordIsUnavailable() async throws {
+        let (server, _) = try await Self.drawnServer()
+        let model = Self.makeModel(server, drawID: "no-such-draw")
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+
+        #expect(await AsyncTestSupport.eventually { model.loadState == .unavailable })
+        #expect(model.ticket == nil)
+        #expect(!model.canOpenMap)
+    }
+
+    /// 抽選の記録の当選した候補が候補に無いときも、読み込み中のまま止めない
+    @Test
+    func missingWinnerCandidateIsUnavailable() async throws {
+        let (server, drawID) = try await Self.drawnServer()
+        let winnerID = try #require(server.rooms[Self.roomID]?.draws[drawID]?.candidateId)
+        server.rooms[Self.roomID]?.candidates[winnerID] = nil
+        let model = Self.makeModel(server, drawID: drawID)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+
+        #expect(await AsyncTestSupport.eventually { model.loadState == .unavailable })
+    }
+
     /// 当選確率が平均の 0.85 倍より小さければレア当選、そうでなければ出さない
     @Test(arguments: [(0.2, true), (0.3, false)])
     func rareFollowsDrawProbability(_ probability: Double, _ isRare: Bool) async throws {
