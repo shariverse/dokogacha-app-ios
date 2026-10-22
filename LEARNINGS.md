@@ -19,6 +19,8 @@
 - Unit テスト（Simulator）からは、`URL(fileURLWithPath: #filePath)` を起点にリポジトリのファイル（例: `docs/spec/design/tokens.json`）をそのまま読める。資料の正本をテストのバンドルに複製せずに突き合わせられる（`DesignTokensTests`）。実機でテストを流すとホストのパスは読めない（2026-10-22）
 - Swift と TypeScript で同じ判定を持つとき、Swift の `String` の `==` は正準等価（`"が" == "か\u{3099}"` が true）、`hasPrefix` は書記素の単位（`"https://\u{0301}a".hasPrefix("https://")` が false）で比べるので、TypeScript の `===`・`startsWith`（UTF-16 のコード単位）と結果が変わる。そろえるときは `utf16.elementsEqual`・`unicodeScalars` で比べる（`CandidateRules`）（2026-10-22）
 - `Color.resolve(in: EnvironmentValues()).red` などは sRGB のガンマ補正済みの値（`linearRed` が線形）。`× 255` して丸めると `Color(.sRGB, red:…)` で作った `#RRGGBB` と一致する（2026-10-22）
+- `.toolbar(.hidden, for: .navigationBar)` で標準のナビゲーションバーを隠すと、iOS 26.5 では端からのスワイプで戻れなくなる。`MainNavigationView` の根元に付けた `InteractivePopGesture` がジェスチャーの delegate を差し替えている。UI テストで確かめるときは `swipeRight()` ではなく、`coordinate(withNormalizedOffset:)` の x 0.005 から `press(forDuration:thenDragTo:)` で動かす（`swipeRight()` は端から始まらない）（2026-10-22）
+- 文字を最大にした画面は、起動引数 `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL` を付けて撮影モードで起動すれば撮れる（Simulator の設定を変えずに済む）（2026-10-22）
 
 ## backend（Firebase）
 

@@ -21,6 +21,20 @@ final class DokogachaUITests: XCTestCase {
     private static let roomsEmpty = "home.rooms.empty"
     /// ルーム画面の仮の画面（`PendingScreenView.Identifier.screen(.room)`）
     private static let pendingRoom = "pending.room"
+    /// ホームの「＋ ルームを作る」（`HomeView.Identifier.createRoom`）
+    private static let createRoomButton = "home.createRoom"
+    /// S-03（`CreateRoomView.Identifier.screen`）
+    private static let createRoomScreen = "createRoom.screen"
+    /// S-03 のルーム名の入力欄（`CreateRoomView.Identifier.name`）
+    private static let roomNameField = "createRoom.name"
+    /// S-03 の「ルームを作成」（`CreateRoomView.Identifier.submit`）
+    private static let createRoomSubmit = "createRoom.submit"
+    /// S-04（`InviteView.Identifier.screen`）
+    private static let inviteScreen = "invite.screen"
+    /// S-04 の招待コード（`InviteView.Identifier.code`）
+    private static let inviteCode = "invite.code"
+    /// S-04 の「ルームへ進む」（`InviteView.Identifier.openRoom`）
+    private static let openRoomButton = "invite.openRoom"
     /// 画面が出るのを待つ時間
     private static let timeout: TimeInterval = 10
 
@@ -82,5 +96,71 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
         app.buttons["戻る"].tap()
         XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+    }
+
+    /// ホームから「ルームを作る」→ 名前を入れて「ルームを作成」→ 招待の画面に招待コードが出る。
+    /// 「ルームへ進む」でルーム画面（いまは仮の画面）に出て、戻るとホームに戻る（S-03 には戻らない。03 の §1）
+    @MainActor
+    func testCreateRoomShowsInviteCode() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "empty"]
+        app.launch()
+
+        let createRoom = app.buttons[Self.createRoomButton]
+        XCTAssertTrue(createRoom.waitForExistence(timeout: Self.timeout))
+        createRoom.tap()
+
+        let name = app.textFields[Self.roomNameField]
+        XCTAssertTrue(name.waitForExistence(timeout: Self.timeout))
+        let submit = app.buttons[Self.createRoomSubmit]
+        XCTAssertTrue(submit.waitForExistence(timeout: Self.timeout))
+        // ルーム名が空のときは押せない（F-02 の AC）
+        XCTAssertFalse(submit.isEnabled)
+
+        name.tap()
+        name.typeText("年末の旅行")
+        XCTAssertTrue(submit.isEnabled)
+        submit.tap()
+
+        XCTAssertTrue(app.otherElements[Self.inviteScreen].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.staticTexts["年末の旅行"].exists)
+        let code = app.buttons[Self.inviteCode]
+        XCTAssertTrue(code.waitForExistence(timeout: Self.timeout))
+        // 招待コードは 3 文字ずつハイフンで区切って出す（`0 O 1 I` は使わない）
+        let pattern = "[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}"
+        XCTAssertNotNil(code.label.range(of: pattern, options: .regularExpression), code.label)
+
+        app.buttons[Self.openRoomButton].tap()
+        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+        app.buttons["戻る"].tap()
+        XCTAssertTrue(app.otherElements[Self.home].waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.otherElements[Self.createRoomScreen].exists)
+        // 作ったルームがホームに並ぶ
+        XCTAssertFalse(app.staticTexts[Self.roomsEmpty].exists)
+    }
+
+    /// ナビゲーションバーを隠した画面でも、画面の左端からのスワイプで戻れる（`InteractivePopGesture`）
+    @MainActor
+    func testEdgeSwipeGoesBack() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "one-room"]
+        app.launch()
+
+        let card = app.buttons[Self.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        card.tap()
+        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+
+        swipeFromLeftEdge(app)
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.otherElements[Self.pendingRoom].exists)
+    }
+
+    /// 画面の左端から右へスワイプする（端からの戻る操作。`swipeRight()` は端から始まらないので座標で動かす）
+    @MainActor
+    private func swipeFromLeftEdge(_ app: XCUIApplication) {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
     }
 }
