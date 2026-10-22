@@ -21,14 +21,18 @@ enum SaveBehavior {
 struct OnboardingModelTests {
     /// 表示名の登録の結果を決められ、送られた名前を記録する擬似の認証（擬似のサーバーの上に作る）
     final class ControlledAuth: AuthService {
-        let server = InMemoryServer.demo(.firstLaunch)
+        let server: InMemoryServer
         var behavior: SaveBehavior
         /// 送られた表示名（送られた順）
         private(set) var savedNames: [String] = []
         private var pending: CheckedContinuation<Void, Never>?
 
-        init(behavior: SaveBehavior = .save) {
+        /// - Parameters:
+        ///   - behavior: 登録のふるまい
+        ///   - scenario: 擬似のサーバーのデモのデータ（S-01 は表示名の無い `first-launch`、S-15 は登録済みのもの）
+        init(behavior: SaveBehavior = .save, scenario: DemoScenario = .firstLaunch) {
             self.behavior = behavior
+            server = InMemoryServer.demo(scenario)
         }
 
         /// 登録の途中で止まっているか

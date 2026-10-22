@@ -35,6 +35,16 @@ final class DokogachaUITests: XCTestCase {
     private static let inviteCode = "invite.code"
     /// S-04 の「ルームへ進む」（`InviteView.Identifier.openRoom`）
     private static let openRoomButton = "invite.openRoom"
+    /// ホームの設定の歯車（`HomeView.Identifier.settings`）
+    private static let settingsButton = "home.settings"
+    /// S-15 設定（`SettingsView.Identifier.screen`）
+    private static let settingsScreen = "settings.screen"
+    /// S-15 の表示名の行（`SettingsView.Identifier.displayName`）
+    private static let displayNameRow = "settings.displayName"
+    /// 表示名の変更のシートの入力欄（`DisplayNameEditor.Identifier.field`）
+    private static let nameEditorField = "settings.nameEditor.field"
+    /// 表示名の変更のシートの「保存」（`DisplayNameEditor.Identifier.save`）
+    private static let nameEditorSave = "settings.nameEditor.save"
     /// 画面が出るのを待つ時間
     private static let timeout: TimeInterval = 10
 
@@ -162,5 +172,53 @@ final class DokogachaUITests: XCTestCase {
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
         let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
         start.press(forDuration: 0.05, thenDragTo: end)
+    }
+
+    /// ホームの歯車から設定（S-15）を開き、表示名を変えて保存すると行の名前が変わり、戻ってから開き直しても新しい名前のまま
+    @MainActor
+    func testChangeDisplayNameFromSettings() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "one-room"]
+        app.launch()
+
+        let gear = app.buttons[Self.settingsButton]
+        XCTAssertTrue(gear.waitForExistence(timeout: Self.timeout))
+        gear.tap()
+        XCTAssertTrue(app.otherElements[Self.settingsScreen].waitForExistence(timeout: Self.timeout))
+
+        // 今の名前が届いたら行に出る
+        let row = app.buttons[Self.displayNameRow]
+        let currentRow = app.buttons.matching(
+            NSPredicate(format: "identifier == %@ AND label CONTAINS %@", Self.displayNameRow, "たくみ")
+        ).firstMatch
+        XCTAssertTrue(currentRow.waitForExistence(timeout: Self.timeout))
+        row.tap()
+
+        // シートは今の名前を入れて開き、同じ名前のままでは保存できない
+        let field = app.textFields[Self.nameEditorField]
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+        let save = app.buttons[Self.nameEditorSave]
+        XCTAssertTrue(save.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(save.isEnabled)
+
+        // 入力欄は開いたときにキーボードの入力先になっている（カーソルは末尾）
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: Self.timeout))
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "ゆい")
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+
+        // 保存するとシートが閉じ、行の名前が変わる
+        let renamedRow = app.buttons.matching(
+            NSPredicate(format: "identifier == %@ AND label CONTAINS %@", Self.displayNameRow, "ゆい")
+        ).firstMatch
+        XCTAssertTrue(field.waitForNonExistence(timeout: Self.timeout))
+        XCTAssertTrue(renamedRow.waitForExistence(timeout: Self.timeout))
+
+        // ホームに戻ってから開き直しても、新しい名前のまま
+        app.buttons["戻る"].tap()
+        XCTAssertTrue(gear.waitForExistence(timeout: Self.timeout))
+        gear.tap()
+        XCTAssertTrue(renamedRow.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(row.label.contains("たくみ"))
     }
 }

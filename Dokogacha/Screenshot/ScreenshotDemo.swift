@@ -21,6 +21,7 @@ enum ScreenshotDemo {
         case onboarding
         case createRoom
         case invite
+        case settings
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
@@ -122,6 +123,26 @@ extension ScreenshotDemo {
                         )
                     ) {}
                 }
+            }
+            .dgToast(toasts)
+        }
+    }
+
+    /// S-15 設定を擬似のサーバーで開く（ホームから進まずに、設定の画面を根元にして出す）
+    struct SettingsScene: View {
+        @State private var toasts: DGToastCenter
+        private let model: SettingsModel
+
+        /// - Parameter auth: プロフィールの窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
+        init(auth: any AuthService) {
+            let toasts = DGToastCenter()
+            model = SettingsModel(userID: auth.currentUserID ?? DemoScenario.myUserID, auth: auth, toasts: toasts)
+            _toasts = State(initialValue: toasts)
+        }
+
+        var body: some View {
+            NavigationStack {
+                SettingsView(model: model, toasts: toasts)
             }
             .dgToast(toasts)
         }

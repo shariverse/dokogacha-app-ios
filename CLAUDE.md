@@ -54,6 +54,8 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
     （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`。`DemoScenario`。画面のタスクで要るシナリオを足す）
   - データ層は `AuthService`・`RoomRepository`・`FunctionsClient` の protocol の後ろにあり、起動時に `DataServices.make` が実装を選んで
     `ServerSession.services` で渡す。画面の Model は protocol だけを受け取る。backend に Callable を足したら、擬似のサーバーにも同じ検証を足す
+  - Firestore のトリガー（`onUserProfileUpdate` など）に当たる処理は `InMemoryServer+Triggers.swift` に置き、元の書き込みをした Callable の中で続けて呼ぶ
+    （backend では非同期に動くが、擬似のサーバーでは同期で済ませる）
   - Callable のエラーの文言は `Dokogacha/Data/AppError.swift` の 1 か所（`details.reason` で引く。backend の `errors.ts` と鍵をそろえる）。
     `isCancellation`（画面を閉じて `Task` を cancel した）のときはトーストを出さない
   - 擬似のサーバーでほかのメンバーの操作（Callable・準備OK・いいね・lastSeenAt）を再現するときは `server.device(of: uid)` から呼ぶ（同じ検証と数え直しを通る）
