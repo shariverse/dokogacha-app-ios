@@ -266,8 +266,13 @@ final class GachaModel {
         } catch {
             spin.cancel()
             phase = .idle
+            isDrawing = false
             let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
+            // タイムアウトなどで失敗しても、サーバーでは書き込み済みのことがある。送っている途中に届いた drawn は見送っているので、
+            // ここで確かめて再生する（drawn ならトーストは出さない。まだ届いていなければ、届いたときに `applyRoom` が再生する）
+            if room?.status == .drawn {
+                replayIfDrawnByOthers()
+            } else if !appError.isCancellation {
                 toasts.show(text: Self.failureMessage(for: appError))
             }
             return
@@ -334,11 +339,16 @@ final class GachaModel {
         await dispense()
     }
 
-    /// 抽選の記録の、回した人の表示名（読めなければ nil。そのときは「ガラガラ…」で演出する）
+    /// 抽選の記録の、回した人の表示名（読めなければ nil。そのときは「ガラガラ…」で演出する）。
+    ///
+    /// 自分が回した抽選（送ったのに失敗として返ってきた後に再生するとき）も nil にし、「たくみさんが回しました！」と自分の名前を出さない
     private func drawerName(of drawID: String) async -> String? {
         // 記録は作られた後は変わらないので、最初に届いた値だけを読んで購読をやめる
         var updates = repository.draw(roomID: roomID, drawID: drawID).makeAsyncIterator()
-        return await updates.next()?.value??.drawnByName
+        guard case let .value(draw?)? = await updates.next(), draw.drawnBy != userID else {
+            return nil
+        }
+        return draw.drawnByName
     }
 
     // MARK: - 演出
