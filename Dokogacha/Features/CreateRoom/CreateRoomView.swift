@@ -32,6 +32,7 @@ struct CreateRoomView: View {
     private let onCreated: (InviteDestination) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     /// - Parameters:
     ///   - model: 画面の状態（最初の 1 回だけ使う）
@@ -71,6 +72,12 @@ struct CreateRoomView: View {
         .onChange(of: model.createdRoom) { _, destination in
             if let destination {
                 onCreated(destination)
+            }
+        }
+        // 前面に戻ったら、締切日時の範囲を今の時刻で計算し直す（裏にいた間に下限が進んでいるため）
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                model.refreshDeadlineRange()
             }
         }
         // 戻った・S-04 に進んだら、送っている途中の作成を止める（Task が Model を持ち続けないように）
@@ -128,7 +135,7 @@ struct CreateRoomView: View {
         }
     }
 
-    /// 締切日時のピッカー（今から 1 時間後〜30 日後）。白いカードに「締切日時」と並べる。文字が大きいときは縦に並べる
+    /// 締切日時のピッカー（今から 1 時間後〜30 日後の 5 分前）。白いカードに「締切日時」と並べる。文字が大きいときは縦に並べる
     private var deadlinePicker: some View {
         let shape = RoundedRectangle(cornerRadius: DGRadius.md)
         return ViewThatFits(in: .horizontal) {
