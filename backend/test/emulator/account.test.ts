@@ -278,6 +278,31 @@ describe("アカウントの削除（deleteAccount）", () => {
     expect((await roomData(roomId)).memberIds).toEqual(["alice"]);
   });
 
+  it("ルームを引いた後に別の端末で確定した参加からも外す（プロフィールを消した後にもう一度引く。PR #104 の持ち越し）", async () => {
+    await Promise.all(["alice", "bob", "carol"].map((uid) => addUser(uid)));
+    const first = await roomOf("alice", ["bob"]);
+    const { roomId: late, inviteCode } = await createRoom(serviceDeps(), "carol", roomInput);
+    const deps: AccountDeletionDeps = {
+      ...deletionDeps(),
+      // 1 回目に引いた後、プロフィールを消す前に、別の端末の参加が確定する
+      afterFirstPass: async () => {
+        await joinRoom(serviceDeps(), "bob", { inviteCode });
+      },
+    };
+
+    await expect(deleteAccount(deps, "bob")).resolves.toEqual({ leftRooms: 2, closedRooms: 0, deletedPastIdeas: 0 });
+    expect((await roomData(first)).memberIds).toEqual(["alice"]);
+    expect((await roomData(late)).memberIds).toEqual(["carol"]);
+    expect((await db.doc(`rooms/${late}/members/bob`).get()).exists).toBe(false);
+  });
+
+  it("プロフィールを消した後の参加は確定しない（profile-required）", async () => {
+    await Promise.all(["alice", "bob"].map((uid) => addUser(uid)));
+    const { inviteCode } = await createRoom(serviceDeps(), "alice", roomInput);
+    await db.doc("users/bob").delete();
+    await expect(joinRoom(serviceDeps(), "bob", { inviteCode })).rejects.toMatchObject({ details: { reason: "profile-required" } });
+  });
+
   it("どのルームにも参加していない・プロフィールも無い人でも成功する", async () => {
     await auth.createUser({ uid: "dave" });
     await expect(deleteAccount(deletionDeps(), "dave")).resolves.toEqual({ leftRooms: 0, closedRooms: 0, deletedPastIdeas: 0 });

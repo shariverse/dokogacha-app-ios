@@ -7,7 +7,9 @@
  *    退出と同じ処理（`removeFromRoom`。いいねの取り消し・広告の購入者の付け替え・引き直しの投票の判定し直し）を行う。
  *    作成者で終了していないルームは、同じ書き込みで終了（`closed`）する（過去のアイデアは `onRoomClosed` が残るメンバーに登録する）。
  *    外し終えたルームは `memberIds` から消えるので、やり直しのクエリには出てこない
- * 2. `users/{uid}`（表示名・アバターの色・通知のトークン・広告非表示の購入）を消す
+ * 2. `users/{uid}`（表示名・アバターの色・通知のトークン・広告非表示の購入）を消す。消した後に参加中のルームをもう一度引き、
+ *    1 の後に別の端末で確定した参加・作成（1 のクエリより後にできたメンバー）からも外す。`joinRoom`・`createRoom` は
+ *    トランザクションでプロフィールを読むので、プロフィールを消した後には確定しない（`profile-required`）。PR #104 の持ち越し
  * 3. `users/{uid}/pastIdeas` を消す。2 の後に消すので、終了の直後に動いた過去のアイデアの登録が 1 と 3 の間に書いても残らない
  *    （登録は `users/{uid}` があるかをトランザクションで確かめてから書く。`close/service.ts` の `registerPastIdeas`）
  * 4. Auth のユーザーを消す（Admin SDK）。最後に消すので、途中で失敗しても、アプリは同じユーザーのままもう一度呼べる
@@ -36,6 +38,10 @@ export const PAST_IDEA_DELETE_BATCH_SIZE = 400;
 export interface AccountDeletionDeps extends Pick<ServiceDeps, "db"> {
   /** Auth のユーザーを消す（本番と Emulator では Admin SDK の `getAuth().deleteUser`） */
   deleteAuthUser: (uid: string) => Promise<void>;
+  /**
+   * 1 で参加中のルームを引いて外した後に呼ぶ（テストで、その間に別の端末の参加が確定した状況を作るためだけに使う。本番では渡さない）
+   */
+  afterFirstPass?: () => Promise<void>;
 }
 
 /** 削除の結果（ログとテストで使う） */
@@ -91,6 +97,17 @@ async function deletePastIdeas(db: Firestore, user: DocumentReference): Promise<
 }
 
 /**
+ * 参加中のルーム（`memberIds` に `uid` がいるルーム）をすべて引き、それぞれから外す。
+ * @returns ルームごとに行ったこと
+ * @throws `AggregateError`（どれかのルームで失敗したとき。残りのルームは処理してから投げる）
+ */
+async function leaveJoinedRooms(db: Firestore, uid: string): Promise<AccountDeletionAction[]> {
+  // ルームの ID だけが要るので、フィールドを読まない（`select()`）
+  const rooms = await db.collection("rooms").where("memberIds", "array-contains", uid).select().get();
+  return settleInGroups(rooms.docs, ACCOUNT_DELETION_PARALLEL_ROOMS, (doc) => leaveRoomForDeletion(db, doc.id, uid));
+}
+
+/**
  * 呼んだ人のアカウントを削除する（02 の F-06）。入力は使わない（`{}`）。
  * @param deps 外部のもの（Firestore と Auth のユーザーの削除）
  * @param uid 削除する人（呼んだ人）
@@ -99,14 +116,13 @@ async function deletePastIdeas(db: Firestore, user: DocumentReference): Promise<
  */
 export async function deleteAccount(deps: AccountDeletionDeps, uid: string): Promise<AccountDeletionResult> {
   const { db } = deps;
-  // ルームの ID だけが要るので、フィールドを読まない（`select()`）
-  const rooms = await db.collection("rooms").where("memberIds", "array-contains", uid).select().get();
-  const actions = await settleInGroups(rooms.docs, ACCOUNT_DELETION_PARALLEL_ROOMS, (doc) =>
-    leaveRoomForDeletion(db, doc.id, uid),
-  );
+  const actions = await leaveJoinedRooms(db, uid);
+  await deps.afterFirstPass?.();
 
   const user = userRef(db, uid);
   await user.delete();
+  // 1 の後に別の端末で確定した参加・作成からも外す（プロフィールを消した後は、新しい参加・作成は確定しない）
+  actions.push(...(await leaveJoinedRooms(db, uid)));
   const deletedPastIdeas = await deletePastIdeas(db, user);
 
   try {
