@@ -275,8 +275,10 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(shrine.waitForExistence(timeout: Self.timeout))
         XCTAssertTrue(shrine.staticTexts["まだいいねはありません"].exists)
         let like = shrine.buttons["いいね"]
-        if !like.isHittable {
-            app.swipeUp()
+        // ルームパネルの下に準備OKのボタンがあるので、ボタンが下部の「ガチャを回す」の帯より上に来るまで少しずつ送る
+        let gachaBar = app.buttons[Self.roomGacha]
+        for _ in 0..<5 where !like.isHittable || like.frame.maxY > gachaBar.frame.minY {
+            app.swipeUp(velocity: .slow)
         }
         like.tap()
 
