@@ -105,6 +105,9 @@ nonisolated enum DomainConstants {
         /// プライバシーポリシーのページ（`backend/hosting/public/privacy.html`。`termsURL` と同じく拡張子なし）。
         /// 設定画面（S-15）の「プライバシーポリシー」から開く
         static let privacyPolicyURL = "\(scheme)://\(domain)/privacy"
+        /// サポートのページ（`backend/hosting/public/support.html`。`termsURL` と同じく拡張子なし）。
+        /// App Store の「サポート URL」（`AppStore/metadata/shared.json` の `supportUrl`）に同じ値を入れる。アプリの画面からは開かない
+        static let supportURL = "\(scheme)://\(domain)/support"
     }
 
     /// サーバーの時間の決まり（Functions のスケジュール・期限）。

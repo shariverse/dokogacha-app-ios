@@ -94,12 +94,30 @@ struct AdPolicyTests {
         #expect(AdMode.make(launch: launch, adUnitID: Self.adUnitID) == .disabled)
     }
 
+    /// App Store の撮影（`Tools/capture_screenshots.sh` の起動引数）では、広告の場所を取らない
     @Test
-    func screenshotDemoShowsPlaceholderWithoutLoading() {
+    func screenshotDemoHidesAdsByDefault() {
         let launch = LaunchContext(arguments: ["Dokogacha", ScreenshotDemo.argument], environment: [:])
+        #expect(AdMode.make(launch: launch, adUnitID: Self.adUnitID) == .disabled)
+    }
+
+    @Test
+    func screenshotDemoShowsPlaceholderWithoutLoadingWhenRequested() {
+        let launch = LaunchContext(
+            arguments: ["Dokogacha", ScreenshotDemo.argument, ScreenshotDemo.adPlaceholderArgument],
+            environment: [:]
+        )
         let mode = AdMode.make(launch: launch, adUnitID: Self.adUnitID)
         #expect(mode == .placeholder)
         #expect(!mode.loadsAds)
+    }
+
+    /// 枠を出す起動引数は、撮影モードでなければ効かない（本物の広告を読み込む）
+    @Test
+    func adPlaceholderArgumentNeedsScreenshotDemo() {
+        let launch = LaunchContext(arguments: ["Dokogacha", ScreenshotDemo.adPlaceholderArgument], environment: [:])
+        #expect(!launch.showsAdPlaceholder)
+        #expect(AdMode.make(launch: launch, adUnitID: Self.adUnitID) == .live(adUnitID: Self.adUnitID))
     }
 
     @Test(arguments: [nil, ""])

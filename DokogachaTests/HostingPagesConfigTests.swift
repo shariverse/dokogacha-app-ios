@@ -7,7 +7,7 @@
 import Foundation
 import Testing
 
-/// アプリが開く Web のページ（利用規約・プライバシーポリシー。`DomainConstants.Web`）が、
+/// アプリと App Store の掲載情報が開く Web のページ（利用規約・プライバシーポリシー・サポート。`DomainConstants.Web`）が、
 /// Hosting で配信するファイル（`backend/hosting/public/`）と `firebase.json` の設定で開けることを確かめる（タスク 35）。
 ///
 /// どれもリポジトリのファイルを `#filePath` から読む（テストのバンドルに複製しない。`UniversalLinksConfigTests` と同じ）。
@@ -18,8 +18,12 @@ struct HostingPagesConfigTests {
         .deletingLastPathComponent()
         .deletingLastPathComponent()
 
-    /// アプリが開く Hosting のページの URL
-    nonisolated static let pageURLs = [DomainConstants.Web.termsURL, DomainConstants.Web.privacyPolicyURL]
+    /// アプリと App Store の掲載情報が開く Hosting のページの URL
+    nonisolated static let pageURLs = [
+        DomainConstants.Web.termsURL,
+        DomainConstants.Web.privacyPolicyURL,
+        DomainConstants.Web.supportURL
+    ]
 
     /// URL は Web のドメインの https で、パスに対応する HTML が Hosting の公開ディレクトリにある
     @Test(arguments: pageURLs)

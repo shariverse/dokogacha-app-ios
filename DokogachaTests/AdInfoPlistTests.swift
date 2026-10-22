@@ -7,7 +7,8 @@
 import Foundation
 import Testing
 
-/// 広告と ATT のために Info.plist（xcconfig の値を含む）とプライバシーマニフェストに入れた値が、ビルドしたアプリに入っていることを確かめる。
+/// 広告と ATT のために Info.plist（xcconfig の値を含む）に入れた値が、ビルドしたアプリに入っていることを確かめる
+/// （プライバシーマニフェストは `PrivacyManifestTests`）。
 ///
 /// 鍵の書き間違い・xcconfig の変数の設定漏れがあってもビルドは通り、広告が出ない・ATT のダイアログで落ちるだけなので、ここで検出する
 struct AdInfoPlistTests {
@@ -37,18 +38,5 @@ struct AdInfoPlistTests {
         #expect(Set(identifiers).count == identifiers.count)
         #expect(identifiers.contains("cstr6suwn9.skadnetwork"))
         #expect(identifiers.allSatisfy { $0.hasSuffix(".skadnetwork") })
-    }
-
-    @Test
-    func privacyManifestDeclaresAdTracking() throws {
-        let url = try #require(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"))
-        let manifest = try #require(
-            try PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil) as? [String: Any]
-        )
-        #expect(manifest["NSPrivacyTracking"] as? Bool == true)
-        let collected = try #require(manifest["NSPrivacyCollectedDataTypes"] as? [[String: Any]])
-        let types = collected.compactMap { $0["NSPrivacyCollectedDataType"] as? String }
-        #expect(types.contains("NSPrivacyCollectedDataTypeDeviceID"))
-        #expect(types.contains("NSPrivacyCollectedDataTypeAdvertisingData"))
     }
 }

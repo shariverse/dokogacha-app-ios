@@ -1,6 +1,6 @@
 /**
  * Hosting の Emulator で、Universal Links の apple-app-site-association とランディングページ（タスク 34）、
- * 利用規約・プライバシーポリシー（タスク 35）が、firebase.json の設定（cleanUrls・rewrites・ヘッダー）どおりに配信されることを確かめる。
+ * 利用規約・プライバシーポリシー（タスク 35）・サポート（タスク 45）が、firebase.json の設定（cleanUrls・rewrites・ヘッダー）どおりに配信されることを確かめる。
  */
 import { requireEnv } from "./env";
 
@@ -57,6 +57,7 @@ describe("Hosting", () => {
   it.each([
     ["/terms", "<h1 class=\"doc-title\">利用規約</h1>"],
     ["/privacy", "<h1 class=\"doc-title\">プライバシーポリシー</h1>"],
+    ["/support", "<h1 class=\"doc-title\">サポート</h1>"],
   ])("%s は HTML のページを返す", async (path, heading) => {
     const response = await fetch(`${origin}${path}`);
     expect(response.status).toBe(200);
@@ -67,13 +68,14 @@ describe("Hosting", () => {
   it.each([
     ["/terms.html", "/terms"],
     ["/privacy.html", "/privacy"],
+    ["/support.html", "/support"],
   ])("%s は拡張子なしの %s に転送する", async (path, location) => {
     const response = await fetch(`${origin}${path}`, { redirect: "manual" });
     expect(response.status).toBe(301);
     expect(response.headers.get("location")).toBe(location);
   });
 
-  it.each(["/", "/terms", "/privacy", "/r/QW58RT", "/assets/landing.css", "/assets/landing.js"])(
+  it.each(["/", "/terms", "/privacy", "/support", "/r/QW58RT", "/assets/landing.css", "/assets/landing.js"])(
     "%s に CSP・nosniff・Referrer-Policy を付ける",
     async (path) => {
       const response = await fetch(`${origin}${path}`);

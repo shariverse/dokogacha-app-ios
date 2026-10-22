@@ -195,7 +195,7 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 
 | ワークフロー | 反映するもの | 元ネタ | ランナー |
 |---|---|---|---|
-| `Screenshots/App Store` | スクリーンショット（iPhone 6.3 inch / iPhone Duo / iPhone 6.9 inch / iPad 13 inch × 各言語） | `AppStore/screenshots.json` / `AppStore/languages.json` / `AppStore/app.json` | 撮影だけ macOS、縮小と反映は ubuntu |
+| `Screenshots/App Store` | スクリーンショット（iPhone 6.3 inch / iPhone Duo / iPhone 6.9 inch × 各言語） | `AppStore/screenshots.json` / `AppStore/languages.json` / `AppStore/app.json` | 撮影だけ macOS、縮小と反映は ubuntu |
 | `Metadata/App Store` | 説明文・キーワード・プロモーションテキスト・最新情報・URL（既定は dry-run） | `AppStore/metadata/*.json` | ubuntu |
 | `Creative assets/App Store` | プロダクトページのヘッダーと検索結果のクリエイティブアセット（既定は dry-run） | `AppStore/creative_assets.json` / `AppStore/creative/<言語>/` | ubuntu |
 | `Verify/App Store metadata` | PR で、文字数の上限・撮影設定・撮影モードの Scene との対応を検査する | `AppStore/**` | ubuntu |
@@ -204,7 +204,8 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 
 - 撮影はアプリの撮影モード（[Dokogacha/Screenshot/ScreenshotDemo.swift](Dokogacha/Screenshot/ScreenshotDemo.swift)）で行います。`Tools/capture_screenshots.sh` が `-screenshot-demo -screenshot-scene <名前>` と言語を起動引数で渡し、アプリはデモデータで目的の画面を開きます
 - 画面を足すときは、`ScreenshotDemo.Scene` に case を足し、`Dokogacha.swift` の `rootView` で開く画面を返し、`AppStore/screenshots.json` の `scenes` に同じ名前を足します（1 表示サイズにつき 10 枚まで）
-- App Store Connect で必須なのは iPhone 6.1 / 6.3 inch（`APP_IPHONE_61`、1206x2622 か 1179x2556）と iPhone Duo（`APP_IPHONE_DUO`）です。iPad に対応するアプリは iPad 13 inch も必須です。大型ディスプレイ（6.5 / 6.7 / 6.9 inch、`APP_IPHONE_67`）は任意ですが、6.3 inch の元になるので必ず撮ります（反映だけ外すなら `display_types` に `APP_IPHONE_61,APP_IPHONE_DUO` のように必要なものだけ書きます）
+- App Store Connect で必須なのは iPhone 6.1 / 6.3 inch（`APP_IPHONE_61`、1206x2622 か 1179x2556）と iPhone Duo（`APP_IPHONE_DUO`）です。このアプリは iPhone だけなので iPad 13 inch は撮りません。大型ディスプレイ（6.5 / 6.7 / 6.9 inch、`APP_IPHONE_67`）は任意ですが、6.3 inch の元になるので必ず撮ります（反映だけ外すなら `display_types` に `APP_IPHONE_61,APP_IPHONE_DUO` のように必要なものだけ書きます）
+- 撮る画面はルーム・ガチャ・行き先きっぷ・過去のアイデア・招待の 5 つです（06 の §5）。撮影モードは既定でバナー広告の枠を出しません（PR の撮影で場所を見せるときは起動引数 `-screenshot-ad-placeholder` を足します）
 - 撮るのはリリースのときだけです。`release/**` ブランチを選んで手動実行します（それ以外のブランチでは止まります）
 - macOS ランナーの枠を開発のビルドと取り合わないよう、撮影は 1 本ずつ流します。6.3 inch（`deriveFrom`）は撮らずに 6.9 inch を ubuntu で縮めて作り、App Store Connect への反映も ubuntu で行います
 - iPhone Duo は Xcode 27.1 と iOS 27.1 のランタイムが要るので、`xcode-27` のランナーで撮ります（`screenshots.json` の `runsOn` / `xcodeVersion`）
@@ -221,7 +222,7 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 - 元は [AppStore/creative/src/creative.html](AppStore/creative/src/creative.html)。色と文言（`TODO:`）をアプリに合わせて書き換え、6.9 inch のスクリーンショットを撮ってから `Tools/render_creative_assets.sh build/screenshots/APP_IPHONE_67` で書き出し（Google Chrome を使います）、画像もコミットします
 - ヘッダーは初めて来た人にアプリのいちばんの価値を 1 つだけ、検索結果は何をするアプリかを実際の画面と一緒に伝えます。端末によって左右が切れるので、大事なものは中央に寄せます。他社のロゴ・価格・URL・受賞歴は入れません
 - `Creative assets/App Store` を `ref-data` → `dry-run` → `upload` の順に流して反映します。置き場所のグループと画像の仕様は、App Asset Library の参照データから引きます
-- 反映したら、App Store Connect のプレビューで iPhone / iPad の見え方を確かめてから審査に出します
+- 反映したら、App Store Connect のプレビューで iPhone の見え方を確かめてから審査に出します
 
 ## 構成
 
@@ -254,7 +255,7 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 - プロジェクトはフォルダ同期グループ（Xcode 16 以降の形式）で管理しているため、ファイルの追加・削除で pbxproj は変わりません
 - SwiftLint は Build Tool Plugin として全ターゲットに適用され、CI では `swiftlint lint --strict` としても実行されます。ルールは [.swiftlint.yml](.swiftlint.yml) で管理します
 - CI のワークフローは `*.xcodeproj` の名前と同名の共有スキームが存在することを前提にしています
-- [Dokogacha/PrivacyInfo.xcprivacy](Dokogacha/PrivacyInfo.xcprivacy) はプライバシーマニフェストです。UserDefaults（`@AppStorage`）の利用だけを申告しています。データの収集・トラッキング・ほかの理由の申告が必要な API を足したら、ここと App Store Connect の「App のプライバシー」を更新してください
+- [Dokogacha/PrivacyInfo.xcprivacy](Dokogacha/PrivacyInfo.xcprivacy) はプライバシーマニフェストです。収集するデータ（ユーザー ID・表示名・投稿内容・購入・端末の識別子・広告・利用状況・診断データ）とトラッキング（ATT で許可した人の広告 ID）、理由の申告が必要な API（UserDefaults）を申告しています（中身は `PrivacyManifestTests` が確かめます）。収集するデータやほかの理由の申告が必要な API を足したら、ここと App Store Connect の「App のプライバシー」を更新してください
 
 ## License
 

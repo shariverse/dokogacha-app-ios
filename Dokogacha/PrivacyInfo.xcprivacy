@@ -11,11 +11,66 @@
 	     ここに書くと、拒否した人に広告が出なくなるので書かない（アプリ自身のコードはトラッキングの通信をしない） -->
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
-	<!-- 収集するデータ。App Store Connect の「App のプライバシー」と揃える。
-	     いまは広告（Google Mobile Ads）の分だけ。ユーザー ID・表示名・投稿内容・診断データ（06 の §5）は申請素材のタスクで足す -->
+	<!-- 収集するデータ。App Store Connect の「App のプライバシー」と揃える（06 の §5・backend/hosting/public/privacy.html の「1. 取得する情報」）。
+	     Linked は、アカウント（ユーザー ID）に紐付けて保存するか。Analytics・Crashlytics にはユーザー ID を渡さない（FirebaseAnalyticsService・FirebaseTelemetry）ので、
+	     診断データは紐付けない。SDK（Firebase・Google Mobile Ads）も自分のマニフェストで申告するが、アプリとして集めるものはここにもすべて書く。
+	     Tracking は、ATT で許可した人の広告 ID（IDFA）を第三者の広告に使う DeviceID だけ -->
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
-		<!-- 広告 ID（IDFA）。ATT で許可した人だけ、第三者の広告のトラッキングに使う -->
+		<!-- ユーザー ID。匿名認証の uid と、Sign in with Apple を連携したときの Apple の識別子（Firebase Authentication）。ルーム・候補・いいねの持ち主に使う -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- 表示名（F-01。1〜10 文字）。本名を入れる人もいるので「名前」として申告する。同じルームのメンバーに表示する -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeName</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- 投稿内容。ルーム名と設定・候補の場所・ひとこと・参考 URL・いいね・準備OK・引き直しの投票・投稿の報告（F-14） -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- 購入の情報。「広告を非表示にする」（F-51）の購入の有無と、サーバーで確かめる取引（verifyPurchase） -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- 端末の識別子。プッシュ通知のトークン（FCM。users の fcmTokens に入れるのでユーザーに紐付く）、Analytics のアプリのインスタンスの ID、
+		     広告 ID（IDFA。ATT で許可した人だけ、第三者の広告のトラッキングに使う。Google Mobile Ads） -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeDeviceID</string>
@@ -25,10 +80,12 @@
 			<true/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
 			</array>
 		</dict>
-		<!-- 広告データ（表示・タップした広告） -->
+		<!-- 広告データ（表示・タップした広告。Google Mobile Ads） -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeAdvertisingData</string>
@@ -41,8 +98,77 @@
 				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
 			</array>
 		</dict>
+		<!-- 利用状況（Analytics のイベント。05 の §9。ユーザー ID は渡さない）と、Google Mobile Ads が集める広告の操作 -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+			</array>
+		</dict>
+		<!-- おおよその位置。Google Mobile Ads が IP アドレスから推定する。アプリは端末の位置情報（Core Location）を使わない -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCoarseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+			</array>
+		</dict>
+		<!-- クラッシュのデータ（Crashlytics。ユーザー ID は渡さない） -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- パフォーマンスのデータ（起動・応答の時間など。Analytics・Google Mobile Ads） -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePerformanceData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+			</array>
+		</dict>
+		<!-- そのほかの診断データ（端末の機種・OS とアプリのバージョンなど。Crashlytics・Analytics・Firebase の各 SDK） -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
 	</array>
-	<!-- 理由の申告が必要な API。@AppStorage / UserDefaults はほぼすべてのアプリが使うため、最初から申告しておく -->
+	<!-- 理由の申告が必要な API。アプリのコードが使うのは UserDefaults だけ（見終えた抽選・報告した候補・通知のトークンの登録の記録。SeenDrawStore など）。
+	     SDK が使う API は SDK のマニフェストが申告する -->
 	<!-- ファイルのタイムスタンプ・空き容量・起動時刻などの API を使うときは、ここに理由を足す -->
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
