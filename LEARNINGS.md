@@ -26,6 +26,7 @@
 - `@Test(arguments:)` に `[String: AnyHashable]` の一覧は渡せない（Swift 6 では `AnyHashable` が `Sendable` でない）。`[String: String]` にするか、値の種類ごとにテストを分ける（2026-10-22）
 - 文字を最大にした画面は、起動引数 `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL` を付けて撮影モードで起動すれば撮れる（Simulator の設定を変えずに済む）（2026-10-22）
 - `TextField` を `@Observable` の Model のプロパティに直接つなぎ、Model の側で値を書き換えても（招待コードの正規化など）、iOS 26.5 の Simulator では入力欄の表示が変わらない。画面の `@State` を挟み、`onChange` で正規化した値を `@State` に入れ直すと表示も変わる（`JoinByCodeView`）（2026-10-22）
+- 名前の無い `MKMapItem`（`MKMapItem(placemark:)` で作って `name = nil`）の `name` は nil ではなく「場所: 不明」を返す。名前が無い結果の扱いは `MKMapItem` からではなく、写した値（`PlaceSearchHit`）で確かめる（`SearchedPlaceTests`）（2026-10-22）
 
 ## backend（Firebase）
 
