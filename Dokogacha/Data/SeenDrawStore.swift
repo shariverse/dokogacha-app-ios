@@ -10,11 +10,17 @@ import Foundation
 /// 抽選の ID（`rooms.currentDrawId`）で覚える。ほかの人が回したことをルームの購読で知ったとき（S-07・S-13）に、
 /// 見ていない抽選なら演出を自動で再生し、見た抽選なら再生せずにカプセルを出した状態にする。
 /// 端末に覚えるだけなので、別の端末・入れ直したアプリでは、同じ抽選の演出をもう一度見ることがある（結果は同じ）。
+///
+/// 抽選の ID だけを覚え、誰が見たかは持たない。アカウントを削除したら（F-06）すべて忘れる（`removeAll`）。
+/// 削除した後の新しいアカウントは前のルームに入れない（`drawn` のルームには参加できない）ので、残しても見えることは無いが、
+/// 前のアカウントの記録を端末に残さないため
 protocol SeenDrawStore: AnyObject {
     /// 演出を見終えた抽選か
     func hasSeen(drawID: String) -> Bool
     /// 演出を見終えた抽選として覚える
     func markSeen(drawID: String)
+    /// 覚えた抽選をすべて忘れる（アカウントを削除した後）
+    func removeAll()
 }
 
 /// `UserDefaults` に覚える `SeenDrawStore`（アプリを閉じても残す）。
@@ -43,6 +49,10 @@ final class UserDefaultsSeenDrawStore: SeenDrawStore {
         defaults.set(Array(ids.suffix(Self.capacity)), forKey: Self.key)
     }
 
+    func removeAll() {
+        defaults.removeObject(forKey: Self.key)
+    }
+
     /// 覚えている抽選の ID（古い順）
     private var storedIDs: [String] {
         defaults.stringArray(forKey: Self.key) ?? []
@@ -65,5 +75,9 @@ final class InMemorySeenDrawStore: SeenDrawStore {
 
     func markSeen(drawID: String) {
         seenIDs.insert(drawID)
+    }
+
+    func removeAll() {
+        seenIDs.removeAll()
     }
 }

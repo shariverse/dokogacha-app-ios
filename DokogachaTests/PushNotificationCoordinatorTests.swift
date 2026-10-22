@@ -242,6 +242,28 @@ struct PushNotificationCoordinatorTests {
         #expect(fake.saved == PushTokenRegistration(userID: "u2", token: "fresh"))
     }
 
+    /// アカウントを削除した後（F-06）は、前の人の記録を忘れ、次にサインインした人にはトークンを作り直さずに足す
+    /// （前の人の `users/{uid}` はサーバーが消したので、作り直さなくても前の人のルームの通知は届かない）
+    @Test
+    func forgetAccountAddsTokenToNextUserWithoutRotation() async {
+        let fake = FakePush()
+        let coordinator = makeEnabled(fake)
+        await coordinator.didReceiveFCMToken("t1")
+        await coordinator.activate(userID: "deleted")
+        #expect(fake.saved == PushTokenRegistration(userID: "deleted", token: "t1"))
+
+        coordinator.forgetAccount()
+        #expect(fake.saved == nil)
+        // 次の人のホームが出るまでは、トークンが届いても誰にも書かない
+        await coordinator.didReceiveFCMToken("t1")
+        #expect(fake.writes == ["add t1 deleted"])
+
+        await coordinator.activate(userID: "next")
+        #expect(fake.deleteCount == 0)
+        #expect(fake.writes == ["add t1 deleted", "add t1 next"])
+        #expect(fake.saved == PushTokenRegistration(userID: "next", token: "t1"))
+    }
+
     /// 作り直せなければ、いまのトークンのまま今の人に書く（自分のルームの通知は届くように）
     @Test
     func keepsTokenWhenRotationFails() async {

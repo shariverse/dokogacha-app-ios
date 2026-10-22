@@ -125,6 +125,15 @@ final class PushNotificationCoordinator {
         await sync()
     }
 
+    /// アカウントを削除した後（02 の F-06）。今の人と、最後に書いたトークンの持ち主の記録を忘れる。
+    ///
+    /// 前の人の `users/{uid}`（`fcmTokens`）はサーバーが消したので、次にサインインした人には、端末のトークンを作り直さずにそのまま足す
+    /// （記録が残っていると「別の人に替わった」と判定して作り直す。`PushTokenSync`）。端末のトークンそのもの（FCM）は残す
+    func forgetAccount() {
+        userID = nil
+        store.save(nil)
+    }
+
     /// APNs のトークンが届いた（`AppDelegate` の `didRegisterForRemoteNotificationsWithDeviceToken`）
     func didReceiveAPNSToken(_ token: Data) {
         guard isEnabled else {
