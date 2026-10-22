@@ -68,6 +68,8 @@ struct MainNavigationView: View {
                 destination(route)
                     // シートは根元の画面の上に重なるので、オフラインのバナーもシートの中に出す
                     .offlineBanner()
+                    // 出たことを覚える（コードから閉じたときに、閉じ終えるまでカバーを待たせるか決める）
+                    .onAppear { presentation.sheetAppeared() }
             }
         )
         // カバーを閉じ終えたら、その間に開こうとしたシート（招待リンクの S-05・S-06）を出す（`AppPresentation`）
@@ -220,7 +222,7 @@ struct MainNavigationView: View {
     ///   - via: 開いた道（`room_join` の `via`）
     private func joinRoomFlow(initialCode: InviteCode?, via: RoomJoinVia) -> some View {
         JoinRoomFlowView(functions: services.functions, initialCode: initialCode, via: via, analytics: services.analytics) { roomID in
-            presentation.sheet = nil
+            presentation.closeSheet()
             presentation.path.append(.room(id: roomID))
             requestNotificationPermission()
         }
@@ -246,7 +248,7 @@ struct MainNavigationView: View {
             toasts: sheetToasts
         )
         return MembersView(model: model, toasts: sheetToasts) {
-            presentation.sheet = nil
+            presentation.closeSheet()
             presentation.path = []
             toasts.show("ルームから退出しました")
         }
@@ -263,7 +265,7 @@ struct MainNavigationView: View {
             toasts: sheetToasts
         )
         return RoomSettingsView(model: model, toasts: sheetToasts) {
-            presentation.sheet = nil
+            presentation.closeSheet()
             toasts.show("設定を保存しました")
         }
     }

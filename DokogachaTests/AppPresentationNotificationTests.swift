@@ -58,6 +58,7 @@ struct AppPresentationNotificationTests {
         var presentation = AppPresentation()
         presentation.open(.room(id: "r1"))
         presentation.open(.candidateDetail(roomID: "r1", candidateID: "c"))
+        presentation.sheetAppeared()
         presentation.openNotification(drawn)
         #expect(presentation.sheet == nil)
         #expect(presentation.pendingFullScreen == .result(roomID: "r1", drawID: "d1"))
@@ -81,6 +82,35 @@ struct AppPresentationNotificationTests {
         other.openNotification(unlocked)
         #expect(other.fullScreen == .result(roomID: "r2", drawID: "d9"))
         #expect(other.path == [.room(id: "r1")])
+    }
+
+    /// 招待リンクのシートは、通知を開いても閉じない（招待コードは使い切っているので、閉じると戻らない。PR #80 の持ち越し）
+    @Test
+    func keepsInviteLinkSheet() throws {
+        let code = try #require(InviteCode("QW58RT"))
+        var presentation = AppPresentation()
+        presentation.open(.room(id: "r2"))
+        presentation.open(.joinByInviteLink(code))
+        presentation.sheetAppeared()
+        presentation.openNotification(unlocked)
+        #expect(presentation.path == [.room(id: "r1")])
+        #expect(presentation.sheet == .joinByInviteLink(code))
+    }
+
+    /// ほかのルームのカバーの下で積み直した S-07 が S-14 を開いても、出しているカバーを替えず、閉じた後に出す（PR #80 の持ち越し）
+    @Test
+    func roomUnderOtherCoverWaitsForCover() {
+        var presentation = AppPresentation()
+        presentation.open(.room(id: "r2"))
+        presentation.open(.gacha(roomID: "r2"))
+        presentation.openNotification(drawn)
+        #expect(presentation.path == [.room(id: "r1")])
+        // 積み直した S-07（r1）が開いたときに、`drawn` なので S-14 を開こうとする
+        presentation.open(.result(roomID: "r1", drawID: "d1"))
+        #expect(presentation.fullScreen == .gacha(roomID: "r2"))
+        presentation.fullScreen = nil
+        presentation.fullScreenDismissed()
+        #expect(presentation.fullScreen == .result(roomID: "r1", drawID: "d1"))
     }
 
     /// 結果を開く通知でも、抽選の ID が無ければ（そのルームを出していても）S-14 は開かない
