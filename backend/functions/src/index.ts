@@ -56,6 +56,11 @@ export const joinRoom = onCall((request) =>
   runCallable("joinRoom", request, (uid, data) => rooms.joinRoom(deps(), uid, data)),
 );
 
+/** 招待コードで参加する前に、参加するルームを確かめる（03 の S-06。何も書き込まない） */
+export const previewRoom = onCall((request) =>
+  runCallable("previewRoom", request, (uid, data) => rooms.previewRoom(deps(), uid, data)),
+);
+
 /** ルームから退出する（02 の F-05） */
 export const leaveRoom = onCall((request) =>
   runCallable("leaveRoom", request, (uid, data) => rooms.leaveRoom(deps(), uid, data)),
