@@ -31,6 +31,15 @@ nonisolated enum DGDateText {
         return "\(month).\(paddedDay)"
     }
 
+    /// 「10月21日」の形（VoiceOver で決定スタンプの日付を読むときに使う。`M.DD` は数字の並びとして読まれるため）
+    /// - Parameters:
+    ///   - date: 日時
+    ///   - timeZone: 暦を読むタイムゾーン
+    static func monthDayJapanese(_ date: Date, timeZone: TimeZone) -> String {
+        let (month, day) = monthAndDay(date, timeZone: timeZone)
+        return "\(month)月\(day)日"
+    }
+
     /// グレゴリオ暦で読んだ月と日
     private static func monthAndDay(_ date: Date, timeZone: TimeZone) -> (month: Int, day: Int) {
         var calendar = Calendar(identifier: .gregorian)

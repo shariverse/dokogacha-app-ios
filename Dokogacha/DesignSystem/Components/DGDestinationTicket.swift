@@ -14,8 +14,9 @@ import SwiftUI
 /// 右上に「決定」のハンコ（直径 70・抽選日 `M.DD`）を押す。本文の右の余白は 86 にして、ハンコと文字が重ならないようにする。
 ///
 /// ドメインのモデルには依存させず、表示に要る値だけを受け取る（当選確率の % は呼び出し側で決める）。
-/// 表示したときのポップインとハンコを押す動き（04 の §5 の `pop`・`stamp`）は画面の側（S-14）で付ける。
-/// VoiceOver では、帯から下段までを 1 つにまとめて上から読む。文字が大きくて横に収まらないときは、帯と下段を縦に組み替える。
+/// 表示したときのポップイン（04 の §5 の `pop`）は画面の側（S-14）で付ける。ハンコを押す動き（`stamp`）は `stampAnimatesIn` で選ぶ
+/// （「視差効果を減らす」ではハンコの側がフェードだけにする。撮影・共有の画像では false にして止める）。
+/// VoiceOver では、帯から下段までと抽選日を 1 つのラベルにまとめて読む（`accessibilityText`）。文字が大きくて横に収まらないときは、帯と下段を縦に組み替える。
 struct DGDestinationTicket: View {
     /// きっぷの角丸
     private static let cornerRadius: CGFloat = 18
@@ -74,6 +75,10 @@ struct DGDestinationTicket: View {
     let drawnAt: Date
     /// 切り欠きの中の色（きっぷを置く画面の背景と同じ色にする）
     var notchColor: Color = .dgBgBase
+    /// 表示したときにハンコを押す動きをするか（S-14 で表示したとき。既定は動かさない）
+    var stampAnimatesIn = false
+
+    @Environment(\.timeZone) private var timeZone
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Self.cornerRadius)
@@ -88,7 +93,31 @@ struct DGDestinationTicket: View {
         .clipShape(shape)
         .overlay(shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.strong))
         .dgHardShadow(Self.shadow, cornerRadius: Self.cornerRadius)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: accessibilityText(timeZone: timeZone)))
+    }
+
+    /// VoiceOver で読む 1 つのラベル（「行き先きっぷ、ルーム名。◯◯ ゆき。エリア · カテゴリ。ひとこと。投稿 ◯◯さん、いいね N、当選確率 N%。M月D日に決定」）
+    /// - Parameter timeZone: 抽選日を読むタイムゾーン（ハンコと同じ）
+    func accessibilityText(timeZone: TimeZone) -> String {
+        let parts: [String?] = [
+            String(localized: "行き先きっぷ、\(roomName)"),
+            String(localized: "\(destinationName) ゆき"),
+            meta,
+            note.flatMap { $0.isEmpty ? nil : $0 },
+            String(localized: "投稿 \(authorName)、いいね \(likeCount)、当選確率 \(percent)%"),
+            String(localized: "\(DGDateText.monthDayJapanese(drawnAt, timeZone: timeZone))に決定")
+        ]
+        return parts.compactMap(\.self).joined(separator: "。")
+    }
+
+    /// 投稿者の表示（下段と読み上げで同じ文言）
+    private var authorName: String {
+        switch author {
+        case .me: String(localized: "あなた")
+        case let .member(name): String(localized: "\(name)さん")
+        case .departed: String(localized: "退出したメンバー")
+        }
     }
 
     // MARK: 帯
@@ -159,7 +188,7 @@ struct DGDestinationTicket: View {
         .padding(.trailing, Self.detailsTrailingPadding)
         .padding(.bottom, DGSpacing.s16)
         .overlay(alignment: .topTrailing) {
-            DGStamp("決定", size: .large, date: drawnAt)
+            DGStamp("決定", size: .large, date: drawnAt, animatesIn: stampAnimatesIn)
                 .padding(.top, Self.stampTopInDetails)
                 .padding(.trailing, Self.stampTrailing)
         }
