@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="format-detection" content="telephone=no">
+  <title>プライバシーポリシー｜ドコガチャ</title>
+  <meta name="description" content="ドコガチャのプライバシーポリシー">
+  <link rel="stylesheet" href="/assets/landing.css">
+</head>
+<body>
+  <!--
+    プライバシーポリシーの下書き（タスク 35。ゴールの Q8「AI が下書きを作り、人間が確認して直す」）。
+    AI が作った下書きで、法的な正しさ（個人情報保護法・電気通信事業法の外部送信の規律など）は確かめていない。公開の前に人間が全文を確かめて直す。
+    【】で囲んだ箇所（【運営者名】・【施行日】）は人間が埋める。
+    収集するデータは 06 の §5（ユーザー ID・表示名・投稿内容・広告データ・診断データ）と 05 の §3・§9 に合わせた。
+    App Store Connect の App Privacy と PrivacyInfo.xcprivacy（タスク 45）の申告と食い違わないようにする。
+    この注記はページの見た目には出さない（HTML のコメントにだけ書く）。
+    /privacy で開く（firebase.json の cleanUrls）。アプリの設定画面（S-15）から DomainConstants.Web.privacyPolicyURL で開く。
+  -->
+  <main class="doc">
+    <p class="brand">ドコガチャ</p>
+    <ul class="capsules" aria-hidden="true">
+      <li></li><li></li><li></li><li></li><li></li><li></li>
+    </ul>
+    <h1 class="doc-title">プライバシーポリシー</h1>
+    <p class="doc-date">施行日：【施行日】</p>
+
+    <p class="doc-lead">
+      【運営者名】（以下「運営者」）は、iPhone 向けアプリ「ドコガチャ」と、その関連する Web ページ（以下あわせて「本サービス」）における、利用者の情報の取り扱いを次のとおり定めます。
+    </p>
+
+    <section class="doc-section" aria-labelledby="privacy-1">
+      <h2 id="privacy-1">1. 取得する情報</h2>
+      <p>運営者は、本サービスの提供にあたり、次の情報を取得します。</p>
+      <dl>
+        <dt>ユーザー ID</dt>
+        <dd>初めて起動したときに自動で発行する、利用者を見分けるための識別子です。Apple のアカウント（Sign in with Apple）を連携した場合は、Apple から受け取るアカウントの識別子も取得します。</dd>
+        <dt>表示名</dt>
+        <dd>利用者が設定する表示名と、自動で割り当てるアバターの色です。</dd>
+        <dt>投稿内容</dt>
+        <dd>ルーム名とルームの設定、候補の場所（場所の名前・エリア・緯度と経度・カテゴリ・地図の識別子）、ひとこと、参考 URL、いいね・準備OK・ガチャの結果・引き直しの投票など、本サービスで利用者が入力・操作した内容です。</dd>
+        <dt>投稿の報告</dt>
+        <dd>投稿を報告したときの、報告した利用者のユーザー ID、対象の投稿、選んだ理由です。</dd>
+        <dt>通知トークン</dt>
+        <dd>プッシュ通知を届けるための、端末ごとの識別子です。通知を許可した場合に取得します。</dd>
+        <dt>購入の情報</dt>
+        <dd>有料の機能「広告を非表示にする」の購入の有無と、購入を確かめるために Apple から受け取る取引の情報です。クレジットカードの番号などの支払いの情報は、運営者は受け取りません。</dd>
+        <dt>広告データ</dt>
+        <dd>広告の配信と効果の測定のために、広告の配信事業者が取得する情報（端末の種類・OS・IP アドレス、広告の表示やタップの状況など）です。端末の広告識別子（IDFA）は、App Tracking Transparency（ATT）のダイアログで利用者がトラッキングを許可した場合にだけ取得します。</dd>
+        <dt>診断データ</dt>
+        <dd>アプリが異常終了したときの情報（端末の機種・OS とアプリのバージョン・異常終了したときの処理の記録など）です。</dd>
+        <dt>利用状況</dt>
+        <dd>本サービスの使われ方を知るための情報（ルームの作成・候補の追加・ガチャを回したなどの操作の記録、端末の種類・OS とアプリのバージョンなど）です。</dd>
+      </dl>
+      <p>本サービスは、端末の位置情報を取得しません。場所の候補は、利用者が検索して選んだ場所だけを保存します。また、氏名・住所・電話番号の入力を求めません。</p>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-2">
+      <h2 id="privacy-2">2. 利用の目的</h2>
+      <p>取得した情報は、次の目的に利用します。</p>
+      <ul>
+        <li>ルームと候補の共有、ガチャ、通知など、本サービスを提供するため</li>
+        <li>利用者のアカウントを見分け、引き継げるようにするため</li>
+        <li>有料の機能を提供し、購入を確かめるため</li>
+        <li>報告された投稿を確認し、利用規約に違反する行為や不正な利用を防ぐため</li>
+        <li>不具合を調べて直すため</li>
+        <li>本サービスを改善するための分析のため</li>
+        <li>広告を表示するため</li>
+        <li>お問い合わせに回答するため</li>
+        <li>利用規約やこのポリシーの変更など、大切なお知らせを伝えるため</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-3">
+      <h2 id="privacy-3">3. ほかの利用者への表示</h2>
+      <p>表示名、アバターの色、投稿内容、いいね・準備OKの状況は、同じルームのメンバーに表示されます。</p>
+      <p>「広告を非表示にする」を購入した利用者がメンバーにいるルームでは、その利用者の表示名を、ルームのメンバーに表示します。</p>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-4">
+      <h2 id="privacy-4">4. 第三者への提供と外部のサービス</h2>
+      <p>運営者は、法令に基づく場合や利用者の同意がある場合を除き、取得した情報を第三者に提供しません。</p>
+      <p>本サービスは、次の外部のサービスを利用しており、本サービスの提供に必要な範囲で、利用者の情報がそれぞれの事業者に送られます。これらの事業者は、日本の外（米国など）にあるサーバーで情報を取り扱うことがあります。各事業者の情報の取り扱いは、それぞれのポリシーをご覧ください。</p>
+      <h3>Firebase（Google LLC）</h3>
+      <p>アカウント（Authentication）、データの保存（Cloud Firestore）、サーバーの処理（Cloud Functions）、プッシュ通知（Cloud Messaging）、Web ページの配信（Hosting）、利用状況の分析（Google Analytics for Firebase）、診断データの収集（Crashlytics）に利用します。</p>
+      <ul>
+        <li><a href="https://firebase.google.com/support/privacy" rel="noopener noreferrer">Firebase のプライバシーとセキュリティ</a></li>
+        <li><a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google プライバシーポリシー</a></li>
+      </ul>
+      <h3>AdMob（Google LLC）</h3>
+      <p>バナー広告の配信と効果の測定に利用します。</p>
+      <ul>
+        <li><a href="https://policies.google.com/technologies/ads" rel="noopener noreferrer">Google の広告におけるデータの利用</a></li>
+        <li><a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google プライバシーポリシー</a></li>
+      </ul>
+      <h3>Apple Inc.</h3>
+      <p>場所の検索（MapKit。検索した言葉が Apple に送られます）、プッシュ通知の配信、Sign in with Apple、App Store での購入に利用します。</p>
+      <ul>
+        <li><a href="https://www.apple.com/jp/legal/privacy/" rel="noopener noreferrer">Apple のプライバシーポリシー</a></li>
+      </ul>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-5">
+      <h2 id="privacy-5">5. 広告とトラッキング</h2>
+      <p>本サービスは、初めてルームに入った後に、トラッキングを許可するかを ATT のダイアログでたずねます。許可しない場合、広告識別子（IDFA）は取得せず、利用者の興味に合わせない広告を表示します。</p>
+      <p>許可したかどうかは、iPhone の「設定」の「プライバシーとセキュリティ」→「トラッキング」から、いつでも変えられます。</p>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-6">
+      <h2 id="privacy-6">6. 保存する期間と削除</h2>
+      <p>取得した情報は、利用の目的に必要な期間だけ保存します。</p>
+      <ul>
+        <li>利用者は、設定画面の「アカウントを削除」から、いつでもアカウントを削除できます。削除すると、参加中のルームから退出し（作成したルームは終了します）、アカウントと、アカウントに結び付く情報（表示名・通知トークン・購入の情報・過去のアイデア）を削除します。</li>
+        <li>参加していたルームに残る記録（投稿した候補、ガチャを回した記録、作成したルームの作成者）には、アカウントを削除した後も、ユーザー ID と、そのときの表示名が残ります。投稿した候補は、ほかのメンバーのために、「退出したメンバー」の投稿としてルームに残ります。</li>
+        <li>通知トークンは、アカウントを削除したときや、通知を届けられなくなったときに削除します。</li>
+        <li>投稿の報告（報告した利用者のユーザー ID を含みます）は、アカウントを削除した後も、対応に必要な期間保存します。</li>
+        <li>広告データ・診断データ・利用状況は、各事業者の定める期間保存されます。</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-7">
+      <h2 id="privacy-7">7. 安全のための取り組み</h2>
+      <p>運営者は、取得した情報の漏えい・滅失・毀損を防ぐため、通信の暗号化や、データへのアクセスを本人とルームのメンバーに限る設定など、必要で適切な措置をとります。</p>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-8">
+      <h2 id="privacy-8">8. 未成年の方の利用</h2>
+      <p>未成年の方は、保護者の方の同意を得たうえで本サービスを利用してください。</p>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-9">
+      <h2 id="privacy-9">9. 情報の確認・訂正・削除</h2>
+      <p>表示名は設定画面から変更でき、投稿した候補はルームが候補を募集している間に削除できます。アカウントは設定画面から削除できます。</p>
+      <p>そのほか、利用者ご本人の情報の開示・訂正・利用の停止・削除などのご請求は、下記のお問い合わせ先からご連絡ください。法令に従って対応します。</p>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-10">
+      <h2 id="privacy-10">10. お問い合わせ</h2>
+      <p>このポリシーや情報の取り扱いについてのお問い合わせは、次のフォームからお送りください。</p>
+      <p><a class="contact-form-link" href="https://docs.google.com/forms/d/e/1FAIpQLSc4DiUAcjKlrchuefXxehD-BgCEhGVomX6NOwtijWiE0yJAlQ/viewform" rel="noopener noreferrer">お問い合わせフォーム</a></p>
+      <p class="doc-note">運営者：【運営者名】</p>
+    </section>
+
+    <section class="doc-section" aria-labelledby="privacy-11">
+      <h2 id="privacy-11">11. このポリシーの変更</h2>
+      <p>運営者は、法令の変更や本サービスの変更に合わせて、このポリシーを変更することがあります。大切な変更をするときは、このページまたは本サービスの中で知らせます。変更後のポリシーは、このページに載せたときから効力が生じます。</p>
+    </section>
+
+    <p class="doc-date">【施行日】 制定</p>
+
+    <ul class="doc-footer">
+      <li><a href="/terms">利用規約</a></li>
+    </ul>
+  </main>
+</body>
+</html>

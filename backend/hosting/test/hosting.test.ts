@@ -1,8 +1,9 @@
 /**
- * Hosting（招待リンクの Universal Links とランディングページ。タスク 34・05 の §7）の設定とページの処理を確かめる。
+ * Hosting（招待リンクの Universal Links とランディングページ。タスク 34・05 の §7。利用規約とプライバシーポリシー。タスク 35）の設定とページの処理を確かめる。
  * - apple-app-site-association の形と、アプリの Team ID・Bundle ID（Configs/Project.xcconfig）との一致
- * - firebase.json の hosting（ヘッダー・rewrites・ignore）
+ * - firebase.json の hosting（ヘッダー・rewrites・cleanUrls・ignore）
  * - ランディングページ（invite.html・assets/landing.js）の招待コードの取り出しと表示、OGP
+ * - 利用規約（terms.html）・プライバシーポリシー（privacy.html）の問い合わせ先・人間が埋める目印・載せる項目
  * - ページの色が docs/spec/design/tokens.json の値と一致すること
  * Emulator で実際に配信を確かめるのは test/emulator/hosting.test.ts。
  */
@@ -110,6 +111,7 @@ describe("firebase.json の hosting", () => {
       hosting: {
         public: string;
         ignore: string[];
+        cleanUrls: boolean;
         headers: { source: string; headers: { key: string; value: string }[] }[];
         rewrites: { source: string; destination: string }[];
       };
@@ -128,6 +130,36 @@ describe("firebase.json の hosting", () => {
 
   it("ドットで始まるファイルを除外しない（.well-known を配信する）", () => {
     expect(hosting.ignore).not.toContain("**/.*");
+  });
+
+  it("拡張子なしの URL（/terms・/privacy）で HTML を開く", () => {
+    expect(hosting.cleanUrls).toBe(true);
+    for (const page of ["terms.html", "privacy.html"]) {
+      expect(existsSync(join(BACKEND_DIR, hosting.public, page))).toBe(true);
+    }
+  });
+
+  it("すべてのパスに CSP・nosniff・Referrer-Policy を付ける", () => {
+    const header = hosting.headers.find((entry) => entry.source === "**");
+    expect(header?.headers).toEqual([
+      {
+        key: "Content-Security-Policy",
+        value: "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "no-referrer" },
+    ]);
+  });
+
+  it("どのページも、CSP（default-src 'self'）で止まるインラインのスクリプト・スタイルを使わない", () => {
+    for (const page of ["index.html", "invite.html", "terms.html", "privacy.html"]) {
+      const html = read(join(BACKEND_DIR, hosting.public, page));
+      // 自分のオリジンのファイルを読む <script src> だけを許す（中身のある <script> は CSP で動かない）
+      expect([page, html.match(/<script(?![^>]*\ssrc=)[^>]*>/g)]).toEqual([page, null]);
+      expect([page, html.match(/<style[\s>]/g)]).toEqual([page, null]);
+      expect([page, html.match(/\sstyle="/g)]).toEqual([page, null]);
+      expect([page, html.match(/\son[a-z]+="/g)]).toEqual([page, null]);
+    }
   });
 });
 
@@ -246,6 +278,143 @@ describe("ランディングページの HTML", () => {
   });
 });
 
+describe("利用規約・プライバシーポリシーの HTML", () => {
+  /** 問い合わせ先（ゴールの Q8 の回答のフォーム。公開してよい問い合わせ先） */
+  const CONTACT_FORM_URL =
+    "https://docs.google.com/forms/d/e/1FAIpQLSc4DiUAcjKlrchuefXxehD-BgCEhGVomX6NOwtijWiE0yJAlQ/viewform";
+
+  const pages = {
+    terms: read(join(PUBLIC_DIR, "terms.html")),
+    privacy: read(join(PUBLIC_DIR, "privacy.html")),
+  };
+  const pageEntries = Object.entries(pages);
+
+  /** HTML のコメントを除いた、ページに出る部分 */
+  function visible(html: string): string {
+    return html.replace(/<!--[\s\S]*?-->/g, "");
+  }
+
+  /** `href="…"` の一覧 */
+  function hrefs(html: string): string[] {
+    return [...html.matchAll(/href="([^"]+)"/g)].map((match) => match[1] ?? "");
+  }
+
+  it.each(pageEntries)("%s は問い合わせ先のフォームへのリンクを持つ", (_, html) => {
+    expect(hrefs(visible(html))).toContain(CONTACT_FORM_URL);
+  });
+
+  it.each(pageEntries)("%s は運営者名と施行日を、人間が埋める目印にしている", (_, html) => {
+    expect(visible(html)).toContain("【運営者名】");
+    expect(visible(html)).toContain("【施行日】");
+  });
+
+  it.each(pageEntries)("%s は下書きであることを、ページには出さず HTML のコメントにだけ書く", (_, html) => {
+    const comments = [...html.matchAll(/<!--([\s\S]*?)-->/g)].map((match) => match[1] ?? "").join("\n");
+    expect(comments).toContain("下書き");
+    expect(comments).toContain("人間が確認して直す");
+    expect(visible(html)).not.toContain("下書き");
+  });
+
+  it.each(pageEntries)("%s はメールアドレス・電話番号を書かない", (_, html) => {
+    expect(html).not.toMatch(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+    expect(html).not.toMatch(/\b0\d{1,4}-\d{1,4}-\d{3,4}\b/);
+    expect(html).not.toContain("mailto:");
+    expect(html).not.toContain("tel:");
+  });
+
+  it.each(pageEntries)("%s はランディングと同じ CSS だけを読み、スクリプトを読まない", (_, html) => {
+    const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+      .map((match) => match[1] ?? "")
+      .filter((source) => !source.startsWith("https://") && !source.startsWith("/terms") && !source.startsWith("/privacy"));
+    expect(assets).toEqual(["/assets/landing.css"]);
+    expect(html).not.toContain("<script");
+  });
+
+  it.each(pageEntries)("%s の外部へのリンクは、すべて https で rel に noopener noreferrer を付ける", (_, html) => {
+    const anchors = [...html.matchAll(/<a\s[^>]*href="(https?:[^"]+)"[^>]*>/g)];
+    expect(anchors.length).toBeGreaterThan(0);
+    for (const [anchor, url] of anchors) {
+      expect([url, url?.startsWith("https://")]).toEqual([url, true]);
+      expect([url, anchor.includes('rel="noopener noreferrer"')]).toEqual([url, true]);
+    }
+  });
+
+  it("利用規約とプライバシーポリシーは互いにリンクする", () => {
+    expect(hrefs(pages.terms)).toContain("/privacy");
+    expect(hrefs(pages.privacy)).toContain("/terms");
+  });
+
+  it("利用規約は、不適切な投稿の禁止と、報告を受けた運営の確認・削除を書く（06 の §5・F-14）", () => {
+    const text = visible(pages.terms);
+    expect(text).toContain("不適切な投稿の禁止");
+    expect(text).toContain("この投稿を報告");
+    expect(text).toMatch(/報告を受けた投稿の内容を確認し[^。]*削除することがあります/);
+  });
+
+  it.each([
+    ["アカウントの削除（F-06）", "アカウントを削除"],
+    ["有料の機能（F-51）", "広告を非表示にする"],
+    ["購入の復元（F-51）", "購入を復元"],
+    ["返金の窓口（Apple）", "Apple に申請"],
+    ["免責", "第11条（免責）"],
+    ["規約の変更", "本規約の変更"],
+    ["準拠法", "日本の法律"],
+  ])("利用規約は %s を書く", (_, phrase) => {
+    expect(visible(pages.terms)).toContain(phrase);
+  });
+
+  it.each([
+    "ユーザー ID",
+    "表示名",
+    "投稿内容",
+    "ひとこと",
+    "参考 URL",
+    "通知トークン",
+    "広告データ",
+    "IDFA",
+    "App Tracking Transparency",
+    "診断データ",
+    "利用状況",
+    "Crashlytics",
+    "Google Analytics for Firebase",
+  ])("プライバシーポリシーは収集するデータ「%s」を書く", (phrase) => {
+    expect(visible(pages.privacy)).toContain(phrase);
+  });
+
+  it("プライバシーポリシーは、アカウントの削除で消えるものと、ルームに残る記録（ユーザー ID・表示名）を分けて書く（02 の F-05・F-06）", () => {
+    const section = visible(pages.privacy).match(/<section[^>]*aria-labelledby="privacy-6"[\s\S]*?<\/section>/)?.[0] ?? "";
+    // 消えるもの: users/{uid}（表示名・通知トークン・購入の情報）・pastIdeas・Auth のユーザー
+    expect(section).toMatch(/アカウントと、アカウントに結び付く情報（表示名・通知トークン・購入の情報・過去のアイデア）を削除します/);
+    // 残るもの: 候補の postedBy・postedByName、draws の drawnBy・drawnByName、ルームの ownerId
+    expect(section).toMatch(/ルームに残る記録（[^）]*投稿した候補[^）]*ガチャを回した記録[^）]*作成者）[^。]*ユーザー ID と、そのときの表示名が残ります/);
+    expect(section).toContain("「退出したメンバー」の投稿");
+    // 削除するものの括弧の中に、ルームに残るユーザー ID を入れない
+    expect(section).not.toMatch(/（[^）]*ユーザー ID[^）]*）を削除します/);
+  });
+
+  it("プライバシーポリシーは、第三者の提供先に AdMob と Firebase（Google）を挙げ、各社のポリシーにリンクする", () => {
+    const text = visible(pages.privacy);
+    expect(text).toContain("<h3>Firebase（Google LLC）</h3>");
+    expect(text).toContain("<h3>AdMob（Google LLC）</h3>");
+    expect(hrefs(text)).toEqual(
+      expect.arrayContaining([
+        "https://firebase.google.com/support/privacy",
+        "https://policies.google.com/privacy",
+        "https://policies.google.com/technologies/ads",
+      ]),
+    );
+  });
+
+  it.each([
+    ["保存期間・削除（F-06）", "アカウントを削除"],
+    ["未成年", "未成年の方"],
+    ["改定", "このポリシーの変更"],
+    ["位置情報を取らない（02 の §9）", "位置情報を取得しません"],
+  ])("プライバシーポリシーは %s を書く", (_, phrase) => {
+    expect(visible(pages.privacy)).toContain(phrase);
+  });
+});
+
 describe("ページの色", () => {
   const tokens = JSON.parse(read(join(REPOSITORY_DIR, "docs", "spec", "design", "tokens.json"))) as {
     color: Record<string, unknown>;
@@ -277,5 +446,17 @@ describe("ページの色", () => {
     // 変数の定義のほかに、色の値を直接書かない
     const hexCount = [...text.matchAll(/#[0-9A-Fa-f]{6}\b/g)].length;
     expect(hexCount).toBe(variables.length);
+  });
+
+  it("landing.css で使う色の変数は、すべて :root で tokens.json の値に定義している", () => {
+    const text = read(join(PUBLIC_DIR, "assets", "landing.css"));
+    const defined = new Set([...text.matchAll(/--color-([A-Za-z0-9-]+):/g)].map((match) => match[1]));
+    const used = [...text.matchAll(/var\(--color-([A-Za-z0-9-]+)\)/g)].map((match) => match[1]);
+    expect(used.length).toBeGreaterThan(0);
+    expect(used.filter((name) => !defined.has(name))).toEqual([]);
+  });
+
+  it.each(["terms.html", "privacy.html"])("%s は色の値を直接書かない（landing.css の変数を使う）", (page) => {
+    expect(read(join(PUBLIC_DIR, page))).not.toMatch(/#[0-9A-Fa-f]{3,8}\b|rgba?\(/);
   });
 });
