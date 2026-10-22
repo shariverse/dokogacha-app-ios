@@ -17,6 +17,7 @@ import { defaultDeps } from "./deps";
 import { DEADLINE_CHECK_INTERVAL_MINUTES, SCHEDULE_TIME_ZONE } from "./domain/constants";
 import type { MemberDoc } from "./domain/models";
 import * as rooms from "./rooms/service";
+import * as settings from "./settings/service";
 import { memberWriteAffectsUnlock } from "./unlock/logic";
 import * as unlock from "./unlock/service";
 import type { ProfileCopy } from "./users/logic";
@@ -74,6 +75,11 @@ export const leaveRoom = onCall((request) =>
 /** 作成者がメンバーを削除する（02 の F-05） */
 export const removeMember = onCall((request) =>
   runCallable("removeMember", request, (uid, data) => rooms.removeMember(deps(), uid, data)),
+);
+
+/** 作成者がルームの設定を変える（02 の F-03 の変更ルール。変えた後に解禁を判定し直す） */
+export const updateRoomSettings = onCall((request) =>
+  runCallable("updateRoomSettings", request, (uid, data) => settings.updateRoomSettings(deps(), uid, data)),
 );
 
 /** 候補を追加する（02 の F-10。同じ場所があれば作らずに `{ duplicateOf }` を返す） */
