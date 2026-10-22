@@ -345,6 +345,8 @@ struct DesignTokensTests {
             #expect(duration?.doubleValue == spec.duration, "\(key) の時間")
             #expect((entry["delay"] as? NSNumber)?.doubleValue ?? 0 == spec.delay, "\(key) の遅れ")
             #expect((entry["repeat"] as? NSNumber)?.intValue == spec.repeatCount, "\(key) の繰り返し")
+            // 周期（period）で書いたものは、止めるまで繰り返す
+            #expect((entry["period"] != nil) == spec.repeatsForever, "\(key) の止めるまでの繰り返し")
             #expect(Self.curve(entry["curve"]) == spec.curve, "\(key) の曲線")
         }
         #expect(try Self.number("motion.toast.visibleFor", in: root) == DGMotion.toastVisibleFor)
@@ -356,6 +358,7 @@ struct DesignTokensTests {
         #expect(DGMotion.like.duration == 0.25)
         #expect(DGMotion.like.delay == 0)
         #expect(DGMotion.like.repeatCount == nil)
+        #expect(!DGMotion.like.repeatsForever)
         #expect(DGMotion.likeScale == 1.25)
     }
 
