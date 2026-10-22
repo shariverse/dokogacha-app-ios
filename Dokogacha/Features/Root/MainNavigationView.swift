@@ -18,6 +18,7 @@ import SwiftUI
 ///
 /// プッシュ通知を開いたら、そのルームを開く（`PushNotificationRouting`）。通知の許可は、ルームを作成・参加したときに尋ねる
 /// （02 の §8「初めてルームを作成または参加したときに表示」。まだ尋ねていないときだけ）。
+/// ATT の許可は、ルームの画面が出たときに尋ねる（02 の F-50「初回にルームに入ったあと」。`TrackingAuthorizationPrompt`）。
 struct MainNavigationView: View {
     /// 出している行き先（積み・シート・フルスクリーンカバー）
     @State private var presentation = AppPresentation()
@@ -170,6 +171,8 @@ struct MainNavigationView: View {
         return RoomView(model: model) { route in
             open(route)
         }
+        // 初めてルームに入った後に ATT を尋ねる（F-50。通知の許可を尋ねていれば、その後）
+        .modifier(TrackingAuthorizationPrompt(push: push))
     }
 
     /// S-13・S-14 のフルスクリーンカバー。S-13 はカプセルを開け終えたら同じカバーの中で S-14 に替わり、
