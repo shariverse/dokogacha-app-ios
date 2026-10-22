@@ -54,6 +54,16 @@ struct LaunchRouteOfflineTests {
         #expect(onboarding == .onboarding)
     }
 
+    /// 起動の「オフラインです」の画面には上端のバナーを重ねない（同じ文言が 2 回並ぶため。PR #113 の持ち越し）。ほかの画面では出す
+    @Test
+    func offlineLaunchScreenHidesBanner() {
+        #expect(!LaunchRoute.offline.showsOfflineBanner)
+        #expect(LaunchRoute.loading.showsOfflineBanner)
+        #expect(LaunchRoute.onboarding.showsOfflineBanner)
+        #expect(LaunchRoute.home(LaunchRouteTests.profile).showsOfflineBanner)
+        #expect(LaunchRoute.failed(AppError(.network)).showsOfflineBanner)
+    }
+
     /// オフラインで初回のサインインに失敗したら「オフライン」を出し、回線が戻ったらやり直してサインインする（PR #17）
     @Test
     func signInRetriesWhenBackOnline() async {

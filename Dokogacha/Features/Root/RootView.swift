@@ -39,7 +39,8 @@ struct RootView: View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.dgBgBase.ignoresSafeArea())
-            .offlineBanner()
+            // 起動のオフラインの画面は、それ自体が「オフラインです」と出すので、バナーを重ねない
+            .offlineBanner(isAllowed: model.route.showsOfflineBanner)
             .dgToast(toasts)
             .environment(toasts)
             // サインインの状態が変わるたびに、サインインし直すか、そのユーザーのプロフィールを購読し直す
