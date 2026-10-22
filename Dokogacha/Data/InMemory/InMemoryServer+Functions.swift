@@ -274,14 +274,6 @@ extension InMemoryServer: FunctionsClient {
 
     // MARK: まだ backend に無い Callable（backend のタスクで足すときに、ここにも同じ検証を足す）
 
-    func updateRoomSettings(_ request: UpdateRoomSettingsRequest) async throws {
-        throw AppError(.notImplemented)
-    }
-
-    func forceUnlock(_ request: RoomRequest) async throws {
-        throw AppError(.notImplemented)
-    }
-
     func drawGacha(_ request: RoomRequest) async throws -> DrawGachaResponse {
         throw AppError(.notImplemented)
     }
@@ -315,9 +307,9 @@ extension InMemoryServer: FunctionsClient {
     }
 }
 
-// MARK: - 検証と状態の変更
+// MARK: - 入力の検証（ほかのファイルの Callable（`InMemoryServer+Unlock.swift`）でも使う）
 
-private extension InMemoryServer {
+extension InMemoryServer {
     /// 前後の空白を取り除き、名前として受け付けるか確かめる（backend の `requireTrimmedText`）。
     ///
     /// 規則は `NameValidation`（入力欄と同じ判定）。受け付けなければ `invalid-argument`
@@ -328,6 +320,18 @@ private extension InMemoryServer {
         return trimmed
     }
 
+    /// ドキュメントの ID として使えるか確かめる（backend の `requireDocumentId`）
+    static func documentID(_ id: String) throws -> String {
+        guard FirestorePath.isValidDocumentID(id) else {
+            throw error(.invalidArgument)
+        }
+        return id
+    }
+}
+
+// MARK: - 検証と状態の変更
+
+private extension InMemoryServer {
     /// 参考 URL（任意）を確かめる（backend の `parseUrl`）。無い・空白だけなら nil、受け付けなければ `invalid-argument`
     static func candidateURL(_ text: String?) throws -> String? {
         switch CandidateRules.validatedURL(text) {
@@ -350,14 +354,6 @@ private extension InMemoryServer {
         guard room.memberCount < DomainConstants.Limits.maxMembers else {
             throw error(.roomFull)
         }
-    }
-
-    /// ドキュメントの ID として使えるか確かめる（backend の `requireDocumentId`）
-    static func documentID(_ id: String) throws -> String {
-        guard FirestorePath.isValidDocumentID(id) else {
-            throw error(.invalidArgument)
-        }
-        return id
     }
 
     /// 締切日時を確かめる（backend の `parseCreateRoomInput`。`deadline` のときだけ必須で、今から 1 時間後（5 分の猶予）〜30 日後）

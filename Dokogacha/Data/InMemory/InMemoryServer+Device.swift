@@ -59,6 +59,16 @@ extension InMemoryServer {
             try server.deleteCandidate(request, by: userID)
         }
 
+        /// ルームの設定を変える（`updateRoomSettings`）
+        func updateRoomSettings(_ request: UpdateRoomSettingsRequest) async throws {
+            try server.updateRoomSettings(request, by: userID)
+        }
+
+        /// 強制解禁する（`forceUnlock`）
+        func forceUnlock(_ request: RoomRequest) async throws {
+            try server.forceUnlock(request, by: userID)
+        }
+
         /// 自分の準備OKを変える（直接の書き込み）
         func setReady(_ ready: Bool, roomID: String) async {
             server.applyDirectWrite { try server.writeReady(ready, roomID: roomID, userID: userID, by: userID) }
