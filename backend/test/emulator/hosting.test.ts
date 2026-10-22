@@ -82,12 +82,11 @@ describe("Hosting", () => {
     },
   );
 
-  // firebase.json の `**` はドットで始まるディレクトリ（.well-known）に当たらないので、
-  // apple-app-site-association にはすべてのパスのヘッダーが付かず、タスク 34 の設定のまま返る
+  // すべてのパスのヘッダーを足しても、AASA の要件（application/json・転送しない）が崩れないことだけを確かめる。
+  // CSP などが付くかは Emulator と本番の Hosting で同じとは限らない（`**` がドットで始まるディレクトリに当たるか）ので確かめない
   it("apple-app-site-association は、すべてのパスのヘッダーを足しても application/json のまま転送しない", async () => {
     const response = await fetch(`${origin}/.well-known/apple-app-site-association`, { redirect: "manual" });
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toMatch(/^application\/json/);
-    expect(response.headers.get("content-security-policy")).toBeNull();
   });
 });
