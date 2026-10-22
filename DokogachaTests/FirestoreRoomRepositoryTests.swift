@@ -271,4 +271,17 @@ struct FirestoreRoomRepositoryTests {
         #expect(gateway.updates.map(\.path) == ["users/me", "users/me"])
         #expect(gateway.updates.map(\.fields) == [["fcmTokens": .arrayRemove(["t1"])], ["fcmTokens": .arrayUnion(["t1"])]])
     }
+
+    /// 抽選の記録は、キャッシュの「無い」を流さずサーバーの返事を待つ（S-14 が「記録が見つからない」と取り違えない）
+    @Test
+    func drawWaitsForServerWhenMissing() async {
+        let gateway = FakeGateway()
+        var iterator = FirestoreRoomRepository(gateway: gateway).draw(roomID: "r1", drawID: "d1").makeAsyncIterator()
+        let path = "rooms/r1/draws/d1"
+        #expect(gateway.includesMetadataChanges[path] == true)
+
+        gateway.sendDocument(nil, path: path, isFromCache: true)
+        gateway.sendDocument(nil, path: path, isFromCache: false)
+        #expect(await iterator.next() == .value(nil))
+    }
 }
