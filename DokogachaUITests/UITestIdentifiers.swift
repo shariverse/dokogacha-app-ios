@@ -103,6 +103,10 @@ enum UITestID {
     static let postCandidateNote = "postCandidate.note"
     /// S-09 の「候補に追加」（`PostCandidateView.Identifier.submit`）
     static let postCandidateSubmit = "postCandidate.submit"
+    /// 「オフラインです」のバナー（`DGOfflineBanner.identifier`）
+    static let offlineBanner = "offline.banner"
+    /// 端末がオフラインのことにする起動引数（`LaunchContext.networkOfflineArgument`）
+    static let networkOfflineArgument = "-network-offline"
     /// S-07 の「準備OK n/m」（`RoomView.Identifier.readyCount`）
     static let roomReadyCount = "room.readyCount"
     /// S-07 のヒント文言（`RoomView.Identifier.readyHint`）
