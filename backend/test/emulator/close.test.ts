@@ -5,12 +5,14 @@
  *   （トリガーは非同期に動くので、条件を満たすまで短い間隔で読み直し、上限の時間で打ち切る）
  *
  * ルームは `set` で作る（作成ではトリガーが動かない）。メンバーのドキュメントは入れない（過去のアイデアの宛先は `memberIds`）。
+ * 過去のアイデアは `users/{uid}` がある人にだけ登録するので、メンバーのプロフィールは置く。
  * ほかのテストのファイルとデータが混ざらないよう、ルームの ID に `close-` を付ける。
  */
 import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { App } from "firebase-admin/app";
 
 import { closeOverdueRooms, closeRoom, registerPastIdeas, autoCloseRoom } from "../../functions/src/close/service";
+import { AVATAR_COLORS } from "../../functions/src/domain/avatarPalette";
 import { AUTO_CLOSE_AFTER_DRAW_MS } from "../../functions/src/domain/constants";
 import { cryptoRandomInt } from "../../functions/src/domain/random";
 import { expireRerolls } from "../../functions/src/reroll/service";
@@ -47,6 +49,10 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
     options: { status?: string; drawnAt?: Timestamp | null; members?: string[]; reroll?: Record<string, unknown> } = {},
   ): Promise<void> {
     const status = options.status ?? "drawn";
+    // 過去のアイデアは users/{uid} がある人にだけ登録する（アカウントを削除した人を飛ばす）ので、メンバーのプロフィールを置く
+    for (const uid of ["alice", "bob", "carol"]) {
+      await db.doc(`users/${uid}`).set({ displayName: uid, avatarColor: AVATAR_COLORS[0], adFree: false, fcmTokens: [], createdAt: Timestamp.now() });
+    }
     await db.doc(`rooms/${roomId}`).set({
       name: "年末の旅行",
       ownerId: "alice",
@@ -291,6 +297,20 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
 
       await expect(registerPastIdeas(db, "close-reread")).resolves.toBe(4);
       expect(await pastIdeas("carol", "close-reread")).toEqual({});
+    });
+
+    it("アカウントを削除した人（users/{uid} が無い）には、終了した時点のメンバーでも登録しない（F-06）", async () => {
+      await addRoom("close-deleted", { status: "closed" });
+      const closedRoom = await roomData("close-deleted");
+      // 終了の直後、トリガーが動く前に carol がアカウントを削除した（users/{uid} と過去のアイデアを消した）
+      await db.doc("users/carol").delete();
+
+      await expect(registerPastIdeas(db, "close-deleted", closedRoom)).resolves.toBe(4);
+      const expected = ["close-deleted_c2", "close-deleted_c3"];
+      expect(Object.keys(await pastIdeas("alice", "close-deleted")).sort()).toEqual(expected);
+      expect(Object.keys(await pastIdeas("bob", "close-deleted")).sort()).toEqual(expected);
+      expect(await pastIdeas("carol", "close-deleted")).toEqual({});
+      expect((await db.doc("users/carol").get()).exists).toBe(false);
     });
 
     it("closed でないルーム・無いルームには何も登録しない", async () => {
