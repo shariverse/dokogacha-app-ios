@@ -10,8 +10,8 @@ import SwiftUI
 /// 下に「ガチャを回す」を固定する。
 ///
 /// 標準のナビゲーションバーは使わない（03 の §3）。画面の行き先（S-08・S-10・S-11・S-12・S-13）は `navigate` で親に渡す。
-/// ルームパネルは `RoomPanel`。準備OKのボタン・ヒント文言・強制解禁（F-30〜32）はタスク 24 でそこに足し、
-/// バナー広告（F-50）はタスク 36 で下部に足す。
+/// ルームパネルは `RoomPanel`（準備OKのボタン・ヒント文言・強制解禁 F-30〜32 を含む）。強制解禁の確認のダイアログはこの画面で出し、
+/// 送っている途中はヘッダー（戻る・設定）を押せなくする。バナー広告（F-50）はタスク 36 で下部に足す。
 /// `drawn` のルームを開いたときに結果を自動で出す（03 の §2）のはタスク 28。
 struct RoomView: View {
     /// UI テストが探す ID
@@ -24,6 +24,12 @@ struct RoomView: View {
         static let members = "room.members"
         /// 「準備OK n/m」の人数
         static let readyCount = "room.readyCount"
+        /// ルームパネルのヒント文言（「全員OKで解禁 · あと N人」など）
+        static let readyHint = "room.readyHint"
+        /// 「準備OK」「準備OKを取り消す」
+        static let ready = "room.ready"
+        /// 「強制解禁（作成者）」
+        static let forceUnlock = "room.forceUnlock"
         /// 見出し行の「候補を追加」
         static let addCandidate = "room.addCandidate"
         /// 「前回見たあとに N件の候補が増えました」
@@ -85,6 +91,16 @@ struct RoomView: View {
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
+        .confirmationDialog(
+            Text("まだ準備OKしていない人がいます。ガチャを解禁しますか？"),
+            isPresented: $model.isConfirmingForceUnlock,
+            titleVisibility: .visible
+        ) {
+            Button("解禁する") {
+                model.confirmForceUnlockTapped()
+            }
+            Button("キャンセル", role: .cancel) {}
+        }
         .task {
             await model.observe()
         }
@@ -117,6 +133,8 @@ struct RoomView: View {
             }
             .padding(.trailing, model.isOwner ? 0 : DGSpacing.s8)
         })
+        // 強制解禁を送っている途中は戻らせない（失敗のトーストをこの画面で出し、もう一度押せるようにするため）
+        .disabled(model.isForceUnlocking)
     }
 
     /// 状態チップ（ルームが届くまでは出さない）
@@ -166,10 +184,19 @@ struct RoomView: View {
                     capsuleCount: model.capsuleCount,
                     readyCount: model.readyCount,
                     memberCount: model.memberCount,
-                    members: model.members,
+                    members: model.displayedMembers,
                     myPostCount: model.myPostCount,
                     postLimit: model.room?.settings.postLimit ?? 0,
-                    likeMode: model.room?.settings.likeMode ?? .boost
+                    likeMode: model.room?.settings.likeMode ?? .boost,
+                    readiness: RoomPanel.Readiness(
+                        hint: model.readyHint,
+                        isReady: model.isReady,
+                        showsButton: model.showsReadyButton,
+                        canForceUnlock: model.canForceUnlock,
+                        isForceUnlocking: model.isForceUnlocking,
+                        onToggleReady: { model.readyTapped() },
+                        onForceUnlock: { model.forceUnlockTapped() }
+                    )
                 ) {
                     navigate(.members(roomID: model.roomID))
                 }
@@ -328,7 +355,9 @@ struct RoomView: View {
             shape.strokeBorder(Color.dgLineDashedStrong, style: StrokeStyle(lineWidth: DGBorder.regular, dash: Self.emptyDash))
         }
     }
+}
 
+extension RoomView {
     // MARK: - 下部
 
     /// 下部に固定する「ガチャを回す」（03 の S-07 の GachaCTA）。`drawn`・`closed` と読み込み中は出さない
@@ -360,12 +389,14 @@ struct RoomView: View {
 }
 
 #Preview("S-07 候補あり") {
+    let server = InMemoryServer.demo(.roomWithCandidates)
     NavigationStack {
         RoomView(
             model: RoomModel(
                 roomID: DemoScenario.roomID,
                 userID: DemoScenario.myUserID,
-                repository: InMemoryServer.demo(.roomWithCandidates),
+                repository: server,
+                functions: server,
                 toasts: DGToastCenter()
             )
         ) { _ in }
@@ -373,12 +404,14 @@ struct RoomView: View {
 }
 
 #Preview("S-07 空") {
+    let server = InMemoryServer.demo(.oneRoom)
     NavigationStack {
         RoomView(
             model: RoomModel(
                 roomID: DemoScenario.roomID,
                 userID: DemoScenario.myUserID,
-                repository: InMemoryServer.demo(.oneRoom),
+                repository: server,
+                functions: server,
                 toasts: DGToastCenter()
             )
         ) { _ in }
@@ -386,12 +419,14 @@ struct RoomView: View {
 }
 
 #Preview("S-07 文字を最大") {
+    let server = InMemoryServer.demo(.roomWithCandidates)
     NavigationStack {
         RoomView(
             model: RoomModel(
                 roomID: DemoScenario.roomID,
                 userID: DemoScenario.myUserID,
-                repository: InMemoryServer.demo(.roomWithCandidates),
+                repository: server,
+                functions: server,
                 toasts: DGToastCenter()
             )
         ) { _ in }

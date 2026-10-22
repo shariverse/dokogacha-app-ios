@@ -1,0 +1,107 @@
+//
+//  UITestIdentifiers.swift
+//  DokogachaUITests
+//
+
+import Foundation
+
+/// UI テストの各クラスで共通に使う、画面の `accessibilityIdentifier`・デモのデータの ID・待つ時間
+enum UITestID {
+    /// S-01 の表示名の入力欄（`OnboardingView.Identifier.displayName`）
+    static let displayNameField = "onboarding.displayName"
+    /// S-01 の「はじめる」（`OnboardingView.Identifier.start`）
+    static let startButton = "onboarding.start"
+    /// ホーム（`HomeView.Identifier.screen`）
+    static let home = "home.screen"
+    /// ホームのデモのルームのカード（`HomeView.Identifier.room(DemoScenario.roomID)`）
+    static let demoRoomCard = "home.room.demo-room"
+    /// 進行中のルームの空の表示（`HomeView.Identifier.roomsEmpty`）
+    static let roomsEmpty = "home.rooms.empty"
+    /// S-07 ルーム（`RoomView.Identifier.screen`）
+    static let roomScreen = "room.screen"
+    /// ホームの「＋ ルームを作る」（`HomeView.Identifier.createRoom`）
+    static let createRoomButton = "home.createRoom"
+    /// S-03（`CreateRoomView.Identifier.screen`）
+    static let createRoomScreen = "createRoom.screen"
+    /// S-03 のルーム名の入力欄（`CreateRoomView.Identifier.name`）
+    static let roomNameField = "createRoom.name"
+    /// S-03 の「ルームを作成」（`CreateRoomView.Identifier.submit`）
+    static let createRoomSubmit = "createRoom.submit"
+    /// S-04（`InviteView.Identifier.screen`）
+    static let inviteScreen = "invite.screen"
+    /// S-04 の招待コード（`InviteView.Identifier.code`）
+    static let inviteCode = "invite.code"
+    /// S-04 の「ルームへ進む」（`InviteView.Identifier.openRoom`）
+    static let openRoomButton = "invite.openRoom"
+    /// ホームの設定の歯車（`HomeView.Identifier.settings`）
+    static let settingsButton = "home.settings"
+    /// S-15 設定（`SettingsView.Identifier.screen`）
+    static let settingsScreen = "settings.screen"
+    /// S-15 の表示名の行（`SettingsView.Identifier.displayName`）
+    static let displayNameRow = "settings.displayName"
+    /// 表示名の変更のシートの入力欄（`DisplayNameEditor.Identifier.field`）
+    static let nameEditorField = "settings.nameEditor.field"
+    /// 表示名の変更のシートの「保存」（`DisplayNameEditor.Identifier.save`）
+    static let nameEditorSave = "settings.nameEditor.save"
+    /// ホームの「招待コードで参加」（`HomeView.Identifier.joinByCode`）
+    static let joinByCodeButton = "home.joinByCode"
+    /// S-05 の招待コードの入力欄（`JoinByCodeView.Identifier.code`）
+    static let joinCodeField = "joinByCode.code"
+    /// S-05 の入力欄の下のエラー（`JoinByCodeView.Identifier.error`）
+    static let joinCodeError = "joinByCode.error"
+    /// S-05 の「参加する」（`JoinByCodeView.Identifier.submit`）
+    static let joinCodeSubmit = "joinByCode.submit"
+    /// S-06（`JoinConfirmView.Identifier.screen`）
+    static let joinConfirmScreen = "joinConfirm.screen"
+    /// S-06 のルームのカード（`JoinConfirmView.Identifier.card`）
+    static let joinConfirmCard = "joinConfirm.card"
+    /// S-06 の「参加する」（`JoinConfirmView.Identifier.join`）
+    static let joinConfirmJoin = "joinConfirm.join"
+    /// デモの参加できるルームの ID（`DemoScenario.joinableRoomID`）
+    static let joinableRoomID = "demo-room-joinable"
+    /// デモの自分の候補（`room-with-candidates` の江の島）
+    static let myCandidateID = "demo-candidate-3"
+    /// デモのそうたの候補（`room-with-candidates` の明治神宮。いいね 0）
+    static let shrineCandidateID = "demo-candidate-2"
+    /// S-10 候補の詳細（`CandidateDetailView.Identifier.screen`）
+    static let candidateDetailScreen = "candidateDetail.screen"
+    /// S-10 の「この候補を削除」（`CandidateDetailView.Identifier.delete`）
+    static let candidateDetailDelete = "candidateDetail.delete"
+    /// S-07 の見出し行の「候補を追加」（`RoomView.Identifier.addCandidate`）
+    static let roomAddCandidate = "room.addCandidate"
+    /// S-08（`AddCandidateView.Identifier.screen`）
+    static let addCandidateScreen = "addCandidate.screen"
+    /// S-08 のヘッダーの「n/上限」（`AddCandidateView.Identifier.postCount`）
+    static let addCandidatePostCount = "addCandidate.postCount"
+    /// S-08 の検索欄（`AddCandidateView.Identifier.searchField`）
+    static let addCandidateSearch = "addCandidate.search"
+    /// S-08 のすみだ水族館の「追加」（`AddCandidateView.Identifier.add(DemoPlaceSearchService.sumidaAquariumID)`）
+    static let sumidaAquariumAdd = "addCandidate.place.demo-place-sumida-aquarium.add"
+    /// S-09（`PostCandidateView.Identifier.screen`）
+    static let postCandidateScreen = "postCandidate.screen"
+    /// S-09 の場所名（`PostCandidateView.Identifier.placeName`）
+    static let postCandidatePlaceName = "postCandidate.placeName"
+    /// S-09 のカテゴリ（`PostCandidateView.Identifier.category`）
+    static let postCandidateCategory = "postCandidate.category"
+    /// S-09 のひとこと（`PostCandidateView.Identifier.note`）
+    static let postCandidateNote = "postCandidate.note"
+    /// S-09 の「候補に追加」（`PostCandidateView.Identifier.submit`）
+    static let postCandidateSubmit = "postCandidate.submit"
+    /// S-07 の「準備OK n/m」（`RoomView.Identifier.readyCount`）
+    static let roomReadyCount = "room.readyCount"
+    /// S-07 のヒント文言（`RoomView.Identifier.readyHint`）
+    static let roomReadyHint = "room.readyHint"
+    /// S-07 の「準備OK」「準備OKを取り消す」（`RoomView.Identifier.ready`）
+    static let roomReady = "room.ready"
+    /// S-07 の「強制解禁（作成者）」（`RoomView.Identifier.forceUnlock`）
+    static let roomForceUnlock = "room.forceUnlock"
+    /// S-07 の下部の「ガチャを回す」（`RoomView.Identifier.gacha`）
+    static let roomGacha = "room.gacha"
+    /// 画面が出るのを待つ時間
+    static let timeout: TimeInterval = 10
+
+    /// S-07 の候補のカード（`RoomView.Identifier.candidate(_:)`）
+    static func candidateCard(_ candidateID: String) -> String {
+        "room.candidate.\(candidateID)"
+    }
+}

@@ -6,7 +6,7 @@
 @testable import Dokogacha
 import Foundation
 
-/// `deleteCandidate` の結果を決められ、送られた入力を記録する擬似の Functions（ほかの Callable は擬似のサーバーに渡す）。
+/// `deleteCandidate`・`forceUnlock` の結果を決められ、送られた入力を記録する擬似の Functions（ほかの Callable は擬似のサーバーに渡す）。
 ///
 /// ふるまいは `JoinCallBehavior` と同じ（擬似のサーバーで処理する・エラーを投げる・`finish()` まで止まる）
 final class DeleteControlledFunctions: FunctionsClient {
@@ -14,6 +14,9 @@ final class DeleteControlledFunctions: FunctionsClient {
     var deleteBehavior: JoinCallBehavior = .pass
     /// 送られた `deleteCandidate` の入力（送られた順）
     private(set) var deleteRequests: [CandidateRequest] = []
+    var forceUnlockBehavior: JoinCallBehavior = .pass
+    /// 送られた `forceUnlock` の入力（送られた順）
+    private(set) var forceUnlockRequests: [RoomRequest] = []
     private var pending: CheckedContinuation<Void, Never>?
 
     init(server: InMemoryServer) {
@@ -82,6 +85,8 @@ final class DeleteControlledFunctions: FunctionsClient {
     }
 
     func forceUnlock(_ request: RoomRequest) async throws {
+        forceUnlockRequests.append(request)
+        try await perform(forceUnlockBehavior)
         try await server.forceUnlock(request)
     }
 

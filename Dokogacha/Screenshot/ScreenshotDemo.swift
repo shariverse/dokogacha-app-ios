@@ -154,10 +154,20 @@ extension ScreenshotDemo {
     /// S-07 ルームを、デモのルーム（`DemoScenario.roomID`）で開く（ホームから進まずに、ルームを `NavigationStack` に入れて出す）。
     ///
     /// データは `-demo-scenario` で選ぶ（候補あり: `room-with-candidates`、空: `one-room`）。
-    /// 起動引数 `-screenshot-like <候補の ID>` を付けると、その候補に自分がいいねした状態で開く（いいねした後を撮るため）
+    /// 起動引数で撮る状態を選ぶ:
+    /// - `-screenshot-like <候補の ID>`: その候補に自分がいいねした状態で開く（いいねした後を撮るため）
+    /// - `-screenshot-ready <uid,uid,…>`: そのメンバーが準備OKにした状態で開く（解禁の判定も通す。「あと N人」・解禁を撮るため）
+    /// - `-screenshot-force-unlocked`: 作成者（自分）が強制解禁した状態で開く
+    /// - `-screenshot-confirm-force-unlock`: 強制解禁の確認のダイアログを出した状態で開く
     struct RoomScene: View {
         /// いいねしておく候補の起動引数
         static let likeArgument = "-screenshot-like"
+        /// 準備OKにしておくメンバーの起動引数（uid をカンマでつなぐ）
+        static let readyArgument = "-screenshot-ready"
+        /// 強制解禁しておく起動引数
+        static let forceUnlockedArgument = "-screenshot-force-unlocked"
+        /// 強制解禁の確認のダイアログを出しておく起動引数
+        static let confirmForceUnlockArgument = "-screenshot-confirm-force-unlock"
 
         @State private var toasts: DGToastCenter
         private let model: RoomModel
@@ -171,7 +181,17 @@ extension ScreenshotDemo {
                     try server.writeLike(true, candidateID: candidateID, roomID: DemoScenario.roomID, userID: userID, by: userID)
                 }
             }
-            model = RoomModel(roomID: DemoScenario.roomID, userID: userID, repository: services.rooms, toasts: toasts)
+            if let server = services.inMemoryServer {
+                Self.prepareReadiness(on: server, userID: userID)
+            }
+            model = RoomModel(
+                roomID: DemoScenario.roomID,
+                userID: userID,
+                repository: services.rooms,
+                functions: services.functions,
+                toasts: toasts
+            )
+            model.isConfirmingForceUnlock = ProcessInfo.processInfo.arguments.contains(Self.confirmForceUnlockArgument)
             _toasts = State(initialValue: toasts)
         }
 
@@ -180,6 +200,19 @@ extension ScreenshotDemo {
                 RoomView(model: model) { _ in }
             }
             .dgToast(toasts)
+        }
+
+        /// 起動引数のメンバーを準備OKにし、指定があれば強制解禁する（擬似のサーバーの書き込みを通すので、解禁の判定もされる）
+        private static func prepareReadiness(on server: InMemoryServer, userID: String) {
+            let readyIDs = ScreenshotDemo.value(after: readyArgument)?.split(separator: ",").map(String.init) ?? []
+            for memberID in readyIDs {
+                server.applyDirectWrite {
+                    try server.writeReady(true, roomID: DemoScenario.roomID, userID: memberID, by: memberID)
+                }
+            }
+            if ProcessInfo.processInfo.arguments.contains(forceUnlockedArgument) {
+                try? server.forceUnlock(RoomRequest(roomId: DemoScenario.roomID), by: userID)
+            }
         }
     }
 

@@ -66,6 +66,7 @@ final class CandidateDetailModel {
             roomID: roomID,
             userID: userID,
             repository: repository,
+            functions: functions,
             toasts: toasts,
             resubscribeDelay: resubscribeDelay
         )
