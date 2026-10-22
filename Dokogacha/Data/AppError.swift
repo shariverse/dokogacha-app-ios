@@ -181,6 +181,12 @@ extension AppError {
         case unlockRuleLocked = "unlock-rule-locked"
         /// `drawn`・`closed` でいいねの効き方を変えようとした（F-03）
         case likeModeLocked = "like-mode-locked"
+        /// ルームが解禁されていない（F-40。`unlocked` でも、数え直した準備OKで条件を満たさないとき）
+        case roomNotUnlocked = "room-not-unlocked"
+        /// 抽選の対象の候補が無い（F-40「候補がありません」）
+        case noCandidates = "no-candidates"
+        /// ガチャで当選した候補（今の当選・引き直しで除外した前の当選）を削除しようとした
+        case candidateDrawn = "candidate-drawn"
         /// 招待コードを決められなかった（もう一度で通る見込みが高い）
         case inviteCodeUnavailable = "invite-code-unavailable"
         /// 想定していないエラー
@@ -253,6 +259,12 @@ extension AppError {
                 String(localized: "解禁の条件は候補募集中のときだけ変更できます")
             case .likeModeLocked:
                 String(localized: "いいねの効き方はガチャを回す前だけ変更できます")
+            case .roomNotUnlocked:
+                String(localized: "まだガチャは解禁されていません")
+            case .noCandidates:
+                String(localized: "候補がありません")
+            case .candidateDrawn:
+                String(localized: "ガチャで当選した候補は削除できません")
             case .permissionDenied:
                 String(localized: "この操作はできません")
             case .unauthenticated, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,

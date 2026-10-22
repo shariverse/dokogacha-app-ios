@@ -31,6 +31,9 @@ struct AppErrorTests {
         ("post-limit-decrease", "投稿数は今より少なくできません"),
         ("unlock-rule-locked", "解禁の条件は候補募集中のときだけ変更できます"),
         ("like-mode-locked", "いいねの効き方はガチャを回す前だけ変更できます"),
+        ("room-not-unlocked", "まだガチャは解禁されていません"),
+        ("no-candidates", "候補がありません"),
+        ("candidate-drawn", "ガチャで当選した候補は削除できません"),
         ("invite-code-unavailable", "通信できませんでした"),
         ("internal", "通信できませんでした")
     ]

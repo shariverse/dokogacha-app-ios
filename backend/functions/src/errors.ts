@@ -63,6 +63,19 @@ export const APP_ERRORS = {
   "unlock-rule-locked": { code: "failed-precondition", message: "解禁の条件は候補募集中のときだけ変更できます" },
   /** `drawn`・`closed` でいいねの効き方を変えようとした（02 の F-03「open/unlocked のときのみ変更可」） */
   "like-mode-locked": { code: "failed-precondition", message: "いいねの効き方はガチャを回す前だけ変更できます" },
+  /**
+   * ガチャを回そうとしたが、ルームが解禁されていない（02 の F-40「unlocked のとき、メンバーなら誰でも回せる」）。
+   * `status` が `unlocked` でも、`drawGacha` が数え直した準備OKで解禁の条件を満たさないとき（参加した直後で、
+   * `onMemberWrite` がまだ `open` に戻していない間）にも使う
+   */
+  "room-not-unlocked": { code: "failed-precondition", message: "まだガチャは解禁されていません" },
+  /** 抽選の対象の候補が無い（02 の F-40「候補が0件のときは回せない（「候補がありません」）」。引き直しで全部除外したときも） */
+  "no-candidates": { code: "failed-precondition", message: "候補がありません" },
+  /**
+   * ガチャで当選した候補（今の当選・引き直しで除外した前の当選）を削除しようとした。
+   * 抽選の記録（`draws`）と行き先きっぷ・過去のアイデアが指す候補が消えないようにする
+   */
+  "candidate-drawn": { code: "failed-precondition", message: "ガチャで当選した候補は削除できません" },
   /** 招待コードを決められなかった（重複が続いた。もう一度呼べば通る見込みが高い） */
   "invite-code-unavailable": { code: "unavailable", message: "通信できませんでした" },
   /** 想定していないエラー */

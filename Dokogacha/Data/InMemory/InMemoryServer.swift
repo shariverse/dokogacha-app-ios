@@ -154,7 +154,7 @@ final class InMemoryServer {
         case .invalidArgument:
             .invalidArgument
         case .profileRequired, .roomAlreadyDecided, .ownerCannotLeave, .cannotRemoveOwner, .roomClosed, .postLimitDecrease,
-             .unlockRuleLocked, .likeModeLocked:
+             .unlockRuleLocked, .likeModeLocked, .roomNotUnlocked, .noCandidates, .candidateDrawn:
             .failedPrecondition
         case .inviteCodeNotFound, .roomNotFound, .memberNotFound, .candidateNotFound:
             .notFound
