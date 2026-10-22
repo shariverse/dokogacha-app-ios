@@ -39,6 +39,7 @@
 - `xcodebuild test` に `-only-testing:DokogachaTests` と `-only-testing:DokogachaUITests/<クラス>/<メソッド>` を一緒に渡すと、Unit は流れたのに UI テストは「Executed 0 tests」で終わった（終了コードは 0）。UI テストを 1 件だけ流すときは別の `xcodebuild` で渡し、`Executed 1 test` を確かめる（2026-10-23）
 - Simulator の回線は UI テストから切れないので、オフラインの表示は起動引数 `-network-offline`（`-uiTesting`・撮影モードのときだけ効く）で確かめる。`NWPathMonitor` を使わず固定の状態を流すので、オンラインに戻る流れは Unit テスト（`NetworkOfflineTests`・`LaunchRouteOfflineTests`）で確かめる（2026-10-23）
 - シートの中の `NavigationStack`（S-05・S-06）は別の `UINavigationController` なので、端からのスワイプで戻るにはシートの中の根元にも `InteractivePopGesture` を付ける。送っている途中に止める印（`NavigationLock`）もスタックごとに持つ（2026-10-23）
+- 根元のビューに `.safeAreaInset(edge: .top)` でバナーを付けても、`NavigationStack` に積んだ画面（ヘッダーを自前で置く S-07 など）は上を空けず、ヘッダーがバナーの下に隠れた（iOS 26.5 の Simulator）。画面の上に帯を出すときは `VStack` で縦に並べる（`OfflineBannerModifier`）（2026-10-23）
 
 ## backend（Firebase）
 
