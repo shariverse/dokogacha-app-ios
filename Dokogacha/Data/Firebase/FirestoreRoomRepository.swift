@@ -13,7 +13,8 @@ final class FirestoreRoomRepository: RoomRepository {
     /// ホームに出す、進行中のルームの状態（`closed` 以外。`firestore.indexes.json` の `memberIds`＋`status`＋`createdAt` の索引を使う）
     static let activeStatuses: [RoomStatus] = [.open, .unlocked, .drawn]
 
-    private let gateway: any FirestoreGateway
+    /// SDK の窓口（拡張のファイル `FirestoreRoomRepository+PastIdeas.swift` からも使う）
+    let gateway: any FirestoreGateway
 
     /// SDK の窓口を受け取って作る
     init(gateway: any FirestoreGateway) {
@@ -32,7 +33,7 @@ final class FirestoreRoomRepository: RoomRepository {
         return FirestoreSubscription.query(query, gateway: gateway) { FirestoreDecoding.list($0, FirestoreDecoding.room) }
     }
 
-    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+    func closedRooms(userID: String, limit: Int?) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
         // `firestore.indexes.json` の `memberIds`＋`status`＋`closedAt` の索引を使う
         let query = FirestoreQuerySpec(
             collectionPath: FirestorePath.rooms,
@@ -40,7 +41,8 @@ final class FirestoreRoomRepository: RoomRepository {
                 .arrayContains(field: "memberIds", value: userID),
                 .isIn(field: "status", values: [RoomStatus.closed.rawValue])
             ],
-            order: .init(field: "closedAt", descending: true)
+            order: .init(field: "closedAt", descending: true),
+            limit: limit
         )
         return FirestoreSubscription.query(query, gateway: gateway) { FirestoreDecoding.list($0, FirestoreDecoding.room) }
     }

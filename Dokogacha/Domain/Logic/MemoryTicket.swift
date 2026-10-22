@@ -26,6 +26,8 @@ nonisolated struct MemoryTicket: Identifiable, Equatable, Sendable {
 nonisolated extension MemoryTicket {
     /// ホームに最初に出す枚数（03 の S-02「最大5件表示＋「すべて見る」」）
     static let visibleLimit = 5
+    /// 「すべて見る」を押す前に読む、終了したルームの数（出す 5 枚と、「すべて見る」を出すかを決める 1 件）
+    static let queryLimit = visibleLimit + 1
 
     /// 終了したルームと当選した候補から、新しい順のきっぷを作る。
     ///
@@ -63,8 +65,21 @@ nonisolated extension MemoryTicket {
         showsAll ? tickets : Array(tickets.prefix(visibleLimit))
     }
 
-    /// 「すべて見る」を出すか（押す前で、5 枚より多いとき）
-    static func hasMore(_ tickets: [Self], showsAll: Bool) -> Bool {
-        !showsAll && tickets.count > visibleLimit
+    /// 「すべて見る」を出すか（押す前で、終了したルームが 5 つより多いとき）。
+    ///
+    /// きっぷの数ではなくルームの数で決める（6 つ目のルームは当選した候補を購読しないので、きっぷにならない）
+    /// - Parameters:
+    ///   - roomCount: 読んだ終了したルームの数（押す前は `queryLimit` まで）
+    ///   - showsAll: 「すべて見る」を押したか
+    static func hasMore(roomCount: Int, showsAll: Bool) -> Bool {
+        !showsAll && roomCount > visibleLimit
+    }
+
+    /// 当選した候補を購読するルーム（「すべて見る」を押す前は、新しい順の先頭の 5 つ。出さないきっぷの候補まで読まない）
+    /// - Parameters:
+    ///   - rooms: 終了したルーム（終了の新しい順）
+    ///   - showsAll: 「すべて見る」を押したか
+    static func watchedRooms(_ rooms: [Identified<Room>], showsAll: Bool) -> [Identified<Room>] {
+        showsAll ? rooms : Array(rooms.prefix(visibleLimit))
     }
 }

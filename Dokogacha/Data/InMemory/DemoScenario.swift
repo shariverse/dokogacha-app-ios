@@ -32,6 +32,9 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     case drawnRooms = "drawn-rooms"
     /// `drawn-rooms` に、終了した（`closed`）ルームを 6 つ足したもの（ホームの思い出のきっぷの撮影・プレビュー用）
     case memories
+    /// `room-with-candidates` に、自分の過去のアイデア（2 つのルームの 5 件）を足したもの
+    /// （S-08 の「過去のアイデア」から持ち込む UI テスト・撮影用。`DemoScenario+PastIdeas.swift`）
+    case pastIdeas = "past-ideas"
 
     /// 表示名をまだ登録していないシナリオか（自分とほかのメンバーのプロフィールを入れない）
     var isFirstLaunch: Bool {
@@ -104,12 +107,12 @@ extension InMemoryServer {
                 )
             }
         }
-        if [.oneRoom, .roomWithCandidates, .severalRooms].contains(scenario) {
+        if [.oneRoom, .roomWithCandidates, .severalRooms, .pastIdeas].contains(scenario) {
             server.rooms[DemoScenario.roomID] = demoRoom(now: now)
             let codeEntry = InviteCodeEntry(roomId: DemoScenario.roomID, createdAt: now.addingTimeInterval(-7_200))
             server.inviteCodes[DemoScenario.inviteCode] = codeEntry
         }
-        if scenario == .roomWithCandidates || scenario == .severalRooms {
+        if [.roomWithCandidates, .severalRooms, .pastIdeas].contains(scenario) {
             server.rooms[DemoScenario.roomID]?.candidates = demoCandidates(now: now)
             server.rooms[DemoScenario.roomID]?.room.candidateCount = 3
         }
@@ -129,6 +132,9 @@ extension InMemoryServer {
             addJoinableRooms(to: server, now: now)
         }
         addClosingDemoRooms(scenario, to: server, now: now)
+        if scenario == .pastIdeas {
+            addPastIdeaDemo(to: server, now: now)
+        }
         return server
     }
 

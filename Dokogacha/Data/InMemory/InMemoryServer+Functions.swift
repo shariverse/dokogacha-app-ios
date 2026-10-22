@@ -15,8 +15,6 @@ extension InMemoryServer: FunctionsClient {
     static let deadlineEarliestGrace: TimeInterval = 5 * 60
     /// 参加できる状態（02 の F-04）
     static let joinableStatuses: Set<RoomStatus> = [.open, .unlocked]
-    /// 候補を追加・削除できる状態（02 の §2.1。backend の `CANDIDATE_EDITABLE_STATUSES`）
-    static let candidateEditableStatuses: Set<RoomStatus> = [.open, .unlocked]
 
     // MARK: この端末（サインインしている人）からの呼び出し
 
@@ -199,7 +197,8 @@ extension InMemoryServer: FunctionsClient {
 
     /// 候補を追加する（backend の `candidates/service.ts` の `addCandidate`。判定の順は `logic.ts` の `decideAddCandidate`）。
     ///
-    /// 入力の検証 → ルーム → メンバー → 状態（open・unlocked）→ 重複（作らずに既存の候補を返す。自分の投稿でも・上限でも）
+    /// 入力の検証 → ルーム → メンバー → 持ち込み元（`fromPastIdeaId` があれば、自分の過去のアイデアにあるか。無ければ `invalid-argument`）
+    /// → 状態（open・unlocked）→ 重複（作らずに既存の候補を返す。自分の投稿でも・上限でも）
     /// → 自分の投稿数の上限 → ルームの候補の上限（200 件）の順に確かめ、`colorIndex` は既存の最大 + 1 にする
     func addCandidate(_ request: AddCandidateRequest, by callerID: String?) throws -> AddCandidateResult {
         let userID = try Self.requireCaller(callerID)
@@ -216,7 +215,10 @@ extension InMemoryServer: FunctionsClient {
         guard let member = record.members[userID] else {
             throw Self.error(.notRoomMember)
         }
-        guard Self.candidateEditableStatuses.contains(record.room.status) else {
+        if let fromPastIdeaID, pastIdeas[userID]?[fromPastIdeaID] == nil {
+            throw Self.error(.invalidArgument)
+        }
+        guard CandidateRules.editableStatuses.contains(record.room.status) else {
             throw Self.error(.roomAlreadyDecided)
         }
         let existing = record.candidates.map { Identified(id: $0.key, value: $0.value) }
@@ -266,7 +268,7 @@ extension InMemoryServer: FunctionsClient {
         guard candidate.postedBy == userID || record.room.ownerId == userID else {
             throw Self.error(.notCandidateOwner)
         }
-        guard Self.candidateEditableStatuses.contains(record.room.status) else {
+        guard CandidateRules.editableStatuses.contains(record.room.status) else {
             throw Self.error(.roomAlreadyDecided)
         }
         let referencedByDraw = record.draws.values.contains { $0.candidateId == candidateID }

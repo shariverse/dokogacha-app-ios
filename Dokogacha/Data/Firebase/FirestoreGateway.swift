@@ -86,6 +86,8 @@ nonisolated struct FirestoreQuerySpec: Equatable, Sendable {
     var filters: [Filter] = []
     /// 並べ替えの条件
     var order: Order?
+    /// 読む数の上限（並べ替えた先頭から。nil なら上限なし）
+    var limit: Int?
 }
 
 /// クライアントから直接書くフィールドの値（05 の §4 の「準備OK」「いいね」「lastSeenAt」に要るものだけ）

@@ -22,6 +22,7 @@ final class RoomControlledRepository: RoomRepository {
     var roomFailures: [AppError] = []
     var memberFailures: [AppError] = []
     var candidateFailures: [AppError] = []
+    var pastIdeaFailures: [AppError] = []
     /// いいねの書き込みを呼んだ回数
     private(set) var likeCallCount = 0
     /// 準備OKの書き込みを呼んだ回数
@@ -134,12 +135,19 @@ final class RoomControlledRepository: RoomRepository {
         server.draw(roomID: roomID, drawID: drawID)
     }
 
-    func closedRooms(userID: String) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
-        server.closedRooms(userID: userID)
+    func closedRooms(userID: String, limit: Int?) -> AsyncStream<LiveUpdate<[Identified<Room>]>> {
+        server.closedRooms(userID: userID, limit: limit)
     }
 
     func candidate(roomID: String, candidateID: String) -> AsyncStream<LiveUpdate<Identified<Candidate>?>> {
         server.candidate(roomID: roomID, candidateID: candidateID)
+    }
+
+    func pastIdeas(userID: String) -> AsyncStream<LiveUpdate<[Identified<PastIdea>]>> {
+        guard pastIdeaFailures.isEmpty else {
+            return Self.failing(pastIdeaFailures.removeFirst())
+        }
+        return server.pastIdeas(userID: userID)
     }
 
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {

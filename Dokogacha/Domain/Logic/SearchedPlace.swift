@@ -48,6 +48,15 @@ nonisolated struct SearchedPlace: Identifiable, Equatable, Hashable, Sendable {
             category: PlaceCategory.classify(pointOfInterestCategory: hit.pointOfInterestCategory, placeName: place.name)
         )
     }
+
+    /// 同じ ID の結果を、先に出たものだけ残して取り除く（並びは保つ）。
+    ///
+    /// MapKit は同じ場所を 2 件返すことがあり、そのままだと画面の行（`ForEach`）の ID が重なって表示が崩れる。
+    /// ID が同じなら場所も同じ（識別子が同じ・名前と座標が同じ）なので、先の 1 件で足りる
+    static func uniqued(_ places: [Self]) -> [Self] {
+        var seen: Set<String> = []
+        return places.filter { seen.insert($0.id).inserted }
+    }
 }
 
 /// MapKit の検索結果 1 件から取り出した値（`MKMapItem` を画面の外に持ち出さないための写し）

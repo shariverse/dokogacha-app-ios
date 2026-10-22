@@ -17,7 +17,8 @@ protocol PlaceSearchService {
 
 /// `MKLocalSearch` で場所を探す実装。
 ///
-/// - 範囲は日本全体（06 の §4 の仮決め。`DomainConstants.SearchRegion`）。iOS 18 以降は範囲の外の結果を出さない（`regionPriority = .required`）
+/// - 範囲は日本全体を囲む矩形（06 の §4 の仮決め。`DomainConstants.SearchRegion`）。iOS 18 以降は矩形の外の結果を出さない
+///   （`regionPriority = .required`）。矩形は日本の外（韓国などの一部）も含むので、日本の場所だけになるとは限らない
 /// - 結果の種類は施設（`pointOfInterest`）。iOS 18 以降は山・湖などの地形（`physicalFeature`）も含める（「高尾山」などを探せるように）
 /// - 位置情報の許可は取らない（`MKLocalSearch` は許可が無くても範囲を指定して検索できる）
 struct MapKitPlaceSearchService: PlaceSearchService {
@@ -57,8 +58,11 @@ struct MapKitPlaceSearchService: PlaceSearchService {
         return response.mapItems.compactMap(Self.searchedPlace)
     }
 
-    /// MapKit の結果 1 件を、アプリの検索結果にする（投稿できない結果は nil）
-    private static func searchedPlace(_ item: MKMapItem) -> SearchedPlace? {
+    /// MapKit の結果 1 件を、アプリの検索結果にする（投稿できない結果は nil）。
+    ///
+    /// 名前・都道府県・市区町村・座標・識別子（iOS 18 以降）・カテゴリを `PlaceSearchHit` に写してから `SearchedPlace.make` に渡す。
+    /// 写し方を Unit テストで確かめるため、外から呼べるようにしてある（`SearchedPlaceTests`）
+    static func searchedPlace(_ item: MKMapItem) -> SearchedPlace? {
         let placemark = item.placemark
         var mapItemID: String?
         if #available(iOS 18.0, *) {

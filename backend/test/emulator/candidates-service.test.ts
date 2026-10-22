@@ -99,6 +99,8 @@ describe("候補の Functions の処理（Emulator の Firestore）", () => {
   describe("addCandidate（02 の F-10）", () => {
     it("候補を作り、ルームの候補数を増やす（いいねは 0・投稿者名はルームの表示名・投稿日時はサーバーの時刻）", async () => {
       const roomId = await room();
+      // 持ち込み元は bob の過去のアイデアにあるものだけを受け付ける
+      await db.doc("users/bob/pastIdeas/idea1").set({ sourceRoomId: "old", place: enoshima, prevLikeCount: 0 });
       const result = await addCandidate(
         deps(),
         "bob",
@@ -211,6 +213,34 @@ describe("候補の Functions の処理（Emulator の Firestore）", () => {
       await expectReason(addCandidate(deps(), "bob", input(roomId, enoshima, { note: "あ".repeat(41) })), "invalid-argument", "invalid-argument");
       await expectReason(addCandidate(deps(), "bob", input(roomId, { ...enoshima, latitude: 91 })), "invalid-argument", "invalid-argument");
       await expectReason(addCandidate(deps(), "bob", input(roomId, enoshima, { category: "museum" })), "invalid-argument", "invalid-argument");
+      expect(await candidateIds(roomId)).toEqual([]);
+    });
+
+    it("過去のアイデアから持ち込むと、自分の投稿として fromPastIdeaId を残して作る（いいねは 0・過去のアイデアは残す）", async () => {
+      const roomId = await room();
+      await db.doc("users/bob/pastIdeas/old_c2").set({ sourceRoomId: "old", place: enoshima, prevLikeCount: 4 });
+      const result = await addCandidate(deps(), "bob", input(roomId, enoshima, { fromPastIdeaId: "old_c2" }));
+      if (!("candidateId" in result)) {
+        throw new Error("重複になった");
+      }
+      const created = (await db.doc(`rooms/${roomId}/candidates/${result.candidateId}`).get()).data();
+      expect(created).toMatchObject({ fromPastIdeaId: "old_c2", postedBy: "bob", likedBy: [] });
+      expect((await db.doc("users/bob/pastIdeas/old_c2").get()).exists).toBe(true);
+    });
+
+    it("持ち込み元が自分の過去のアイデアに無ければ invalid-argument（他人の・無い ID。何も作らない）", async () => {
+      const roomId = await room();
+      await db.doc("users/carol/pastIdeas/old_c2").set({ sourceRoomId: "old", place: enoshima, prevLikeCount: 0 });
+      await expectReason(
+        addCandidate(deps(), "bob", input(roomId, enoshima, { fromPastIdeaId: "old_c2" })),
+        "invalid-argument",
+        "invalid-argument",
+      );
+      await expectReason(
+        addCandidate(deps(), "bob", input(roomId, enoshima, { fromPastIdeaId: "missing" })),
+        "invalid-argument",
+        "invalid-argument",
+      );
       expect(await candidateIds(roomId)).toEqual([]);
     });
 

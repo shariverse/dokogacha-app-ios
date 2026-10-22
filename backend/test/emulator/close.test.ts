@@ -268,6 +268,31 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
       expect(await pastIdeas("carol", "close-idempotent")).toEqual({});
     });
 
+    it("終了した時点のルームの値を渡すと、その後に退出した人にも登録する（トリガーの event.data.after）", async () => {
+      // 作成（set）ではトリガーが動かないので、closed のルームを直接作り、終了した時点の値を控える
+      await addRoom("close-snapshot", { status: "closed" });
+      const closedRoom = await roomData("close-snapshot");
+      // 終了の直後、トリガーが動く前に carol が退出した（closed のままの更新なので、トリガーは何もしない）
+      await db.doc("rooms/close-snapshot").update({ memberIds: ["alice", "bob"], memberCount: 2 });
+
+      await expect(registerPastIdeas(db, "close-snapshot", closedRoom)).resolves.toBe(6);
+      const expected = ["close-snapshot_c2", "close-snapshot_c3"];
+      expect(Object.keys(await pastIdeas("carol", "close-snapshot")).sort()).toEqual(expected);
+      expect(Object.keys(await pastIdeas("alice", "close-snapshot")).sort()).toEqual(expected);
+      expect((await pastIdeas("carol", "close-snapshot"))["close-snapshot_c2"]).toMatchObject({
+        sourceRoomName: "年末の旅行",
+        prevLikeCount: 3,
+      });
+    });
+
+    it("終了した時点の値を渡さないときは読み直す（読み直した時点のメンバーにだけ登録する）", async () => {
+      await addRoom("close-reread", { status: "closed" });
+      await db.doc("rooms/close-reread").update({ memberIds: ["alice", "bob"], memberCount: 2 });
+
+      await expect(registerPastIdeas(db, "close-reread")).resolves.toBe(4);
+      expect(await pastIdeas("carol", "close-reread")).toEqual({});
+    });
+
     it("closed でないルーム・無いルームには何も登録しない", async () => {
       await addRoom("close-not-closed");
       await expect(registerPastIdeas(db, "close-not-closed")).resolves.toBe(0);

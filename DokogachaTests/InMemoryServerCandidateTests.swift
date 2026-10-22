@@ -60,6 +60,7 @@ struct InMemoryServerCandidateTests {
         let server = InMemoryServerTests.makeServer()
         let roomID = try await Self.makeRoom(server)
         let place = Place(name: " 江の島 ", area: "神奈川・藤沢市", latitude: 35.3, longitude: 139.48, mapItemId: "I1")
+        server.pastIdeas["bob"] = ["idea1": InMemoryServerPastIdeaTests.pastIdea]
         let result = try await server.device(of: "bob").addCandidate(
             Self.request(roomID, place: place, note: " 海！ ", url: " https://example.com ", fromPastIdeaID: "idea1")
         )

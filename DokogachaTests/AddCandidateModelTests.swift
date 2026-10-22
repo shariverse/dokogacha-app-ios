@@ -127,7 +127,7 @@ struct AddCandidateModelTests {
 
         let aquarium = try Self.place("すみだ水族館")
         model.addTapped(aquarium)
-        #expect(model.draft == AddCandidateModel.Draft(place: aquarium, category: .aquarium))
+        #expect(model.draft == AddCandidateModel.Draft(place: aquarium, category: .aquarium, pastIdeaID: nil))
         #expect(model.request?.category == .aquarium)
         #expect(model.request?.note.isEmpty == true)
         #expect(model.request?.url == nil)
@@ -365,6 +365,56 @@ struct AddCandidateDuplicateTests {
 
         await model.submit()
         let prompt = try #require(model.duplicatePrompt)
+        await model.likeDuplicate(prompt)
+
+        #expect(model.finish == .fromSheet)
+        #expect(repository.likeCallCount == 0)
+    }
+
+    /// 重複の確認からいいねを送っている間は、ほかの行の「追加」で S-09 を開かない（いいねが届くと S-07 に戻るため）
+    @Test
+    func addIsIgnoredWhileLiking() async throws {
+        let server = Base.makeServer()
+        let repository = RoomControlledRepository(server: server)
+        repository.holdsLikes = true
+        let model = Base.makeModel(server: server, repository: repository)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Base.waitUntilLoaded(model))
+
+        model.addTapped(try Base.place("明治神宮"))
+        let prompt = try #require(model.duplicatePrompt)
+        model.likeDuplicateTapped(prompt)
+        #expect(await AsyncTestSupport.eventually { repository.isHoldingLike })
+        #expect(model.isLiking)
+
+        model.addTapped(try Base.place("すみだ水族館"))
+        #expect(model.draft == nil)
+
+        repository.release()
+        #expect(await AsyncTestSupport.eventually { model.finish == .fromList })
+        #expect(model.draft == nil)
+    }
+
+    /// サーバーの重複の候補がまだ購読で届いていなければ、いいねせずに閉じる（誰の投稿か分からないため）
+    @Test
+    func serverDuplicateNotYetDeliveredClosesWithoutLike() async throws {
+        let server = Base.makeServer()
+        let repository = RoomControlledRepository(server: server)
+        repository.feedCandidates()
+        let model = Base.makeModel(server: server, repository: repository)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        repository.sendCandidates()
+        #expect(await Base.waitUntilLoaded(model))
+        let aquarium = try Base.place("すみだ水族館")
+        model.addTapped(aquarium)
+        // 別の端末で自分が同じ場所を先に投稿したが、この画面の購読にはまだ届いていない
+        Base.insertCandidate("mine-elsewhere", place: aquarium, by: DemoScenario.myUserID, into: server)
+
+        await model.submit()
+        let prompt = try #require(model.duplicatePrompt)
+        #expect(prompt.candidateID == "mine-elsewhere")
         await model.likeDuplicate(prompt)
 
         #expect(model.finish == .fromSheet)

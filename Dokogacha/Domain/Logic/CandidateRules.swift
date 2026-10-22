@@ -18,6 +18,13 @@ nonisolated enum CandidateRules {
     /// 100m の判定には、楕円体と球の差（0.5% 未満）は効かないので球で計算する
     static let earthRadiusMeters: Double = 6_371_000
 
+    /// 候補を投稿・削除できるルームの状態（02 の §2.1・F-10「投稿できるのは open/unlocked のときだけ」。
+    /// backend の `CANDIDATE_EDITABLE_STATUSES`）。
+    ///
+    /// いいね・準備OKを変えられる状態（`RoomCandidateRow.likeableStatuses`・`InMemoryServer.interactiveStatuses`）と今は同じ値だが、
+    /// 決まりが別なので分けて持つ
+    static let editableStatuses: Set<RoomStatus> = [.open, .unlocked]
+
     /// 参考 URL の先頭に許すスキーム（小文字で比べる）
     private static let urlSchemes = ["http://", "https://"]
 

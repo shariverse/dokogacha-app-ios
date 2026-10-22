@@ -116,16 +116,24 @@ export async function closeOverdueRooms(deps: Pick<ServiceDeps, "db" | "nowMs">)
  * 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデア（`users/{uid}/pastIdeas`）に登録する
  * （02 の §6.5・F-13。`onRoomClosed` の中身）。
  *
- * ルームを読み直し、`closed` でなければ何もしない。ID は元のルームと候補から決まり（`pastIdeaId`）、値もルームと候補から決まるので、
- * 何度呼んでも同じドキュメントに同じ値を書く（冪等。トリガーのやり直しで重ねて作らない）。
- * 件数が多いときは `PAST_IDEA_BATCH_SIZE` 件ずつのバッチで書く。
+ * 宛先・ルーム名・当選・終了の日時は、トリガーが受け取った終了した時点のルームの値（`event.data.after`）を `closedRoom` で受け取って使う。
+ * 読み直すと、終了の直後（トリガーが動く前・やり直しの前）に退出・削除された人が `memberIds` から外れていて、登録されないため。
+ * `closedRoom` を渡さないとき（テスト・手で流し直すとき）は、ルームを読み直す。どちらも `closed` でなければ何もしない。
+ *
+ * 候補（場所・いいね数）はトリガーの時点で読む。`closed` ではいいねを書けない（ルール）ので、終了の後にいいねが増えることは無いが、
+ * 終了の直後に退出・削除された人のいいねは `likedBy` から外れているので、その分だけ「前回 N いいね」が少なくなりうる
+ * （終了のトランザクションに候補の写しを入れると、最大 199 件を書くことになるので入れない）。
+ *
+ * ID は元のルームと候補から決まり（`pastIdeaId`）、値もルームと候補から決まるので、何度呼んでも同じドキュメントに同じ値を書く
+ * （冪等。トリガーのやり直しで重ねて作らない）。件数が多いときは `PAST_IDEA_BATCH_SIZE` 件ずつのバッチで書く。
  * @param db Firestore
  * @param roomId ルームの ID
+ * @param closedRoom 終了した時点のルームの値（トリガーの `event.data.after`。無ければ読み直す）
  * @returns 書いた過去のアイデアの数（メンバー × 候補）
  */
-export async function registerPastIdeas(db: Firestore, roomId: string): Promise<number> {
+export async function registerPastIdeas(db: Firestore, roomId: string, closedRoom?: Partial<RoomDoc>): Promise<number> {
   const ref = roomRef(db, roomId);
-  const room = (await ref.get()).data() as Partial<RoomDoc> | undefined;
+  const room = closedRoom ?? (await ref.get()).data();
   if (room?.status !== "closed") {
     return 0;
   }

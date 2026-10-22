@@ -60,6 +60,8 @@ struct DokoGachaApp: App {
             ScreenshotDemo.ResultMemberScene(services: appDelegate.serverSession.services)
         case .homeMemories:
             ScreenshotDemo.HomeMemoriesScene(session: appDelegate.serverSession, deepLinks: appDelegate.deepLinks)
+        case .pastIdeas:
+            ScreenshotDemo.PastIdeasScene(services: appDelegate.serverSession.services)
         }
     }
 }

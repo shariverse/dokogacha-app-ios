@@ -71,17 +71,28 @@ struct PlaceAddAvailabilityTests {
         #expect(Self.availability(Self.shrine, candidates).isEnabled)
     }
 
-    /// 自分の投稿数が上限に達していたら「上限」（押せない。02 の F-10）。ほかの人の重複でも「上限」
+    /// 自分の投稿数が上限に達していたら、新しい場所は「上限」（押せない。02 の F-10）
     @Test
-    func limitReachedDisablesNewAndDuplicates() {
+    func limitReachedDisablesNewPlaces() {
         let candidates = [
             Self.candidate("c1", Self.sea, by: Self.me),
             Self.candidate("c2", Self.shrine, by: Self.other)
         ]
         #expect(Self.availability(Self.aquarium, candidates, postLimit: 1) == .limitReached)
-        #expect(Self.availability(Self.shrine, candidates, postLimit: 1) == .limitReached)
         #expect(!PlaceAddAvailability.limitReached.isEnabled)
         #expect(Self.availability(Self.aquarium, candidates, postLimit: 2) == .addable)
+    }
+
+    /// 判定の順は backend の `decideAddCandidate` と同じ「重複 → 上限」。上限に達していても、ほかの人の重複は重複の確認に回す
+    /// （上限の人もいいねできる）。自分の投稿は上限でも「追加済み」
+    @Test
+    func duplicateIsCheckedBeforeLimit() {
+        let candidates = [
+            Self.candidate("c1", Self.sea, by: Self.me),
+            Self.candidate("c2", Self.shrine, by: Self.other)
+        ]
+        #expect(Self.availability(Self.shrine, candidates, postLimit: 1) == .duplicate(candidateID: "c2"))
+        #expect(Self.availability(Self.sea, candidates, postLimit: 1) == .added)
     }
 
     /// 投稿を受け付けない状態（`drawn`・`closed`・ルームが届いていない）では押せない
