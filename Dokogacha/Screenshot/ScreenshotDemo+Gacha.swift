@@ -15,7 +15,7 @@ extension ScreenshotDemo {
     /// - `others-live`: 開いて少し後にはるかが回し、そのまま演出を再生する（動画を撮るため）
     /// - `play`: 開いて少し後に自分がレバーを回し、カプセルが出たら少し後に開ける（動画を撮るため）
     ///
-    /// 開け終えても画面は閉じない（撮影モードには戻る先が無いため）
+    /// 開け終えたら、アプリと同じく同じ画面の中で S-14 に替わる（`GachaFlowView`。S-13 から S-14 へのつながりを動画で撮るため）
     struct GachaScene: View {
         /// 撮る状態の起動引数
         static let modeArgument = "-screenshot-gacha"
@@ -28,6 +28,7 @@ extension ScreenshotDemo {
         @State private var model: GachaModel
         private let mode: ScreenshotGachaMode
         private let server: InMemoryServer?
+        private let services: DataServices
 
         /// - Parameter services: データ層の窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
         init(services: DataServices) {
@@ -59,10 +60,11 @@ extension ScreenshotDemo {
             _toasts = State(initialValue: toasts)
             self.mode = mode
             server = services.inMemoryServer
+            self.services = services
         }
 
         var body: some View {
-            GachaView(model: model, toasts: toasts) { _ in }
+            flow
                 .task {
                     await act()
                 }
@@ -75,6 +77,25 @@ extension ScreenshotDemo {
                         model.capsuleTapped()
                     }
                 }
+        }
+
+        /// S-13 と、開け終えた後の S-14
+        private var flow: some View {
+            GachaFlowView { onOpened in
+                GachaView(model: model, toasts: toasts, onOpened: onOpened)
+            } result: { drawID in
+                ResultView(
+                    model: ResultModel(
+                        roomID: DemoScenario.unlockedRoomID,
+                        drawID: drawID,
+                        userID: model.userID,
+                        repository: services.rooms,
+                        functions: services.functions,
+                        toasts: toasts
+                    ),
+                    toasts: toasts
+                )
+            }
         }
 
         /// 状態に合わせて、少し待ってから回す
