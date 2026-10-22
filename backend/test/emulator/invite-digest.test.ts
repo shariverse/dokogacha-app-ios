@@ -146,11 +146,21 @@ describe("前回のメンバーへの招待と新しい候補のまとめ通知"
       });
     });
 
-    it("同じ前回のルームからは 1 回だけ送り、2 回目は送らずに同じ人数を返す", async () => {
+    it("同じ今のルームからは、同じ前回のルームのメンバーに 1 回だけ送り、2 回目は送らずに同じ人数を返す", async () => {
       await inviteLastMembers(deps(), "me", { roomId: "invite-now" });
       const again = await inviteLastMembers(deps(), "me", { roomId: "invite-now" });
       expect(again).toEqual({ invitedCount: 2 });
       expect(await outbox("invite-now", "invited")).toHaveLength(1);
+    });
+
+    it("同じ前回のルームのメンバーを、別の今のルームからもう一度招待できる（印は今のルームごと）", async () => {
+      await addRoom("invite-next", { name: "春のお花見", status: "open", memberIds: ["me"], withMembers: ["me"] });
+      expect(await inviteLastMembers(deps(), "me", { roomId: "invite-now" })).toEqual({ invitedCount: 2 });
+      // invite-next には sota もいないので、haruka・sota・mio の 3 人
+      expect(await inviteLastMembers(deps(), "me", { roomId: "invite-next" })).toEqual({ invitedCount: 3 });
+      expect(tokensOf(await outbox("invite-now", "invited"))).toEqual(["haruka-token"]);
+      expect(tokensOf(await outbox("invite-next", "invited"))).toEqual(["haruka-token", "sota-token"]);
+      expect((await db.doc("rooms/invite-next/notificationLog/invited-me-invite-prev").get()).exists).toBe(true);
     });
 
     it("送る途中で失敗したら印を消し、もう一度呼ぶと送れる", async () => {
