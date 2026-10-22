@@ -2,8 +2,8 @@
 //  InMemoryServer+Triggers.swift
 //  Dokogacha
 //
-//  擬似のサーバーの Firestore のトリガー（backend の `onUserProfileUpdate` など）に当たる処理。
-//  backend ではドキュメントの更新の後に非同期で動くが、擬似のサーバーでは更新した Callable の中で続けて行う。
+//  擬似のサーバーの Firestore のトリガー（backend の `onUserProfileUpdate`・`onMemberWrite`）とスケジュール（`checkDeadlines`）に当たる処理。
+//  backend ではドキュメントの更新の後に非同期で動くが、擬似のサーバーでは更新した Callable・直接の書き込みの中で続けて行う。
 //
 
 import Foundation
@@ -40,5 +40,62 @@ extension InMemoryServer {
         if updated != rooms {
             rooms = updated
         }
+    }
+
+    /// メンバーを数え直して、解禁の条件（F-31）で `open`⇄`unlocked` を判定し直す
+    /// （backend の `onMemberWrite`・`unlock/logic.ts` の `planUnlock`。今の時刻は `clock`）。
+    ///
+    /// メンバーの参加・退出・削除・準備OKの変更と、設定の変更の後に呼ぶ（backend と同じく `lastSeenAt` だけの更新では呼ばない）。
+    /// - `memberCount`・`readyCount` はメンバーから数え直す（増減ではない）。判定には数え直した値を使う
+    /// - `drawn`・`closed` は状態を変えない
+    /// - 引き直しが可決して `unlocked` に戻ったルームは、準備OKの数で `open` に戻さない（02 の §6.4「準備OKはやり直さない」）
+    func rejudgeUnlock(_ record: inout RoomRecord) {
+        record.room.memberCount = record.members.count
+        record.room.readyCount = record.members.values.filter(\.ready).count
+        let status = record.room.status
+        guard status == .open || status == .unlocked else {
+            return
+        }
+        if status == .unlocked, record.room.reroll.status == .passed {
+            return
+        }
+        let input = UnlockInput(
+            status: status,
+            rule: record.room.settings.unlockRule,
+            memberCount: record.room.memberCount,
+            readyCount: record.room.readyCount,
+            deadlineAt: record.room.settings.deadlineAt,
+            forcedUnlock: record.room.forcedUnlock
+        )
+        record.room.status = UnlockJudge.nextStatus(input, now: clock())
+    }
+
+    /// 締切日時を過ぎた `open` のルームを判定し直して `unlocked` にする（backend の `checkDeadlines`。5 分ごとのスケジュール）。
+    ///
+    /// 擬似のサーバーには時刻で動く仕組みが無いので、テスト・デモで時刻（`clock`）を進めた後に呼ぶ。
+    /// - Returns: 解禁したルームの数
+    @discardableResult
+    func checkDeadlines() -> Int {
+        let now = clock()
+        var updated = rooms
+        var unlocked = 0
+        for (roomID, record) in rooms {
+            guard record.room.status == .open, let deadlineAt = record.room.settings.deadlineAt, deadlineAt <= now else {
+                continue
+            }
+            var next = record
+            rejudgeUnlock(&next)
+            if next.room.status == .unlocked {
+                unlocked += 1
+            }
+            if next != record {
+                updated[roomID] = next
+            }
+        }
+        // 購読に 1 回だけ流すよう、まとめて入れ替える（変わっていなければ入れ替えない）
+        if updated != rooms {
+            rooms = updated
+        }
+        return unlocked
     }
 }

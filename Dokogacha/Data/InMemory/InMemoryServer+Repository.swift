@@ -89,8 +89,8 @@ extension InMemoryServer {
             throw Self.permissionDenied
         }
         record.members[userID]?.ready = ready
-        // `readyCount` は backend では onMemberWrite（タスク 23）が数え直す。解禁の判定はそのタスクで足す
-        record.room.readyCount = record.members.values.filter(\.ready).count
+        // backend では members の更新で動く onMemberWrite が数え直して解禁を判定し直す
+        rejudgeUnlock(&record)
         rooms[roomID] = record
     }
 

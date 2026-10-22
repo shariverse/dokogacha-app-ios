@@ -133,6 +133,8 @@ extension InMemoryServer: FunctionsClient {
         if record.room.adFreeSponsor == nil, profile.adFree {
             record.room.adFreeSponsor = AdFreeSponsor(uid: userID, displayName: profile.displayName)
         }
+        // backend では members の作成で動く onMemberWrite が判定し直す（解禁済みでも新しい人は準備OKでないので open に戻る。F-04）
+        rejudgeUnlock(&record)
         rooms[roomID] = record
         return JoinRoomResponse(roomId: roomID, alreadyMember: false)
     }
@@ -404,17 +406,16 @@ private extension InMemoryServer {
 
     /// メンバーをルームから外す（退出と削除で共通。backend の `removeFromRoom`）。
     ///
-    /// メンバーを消し、`memberIds`・`memberCount`・`readyCount`（onMemberWrite の数え直しに当たる）を更新し、その人のいいねと
+    /// メンバーを消し、`memberIds` と、`memberCount`・`readyCount`・`status`（onMemberWrite の数え直しと解禁の判定に当たる）を更新し、その人のいいねと
     /// 引き直しの投票を取り除き、広告非表示の購入者だったら残りのメンバーから参加の早い順（同着は uid の順）に探し直す。候補は残す
     func remove(_ memberID: String, from record: inout RoomRecord, notMember: AppError.Reason) throws {
         guard record.members.removeValue(forKey: memberID) != nil else {
             throw Self.error(notMember)
         }
         record.room.memberIds.removeAll { $0 == memberID }
-        record.room.memberCount -= 1
-        // backend の leaveRoom・removeMember は readyCount に触らず、onMemberWrite（タスク 23）が数え直す。
-        // 擬似のサーバーにはトリガーが無いので、その数え直しをここで行う
-        record.room.readyCount = record.members.values.filter(\.ready).count
+        // backend の leaveRoom・removeMember は readyCount に触らず、members の削除で動く onMemberWrite が数え直して
+        // 解禁を判定し直す。擬似のサーバーではここで続けて行う
+        rejudgeUnlock(&record)
         record.room.reroll.votesFor.removeAll { $0 == memberID }
         record.room.reroll.votesAgainst.removeAll { $0 == memberID }
         for (candidateID, candidate) in record.candidates where candidate.likedBy.contains(memberID) {
