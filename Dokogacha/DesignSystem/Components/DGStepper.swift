@@ -55,6 +55,10 @@ struct DGStepper: View {
             .accessibilityLabel(Text(valueLabel))
             .accessibilityValue(Text(value, format: .number) + Text(unit))
             .accessibilityAdjustableAction { direction in
+                // 部品ごと無効なときは、VoiceOver の上下のスワイプでも変えない
+                guard isEnvironmentEnabled else {
+                    return
+                }
                 switch direction {
                 case .increment: value = DGStepperRule.incremented(value, in: range)
                 case .decrement: value = DGStepperRule.decremented(value, in: range)
