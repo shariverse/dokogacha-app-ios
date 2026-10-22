@@ -137,6 +137,11 @@ nonisolated enum FirestorePath {
         "\(candidates(roomID))/\(candidateID)"
     }
 
+    /// `rooms/{roomId}/draws/{drawId}`
+    static func draw(_ drawID: String, roomID: String) -> String {
+        "\(room(roomID))/draws/\(drawID)"
+    }
+
     /// ドキュメントの ID の最大の長さ（backend の `MAX_ID_LENGTH`）
     static let maxDocumentIDLength = 128
 

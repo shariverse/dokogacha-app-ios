@@ -54,6 +54,13 @@ extension InMemoryServer: RoomRepository {
         }
     }
 
+    func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>> {
+        // ルール: `draws/{drawId}` はメンバーだけが読める
+        subscribe { server in
+            server.readableRecord(roomID).map { $0.draws[drawID] }
+        }
+    }
+
     // 直接の書き込みは、Firestore と同じく送った時点で返る（`RoomRepository` の説明）。
     // ルールで拒まれたら状態を変えずに `rejectedWrites` に残し、投げない（購読には元の値のまま）
 

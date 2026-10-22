@@ -37,6 +37,12 @@ protocol RoomRepository {
     /// ルームの候補を、投稿の新しい順に購読する（F-12）
     func candidates(roomID: String) -> AsyncStream<LiveUpdate<[Identified<Candidate>]>>
 
+    /// 抽選の記録（`rooms/{roomId}/draws/{drawId}`）を購読する（F-41 の「◯◯さんがガチャを回しました」・F-42 の結果）。
+    ///
+    /// 読めるのはメンバーだけ（セキュリティルール）。記録は `drawGacha` が作った後は変わらないので、画面は最初の値だけを使ってよい。
+    /// 無い記録は nil が流れる
+    func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>>
+
     /// 自分の準備OKを変える（F-30。`open`・`unlocked` のときだけ）
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws
 

@@ -54,6 +54,12 @@ final class FirestoreRoomRepository: RoomRepository {
         return FirestoreSubscription.query(query, gateway: gateway) { FirestoreDecoding.list($0, FirestoreDecoding.candidate) }
     }
 
+    func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>> {
+        FirestoreSubscription.document(FirestorePath.draw(drawID, roomID: roomID), gateway: gateway) { document in
+            try document.map(FirestoreDecoding.draw)
+        }
+    }
+
     // 直接の書き込みは送った時点で返る（`RoomRepository` の説明）。Firestore の実装では送る前に分かる失敗は無いので投げない
 
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {
