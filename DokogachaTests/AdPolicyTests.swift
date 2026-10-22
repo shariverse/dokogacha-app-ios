@@ -65,8 +65,13 @@ struct AdPolicyTests {
     }
 
     @Test
-    func roomNotYetLoadedStillShowsAdsForNonPurchaser() {
-        #expect(AdDisplayPolicy.shouldShowAds(screen: .room, isAdFree: false, room: nil))
+    func roomNotYetLoadedHidesAdsUntilLoaded() {
+        // ルームが届くまでは購入者がいるか分からないので出さない（届いて購入者がいたら枠が消えてボタンが動くのを防ぐ）
+        #expect(!AdDisplayPolicy.shouldShowAds(screen: .room, isAdFree: false, room: nil))
+        #expect(!AdDisplayPolicy.shouldShowAds(screen: .addCandidate, isAdFree: false, room: nil))
+        // 届いて購入者がいなければ出す
+        #expect(AdDisplayPolicy.shouldShowAds(screen: .room, isAdFree: false, room: Self.room()))
+        #expect(AdDisplayPolicy.shouldShowAds(screen: .addCandidate, isAdFree: false, room: Self.room()))
     }
 
     // MARK: - 起動のしかた

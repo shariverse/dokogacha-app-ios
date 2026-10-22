@@ -16,7 +16,7 @@ struct BannerAdSlot: View {
 
     /// 置く画面
     let screen: AdScreen
-    /// 開いているルーム（ルーム・候補を追加のとき。購入者がいれば出さない）
+    /// 開いているルーム（ルーム・候補を追加のとき。購入者がいれば出さない。届くまでの nil のあいだも出さない）
     var room: Room?
 
     /// 広告のまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
