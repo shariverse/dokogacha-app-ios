@@ -15,10 +15,11 @@ import {
   type Transaction,
 } from "firebase-admin/firestore";
 
-import type { AdFreeSponsor, MemberDoc, RoomDoc, UserDoc } from "../domain/models";
+import type { MemberDoc, RoomDoc, UserDoc } from "../domain/models";
 import type { ServiceDeps } from "../deps";
 import { appError, type AppErrorReason } from "../errors";
 import { candidatesRef, inviteCodeRef, membersRef, roomRef, userRef } from "../paths";
+import { planAfterLeave, rerollUpdateOf } from "../reroll/logic";
 import { parseCreateRoomInput, parseJoinRoomInput, parseLeaveRoomInput, parseRemoveMemberInput } from "./input";
 import {
   allocateInviteCode,
@@ -175,7 +176,8 @@ export async function previewRoom(deps: ServiceDeps, uid: string, data: unknown)
  * トランザクションの中で、メンバーをルームから外す（退出と削除で共通。02 の F-05「挙動は退出と同じ」）。
  * - メンバーのドキュメントを消し、`memberIds`・`memberCount` を更新する（`readyCount` は `onMemberWrite` が数え直す）
  * - その人のいいねを全候補の `likedBy` から取り除く（候補そのものは残す）
- * - 引き直しの投票（`reroll.votesFor`・`votesAgainst`）からも取り除く（残ると人数と票が合わなくなる）
+ * - 引き直しの投票（`reroll.votesFor`・`votesAgainst`）からも取り除く（残ると人数と票が合わなくなる）。
+ *   投票中なら残りのメンバーで判定し直し、賛成が過半数になれば可決する（`planAfterLeave`）
  * - 広告非表示の購入者だったら、残りのメンバーから参加の早い順に探し直す
  *
  * トランザクションは読み取りを書き込みより先に済ませる決まりなので、読み取りをすべて終えてから書く。
@@ -216,12 +218,17 @@ async function removeFromRoom(
 
   tx.delete(memberRef);
   // ネストしたフィールド（`reroll.votesFor`）を書くので、キーを文字列で持つ
-  const update: Record<string, FieldValue | AdFreeSponsor | null> = {
+  const update: Record<string, unknown> = {
     memberIds: FieldValue.arrayRemove(memberId),
     memberCount: FieldValue.increment(-1),
     "reroll.votesFor": FieldValue.arrayRemove(memberId),
     "reroll.votesAgainst": FieldValue.arrayRemove(memberId),
   };
+  // 引き直しの投票中なら、残りのメンバーで判定し直す（賛成が過半数になれば、その場で可決して unlocked に戻す）
+  const reroll = planAfterLeave(room, memberId);
+  if (reroll !== null) {
+    Object.assign(update, rerollUpdateOf(reroll));
+  }
   if (sponsorChanges) {
     update.adFreeSponsor = sponsor;
   }
