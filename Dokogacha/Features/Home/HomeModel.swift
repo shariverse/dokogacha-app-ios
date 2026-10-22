@@ -51,6 +51,9 @@ final class HomeModel {
     private(set) var closedRooms: [Identified<Room>] = []
     /// 終了したルームの当選した候補（ルームの ID → 候補）
     private(set) var winnersByRoom: [String: Candidate] = [:]
+    /// 当選した候補の購読が、値（無いことを含む）か失敗を受け取ったルーム。
+    /// 読み込み中の形を出し続けるのは、まだどれも受け取っていないルームがある間だけにする（失敗が続いても止まらない。PR #78 の持ち越し）
+    private(set) var settledWinnerRoomIDs: Set<String> = []
     /// 「すべて見る」を押したか（押したら 6 枚目からも出す）
     private(set) var showsAllMemories = false
 
@@ -107,9 +110,15 @@ final class HomeModel {
         memoriesState == .loaded && closedRooms.isEmpty
     }
 
-    /// 思い出のきっぷを読み込み中の形で出すか（一覧がまだ届いていない・ルームはあるが当選した候補がまだ 1 件も届いていない）
+    /// 思い出のきっぷを読み込み中の形で出すか（一覧がまだ届いていない・きっぷが 1 枚も無く、当選した候補をまだ待っているルームがある）。
+    ///
+    /// 当選した候補の購読が失敗した・候補が無かったルームは待たない（読み込み中のまま止めない。購読は裏で読み直し続ける）
     var isMemoriesLoading: Bool {
-        memoriesState == .loading || (!closedRooms.isEmpty && memoryTickets.isEmpty)
+        if memoriesState == .loading {
+            return true
+        }
+        let watched = MemoryTicket.watchedRooms(closedRooms, showsAll: showsAllMemories)
+        return memoryTickets.isEmpty && MemoryTicket.isWaitingForWinners(watched: watched, settledRoomIDs: settledWinnerRoomIDs)
     }
 
     /// 「すべて見る」が押された（終了したルームを上限なしで購読し直す）
@@ -260,6 +269,7 @@ final class HomeModel {
             task.cancel()
             winnerTasks[roomID] = nil
             winnersByRoom[roomID] = nil
+            settledWinnerRoomIDs.remove(roomID)
         }
         for (roomID, candidateID) in winners where winnerTasks[roomID] == nil {
             let repository = repository
@@ -268,6 +278,10 @@ final class HomeModel {
                 resubscribeDelay: resubscribeDelay,
                 onValue: { [weak self] candidate in
                     self?.winnersByRoom[roomID] = candidate?.value
+                    self?.settledWinnerRoomIDs.insert(roomID)
+                },
+                onFailure: { [weak self] in
+                    self?.settledWinnerRoomIDs.insert(roomID)
                 }
             )
         }
@@ -296,10 +310,12 @@ final class HomeModel {
     ///   - subscribe: 購読を始める（購読し直すたびに呼ぶ）
     ///   - resubscribeDelay: 購読し直すまでの待ち方
     ///   - onValue: 値が届いたときの処理
+    ///   - onFailure: 失敗が届いたときの処理（cancel のときは呼ばない）
     private static func follow<Value: Sendable>(
         _ subscribe: @escaping () -> AsyncStream<LiveUpdate<Value>>,
         resubscribeDelay: ResubscribeDelay,
-        onValue: @escaping (Value) -> Void
+        onValue: @escaping (Value) -> Void,
+        onFailure: @escaping () -> Void = {}
     ) -> Task<Void, Never> {
         Task {
             while !Task.isCancelled {
@@ -308,8 +324,13 @@ final class HomeModel {
                     guard !Task.isCancelled else {
                         return
                     }
-                    if let value = update.value {
+                    switch update {
+                    case let .value(value):
                         onValue(value)
+                    case let .failure(error):
+                        if !error.isCancellation {
+                            onFailure()
+                        }
                     }
                 }
                 guard await resubscribeDelay.wait() else {

@@ -80,7 +80,10 @@ struct CandidateDetailView: View {
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
         // 削除・報告を送っている間は、下スワイプで閉じさせない（申し送り「送信中は戻る・シートの下スワイプを止める」）
-        .interactiveDismissDisabled(model.isSending)
+        .lockNavigation(while: model.isSending)
+        .onChange(of: model.canDelete) {
+            model.closeUnavailableConfirmation()
+        }
         .candidateReportDialog(model)
         .confirmationDialog(
             Text("この候補を削除しますか？"),

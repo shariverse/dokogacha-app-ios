@@ -90,7 +90,7 @@ nonisolated struct AppError: Error, Equatable, Sendable {
         case .unavailable, .deadlineExceeded, .aborted:
             true
         default:
-            reason == .network
+            reason == .network || reason == .offline
         }
     }
 
@@ -216,8 +216,10 @@ extension AppError {
 
         /// セキュリティルールで拒まれた（直接の書き込み・購読。理由が付かない）
         case permissionDenied = "app/permission-denied"
-        /// 通信できない（オフライン・タイムアウト・サーバーが一時的に使えない）
+        /// 通信できない（タイムアウト・サーバーが一時的に使えない）
         case network = "app/network"
+        /// 端末がオフラインなので、オンライン必須の操作を送らなかった（02 の §9。`NetworkReachability.requireOnline()`）
+        case offline = "app/offline"
         /// Firebase を初期化できず、サーバーに接続できない（plist が無い Stg など）
         case serverUnavailable = "app/server-unavailable"
         /// サーバーのドキュメントを読めなかった（知らない状態の値など）
@@ -305,6 +307,8 @@ extension AppError {
                 String(localized: "Apple でサインインできませんでした")
             case .appleRevokeFailed:
                 String(localized: "Apple でサインインの連携を解除できませんでした")
+            case .offline:
+                String(localized: "オフラインのため操作できません")
             case .unauthenticated, .purchaseVerificationUnavailable, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,
                  .unreadableData, .notImplemented, .cancelled:
                 String(localized: "通信できませんでした")

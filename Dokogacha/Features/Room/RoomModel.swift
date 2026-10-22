@@ -21,7 +21,8 @@ import Observation
 /// - 押したらすぐに `pendingLikes` に入れて表示を変え、直接の書き込み（`setLike`）を送る
 /// - 押した候補の自分のいいねが、届いた値で楽観的な値と一致したときに確定する（`OptimisticWrite`）。
 ///   送っている途中にほかの人のいいねや別の候補の変化が届いても、押した候補の値が追いつくまでは楽観的な表示を続ける
-/// - 送る前に分かる失敗（接続できないなど）なら、表示を戻してトースト「通信できませんでした」を出す
+/// - 送る前に分かる失敗（接続できない・オフラインなど）なら、表示を戻して `AppError` の文言のトースト
+///   （「通信できませんでした」「オフラインのため操作できません」）を出す
 /// - 送っている途中（確定する前）は同じ候補をもう一度押しても何もしない（二度押し）。自分の投稿・`drawn`・`closed` も押せない
 ///
 /// 準備OK（F-30）もいいねと同じ形の楽観的更新にする（自分のメンバーの `ready` が楽観的な値と一致したら確定する）。
@@ -64,11 +65,6 @@ final class RoomModel {
         case candidates
     }
 
-    /// いいねの書き込みに失敗したときのトースト（goal のタスク 19〜21「失敗したら戻してトースト「通信できませんでした」」）
-    static let likeFailureMessage: LocalizedStringResource = "通信できませんでした"
-    /// 準備OKの書き込みに失敗したときのトースト（いいねと同じ）
-    static let readyFailureMessage: LocalizedStringResource = "通信できませんでした"
-
     /// ルームの ID
     let roomID: String
     /// 自分の uid
@@ -93,6 +89,8 @@ final class RoomModel {
     var isConfirmingForceUnlock = false
     /// 強制解禁を送っている途中か（二重に送らない・画面を閉じさせない）
     private(set) var isForceUnlocking = false
+    /// 強制解禁が通ったか。購読の `unlocked` が届くまでの間に、もう一度押せないようにする（PR #61 の持ち越し）
+    private(set) var hasForceUnlocked = false
     /// ほかの人が回したので、ガチャ（S-13）を開いて演出を再生する抽選の ID（開いたら `replayOpened()` で消す）
     private(set) var drawToReplay: String?
     /// 開いたときに `drawn`・`closed` だったので、結果（S-14）を自動で出す抽選の ID（開いたら `resultOpened()` で消す）
@@ -100,8 +98,8 @@ final class RoomModel {
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let functions: any FunctionsClient
-    /// 確認のダイアログから始めた強制解禁（二重に始めないために持つ）
-    @ObservationIgnored private var forceUnlockTask: Task<Void, Never>?
+    /// 確認のダイアログから始めた強制解禁（二重に始めないために持つ。始めた時点から画面の戻る操作を止めるので、画面からも見る）
+    private var forceUnlockTask: Task<Void, Never>?
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
     /// ガチャの演出を見終えた抽選
@@ -332,9 +330,7 @@ final class RoomModel {
             pendingLikes[candidateID] = pending.sent(current: current) ? nil : pending
         } catch {
             pendingLikes[candidateID] = nil
-            if !AppError.wrapping(error).isCancellation {
-                toasts.show(Self.likeFailureMessage)
-            }
+            toasts.showFailure(error)
         }
     }
 
@@ -383,9 +379,7 @@ extension RoomModel {
             pendingReady = pending.sent(current: current) ? nil : pending
         } catch {
             pendingReady = nil
-            if !AppError.wrapping(error).isCancellation {
-                toasts.show(Self.readyFailureMessage)
-            }
+            toasts.showFailure(error)
         }
     }
 
@@ -423,11 +417,22 @@ extension RoomModel {
         defer { isForceUnlocking = false }
         do {
             try await functions.forceUnlock(RoomRequest(roomId: roomID))
+            hasForceUnlocked = true
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
+        }
+    }
+
+    /// 強制解禁を送っている途中か（確認のダイアログで押してから、送り終えるまで。戻る操作と二度押しを止める）
+    var isSendingForceUnlock: Bool {
+        isForceUnlocking || forceUnlockTask != nil
+    }
+
+    /// 強制解禁の確認のダイアログを出している間に、押せなくなった（ほかの人の準備OKで解禁した・ガチャが回された）ら、ダイアログを閉じる
+    /// （閉じないと「解禁する」を押しても何も起きない。PR #61 の持ち越し）。画面が `canForceUnlock` の変化で呼ぶ
+    func closeUnavailableConfirmation() {
+        if isConfirmingForceUnlock, !canForceUnlock {
+            isConfirmingForceUnlock = false
         }
     }
 }

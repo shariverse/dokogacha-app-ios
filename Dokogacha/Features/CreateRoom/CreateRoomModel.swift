@@ -70,7 +70,7 @@ final class CreateRoomModel {
     /// 今の時刻（締切の範囲を計算し直すたびに読む）
     @ObservationIgnored private let clock: () -> Date
     /// ボタンから始めた作成。画面が消えたら（`cancelSubmit`）止める
-    @ObservationIgnored private var submitTask: Task<Void, Never>?
+    private var submitTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - functions: `createRoom` を呼ぶ窓口（Firebase か擬似のサーバー）
@@ -163,6 +163,13 @@ final class CreateRoomModel {
         deadlineSelection.refresh(now: clock())
     }
 
+    /// ルームの作成を送っている途中か（押してから送り終えるまで。戻る操作を止める。始めた Task は画面からも見る）。
+    ///
+    /// 送っている途中に戻ると、ルームはできるのに招待の画面（S-04）が出ない
+    var locksNavigation: Bool {
+        isSubmitting || submitTask != nil
+    }
+
     /// 「ルームを作成」が押された・キーボードの完了が押された。作成を始める（送っている途中なら何もしない）。
     ///
     /// `isSubmitting` は Task が動き出してから立つので、Task が始まる前に続けて押されたときのために、
@@ -214,10 +221,7 @@ final class CreateRoomModel {
             createdRoom = InviteDestination(roomID: response.roomId, roomName: request.name, inviteCode: code)
             analytics.log(.roomCreate(postLimit: request.postLimit, unlockRule: request.unlockRule, likeMode: request.likeMode))
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

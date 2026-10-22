@@ -141,7 +141,16 @@ final class PurchaseCoordinator {
         verifyIfNeeded()
     }
 
-    /// 端末に購入があり、サーバーがまだ記録していなければ、裏で送る（失敗はログに残し、次の起動で送り直す）
+    /// 回線が戻ったとき。通信の失敗で送れなかった購入があれば、もう一度送る（PR #97 の持ち越し）
+    func retryVerificationIfNeeded() {
+        verifyIfNeeded()
+    }
+
+    /// 端末に購入があり、サーバーがまだ記録していなければ、裏で送る。
+    ///
+    /// 失敗はログに残す。通信の失敗なら送った印を外す（`send`）ので、次に `connect` されたとき・回線が戻ったとき
+    /// （`retryVerificationIfNeeded`）に送り直す。拒まれた購入は、この起動では送り直さない（次の起動で送る）。
+    /// 送っている途中にユーザーが替わったら、送り終えた後に新しいユーザーにも送る（送っている間の `connect` は待たせているため）
     private func verifyIfNeeded() {
         guard verifyTask == nil,
               PurchaseVerificationPolicy.shouldVerify(
@@ -152,25 +161,43 @@ final class PurchaseCoordinator {
               let entitlement else {
             return
         }
+        let sender = userID
         verifyTask = Task { [weak self] in
             do {
                 try await self?.send(entitlement)
             } catch {
                 Self.logger.error("購入をサーバーに記録できませんでした: \(AppError.wrapping(error).reason.rawValue, privacy: .public)")
             }
-            self?.verifyTask = nil
+            guard let self else {
+                return
+            }
+            verifyTask = nil
+            if userID != sender {
+                verifyIfNeeded()
+            }
         }
     }
 
-    /// 購入をサーバーに送る（`verifyPurchase`。サーバーの窓口がまだ無ければ送らない。次に `connect` されたときに送る）
+    /// 購入をサーバーに送る（`verifyPurchase`。サーバーの窓口がまだ無ければ送らない。次に `connect` されたときに送る）。
+    ///
+    /// 通信の失敗（もう一度で通る見込みがある）なら、送った印を外して送り直せるようにする。
+    /// 送っている途中にユーザーが替わったら、結果を今のユーザーの記録に映さない
     private func send(_ purchase: SignedPurchase) async throws {
         guard let functions else {
             return
         }
+        let sender = userID
         sentTransactionIDs.insert(purchase.transactionID)
-        let response = try await functions.verifyPurchase(VerifyPurchaseRequest(signedTransaction: purchase.signedTransaction))
-        if response.adFree {
-            serverAdFree = true
+        do {
+            let response = try await functions.verifyPurchase(VerifyPurchaseRequest(signedTransaction: purchase.signedTransaction))
+            if response.adFree, userID == sender {
+                serverAdFree = true
+            }
+        } catch {
+            if AppError.wrapping(error).isRetryable, userID == sender {
+                sentTransactionIDs.remove(purchase.transactionID)
+            }
+            throw error
         }
     }
 }

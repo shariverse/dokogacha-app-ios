@@ -80,7 +80,7 @@ struct RoomSettingsView: View {
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
         // 送っている間は、下スワイプで閉じさせない（S-09・S-10 と同じ）
-        .interactiveDismissDisabled(model.isSaving)
+        .lockNavigation(while: model.locksNavigation)
         .task {
             await model.observe()
         }
@@ -111,7 +111,7 @@ struct RoomSettingsView: View {
     private var header: some View {
         DGHeader(Text("ルーム設定"), onBack: nil) {
             JoinSheetCloseButton { dismiss() }
-                .disabled(model.isSaving)
+                .disabled(model.locksNavigation)
                 .accessibilityIdentifier(Identifier.close)
         }
         .padding(.leading, DGSpacing.s12)

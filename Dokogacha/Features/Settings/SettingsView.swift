@@ -85,6 +85,8 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             DGHeader(Text("設定"), onBack: { dismiss() })
+                // 購入・復元・連携・削除を行っている途中は戻らせない
+                .disabled(model.activeAction != nil)
             ScrollView {
                 VStack(spacing: DGSpacing.s16) {
                     profileSection
@@ -110,6 +112,7 @@ struct SettingsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
+        .lockNavigation(while: model.activeAction != nil)
         .task {
             await model.observe()
         }
@@ -118,6 +121,7 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $model.isEditingName) {
             DisplayNameEditor(model: model)
+                .offlineBanner()
                 .dgToast(toasts)
         }
         .sheet(item: $webPage) { page in

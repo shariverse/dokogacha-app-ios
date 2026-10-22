@@ -14,7 +14,9 @@ import Observation
 ///
 /// - サーバー側でサインアウトされた（ユーザーが消えた・トークンを更新できなかった）ら、匿名でサインインし直す。
 ///   新しいユーザーにはプロフィールが無いので S-01 から始まる
-/// - サインイン・プロフィールの読み込みに失敗したら、再試行のボタンと、アプリが前面に戻ったとき（`retryIfFailed`）にやり直す
+/// - サインイン・プロフィールの読み込みに失敗したら、再試行のボタンと、アプリが前面に戻ったとき・回線が戻ったとき（`retryIfFailed`）にやり直す
+/// - オフラインでサインインできない・プロフィールがキャッシュに無いときは「オフラインです」を出し（`LaunchRoute.offline`）、
+///   回線が戻ったら続ける（サインインはやり直し、プロフィールは購読がサーバーの値を受け取る）
 /// - 同じユーザーのプロフィールが読めた後（ホーム・S-01 を出している間）に購読が失敗したら、画面は替えずにトーストを出し、
 ///   少し待って購読し直す（ホームを出している途中で画面全体が失敗の表示に替わらないように）
 @Observable
@@ -36,6 +38,8 @@ final class RootModel {
 
     /// 通信エラーを出すトーストの窓口
     @ObservationIgnored private let toasts: DGToastCenter
+    /// 端末の回線の状態（無ければ回線を見ない。`@Observable` なので、変わると `route` を計算し直す）
+    @ObservationIgnored private let network: NetworkStatus?
     /// 読めた後に購読が失敗したとき、やり直すまでの待ち方
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
 
@@ -46,9 +50,16 @@ final class RootModel {
     ///   - session: サーバーへの接続とサインインの状態（`start` 済みのもの）
     ///   - toasts: 読めた後の購読の失敗を出すトーストの窓口
     ///   - resubscribeDelay: 読めた後に購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
-    init(session: ServerSession, toasts: DGToastCenter, resubscribeDelay: ResubscribeDelay = .standard) {
+    ///   - network: 端末の回線の状態（オフラインの表示と、回線が戻ったときのやり直しに使う）
+    init(
+        session: ServerSession,
+        toasts: DGToastCenter,
+        resubscribeDelay: ResubscribeDelay = .standard,
+        network: NetworkStatus? = nil
+    ) {
         self.session = session
         self.toasts = toasts
+        self.network = network
         self.resubscribeDelay = resubscribeDelay
     }
 
@@ -71,7 +82,12 @@ final class RootModel {
 
     /// いま出す画面
     var route: LaunchRoute {
-        LaunchRoute.resolve(connection: session.connection, authState: session.authState, profile: profile)
+        LaunchRoute.resolve(
+            connection: session.connection,
+            authState: session.authState,
+            profile: profile,
+            reachability: network?.reachability ?? .unknown
+        )
     }
 
     /// 起動の流れを動かし直す鍵
@@ -112,9 +128,15 @@ final class RootModel {
         }
     }
 
-    /// アプリが前面に戻ったとき、失敗の表示のままなら、もう一度試す（オフラインで起動して、電波が戻った後など）
+    /// アプリが前面に戻ったとき・回線が戻ったとき、サインインかプロフィールの読み込みに失敗したままなら、もう一度試す
+    /// （オフラインで起動して、電波が戻った後など。オフラインの表示（`LaunchRoute.offline`）の下の失敗も含む）
     func retryIfFailed() {
-        if case .failed = route {
+        guard network?.reachability != .offline else {
+            return
+        }
+        if session.authState == .failed {
+            retry()
+        } else if case .failed = profile {
             retry()
         }
     }

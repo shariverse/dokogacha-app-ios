@@ -225,13 +225,13 @@ struct PurchaseCoordinatorTests {
         #expect(functions.server.users[Self.me]?.adFree == true)
     }
 
-    /// 送るのに失敗したら、同じユーザーには送り直さず（次の起動で送る）、ユーザーが替わったら新しいユーザーに送る
+    /// 拒まれて送れなかったら、同じユーザーには送り直さず（次の起動で送る）、ユーザーが替わったら新しいユーザーに送る
     @Test
     func failedVerificationIsNotRetriedUntilUserChanges() async {
         let fake = FakePurchaseService()
         fake.entitlement = Self.purchase
         let functions = Self.makeFunctions()
-        functions.verifyError = AppError(.network)
+        functions.verifyError = AppError(.purchaseInvalid)
         let purchases = PurchaseCoordinator(service: fake)
         await Self.startAndFinishUpdates(purchases, fake)
 
@@ -243,6 +243,31 @@ struct PurchaseCoordinatorTests {
 
         functions.verifyError = nil
         purchases.connect(functions: functions, userID: "new-user", serverAdFree: false)
+        await purchases.verifyTask?.value
+        #expect(functions.verifyRequests.count == 2)
+    }
+
+    /// 通信の失敗で送れなかったら、回線が戻ったとき・次にプロフィールが届いたときに、同じ起動のうちに送り直す（PR #97 の持ち越し）
+    @Test
+    func networkFailureIsRetriedInTheSameLaunch() async {
+        let fake = FakePurchaseService()
+        fake.entitlement = Self.purchase
+        let functions = Self.makeFunctions()
+        functions.verifyError = AppError(.network, code: .unavailable)
+        let purchases = PurchaseCoordinator(service: fake)
+        await Self.startAndFinishUpdates(purchases, fake)
+
+        purchases.connect(functions: functions, userID: Self.me, serverAdFree: false)
+        await purchases.verifyTask?.value
+        #expect(functions.verifyRequests.count == 1)
+
+        functions.verifyError = nil
+        purchases.retryVerificationIfNeeded()
+        await purchases.verifyTask?.value
+        #expect(functions.verifyRequests.count == 2)
+        #expect(functions.server.users[Self.me]?.adFree == true)
+        // 通った後は送り直さない
+        purchases.retryVerificationIfNeeded()
         await purchases.verifyTask?.value
         #expect(functions.verifyRequests.count == 2)
     }

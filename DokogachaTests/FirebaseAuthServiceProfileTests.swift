@@ -65,4 +65,17 @@ struct FirebaseAuthServiceProfileTests {
         let first = try #require(await iterator.next())
         #expect(first.value??.avatarColor == "#2F6FD0")
     }
+
+    /// キャッシュにあったドキュメントがサーバーで消えていたら（アカウントの削除など）、キャッシュの値の後に未登録（nil）を流す（PR #40 の持ち越し）
+    @Test
+    func deliversServerRemovalAfterCachedProfile() async throws {
+        let gateway = FakeGateway()
+        var iterator = Self.makeService(gateway).profile(userID: "me").makeAsyncIterator()
+
+        gateway.sendDocument(Self.profileDocument, path: Self.path, isFromCache: true)
+        let first = try #require(await iterator.next())
+        #expect(first.value??.displayName == "たくみ")
+        gateway.sendDocument(nil, path: Self.path, isFromCache: false)
+        #expect(await iterator.next() == .value(nil))
+    }
 }

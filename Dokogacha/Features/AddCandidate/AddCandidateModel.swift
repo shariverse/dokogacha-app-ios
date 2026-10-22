@@ -22,12 +22,17 @@ import Observation
 /// 成功のトーストは S-07 に戻ってから見えるよう、アプリの根元の `toasts` に出す。
 @Observable
 final class AddCandidateModel {
+    /// 購読の種類（どれが失敗しているかを覚えて、トーストを 1 回にする）
+    private enum SubscriptionSource: Hashable {
+        case room
+        case candidates
+        case pastIdeas
+    }
+
     /// 追加できたときのトースト（03 の S-09）
     static let addedMessage: LocalizedStringResource = "候補に追加しました"
     /// 過去のアイデアを持ち込めたときのトースト（03 の S-09「持ち込み時は「過去のアイデアを持ち込みました」」）
     static let broughtMessage: LocalizedStringResource = "過去のアイデアを持ち込みました"
-    /// いいねの書き込みに失敗したときのトースト（S-07 のいいねと同じ）
-    static let likeFailureMessage: LocalizedStringResource = "通信できませんでした"
     /// ひとことの文字数（02 の §3.1「最大40文字」）
     static let noteLength = DomainConstants.Limits.noteLength
 
@@ -61,6 +66,11 @@ final class AddCandidateModel {
     var duplicatePrompt: DuplicatePrompt?
     /// 重複の確認から、いいねを送っている途中か
     private(set) var isLiking = false
+
+    /// 送っている途中で、S-09 のシートを閉じさせない・S-08 から戻らせないか（押してから送り終えるまで。Task が動き出す前も含める）
+    var locksNavigation: Bool {
+        isSubmitting || isLiking || submitTask != nil || likeTask != nil
+    }
     /// S-07 に戻る（入ったら画面が戻る）
     private(set) var finish: Finish?
 
@@ -74,11 +84,13 @@ final class AddCandidateModel {
     /// 追加・いいねできたら `candidate_add`・`like_toggle` を送る窓口
     @ObservationIgnored private let analytics: any AnalyticsService
     /// 送っている `addCandidate`（画面が消えたら止める）
-    @ObservationIgnored private var submitTask: Task<Void, Never>?
+    private var submitTask: Task<Void, Never>?
     /// 送っているいいね（画面が消えたら止める）
-    @ObservationIgnored private var likeTask: Task<Void, Never>?
-    /// 購読が失敗しているか（失敗が続いてもトーストは 1 回）
-    @ObservationIgnored private var isSubscriptionFailing = false
+    private var likeTask: Task<Void, Never>?
+    /// いま失敗している購読（どれも失敗していない状態から失敗したときだけトーストを出す）。
+    ///
+    /// 購読ごとに持つのは、1 本だけが失敗し続けているときに、ほかの購読が値を受け取るたびにトーストを出し直さないため（PR #83 の持ち越し）
+    @ObservationIgnored private var failingSources: Set<SubscriptionSource> = []
 
     /// - Parameters:
     ///   - roomID: ルームの ID
@@ -198,17 +210,17 @@ final class AddCandidateModel {
 
     /// ルームを購読し続ける
     private func followRoom() async {
-        await follow(subscribe: { repository.room(id: roomID) }, apply: applyRoom)
+        await follow(.room, subscribe: { repository.room(id: roomID) }, apply: applyRoom)
     }
 
     /// 候補を購読し続ける
     private func followCandidates() async {
-        await follow(subscribe: { repository.candidates(roomID: roomID) }, apply: applyCandidates)
+        await follow(.candidates, subscribe: { repository.candidates(roomID: roomID) }, apply: applyCandidates)
     }
 
     /// 自分の過去のアイデアを購読し続ける（失敗のトーストはルーム・候補と同じく 1 回）
     private func followPastIdeas() async {
-        await follow(subscribe: { repository.pastIdeas(userID: userID) }, apply: { value in
+        await follow(.pastIdeas, subscribe: { repository.pastIdeas(userID: userID) }, apply: { value in
             pastIdeas = value
             hasLoadedPastIdeas = true
         })
@@ -216,6 +228,7 @@ final class AddCandidateModel {
 
     /// 購読を続ける。失敗で終わったら、少し待って購読し直す。cancel されたら、流れ残りの値を映さずに終わる
     private func follow<Value: Sendable>(
+        _ source: SubscriptionSource,
         subscribe: () -> AsyncStream<LiveUpdate<Value>>,
         apply: (Value) -> Void
     ) async {
@@ -226,10 +239,10 @@ final class AddCandidateModel {
                 }
                 switch update {
                 case let .value(value):
-                    isSubscriptionFailing = false
+                    failingSources.remove(source)
                     apply(value)
                 case let .failure(error):
-                    noteFailure(error)
+                    noteFailure(error, from: source)
                 }
             }
             guard await resubscribeDelay.wait() else {
@@ -238,13 +251,16 @@ final class AddCandidateModel {
         }
     }
 
-    /// 購読の失敗でトーストを出す（失敗が続いても 1 回）
-    private func noteFailure(_ error: AppError) {
-        guard !error.isCancellation, !isSubscriptionFailing else {
+    /// 購読の失敗を覚え、どの購読も失敗していなかったときだけトーストを出す（失敗が続いても 1 回）
+    private func noteFailure(_ error: AppError, from source: SubscriptionSource) {
+        guard !error.isCancellation else {
             return
         }
-        isSubscriptionFailing = true
-        currentToasts.show(text: error.message)
+        let wasHealthy = failingSources.isEmpty
+        failingSources.insert(source)
+        if wasHealthy {
+            currentToasts.show(text: error.message)
+        }
     }
 
     /// 届いたルームを映す
@@ -335,10 +351,7 @@ final class AddCandidateModel {
                 duplicatePrompt = DuplicatePrompt(candidateID: candidateID)
             }
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                currentToasts.show(text: appError.message)
-            }
+            currentToasts.showFailure(error)
         }
     }
 
@@ -383,9 +396,7 @@ final class AddCandidateModel {
             }
             finishFlow()
         } catch {
-            if !AppError.wrapping(error).isCancellation, !Task.isCancelled {
-                currentToasts.show(Self.likeFailureMessage)
-            }
+            currentToasts.showFailure(error)
         }
     }
 

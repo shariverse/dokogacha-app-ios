@@ -246,6 +246,7 @@ struct GachaModelTests {
     @Test
     func cancellationShowsNoToast() async throws {
         #expect(GachaModel.failureMessage(for: AppError(.internal)) == "通信できませんでした。もう一度回してください")
+        #expect(GachaModel.failureMessage(for: AppError(.offline)) == "オフラインのため操作できません")
         let fixture = Self.makeFixture()
         fixture.functions.drawBehavior = .fail(CancellationError())
         let model = fixture.model

@@ -36,6 +36,10 @@
 - `TextField` を `@Observable` の Model のプロパティに直接つなぎ、Model の側で値を書き換えても（招待コードの正規化など）、iOS 26.5 の Simulator では入力欄の表示が変わらない。画面の `@State` を挟み、`onChange` で正規化した値を `@State` に入れ直すと表示も変わる（`JoinByCodeView`）（2026-10-22）
 - 名前の無い `MKMapItem`（`MKMapItem(placemark:)` で作って `name = nil`）の `name` は nil ではなく「場所: 不明」を返す。名前が無い結果の扱いは `MKMapItem` からではなく、写した値（`PlaceSearchHit`）で確かめる（`SearchedPlaceTests`）（2026-10-22）
 - UI テストで削除キー（`XCUIKeyboardKey.delete`）を `typeText` でまとめて打つと、Mac が混んでいる（load average 150 以上）とき、入力のたびに画面が値を直す入力欄（招待コードの `JoinByCodeView`）でキーが抜けて文字が残った（「ZQW-58R」など）。1 文字ずつ打って値が変わるのを待つ（`DokogachaUITests/UITestHelpers.swift` の `clearText`・`typeTextByCharacter`）。ほかのメンバーの参加・準備OK・引き直しの賛成が要る通しの UI テストは、起動引数 `-ui-auto-members` で擬似のサーバーに返させる（`InMemoryAutoMembers`）（2026-10-22）
+- `xcodebuild test` に `-only-testing:DokogachaTests` と `-only-testing:DokogachaUITests/<クラス>/<メソッド>` を一緒に渡すと、Unit は流れたのに UI テストは「Executed 0 tests」で終わった（終了コードは 0）。UI テストを 1 件だけ流すときは別の `xcodebuild` で渡し、`Executed 1 test` を確かめる（2026-10-23）
+- Simulator の回線は UI テストから切れないので、オフラインの表示は起動引数 `-network-offline`（`-uiTesting`・撮影モードのときだけ効く）で確かめる。`NWPathMonitor` を使わず固定の状態を流すので、オンラインに戻る流れは Unit テスト（`NetworkOfflineTests`・`LaunchRouteOfflineTests`）で確かめる（2026-10-23）
+- シートの中の `NavigationStack`（S-05・S-06）は別の `UINavigationController` なので、端からのスワイプで戻るにはシートの中の根元にも `InteractivePopGesture` を付ける。送っている途中に止める印（`NavigationLock`）もスタックごとに持つ（2026-10-23）
+- 根元のビューに `.safeAreaInset(edge: .top)` でバナーを付けても、`NavigationStack` に積んだ画面（ヘッダーを自前で置く S-07 など）は上を空けず、ヘッダーがバナーの下に隠れた（iOS 26.5 の Simulator）。画面の上に帯を出すときは `VStack` で縦に並べる（`OfflineBannerModifier`）（2026-10-23）
 
 ## backend（Firebase）
 

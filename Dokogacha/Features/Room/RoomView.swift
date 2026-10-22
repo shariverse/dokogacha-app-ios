@@ -113,6 +113,11 @@ struct RoomView: View {
             }
             Button("キャンセル", role: .cancel) {}
         }
+        .onChange(of: model.canForceUnlock) {
+            model.closeUnavailableConfirmation()
+        }
+        // 強制解禁を送っている途中は、端からのスワイプでも戻らせない
+        .lockNavigation(while: model.isSendingForceUnlock)
         .task {
             await model.observe()
         }
@@ -163,7 +168,7 @@ struct RoomView: View {
             .padding(.trailing, model.isOwner ? 0 : DGSpacing.s8)
         })
         // 強制解禁を送っている途中は戻らせない（失敗のトーストをこの画面で出し、もう一度押せるようにするため）
-        .disabled(model.isForceUnlocking)
+        .disabled(model.isSendingForceUnlock)
     }
 
     /// 状態チップ（ルームが届くまでは出さない）
@@ -218,7 +223,7 @@ struct RoomView: View {
                         isReady: model.isReady,
                         showsButton: model.showsReadyButton,
                         canForceUnlock: model.canForceUnlock,
-                        isForceUnlocking: model.isForceUnlocking,
+                        isForceUnlocking: model.isSendingForceUnlock,
                         onToggleReady: { model.readyTapped() },
                         onForceUnlock: { model.forceUnlockTapped() }
                     )

@@ -52,6 +52,7 @@ struct JoinConfirmView: View {
         VStack(spacing: 0) {
             DGHeader(Text("参加確認"), onBack: { dismiss() })
                 .padding(.horizontal, DGSpacing.s4)
+                .disabled(model.locksNavigation)
             ScrollView {
                 roomCard
                     .padding(.horizontal, DGSpacing.screenX)
@@ -83,6 +84,8 @@ struct JoinConfirmView: View {
                 onJoined(roomID)
             }
         }
+        // 送っている途中は、端からのスワイプで S-05 に戻る・シートを下スワイプで閉じるのを止める
+        .lockNavigation(while: model.locksNavigation)
         // 戻った・閉じた・ルームに進んだら、送っている途中の参加を止める（Task が Model を持ち続けないように）
         .onDisappear { model.cancelJoin() }
     }
@@ -151,7 +154,7 @@ struct JoinConfirmView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.dgBare)
-        .disabled(model.isJoining)
+        .disabled(model.locksNavigation)
         .accessibilityIdentifier(Identifier.cancel)
     }
 }

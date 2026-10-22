@@ -65,12 +65,17 @@ final class RoomSettingsModel {
     /// 保存できたか（入ったら画面はシートを閉じる）
     private(set) var didSave = false
 
+    /// 送っている途中で、シートを閉じさせないか（「保存」を押してから送り終えるまで。Task が動き出す前も含める。PR #55 の持ち越し）
+    var locksNavigation: Bool {
+        isSaving || saveTask != nil
+    }
+
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
     /// 今の時刻（締切の範囲を計算し直すたびに読む）
     @ObservationIgnored private let clock: () -> Date
     /// 「保存」から始めた保存。画面が消えたら（`cancelSave`）止める
-    @ObservationIgnored private var saveTask: Task<Void, Never>?
+    private var saveTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - roomID: ルームの ID
@@ -224,10 +229,17 @@ final class RoomSettingsModel {
         return current.settings.deadlineAt
     }
 
-    /// 締切日時（触っていなければ今の締切日時。今の条件が「締切日時」でなければ 3 日後の 21:00）
+    /// 締切日時（触っていなければ今の締切日時。今の条件が「締切日時」でなければ 3 日後の 21:00）。
+    ///
+    /// まだ触っていない今の締切日時が範囲の外のとき、日時ピッカーが範囲に収めて書き戻した値は「触った」としない
+    /// （締切日時を変えずに保存したときに書き換えないため。`RoomDeadline.isPickerClamp`）
     var deadline: Date {
         get { usesSelectedDeadline ? deadlineSelection.date : unlockRuleDeadline ?? deadlineSelection.date }
         set {
+            if !usesSelectedDeadline, let current = unlockRuleDeadline,
+               RoomDeadline.isPickerClamp(newValue, current: current, range: deadlineSelection.range) {
+                return
+            }
             deadlineSelection.date = newValue
             isDeadlineEdited = true
         }
@@ -362,10 +374,7 @@ final class RoomSettingsModel {
             }
             didSave = true
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

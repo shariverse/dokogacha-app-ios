@@ -301,11 +301,12 @@ final class GachaModel {
         await dispense()
     }
 
-    /// 回せなかったときのトーストの文言。回せない理由が分かるもの（解禁していない・候補が無いなど）はその文言、
+    /// 回せなかったときのトーストの文言。回せない理由が分かるもの（解禁していない・候補が無い・オフラインなど）はその文言、
     /// 通信のエラー・理由の分からないものは「通信できませんでした。もう一度回してください」
     static func failureMessage(for error: AppError) -> String {
         switch error.reason {
-        case .roomNotUnlocked, .noCandidates, .roomAlreadyDecided, .roomNotFound, .notRoomMember, .roomClosed, .permissionDenied:
+        case .roomNotUnlocked, .noCandidates, .roomAlreadyDecided, .roomNotFound, .notRoomMember, .roomClosed, .permissionDenied,
+             .offline:
             error.message
         default:
             String(localized: drawFailureMessage)

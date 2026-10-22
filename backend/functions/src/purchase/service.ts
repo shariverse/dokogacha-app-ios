@@ -82,10 +82,13 @@ async function syncRoomSponsor(db: Firestore, uid: string, roomId: string): Prom
  * - 表示名を登録する前（`users/{uid}` が無い）は `profile-required`
  * - 署名を確かめられない・別のアプリのもの・別のアイテム・取り消されたものは `purchase-invalid`
  * - 同じ購入で何度呼んでもよい（復元・端末の入れ替え・匿名のユーザーが替わった後の復元でも、呼んだ人を広告非表示にする）
+ * - `adFree` を書いた後に参加中のルームをもう一度引き、最初に引いた後に確定した参加（`joinRoom` はまだ `adFree` でない
+ *   プロフィールを読んだので購入者を入れていない）のルームにも購入者を入れる（PR #97 の持ち越し。`syncRoomSponsor` は冪等）
  * @param deps 外部のもの
  * @param uid 呼んだ人
  * @param data `request.data`（`{ signedTransaction }`）
  * @param verifier 署名の検証（本番は App Store Server Library。テストでは差し替える）
+ * @param afterFirstSync 最初に引いたルームに購入者を入れた後に呼ぶ（テストで、その間に参加が確定した状況を作るためだけに使う）
  * @returns 結果
  */
 export async function verifyPurchase(
@@ -93,6 +96,7 @@ export async function verifyPurchase(
   uid: string,
   data: unknown,
   verifier: TransactionVerifier,
+  afterFirstSync?: () => Promise<void>,
 ): Promise<VerifyPurchaseResult> {
   const { signedTransaction } = parseVerifyPurchaseInput(data);
   const { db } = deps;
@@ -109,6 +113,7 @@ export async function verifyPurchase(
   // ルームの ID だけが要るので、フィールドを読まない（`select()`）
   const rooms = await db.collection("rooms").where("memberIds", "array-contains", uid).select().get();
   const updated = await settleInGroups(rooms.docs, PURCHASE_SYNC_PARALLEL_ROOMS, (doc) => syncRoomSponsor(db, uid, doc.id));
+  await afterFirstSync?.();
 
   await db.runTransaction(async (tx) => {
     const profile = (await tx.get(user)).data() as UserDoc | undefined;
@@ -119,10 +124,16 @@ export async function verifyPurchase(
       tx.update(user, { adFree: true });
     }
   });
+
+  // `adFree` を書いた後の参加は `joinRoom` が購入者を入れるので、その前に確定した参加のルームだけを拾う
+  const synced = new Set(rooms.docs.map((doc) => doc.id));
+  const again = await db.collection("rooms").where("memberIds", "array-contains", uid).select().get();
+  const late = again.docs.filter((doc) => !synced.has(doc.id));
+  const lateUpdated = await settleInGroups(late, PURCHASE_SYNC_PARALLEL_ROOMS, (doc) => syncRoomSponsor(db, uid, doc.id));
   return {
     adFree: true,
     environment: transaction.environment,
-    rooms: rooms.size,
-    sponsorUpdates: updated.filter(Boolean).length,
+    rooms: rooms.size + late.length,
+    sponsorUpdates: [...updated, ...lateUpdated].filter(Boolean).length,
   };
 }

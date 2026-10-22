@@ -60,10 +60,15 @@ final class MembersModel {
     /// 退出できたか（入ったら画面はホームへ戻る）
     private(set) var didLeave = false
 
+    /// 送っている途中で、シートを閉じさせないか（確認で押してから送り終えるまで。Task が動き出す前も含める。PR #55 の持ち越し）
+    var locksNavigation: Bool {
+        isSending || sendTask != nil
+    }
+
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
     /// 確認のダイアログから始めた退出・削除。画面が消えたら（`cancelSending`）止める
-    @ObservationIgnored private var sendTask: Task<Void, Never>?
+    private var sendTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - roomID: ルームの ID
@@ -251,10 +256,7 @@ final class MembersModel {
         do {
             try await operation()
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

@@ -191,4 +191,41 @@ struct AddCandidatePastIdeaTests {
         #expect(toasts.current?.text == "通信できませんでした")
         #expect(model.pastIdeaGroups.count == 2)
     }
+
+    /// 過去のアイデアの購読だけが失敗し続けても、ほかの購読（候補）が値を受け取るたびにトーストを出し直さない（PR #83 の持ち越し）
+    @Test
+    func failingPastIdeasDoNotRepeatToastWhenOthersRecover() async throws {
+        let server = try Self.makeServer()
+        let repository = RoomControlledRepository(server: server)
+        repository.feedCandidates()
+        repository.pastIdeaFailures = [AppError(.network, code: .unavailable), AppError(.network, code: .unavailable)]
+        let sleeper = ManualSleeper()
+        let toasts = DGToastCenter(visibleFor: .seconds(3_600))
+        let model = AddCandidateModel(
+            roomID: DemoScenario.roomID,
+            userID: DemoScenario.myUserID,
+            repository: repository,
+            functions: server,
+            places: DemoPlaceSearchService(),
+            toasts: toasts,
+            sheetToasts: DGToastCenter(visibleFor: .seconds(3_600)),
+            sleep: { _ in },
+            resubscribeDelay: ResubscribeDelay(delay: .seconds(5), sleep: sleeper.sleep)
+        )
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+
+        // 1 回目の失敗でトーストを出し、購読し直すのを待っている
+        #expect(await AsyncTestSupport.eventually { toasts.current != nil && sleeper.waitingCount == 1 })
+        toasts.dismiss()
+        // 候補の購読が値を受け取る（候補の購読は直る）
+        repository.sendCandidates()
+        #expect(await AsyncTestSupport.eventually { model.hasLoadedCandidates })
+        // 過去のアイデアの 2 回目の失敗では、トーストを出し直さない
+        sleeper.releaseAll()
+        #expect(await AsyncTestSupport.eventually { repository.pastIdeaFailures.isEmpty && sleeper.waitingCount == 1 })
+        #expect(toasts.current == nil)
+        sleeper.releaseAll()
+        #expect(await AsyncTestSupport.eventually { model.hasLoadedPastIdeas })
+    }
 }

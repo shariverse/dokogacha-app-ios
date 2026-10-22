@@ -22,6 +22,7 @@ struct DokoGachaApp: App {
                 .environment(appDelegate.push)
                 .environment(appDelegate.ads)
                 .environment(appDelegate.purchases)
+                .environment(appDelegate.network)
                 .onOpenURL { url in
                     appDelegate.deepLinks.handle(url)
                 }
@@ -35,7 +36,7 @@ struct DokoGachaApp: App {
     @ViewBuilder private var rootView: some View {
         switch ScreenshotDemo.scene {
         case .home, nil:
-            RootView(session: appDelegate.serverSession, deepLinks: appDelegate.deepLinks)
+            RootView(session: appDelegate.serverSession, deepLinks: appDelegate.deepLinks, network: appDelegate.network)
         case .onboarding:
             ScreenshotDemo.OnboardingScene(auth: appDelegate.serverSession.services.auth)
         case .createRoom:

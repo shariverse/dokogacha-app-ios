@@ -82,4 +82,18 @@ nonisolated extension MemoryTicket {
     static func watchedRooms(_ rooms: [Identified<Room>], showsAll: Bool) -> [Identified<Room>] {
         showsAll ? rooms : Array(rooms.prefix(visibleLimit))
     }
+
+    /// 当選した候補をまだ待っているルームがあるか（きっぷが 1 枚も無いときに、読み込み中の形を出し続けるか）。
+    ///
+    /// きっぷになりうる（`closed` で抽選の ID と当選した候補の ID がある）ルームのうち、当選した候補の購読がまだ値も失敗も
+    /// 受け取っていないものがあれば true。購読が失敗した・候補が無かったルームは待たない（読み込み中のまま止めないため）
+    /// - Parameters:
+    ///   - watched: 当選した候補を購読しているルーム（`watchedRooms`）
+    ///   - settledRoomIDs: 当選した候補の購読が、値（無いことを含む）か失敗を受け取ったルームの ID
+    static func isWaitingForWinners(watched: [Identified<Room>], settledRoomIDs: Set<String>) -> Bool {
+        watched.contains { room in
+            room.status == .closed && !(room.currentDrawId ?? "").isEmpty && room.winnerCandidateId != nil
+                && !settledRoomIDs.contains(room.id)
+        }
+    }
 }

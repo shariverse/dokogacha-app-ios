@@ -61,6 +61,17 @@ struct MemoryTicketTests {
         #expect(tickets.first?.leftoverCount == 0)
     }
 
+    /// 当選した候補を待つのは、きっぷになりうるルームで、購読がまだ値も失敗も受け取っていないものがある間だけ（PR #78 の持ち越し）
+    @Test
+    func waitsOnlyForUnsettledWinners() {
+        let rooms = [Self.closedRoom("a", daysAgo: 1), Self.closedRoom("b", daysAgo: 2), Self.closedRoom("noDraw", daysAgo: 3, drawID: nil)]
+        #expect(MemoryTicket.isWaitingForWinners(watched: rooms, settledRoomIDs: []))
+        #expect(MemoryTicket.isWaitingForWinners(watched: rooms, settledRoomIDs: ["a"]))
+        // 抽選の ID が無いルームはきっぷにならないので待たない
+        #expect(!MemoryTicket.isWaitingForWinners(watched: rooms, settledRoomIDs: ["a", "b"]))
+        #expect(!MemoryTicket.isWaitingForWinners(watched: [], settledRoomIDs: []))
+    }
+
     /// 5 枚までを出し、6 枚目からは「すべて見る」を押すと出す（03 の S-02「最大5件表示＋「すべて見る」」）
     @Test
     func showsFiveUntilShowAll() {

@@ -85,6 +85,7 @@ struct AddCandidateView: View {
             DGHeader(Text("行きたい場所を追加"), onBack: { dismiss() }, trailing: {
                 postCount
             })
+            .disabled(model.locksNavigation)
             DGTabSwitch(
                 selection: $model.tab,
                 options: [
@@ -131,6 +132,7 @@ struct AddCandidateView: View {
         }
         .sheet(item: $model.draft, onDismiss: sheetDismissed) { _ in
             PostCandidateView(model: model)
+                .offlineBanner()
         }
         .alert(
             Text("すでに候補にあります。いいねしますか？"),
@@ -140,6 +142,8 @@ struct AddCandidateView: View {
             DuplicatePromptActions(model: model, prompt: prompt)
         }
         // 戻ったら、待っている検索・送っている途中の追加といいねを止める（Task が Model を持ち続けないように）
+        // 重複の確認からいいねを送っている途中は、端からのスワイプでも戻らせない
+        .lockNavigation(while: model.locksNavigation)
         .onDisappear { model.cancelTasks() }
     }
 

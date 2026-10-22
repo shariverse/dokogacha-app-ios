@@ -150,9 +150,10 @@ struct CandidateDetailReportTests {
         #expect(!model.isSending)
     }
 
-    /// 画面が消えて報告を止めたら、トーストを出さず、隠さない
+    /// 画面が消えて報告を止めた後にサーバーで報告できたら、トーストは出さずに、端末では隠す
+    /// （サーバーには報告が残るので、見えたままにしない。PR #91 の持ち越し）
     @Test
-    func cancelledReportShowsNothing() async {
+    func cancelledReportHidesWithoutToast() async {
         let server = Self.makeServer()
         let functions = DeleteControlledFunctions(server: server)
         functions.reportBehavior = .suspend
@@ -165,7 +166,8 @@ struct CandidateDetailReportTests {
         model.cancelSending()
         functions.finish()
         #expect(await AsyncTestSupport.eventually { !model.isReporting })
-        #expect(!model.isReported)
+        #expect(server.reports.count == 1)
+        #expect(model.isReported)
         #expect(toasts.current == nil)
     }
 

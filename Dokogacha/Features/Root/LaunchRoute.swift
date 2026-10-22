@@ -30,6 +30,8 @@ enum LaunchRoute: Equatable {
     case serverUnavailable
     /// サインイン・プロフィールの読み込みに失敗した（再試行できる）
     case failed(AppError)
+    /// オフラインで、サインインできない・プロフィールがキャッシュに無い（02 の §9）。繋がったら起動の流れが自動で続ける
+    case offline
     /// S-01 オンボーディング（表示名をまだ登録していない）
     case onboarding
     /// S-02 ホーム（表示名を登録済み）
@@ -42,7 +44,29 @@ enum LaunchRoute: Equatable {
     /// 3. サインインに失敗した → `failed`（理由が分からないので「通信できませんでした」）
     /// 4. サインインした → そのユーザーのプロフィールで決める。読めていない・別のユーザーのもの → `loading`、
     ///    無い → `onboarding`、ある → `home`、読めなかった → `failed`
+    /// 5. オフラインのとき、3 の失敗と 4 の読み込み中は `offline` にする。プロフィールの購読はキャッシュに無いと
+    ///    サーバーの返事を待ち続ける（`FirebaseAuthService.profile`）ので、起動中のまま理由が分からなくなるため（PR #40 の持ち越し）。
+    ///    読めた画面（S-01・ホーム）はオフラインでもそのまま出す（閲覧はキャッシュでできる）
     static func resolve(
+        connection: ServerConnection,
+        authState: ServerSession.AuthState,
+        profile: ProfileLoadState,
+        reachability: NetworkReachability = .unknown
+    ) -> Self {
+        let route = resolveIgnoringNetwork(connection: connection, authState: authState, profile: profile)
+        guard reachability == .offline else {
+            return route
+        }
+        switch (route, authState) {
+        case (.failed, .failed), (.loading, .signedIn):
+            return .offline
+        default:
+            return route
+        }
+    }
+
+    /// 回線の状態を見ない判定（1〜4）
+    private static func resolveIgnoringNetwork(
         connection: ServerConnection,
         authState: ServerSession.AuthState,
         profile: ProfileLoadState

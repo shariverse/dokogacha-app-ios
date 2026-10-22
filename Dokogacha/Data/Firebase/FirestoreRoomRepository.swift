@@ -69,8 +69,14 @@ final class FirestoreRoomRepository: RoomRepository {
         return FirestoreSubscription.query(query, gateway: gateway) { FirestoreDecoding.list($0, FirestoreDecoding.candidate) }
     }
 
+    /// 抽選の記録は、キャッシュの「無い」を流さずサーバーの返事を待つ（S-14 は「無い」を「記録が見つからない」として出すため。
+    /// オフラインでキャッシュに無いだけのときに取り違えない）
     func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>> {
-        FirestoreSubscription.document(FirestorePath.draw(drawID, roomID: roomID), gateway: gateway) { document in
+        FirestoreSubscription.document(
+            FirestorePath.draw(drawID, roomID: roomID),
+            gateway: gateway,
+            waitsForServerWhenMissing: true
+        ) { document in
             try document.map(FirestoreDecoding.draw)
         }
     }

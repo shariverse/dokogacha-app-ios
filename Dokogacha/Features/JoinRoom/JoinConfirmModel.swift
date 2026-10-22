@@ -29,8 +29,8 @@ final class JoinConfirmModel {
     @ObservationIgnored private let via: RoomJoinVia
     /// 参加できたら `room_join` を送る窓口
     @ObservationIgnored private let analytics: any AnalyticsService
-    /// ボタンから始めた参加。画面が消えたら（`cancelJoin`）止める
-    @ObservationIgnored private var joinTask: Task<Void, Never>?
+    /// ボタンから始めた参加。画面が消えたら（`cancelJoin`）止める。始めた時点から戻る・閉じる操作を止めるので、画面からも見る
+    private var joinTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - destination: 確かめたルームと招待コード
@@ -56,6 +56,13 @@ final class JoinConfirmModel {
     /// 「参加する」を押せるか（送っている途中・参加済みのときは押せない）
     var canJoin: Bool {
         !isJoining && joinedRoomID == nil
+    }
+
+    /// 参加を送っている途中か（押してから送り終えるまで。戻る・閉じる・下スワイプを止める。PR #49 の持ち越し）。
+    ///
+    /// 送っている途中に閉じると、サーバーでは参加済みになるのに画面はルームへ進まない
+    var locksNavigation: Bool {
+        isJoining || joinTask != nil
     }
 
     /// 「参加する」が押された。参加を始める（送っている途中なら何もしない）。
@@ -103,10 +110,7 @@ final class JoinConfirmModel {
                 analytics.log(.roomJoin(via: via))
             }
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

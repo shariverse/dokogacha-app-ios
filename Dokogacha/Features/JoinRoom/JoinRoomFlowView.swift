@@ -19,6 +19,8 @@ struct JoinRoomFlowView: View {
     @State private var path: [JoinConfirmDestination] = []
     @State private var toasts: DGToastCenter
     @State private var codeModel: JoinByCodeModel
+    /// 参加を送っている途中なら、端からのスワイプで S-05 に戻らせない
+    @State private var navigationLock = NavigationLock()
 
     /// `previewRoom`・`joinRoom` を呼ぶ窓口
     private let functions: any FunctionsClient
@@ -70,6 +72,8 @@ struct JoinRoomFlowView: View {
             .task {
                 codeModel.submitInitialCodeIfNeeded()
             }
+            // ナビゲーションバーを隠しても、S-06 から端のスワイプで S-05 に戻れるようにする（PR #49 の持ち越し）
+            .background(InteractivePopGesture(lock: navigationLock))
             .navigationDestination(for: JoinConfirmDestination.self) { destination in
                 JoinConfirmView(
                     model: JoinConfirmModel(destination: destination, functions: functions, toasts: toasts, via: via, analytics: analytics),
@@ -78,6 +82,7 @@ struct JoinRoomFlowView: View {
                 )
             }
         }
+        .environment(\.navigationLock, navigationLock)
         .dgToast(toasts)
     }
 }

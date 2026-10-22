@@ -35,6 +35,8 @@ struct ResultView: View {
         static let share = "result.share"
         /// ルームが見つからないときの案内
         static let missing = "result.missing"
+        /// きっぷを作れないときの案内
+        static let unavailable = "result.unavailable"
     }
 
     /// 「レア当選」の文字の大きさ（プロトタイプの値）
@@ -74,6 +76,8 @@ struct ResultView: View {
         VStack(spacing: 0) {
             DGHeader(Text(verbatim: model.room.room?.name ?? ""), onBack: { dismiss() })
                 .padding(.leading, DGSpacing.s4)
+                // 引き直し・決定を送っている途中は閉じさせない（送った結果を見せる相手がいなくなるため）
+                .disabled(model.isSendingReroll || model.closing.isClosing)
             ScrollView {
                 content
                     .padding(.horizontal, DGSpacing.screenX)
@@ -107,6 +111,8 @@ struct ResultView: View {
             loadingContent
         case .missing:
             missingContent
+        case .unavailable:
+            unavailableContent
         }
     }
 
@@ -238,6 +244,25 @@ struct ResultView: View {
         .padding(.top, DGSpacing.s16)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.missing)
+    }
+
+    /// 抽選の記録・当選した候補が読めず、きっぷを作れないときの案内（戻るはヘッダーから）
+    private var unavailableContent: some View {
+        VStack(alignment: .leading, spacing: DGSpacing.s12) {
+            Text("行き先きっぷを読み込めませんでした")
+                .font(.dg(.displaySection))
+                .foregroundStyle(Color.dgInk)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text("抽選の記録が見つかりません")
+                .font(.dg(.bodyRegular))
+                .foregroundStyle(Color.dgTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, DGSpacing.s16)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(Identifier.unavailable)
     }
 
     /// きっぷをポップインさせる（`animatesIn` のときだけ。視差効果を減らすならフェードだけ）

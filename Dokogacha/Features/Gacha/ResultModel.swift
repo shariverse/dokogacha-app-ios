@@ -27,6 +27,8 @@ final class ResultModel {
         case loaded
         /// ルームが無い・読めなくなった（削除された・メンバーから外れた）
         case missing
+        /// ルームは読めたが、抽選の記録か当選した候補がサーバーに無い（きっぷを作れない。読み込み中のまま止めない。PR #72 の持ち越し）
+        case unavailable
     }
 
     /// 抽選の ID
@@ -35,6 +37,8 @@ final class ResultModel {
     let room: RoomModel
     /// 届いた抽選の記録（まだなら nil）
     private(set) var draw: Draw?
+    /// 抽選の記録がサーバーに無かったか（サーバーの返事で「無い」が届いた）
+    private(set) var isDrawMissing = false
     /// 引き直しの提案・投票を送っている途中か（送っている間はボタンを押せない）
     private(set) var isSendingReroll = false
     /// 「この行き先で決定」（F-44。作成者だけが使う）
@@ -110,12 +114,23 @@ final class ResultModel {
         return ResultTicket.make(draw: draw, room: current, winner: winner)
     }
 
-    /// 読み込みの状態
+    /// 読み込みの状態。
+    ///
+    /// 抽選の記録がサーバーに無い・記録の当選した候補が候補に無い（読めた候補の中に無い）ときは、読み込み中のまま待たずに `unavailable` にする
     var loadState: LoadState {
         if room.loadState == .missing {
             return .missing
         }
-        return ticket == nil ? .loading : .loaded
+        if ticket != nil {
+            return .loaded
+        }
+        if isDrawMissing {
+            return .unavailable
+        }
+        if let draw, room.room != nil, room.hasLoadedCandidates, !room.candidates.contains(where: { $0.id == draw.candidateId }) {
+            return .unavailable
+        }
+        return .loading
     }
 
     /// 閲覧のみか（`closed` のルーム。03 の S-14「閲覧のみのときは 5・6 を表示しない」）
@@ -165,7 +180,9 @@ final class ResultModel {
                     draw = value
                     return
                 case .value(nil):
-                    continue
+                    // サーバーに無い（Firestore はキャッシュの「無い」を流さない）。作られた後は変わらない記録なので、待たずに終える
+                    isDrawMissing = true
+                    return
                 case let .failure(error) where error.isPermissionDenied:
                     return
                 case let .failure(error):
@@ -270,10 +287,7 @@ final class ResultModel {
             try await operation()
             return true
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
             return false
         }
     }

@@ -29,6 +29,7 @@ struct AppPresentationTests {
         var presentation = AppPresentation()
         presentation.open(.room(id: "r"))
         presentation.open(.candidateDetail(roomID: "r", candidateID: "c"))
+        presentation.sheetAppeared()
         presentation.open(.gacha(roomID: "r"))
         #expect(presentation.sheet == nil)
         #expect(presentation.fullScreen == nil)
@@ -91,6 +92,7 @@ struct AppPresentationTests {
         let code = try #require(InviteCode("QW58RT"))
         var presentation = AppPresentation()
         presentation.open(.members(roomID: "r"))
+        presentation.sheetAppeared()
         presentation.open(.gacha(roomID: "r"))
         presentation.open(.joinByInviteLink(code))
         #expect(presentation.sheet == nil)
@@ -106,13 +108,24 @@ struct AppPresentationTests {
         #expect(presentation.sheet == .joinByInviteLink(code))
     }
 
-    /// カバーが出ていなければ、招待リンクのシートはすぐに出る（出していたシートは差し替える）。待たせるシートが無ければ、カバーを閉じても何も出さない
+    /// カバーもシートも出ていなければ、招待リンクのシートはすぐに出る。ほかのシート（編集の途中の S-12 など）を出していたら替えず、
+    /// 閉じ終えてから出す（PR #70 の持ち越し）。待たせるシートが無ければ、カバーを閉じても何も出さない
     @Test
     func inviteLinkWithoutCoverOpensSheetImmediately() throws {
         let code = try #require(InviteCode("QW58RT"))
+        var empty = AppPresentation()
+        empty.open(.joinByInviteLink(code))
+        #expect(empty.sheet == .joinByInviteLink(code))
+        #expect(empty.pendingSheet == nil)
+
         var presentation = AppPresentation()
-        presentation.open(.candidateDetail(roomID: "r", candidateID: "c"))
+        presentation.open(.roomSettings(roomID: "r"))
+        presentation.sheetAppeared()
         presentation.open(.joinByInviteLink(code))
+        #expect(presentation.sheet == .roomSettings(roomID: "r"))
+        #expect(presentation.pendingSheet == .joinByInviteLink(code))
+        presentation.sheet = nil
+        presentation.sheetDismissed()
         #expect(presentation.sheet == .joinByInviteLink(code))
         #expect(presentation.pendingSheet == nil)
 
@@ -147,6 +160,7 @@ struct AppPresentationTests {
     func sameRoomGachaDoesNotReplacePendingCover() {
         var presentation = AppPresentation()
         presentation.open(.members(roomID: "r"))
+        presentation.sheetAppeared()
         presentation.open(.result(roomID: "r", drawID: "d1"))
         presentation.open(.gacha(roomID: "r"))
         #expect(presentation.pendingFullScreen == .result(roomID: "r", drawID: "d1"))
@@ -155,13 +169,19 @@ struct AppPresentationTests {
         #expect(presentation.fullScreen == .result(roomID: "r", drawID: "d1"))
     }
 
-    /// 出しているカバーが別のルームのものなら、開いたルームのカバーに替える。カバーを閉じた後は同じルームでも開く
+    /// 出しているカバーが別のルームのものでも替えず、閉じ終えてから開いたルームのカバーを出す
+    /// （通知で積み直したカバーの下の S-07 が S-14 を開いても、出している演出を止めない。PR #80 の持ち越し）。カバーを閉じた後は同じルームでも開く
     @Test
-    func otherRoomGachaReplacesCover() {
+    func otherRoomCoverWaitsForCurrentCover() {
         var presentation = AppPresentation()
         presentation.open(.result(roomID: "r1", drawID: "d1"))
         presentation.open(.gacha(roomID: "r2"))
+        #expect(presentation.fullScreen == .result(roomID: "r1", drawID: "d1"))
+        #expect(presentation.pendingFullScreen == .gacha(roomID: "r2"))
+        presentation.fullScreen = nil
+        presentation.fullScreenDismissed()
         #expect(presentation.fullScreen == .gacha(roomID: "r2"))
+        #expect(presentation.pendingFullScreen == nil)
 
         var closed = AppPresentation()
         closed.open(.result(roomID: "r", drawID: "d1"))
@@ -169,5 +189,77 @@ struct AppPresentationTests {
         closed.fullScreenDismissed()
         closed.open(.gacha(roomID: "r"))
         #expect(closed.fullScreen == .gacha(roomID: "r"))
+    }
+
+    /// コードからシートを閉じたら、閉じ終えるまでカバーを出さずに待たせる（閉じている途中のシートの上にカバーを出せない。PR #72 の持ち越し）
+    @Test
+    func coverWaitsForSheetClosedByCode() {
+        var presentation = AppPresentation()
+        presentation.open(.joinByCode)
+        presentation.sheetAppeared()
+        // 参加したのでシートを閉じ、ルームを積む。ルームが `drawn` なので、S-07 がすぐに S-14 を開く
+        presentation.closeSheet()
+        presentation.open(.room(id: "r"))
+        presentation.open(.result(roomID: "r", drawID: "d"))
+        #expect(presentation.sheet == nil)
+        #expect(presentation.fullScreen == nil)
+        #expect(presentation.pendingFullScreen == .result(roomID: "r", drawID: "d"))
+
+        presentation.sheetDismissed()
+        #expect(presentation.fullScreen == .result(roomID: "r", drawID: "d"))
+        #expect(!presentation.isClosingSheet)
+    }
+
+    /// 画面に出る前に閉じたシートは、閉じ終えるのを待たない（`onDismiss` が呼ばれず、カバーが出ないままにならないように）
+    @Test
+    func sheetClosedBeforeAppearingDoesNotBlockCovers() {
+        var presentation = AppPresentation()
+        presentation.open(.members(roomID: "r"))
+        presentation.open(.gacha(roomID: "r"))
+        #expect(presentation.fullScreen == .gacha(roomID: "r"))
+        #expect(presentation.pendingFullScreen == nil)
+        #expect(!presentation.isClosingSheet)
+
+        var closed = AppPresentation()
+        closed.open(.members(roomID: "r"))
+        closed.closeSheet()
+        closed.open(.gacha(roomID: "r"))
+        #expect(closed.fullScreen == .gacha(roomID: "r"))
+    }
+
+    /// カバーを開くために招待リンクのシートを閉じたら、カバーを閉じた後に出し直す（招待コードを失わない。PR #70 の持ち越し）
+    @Test
+    func inviteLinkSheetReturnsAfterCover() throws {
+        let code = try #require(InviteCode("QW58RT"))
+        var presentation = AppPresentation()
+        presentation.open(.room(id: "r"))
+        presentation.open(.joinByInviteLink(code))
+        presentation.sheetAppeared()
+        // ほかの人が回したので、S-07 が S-13 を開く
+        presentation.open(.gacha(roomID: "r"))
+        #expect(presentation.sheet == nil)
+        #expect(presentation.pendingSheet == .joinByInviteLink(code))
+
+        presentation.sheetDismissed()
+        #expect(presentation.fullScreen == .gacha(roomID: "r"))
+        presentation.fullScreen = nil
+        presentation.fullScreenDismissed()
+        #expect(presentation.sheet == .joinByInviteLink(code))
+    }
+
+    /// シートが無いときにカバーを直接出したら、古い待ちのカバーを捨てる（後でシートを閉じたときに戻されない。PR #76 の持ち越し）
+    @Test
+    func directCoverDropsStalePending() {
+        var presentation = AppPresentation()
+        presentation.open(.members(roomID: "r1"))
+        presentation.sheetAppeared()
+        presentation.open(.gacha(roomID: "r1"))
+        #expect(presentation.pendingFullScreen == .gacha(roomID: "r1"))
+        presentation.sheetDismissed()
+        presentation.fullScreen = nil
+        presentation.fullScreenDismissed()
+        presentation.open(.result(roomID: "r2", drawID: "d"))
+        #expect(presentation.fullScreen == .result(roomID: "r2", drawID: "d"))
+        #expect(presentation.pendingFullScreen == nil)
     }
 }

@@ -106,6 +106,8 @@ final class ScenarioUITests: XCTestCase {
         let gacha = app.buttons[UITestID.roomGacha]
         XCTAssertTrue(gacha.waitForEnabled())
         gacha.tap()
+        // 1 回目は候補 3 件がすべてカプセルになる（ドームの VoiceOver のラベル）
+        XCTAssertTrue(app.descendants(matching: .any)["ガチャ。カプセル 3個"].waitForExistence(timeout: UITestID.timeout))
         let firstWinner = drawFromGachaScreen(app, roomName: "週末のランチ")
 
         // 提案すると自分が賛成し、はるか・そうたの賛成で過半数になって可決する
@@ -121,6 +123,8 @@ final class ScenarioUITests: XCTestCase {
         XCTAssertTrue(playAgain.scrollIntoView(in: app))
         playAgain.tap()
         XCTAssertTrue(app.otherElements[UITestID.gachaScreen].waitForExistence(timeout: UITestID.timeout))
+        // 前回の当選は対象から外れるので、カプセルが 1 つ減る（偶然別の候補を引いても通らないように、数でも確かめる。PR #103 の持ち越し）
+        XCTAssertTrue(app.descendants(matching: .any)["ガチャ。カプセル 2個"].waitForExistence(timeout: UITestID.timeout))
         let secondWinner = drawFromGachaScreen(app, roomName: "週末のランチ")
         XCTAssertNotEqual(secondWinner, firstWinner)
 

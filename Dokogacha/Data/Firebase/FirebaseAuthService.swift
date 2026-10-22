@@ -97,19 +97,12 @@ final class FirebaseAuthService: AuthService {
                     return
                 }
                 let nsError = error as NSError
-                switch AuthErrorCode(rawValue: nsError.code) {
-                case .providerAlreadyLinked:
-                    continuation.resume(returning: .linked)
-                case .credentialAlreadyInUse:
-                    guard let updated = nsError.userInfo[AuthErrors.userInfoUpdatedCredentialKey] as? AuthCredential else {
-                        continuation.resume(throwing: AppError(.appleSignInFailed))
-                        return
-                    }
+                let updated = nsError.userInfo[AuthErrors.userInfoUpdatedCredentialKey] as? AuthCredential
+                let result = FirebaseAuthErrorMapping.linkResult(code: nsError.code, hasUpdatedCredential: updated != nil)
+                if case .success(.alreadyInUse) = result {
                     self?.pendingAppleCredential = updated
-                    continuation.resume(returning: .alreadyInUse)
-                default:
-                    continuation.resume(throwing: Self.appError(from: nsError))
                 }
+                continuation.resume(with: result)
             }
         }
     }
@@ -177,22 +170,12 @@ final class FirebaseAuthService: AuthService {
 
     /// Firebase Auth のエラーをアプリのエラーにする（通信の失敗は「通信できませんでした」、それ以外は「Apple でサインインできませんでした」）
     nonisolated private static func appError(from error: NSError) -> AppError {
-        switch AuthErrorCode(rawValue: error.code) {
-        case .networkError:
-            AppError(.network)
-        default:
-            AppError(.appleSignInFailed)
-        }
+        FirebaseAuthErrorMapping.signInError(code: error.code)
     }
 
     /// トークンの取り消しのエラーをアプリのエラーにする（通信の失敗は「通信できませんでした」、それ以外は「連携を解除できませんでした」）
     nonisolated private static func revokeError(from error: NSError) -> AppError {
-        switch AuthErrorCode(rawValue: error.code) {
-        case .networkError:
-            AppError(.network)
-        default:
-            AppError(.appleRevokeFailed)
-        }
+        FirebaseAuthErrorMapping.revokeError(code: error.code)
     }
 }
 

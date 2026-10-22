@@ -46,6 +46,10 @@ extension RoomSettingsModelTests {
         model.refreshDeadlineRange()
         #expect(model.deadline == soon)
         #expect(model.request == nil)
+        // 日時ピッカーが範囲の外の値を範囲に収めて書き戻しても、触ったことにしない（PR #65 の持ち越し）
+        model.deadline = model.deadlineRange.lowerBound
+        #expect(model.deadline == soon)
+        #expect(model.request == nil)
 
         let later = try Self.now().addingTimeInterval(2 * 60 * 60)
         model.deadline = later

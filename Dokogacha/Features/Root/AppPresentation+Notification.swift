@@ -11,8 +11,9 @@ extension AppPresentation {
     /// - そのルームの S-07 を出していなければ、ホームの上にそのルームだけを積み直す（`[.room]`）。
     ///   ルームが `drawn`・`closed` なら、S-07 が開いたときに S-14 を自動で出す（`DrawReplay.resultDrawID`。いまの抽選で出す）
     /// - もうそのルームの S-07 を出していて、結果を開く通知なら、S-14 を開く（S-07 の自動の表示は開いたときだけなので）
-    /// - シートは閉じる。S-13・S-14 のカバーは閉じない（S-13 は演出中に閉じられない取り決め。`AppPresentation` の説明）。
-    ///   ほかのルームのカバーを出していたら、カバーの下で積み直すので、カバーを閉じるとそのルームが出る
+    /// - シートは閉じる（招待リンクのシートは閉じない）。S-13・S-14 のカバーは閉じない（S-13 は演出中に閉じられない取り決め。
+    ///   `AppPresentation` の説明）。ほかのルームのカバーを出していたら、カバーの下で積み直すので、カバーを閉じるとそのルームが出る
+    ///   （カバーの下の S-07 が S-14 を開こうとしても、出しているカバーは替えず、閉じた後に出す）
     /// - Parameter destination: 通知の行き先
     mutating func openNotification(_ destination: PushDestination) {
         let room = AppRoute.room(id: destination.roomID)
@@ -23,8 +24,9 @@ extension AppPresentation {
         if destination.target == .result, isShowingRoom, let drawID = destination.drawID {
             // シートが出ていれば、シートを閉じてからカバーを出す。同じルームのカバーを出していれば替えない（`open`）
             open(.result(roomID: destination.roomID, drawID: drawID))
-        } else if fullScreen == nil, pendingFullScreen == nil {
-            sheet = nil
+        } else if fullScreen == nil, pendingFullScreen == nil, sheet?.inviteLinkCode == nil {
+            // 招待リンクのシートは閉じない（招待コードは使い切っているので、閉じると戻らない。PR #80 の持ち越し）
+            closeSheet()
         }
     }
 
