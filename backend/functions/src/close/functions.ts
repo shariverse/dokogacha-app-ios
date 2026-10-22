@@ -42,7 +42,7 @@ export const autoCloseRooms = onSchedule(
 
 /**
  * ルームが `closed` になったら（作成者の決定・自動の終了のどちらでも）、当選しなかった候補を、
- * 終了したときの各メンバーの過去のアイデアに登録する（02 の §6.5・F-13。Firestore のトリガー）。
+ * 終了したときの各メンバー（`event.data.after` の `memberIds`。やり直しでも同じ値）の過去のアイデアに登録する（02 の §6.5・F-13。Firestore のトリガー）。
  * `closed` のままの更新では何もしない。失敗したらやり直す（`retry: true`。登録は冪等）
  */
 export const onRoomClosed = onDocumentUpdated(
@@ -54,7 +54,8 @@ export const onRoomClosed = onDocumentUpdated(
       return;
     }
     const roomId = event.params.roomId;
-    const registered = await close.registerPastIdeas(getFirestore(), roomId);
+    // 終了した時点のルームの値を渡す（読み直すと、直後に退出・削除された人が宛先から外れる）
+    const registered = await close.registerPastIdeas(getFirestore(), roomId, after);
     logger.info("終了したルームの過去のアイデアを登録した", { roomId, registered });
   },
 );
