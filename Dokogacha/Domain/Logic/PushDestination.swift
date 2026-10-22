@@ -21,6 +21,10 @@ nonisolated struct PushDestination: Equatable, Sendable {
         case drawn
         /// 引き直しが提案された
         case rerollProposed
+        /// 前回のメンバーとして招待された（`inviteLastMembers`）
+        case invited
+        /// その日に候補が増えた（まとめ通知 `notifyNewCandidates`）
+        case newCandidates
     }
 
     /// 開く画面（ペイロードの `target`）
@@ -29,6 +33,8 @@ nonisolated struct PushDestination: Equatable, Sendable {
         case room
         /// S-14 結果（ルームが `drawn`・`closed` なら S-07 を開くと自動で出る）
         case result
+        /// S-06 参加確認（前回のメンバーへの招待。`inviteCode` で招待リンクと同じ道で開く。招待された人はまだメンバーでなく、ルームを読めない）
+        case join
     }
 
     /// 通知の種類
@@ -39,23 +45,33 @@ nonisolated struct PushDestination: Equatable, Sendable {
     let target: Target
     /// 結果を開くときの抽選の ID（無ければ nil）
     let drawID: String?
+    /// 参加確認を開くときの招待コード（`target` が `join` のときだけ。ほかは nil）
+    let inviteCode: InviteCode?
 
     /// 値を指定して作る（テスト・UI テストの起動引数）
-    init(kind: Kind?, roomID: String, target: Target, drawID: String? = nil) {
+    init(kind: Kind?, roomID: String, target: Target, drawID: String? = nil, inviteCode: InviteCode? = nil) {
         self.kind = kind
         self.roomID = roomID
         self.target = target
         self.drawID = drawID
+        self.inviteCode = inviteCode
     }
 
-    /// 通知のペイロードから作る。`roomId` が無い・正しくなければ nil
+    /// 通知のペイロードから作る。`roomId` が無い・正しくない、参加確認を開くのに招待コードが無い・正しくなければ nil
     /// - Parameter userInfo: 通知の `userInfo`（FCM の `data` の値は文字列）
     init?(userInfo: [AnyHashable: Any]) {
         guard let roomID = userInfo["roomId"] as? String, FirestorePath.isValidDocumentID(roomID) else {
             return nil
         }
+        let target = (userInfo["target"] as? String).flatMap(Target.init(rawValue:)) ?? .room
+        let inviteCode = (userInfo["inviteCode"] as? String).flatMap { InviteCode($0) }
+        // 招待された人はメンバーでないので、コードが読めなければルームも開けない（開かない）
+        if target == .join, inviteCode == nil {
+            return nil
+        }
         self.roomID = roomID
-        target = (userInfo["target"] as? String).flatMap(Target.init(rawValue:)) ?? .room
+        self.target = target
+        self.inviteCode = target == .join ? inviteCode : nil
         kind = (userInfo["type"] as? String).flatMap(Kind.init(rawValue:))
         drawID = (userInfo["drawId"] as? String).flatMap { FirestorePath.isValidDocumentID($0) ? $0 : nil }
     }

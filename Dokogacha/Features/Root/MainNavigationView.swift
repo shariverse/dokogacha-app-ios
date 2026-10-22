@@ -116,7 +116,16 @@ struct MainNavigationView: View {
                 requestNotificationPermission()
             }
         case let .invite(created):
-            InviteView(model: InviteModel(destination: created, toasts: toasts)) {
+            InviteView(
+                model: InviteModel(destination: created, toasts: toasts),
+                lastMembers: LastMembersInviteModel(
+                    roomID: created.roomID,
+                    userID: userID,
+                    repository: services.rooms,
+                    functions: services.functions,
+                    toasts: toasts
+                )
+            ) {
                 presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
             }
         case .joinByCode, .joinByInviteLink:

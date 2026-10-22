@@ -9,7 +9,8 @@ import SwiftUI
 /// 「ルームを作成しました」＋ルーム名・招待コードカード・「招待リンクを送る」を並べ、「ルームへ進む」を下に固定する。
 ///
 /// 03 の S-04 とプロトタイプにはヘッダーが無いので置かない（戻るのは「ルームへ進む」か端からのスワイプで、どちらもルームに出る）。
-/// 「前回のメンバーを招待」（03 の S-04 の 4）は、前回のルーム（`closed`）の購読と `inviteLastMembers` が揃うタスク 33 で足す。
+/// 「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 4）は、前回のルームがあり招待する人がいるときだけ
+/// 「招待リンクを送る」の下に出す（`LastMembersInviteModel`。プレビューなどで渡さなければ出さない）。
 struct InviteView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -21,6 +22,8 @@ struct InviteView: View {
         static let share = "invite.share"
         /// 「ルームへ進む」
         static let openRoom = "invite.openRoom"
+        /// 「前回のメンバー（{前回ルーム名}・N人）を招待」
+        static let lastMembers = "invite.lastMembers"
     }
 
     /// 「ルームを作成しました」「招待コード」の文字の大きさ（03 の S-04「13pt」）
@@ -33,6 +36,8 @@ struct InviteView: View {
     private static let shareIconSize: CGFloat = DGButtonKind.primary.iconSize
 
     @State private var model: InviteModel
+    /// 前回のメンバーへの招待（無ければボタンを出さない）
+    @State private var lastMembers: LastMembersInviteModel?
     /// 「ルームへ進む」を押したときの処理（招待の画面を閉じてルームを出す）
     private let onOpenRoom: () -> Void
 
@@ -40,9 +45,11 @@ struct InviteView: View {
 
     /// - Parameters:
     ///   - model: 画面の値（最初の 1 回だけ使う）
+    ///   - lastMembers: 前回のメンバーへの招待（最初の 1 回だけ使う。nil ならボタンを出さない）
     ///   - onOpenRoom: 「ルームへ進む」を押したときの処理
-    init(model: InviteModel, onOpenRoom: @escaping () -> Void) {
+    init(model: InviteModel, lastMembers: LastMembersInviteModel? = nil, onOpenRoom: @escaping () -> Void) {
         _model = State(initialValue: model)
+        _lastMembers = State(initialValue: lastMembers)
         self.onOpenRoom = onOpenRoom
     }
 
@@ -51,7 +58,12 @@ struct InviteView: View {
             VStack(spacing: DGSpacing.s24) {
                 titleBlock
                 codeCard
-                shareButton
+                VStack(spacing: DGSpacing.s12) {
+                    shareButton
+                    if let lastMembers, let invitation = lastMembers.invitation {
+                        lastMembersButton(lastMembers, invitation: invitation)
+                    }
+                }
             }
             .padding(.horizontal, DGSpacing.screenX)
             // ヘッダーのある画面と、内容の始まりの高さをそろえる（プロトタイプの上の余白 56）
@@ -71,6 +83,18 @@ struct InviteView: View {
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
+        .task {
+            await lastMembers?.observe()
+        }
+    }
+
+    /// 「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 4）。送っている途中と送った後は押せない
+    private func lastMembersButton(_ lastMembers: LastMembersInviteModel, invitation: LastMembersInvitation) -> some View {
+        DGButton("前回のメンバー（\(invitation.sourceRoomName)・\(invitation.count)人）を招待", kind: .secondary) {
+            lastMembers.inviteTapped()
+        }
+        .disabled(!lastMembers.canInvite)
+        .accessibilityIdentifier(Identifier.lastMembers)
     }
 
     /// 「ルームを作成しました」＋ルーム名（03 の S-04 の 1）

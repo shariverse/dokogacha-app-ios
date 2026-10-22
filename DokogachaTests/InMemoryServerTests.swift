@@ -305,7 +305,9 @@ struct InMemoryServerTests {
     @Test
     func laterCallablesAreNotImplementedYet() async {
         await #expect(throws: AppError(.notImplemented)) {
-            _ = try await Self.makeServer().inviteLastMembers(RoomRequest(roomId: "r1"))
+            try await Self.makeServer().reportCandidate(
+                ReportCandidateRequest(roomId: "r1", candidateId: "c1", reason: .spam)
+            )
         }
     }
 }

@@ -7,12 +7,15 @@
  */
 
 /** 通知の種類（ペイロードの `type`） */
-export const PUSH_EVENT_KINDS = ["unlocked", "drawn", "rerollProposed"] as const;
+export const PUSH_EVENT_KINDS = ["unlocked", "drawn", "rerollProposed", "invited", "newCandidates"] as const;
 /** 通知の種類 */
 export type PushEventKind = (typeof PUSH_EVENT_KINDS)[number];
 
-/** 通知を開いたときの行き先（05 の §7「通知のペイロードに roomId と遷移先（room / result）を入れる」） */
-export type PushTarget = "room" | "result";
+/**
+ * 通知を開いたときの行き先（05 の §7「通知のペイロードに roomId と遷移先（room / result）を入れる」）。
+ * `join` は前回のメンバーへの招待で、招待コード（`inviteCode`）で S-06 参加確認を開く（招待された人はまだメンバーでなく、ルームを読めない）
+ */
+export type PushTarget = "room" | "result" | "join";
 
 /** 送る出来事（ルームの値を読んだ後の、文面と宛先を決めるのに要る値） */
 export type PushEvent =
@@ -21,7 +24,26 @@ export type PushEvent =
   /** 行き先が決まった（宛先は回した人以外） */
   | { kind: "drawn"; roomId: string; roomName: string; drawId: string; drawnBy: string }
   /** 引き直しが提案された（宛先は提案者以外。`drawId` は提案した時点の抽選） */
-  | { kind: "rerollProposed"; roomId: string; drawId: string | null; proposedBy: string; proposerName: string };
+  | { kind: "rerollProposed"; roomId: string; drawId: string | null; proposedBy: string; proposerName: string }
+  /**
+   * 前回のメンバーに招待した（宛先は `inviteeIds`。ルームのメンバーではない）。
+   * `sourceRoomId` は前回のルーム（同じ人が同じ前回のルームから 2 回招待しない印のキーに使う）
+   */
+  | {
+      kind: "invited";
+      roomId: string;
+      roomName: string;
+      inviteCode: string;
+      inviterId: string;
+      inviterName: string;
+      sourceRoomId: string;
+      inviteeIds: readonly string[];
+    }
+  /**
+   * その日に候補が増えた（宛先は全メンバー。増えた候補がすべて 1 人の投稿なら、その人には送らない（`onlyPosterId`））。
+   * `dateKey` はまとめた日（JST の `YYYY-MM-DD`。同じルームに 1 日 1 回だけ送る印のキー）
+   */
+  | { kind: "newCandidates"; roomId: string; roomName: string; dateKey: string; count: number; onlyPosterId: string | null };
 
 /** 送る相手のトークン 1 つ */
 export interface PushRecipient {
@@ -56,16 +78,40 @@ export function pushBody(event: PushEvent): string {
       return `「${event.roomName}」の行き先が決まりました`;
     case "rerollProposed":
       return `${event.proposerName}さんが引き直しを提案しています`;
+    case "invited":
+      return `${event.inviterName}さんから「${event.roomName}」に招待されました`;
+    case "newCandidates":
+      return `「${event.roomName}」に新しい候補が ${String(event.count)}件増えました`;
   }
 }
 
 /**
  * 通知を開いたときの行き先（02 の §8「通知をタップすると該当ルーム（結果があれば結果画面）を開く」）。
- * 解禁はルーム（S-07）、抽選結果と引き直しの提案は結果（S-14。提案への投票は S-14 にある）
+ * 解禁と新しい候補はルーム（S-07）、抽選結果と引き直しの提案は結果（S-14。提案への投票は S-14 にある）、
+ * 前回のメンバーへの招待は参加確認（S-06。招待された人はまだメンバーでないので、ルームを開けない）
  * @param event 送る出来事
  */
 export function pushTarget(event: PushEvent): PushTarget {
-  return event.kind === "unlocked" ? "room" : "result";
+  switch (event.kind) {
+    case "unlocked":
+    case "newCandidates":
+      return "room";
+    case "drawn":
+    case "rerollProposed":
+      return "result";
+    case "invited":
+      return "join";
+  }
+}
+
+/**
+ * 宛先の候補にする人（送る前に `excludedRecipient` を外し、トークンのある人だけにする）。
+ * 前回のメンバーへの招待は招待した人たち（ルームのメンバーではない）、それ以外はルームのメンバー
+ * @param event 送る出来事
+ * @param memberIds ルームのメンバーの uid（`rooms.memberIds`）
+ */
+export function audienceOf(event: PushEvent, memberIds: readonly string[]): readonly string[] {
+  return event.kind === "invited" ? event.inviteeIds : memberIds;
 }
 
 /**
@@ -80,6 +126,10 @@ export function excludedRecipient(event: PushEvent): string | null {
       return event.drawnBy;
     case "rerollProposed":
       return event.proposedBy;
+    case "invited":
+      return event.inviterId;
+    case "newCandidates":
+      return event.onlyPosterId;
   }
 }
 
@@ -87,15 +137,19 @@ export function excludedRecipient(event: PushEvent): string | null {
  * 通知のペイロード（FCM の `data`。値はすべて文字列）。アプリはこれで開く画面を決める。
  * - `type`: 通知の種類（前面にいるときに出すかを決めるのに使う）
  * - `roomId`: ルームの ID
- * - `target`: `room`（S-07）か `result`（S-14）
+ * - `target`: `room`（S-07）か `result`（S-14）か `join`（S-06）
  * - `drawId`: 結果を開くときの抽選の ID（あれば）
+ * - `inviteCode`: 参加確認を開くときの招待コード（ハイフンなし。招待リンクの `joinByInviteLink` と同じ道で開く）
  * @param event 送る出来事
  */
 export function pushData(event: PushEvent): Record<string, string> {
   const data: Record<string, string> = { type: event.kind, roomId: event.roomId, target: pushTarget(event) };
-  const drawId = event.kind === "unlocked" ? null : event.drawId;
+  const drawId = event.kind === "drawn" || event.kind === "rerollProposed" ? event.drawId : null;
   if (drawId !== null && drawId !== "") {
     data.drawId = drawId;
+  }
+  if (event.kind === "invited") {
+    data.inviteCode = event.inviteCode;
   }
   return data;
 }
@@ -105,6 +159,8 @@ export function pushData(event: PushEvent): Record<string, string> {
  * - 解禁: ルームにつき 1 回（準備OKの付け外しで `open`⇄`unlocked` を繰り返しても、2 回目からは送らない）
  * - 抽選結果: 抽選ごとに 1 回（`onRoomDrawn` のやり直し（`retry`）で 2 回送らない。引き直しの後の抽選は別の ID なので送る）
  * - 引き直しの提案: ルームにつき 1 回（提案はルームにつき 1 回だけ。02 の §6.4）
+ * - 前回のメンバーへの招待: 今のルーム（印を置く場所）・招待した人・前回のルームの組につき 1 回（連打・やり直しで同じ人たちに何度も送らない）
+ * - 新しい候補: ルームと日（JST）の組につき 1 回（02 の §8「同じルームにつき最大1日1回」）
  * @param event 送る出来事
  */
 export function notificationLogKey(event: PushEvent): string {
@@ -115,6 +171,10 @@ export function notificationLogKey(event: PushEvent): string {
       return `drawn-${event.drawId}`;
     case "rerollProposed":
       return "rerollProposed";
+    case "invited":
+      return `invited-${event.inviterId}-${event.sourceRoomId}`;
+    case "newCandidates":
+      return `newCandidates-${event.dateKey}`;
   }
 }
 

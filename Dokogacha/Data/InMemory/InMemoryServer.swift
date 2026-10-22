@@ -48,6 +48,10 @@ final class InMemoryServer {
         didSet { notifySubscribers() }
     }
 
+    /// 前回のメンバーへの招待で送った人（鍵は「今のルームの ID・招待した人の uid・前回のルームの ID」（`lastMembersInvitationKey`）→ 招待した人の uid。
+    /// backend の `rooms/{今のルーム}/notificationLog/invited-{uid}-{前回のルームの ID}` の代わり。擬似のサーバーは通知を送らないので、送った相手を残す）
+    var lastMembersInvitations: [String: [String]] = [:]
+
     /// この端末でサインインしているユーザー（nil ならサインインしていない）
     var signedInUserID: String? {
         didSet { notifySubscribers() }

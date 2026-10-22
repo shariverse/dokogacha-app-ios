@@ -89,6 +89,12 @@ export const updateRoomSettings = onCall((request) =>
 /** ルームの終了（02 の F-44）: closeRoom（作成者の決定）・autoCloseRooms（抽選から 7 日）・onRoomClosed（過去のアイデアの登録） */
 export { autoCloseRooms, closeRoom, onRoomClosed } from "./close/functions";
 
+/** 前回のメンバーへの招待（02 の F-04）: inviteLastMembers */
+export { inviteLastMembers } from "./invite/functions";
+
+/** 新しい候補のまとめ通知（02 の §8）: notifyNewCandidates（1 日 1 回 20:00 JST） */
+export { notifyNewCandidates } from "./digest/functions";
+
 /** 候補を追加する（02 の F-10。同じ場所があれば作らずに `{ duplicateOf }` を返す） */
 export const addCandidate = onCall((request) =>
   runCallable("addCandidate", request, (uid, data) => candidates.addCandidate(deps(), uid, data)),

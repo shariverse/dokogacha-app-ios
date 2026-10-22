@@ -1,6 +1,7 @@
 /**
  * プッシュ通知（02 の §8 F-60）を送る処理。解禁・抽選結果・引き直しの提案の呼び出し口
- * （`unlock/notify.ts`・`draw/notify.ts`・`reroll/notify.ts`）から呼ぶ。
+ * （`unlock/notify.ts`・`draw/notify.ts`・`reroll/notify.ts`）から呼ぶ。前回のメンバーへの招待（`invite/service.ts`）と
+ * 新しい候補のまとめ（`digest/service.ts`）は、送る出来事を自分で作って `deliver` を呼ぶ。
  *
  * 1. ルーム（と抽選の記録・提案者のメンバー）を読んで、送る出来事（`PushEvent`）を作る
  * 2. 同じ通知を 2 回送らないよう、`rooms/{roomId}/notificationLog/{key}` を `create` する（もうあれば送らない。
@@ -11,12 +12,13 @@
  * 送る処理の失敗（読めない・FCM の失敗）は、ログに残すだけにして投げない（`notifyQuietly`）。
  * 通知は付け足しの機能で、元の Callable・トリガー（解禁・抽選・提案）を失敗させたり、トリガーをやり直させたりしない。
  */
-import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions/v2";
 
 import type { DrawDoc, MemberDoc, RoomDoc } from "../domain/models";
 import { drawsRef, membersRef, roomRef, userRef } from "../paths";
 import {
+  audienceOf,
   excludedRecipient,
   notificationLogKey,
   pushBody,
@@ -143,22 +145,26 @@ async function readRoom(db: Firestore, roomId: string): Promise<Pick<RoomDoc, "n
 }
 
 /**
- * 印を作れたら、メンバーのトークンに送り、無効なトークンを外す。
+ * 印を作れたら、宛先（`audienceOf`。ふつうはルームのメンバー、招待なら招待した人たち）のトークンに送り、無効なトークンを外す。
+ * 前回のメンバーへの招待（`invite/service.ts`）・新しい候補のまとめ（`digest/service.ts`）からも使う。
  * @param deps 外部のもの
  * @param room ルーム（メンバー）
  * @param event 送る出来事
+ * @param logFields 印に一緒に書く値（招待した人数など。同じ印で 2 回目に呼ばれたときに読み返す）
  */
-async function deliver(
+export async function deliver(
   deps: NotificationDeps,
   room: Pick<RoomDoc, "memberIds">,
   event: PushEvent,
+  logFields: Record<string, unknown> = {},
 ): Promise<NotificationOutcome> {
-  if (!(await claim(deps.db, event))) {
+  if (!(await claim(deps.db, event, logFields))) {
     return { kind: "alreadySent" };
   }
-  const users = room.memberIds.length === 0 ? [] : await deps.db.getAll(...room.memberIds.map((uid) => userRef(deps.db, uid)));
+  const audience = audienceOf(event, room.memberIds);
+  const users = audience.length === 0 ? [] : await deps.db.getAll(...audience.map((uid) => userRef(deps.db, uid)));
   const recipients = selectRecipients(
-    room.memberIds,
+    audience,
     excludedRecipient(event),
     users.map((snapshot) => ({ uid: snapshot.id, fcmTokens: (snapshot.data() as { fcmTokens?: unknown } | undefined)?.fcmTokens })),
   );
@@ -183,14 +189,24 @@ async function deliver(
 }
 
 /**
- * 送る印を作る。もうあれば false（送らない）。
+ * 送る印のドキュメント（`rooms/{roomId}/notificationLog/{key}`）。
  * @param db Firestore
  * @param event 送る出来事
  */
-async function claim(db: Firestore, event: PushEvent): Promise<boolean> {
-  const key = notificationLogKey(event);
+export function notificationLogRef(db: Firestore, event: PushEvent): DocumentReference {
+  return roomRef(db, event.roomId).collection(NOTIFICATION_LOG_COLLECTION).doc(notificationLogKey(event));
+}
+
+/**
+ * 送る印を作る。もうあれば false（送らない）。
+ * @param db Firestore
+ * @param event 送る出来事
+ * @param logFields 印に一緒に書く値
+ */
+async function claim(db: Firestore, event: PushEvent, logFields: Record<string, unknown>): Promise<boolean> {
   try {
-    await roomRef(db, event.roomId).collection(NOTIFICATION_LOG_COLLECTION).doc(key).create({
+    await notificationLogRef(db, event).create({
+      ...logFields,
       kind: event.kind,
       sentAt: Timestamp.now(),
     });
