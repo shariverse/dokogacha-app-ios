@@ -8,7 +8,8 @@ import XCTest
 /// S-14 の引き直し（F-43）の UI テスト。メモリ上の擬似のサーバー（`-uiTesting -demo-scenario several-rooms`）で動かす。
 ///
 /// 解禁済みのルーム（週末のランチ。自分・はるか・そうたの 3 人）で回してから、S-14 で引き直しを提案する。
-/// ほかのメンバーの票は UI テストから入れられないので、可決は Unit テスト（`ResultModelRerollTests`・`InMemoryServerRerollTests`）で確かめる
+/// ここでは自分の票だけを確かめる。ほかのメンバーの賛成で可決して回し直すまでは、`-ui-auto-members` で
+/// ほかのメンバーの票を返す `ScenarioUITests` で確かめる
 final class RerollUITests: XCTestCase {
     /// ホームの解禁済みのルーム（週末のランチ）のカード（`HomeView.Identifier.room(DemoScenario.unlockedRoomID)`）
     private static let unlockedRoomCard = "home.room.demo-room-unlocked"
