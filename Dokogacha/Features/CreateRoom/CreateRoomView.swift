@@ -130,53 +130,9 @@ struct CreateRoomView: View {
                 ]
             )
             if model.showsDeadlinePicker {
-                deadlinePicker
+                DeadlinePickerField(date: $model.deadline, range: model.deadlineRange, identifier: Identifier.deadline)
             }
         }
-    }
-
-    /// 締切日時のピッカー（今から 1 時間後〜30 日後の 5 分前）。白いカードに「締切日時」と並べる。文字が大きいときは縦に並べる
-    private var deadlinePicker: some View {
-        let shape = RoundedRectangle(cornerRadius: DGRadius.md)
-        return ViewThatFits(in: .horizontal) {
-            HStack(spacing: DGSpacing.s8) {
-                deadlineLabel
-                Spacer(minLength: 0)
-                deadlineDatePicker
-            }
-            VStack(alignment: .leading, spacing: DGSpacing.s8) {
-                deadlineLabel
-                deadlineDatePicker
-            }
-        }
-        .padding(.horizontal, DGSpacing.s14)
-        .padding(.vertical, DGSpacing.s8)
-        .frame(maxWidth: .infinity, minHeight: DGMetrics.minTapTarget, alignment: .leading)
-        .background(Color.dgSurfaceCard, in: shape)
-        .overlay { shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
-    }
-
-    private var deadlineLabel: some View {
-        Text("締切日時")
-            .font(.dg(.bodyTitle))
-            .foregroundStyle(Color.dgInk)
-            .fixedSize(horizontal: false, vertical: true)
-            // ピッカーの名前として読むので、ここでは読まない
-            .accessibilityHidden(true)
-    }
-
-    private var deadlineDatePicker: some View {
-        DatePicker(
-            selection: $model.deadline,
-            in: model.deadlineRange,
-            displayedComponents: [.date, .hourAndMinute]
-        ) {
-            Text("締切日時")
-        }
-        .labelsHidden()
-        .datePickerStyle(.compact)
-        .tint(Color.dgAccentPrimary)
-        .accessibilityIdentifier(Identifier.deadline)
     }
 
     /// いいねの効き方（03 の S-03 の 4）。補足は選んだものに合わせて切り替える
