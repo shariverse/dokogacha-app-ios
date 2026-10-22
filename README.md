@@ -255,7 +255,7 @@ App Store のプロダクトページに載せるものは、`AppStore/` の JSO
 - プロジェクトはフォルダ同期グループ（Xcode 16 以降の形式）で管理しているため、ファイルの追加・削除で pbxproj は変わりません
 - SwiftLint は Build Tool Plugin として全ターゲットに適用され、CI では `swiftlint lint --strict` としても実行されます。ルールは [.swiftlint.yml](.swiftlint.yml) で管理します
 - CI のワークフローは `*.xcodeproj` の名前と同名の共有スキームが存在することを前提にしています
-- [Dokogacha/PrivacyInfo.xcprivacy](Dokogacha/PrivacyInfo.xcprivacy) はプライバシーマニフェストです。UserDefaults（`@AppStorage`）の利用だけを申告しています。データの収集・トラッキング・ほかの理由の申告が必要な API を足したら、ここと App Store Connect の「App のプライバシー」を更新してください
+- [Dokogacha/PrivacyInfo.xcprivacy](Dokogacha/PrivacyInfo.xcprivacy) はプライバシーマニフェストです。収集するデータ（ユーザー ID・表示名・投稿内容・購入・端末の識別子・広告・利用状況・診断データ）とトラッキング（ATT で許可した人の広告 ID）、理由の申告が必要な API（UserDefaults）を申告しています（中身は `PrivacyManifestTests` が確かめます）。収集するデータやほかの理由の申告が必要な API を足したら、ここと App Store Connect の「App のプライバシー」を更新してください
 
 ## License
 
