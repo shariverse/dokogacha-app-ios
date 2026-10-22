@@ -287,7 +287,7 @@ extension InMemoryServer: FunctionsClient {
     }
 
     func inviteLastMembers(_ request: RoomRequest) async throws -> InviteLastMembersResponse {
-        throw AppError(.notImplemented)
+        try inviteLastMembers(request, by: signedInUserID)
     }
 
     func reportCandidate(_ request: ReportCandidateRequest) async throws {
