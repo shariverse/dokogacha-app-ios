@@ -61,6 +61,10 @@ final class DokogachaUITests: XCTestCase {
     private static let joinConfirmJoin = "joinConfirm.join"
     /// デモの参加できるルームの ID（`DemoScenario.joinableRoomID`）
     private static let joinableRoomID = "demo-room-joinable"
+    /// デモの自分の候補（`room-with-candidates` の江の島）
+    private static let myCandidateID = "demo-candidate-3"
+    /// デモのそうたの候補（`room-with-candidates` の明治神宮。いいね 0）
+    private static let shrineCandidateID = "demo-candidate-2"
     /// 画面が出るのを待つ時間
     private static let timeout: TimeInterval = 10
 
@@ -214,6 +218,39 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["home.room.\(Self.joinableRoomID)"].waitForExistence(timeout: Self.timeout))
     }
 
+    /// ホームからルーム（S-07）を開き、ほかの人の候補のいいねを押すと「N人がいいね」の数が増え、ボタンが「いいね済」になる。
+    /// 自分の投稿のいいねボタンは押せない（F-20 の AC）
+    @MainActor
+    func testLikeCandidateInRoom() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "room-with-candidates"]
+        app.launch()
+
+        let card = app.buttons[Self.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        card.tap()
+        XCTAssertTrue(app.otherElements[Self.roomScreen].waitForExistence(timeout: Self.timeout))
+
+        // 自分の投稿（江の島）のいいねボタンは押せない
+        let mine = app.otherElements[Self.candidateCard(Self.myCandidateID)]
+        XCTAssertTrue(mine.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(mine.buttons["自分の投稿にはいいねできません"].isEnabled)
+
+        // そうたの投稿（明治神宮）はまだいいねが無い
+        let shrine = app.otherElements[Self.candidateCard(Self.shrineCandidateID)]
+        XCTAssertTrue(shrine.waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(shrine.staticTexts["まだいいねはありません"].exists)
+        let like = shrine.buttons["いいね"]
+        if !like.isHittable {
+            app.swipeUp()
+        }
+        like.tap()
+
+        XCTAssertTrue(shrine.staticTexts["1人がいいね"].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(shrine.buttons["いいねを取り消す"].exists)
+        XCTAssertFalse(shrine.staticTexts["まだいいねはありません"].exists)
+    }
+
     /// ナビゲーションバーを隠した画面でも、画面の左端からのスワイプで戻れる（`InteractivePopGesture`）
     @MainActor
     func testEdgeSwipeGoesBack() throws {
@@ -229,6 +266,11 @@ final class DokogachaUITests: XCTestCase {
         swipeFromLeftEdge(app)
         XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
         XCTAssertFalse(app.otherElements[Self.roomScreen].exists)
+    }
+
+    /// S-07 の候補のカード（`RoomView.Identifier.candidate(_:)`）
+    private static func candidateCard(_ candidateID: String) -> String {
+        "room.candidate.\(candidateID)"
     }
 
     /// 画面の左端から右へスワイプする（端からの戻る操作。`swipeRight()` は端から始まらないので座標で動かす）
