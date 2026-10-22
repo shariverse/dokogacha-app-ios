@@ -92,6 +92,13 @@ export const APP_ERRORS = {
    * 自分の投稿を報告しようとした（02 の §3.5・03 の S-10「他人の投稿なら『この投稿を報告』」。アプリは自分の投稿にメニューを出さないので、通常は出ない）
    */
   "cannot-report-own-candidate": { code: "failed-precondition", message: "自分の投稿は報告できません" },
+  /**
+   * 広告非表示の購入（02 の F-51）を確かめられなかった。署名付きトランザクションの検証に失敗した・別のアプリや別のアイテムのもの・
+   * 返金などで取り消されたもの（`verifyPurchase`）。文言は 02・03 に無いのでここで決めた
+   */
+  "purchase-invalid": { code: "failed-precondition", message: "購入を確認できませんでした" },
+  /** 購入の検証が一時的にできなかった（証明書の失効の確認に通信できなかったなど。もう一度で通る見込みがある） */
+  "purchase-verification-unavailable": { code: "unavailable", message: "通信できませんでした" },
   /** 招待コードを決められなかった（重複が続いた。もう一度呼べば通る見込みが高い） */
   "invite-code-unavailable": { code: "unavailable", message: "通信できませんでした" },
   /** 想定していないエラー */
