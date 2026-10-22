@@ -2,7 +2,7 @@
  * 招待リンクのランディングページ（/r/{招待コード}）の見た目。
  * 色・フォント・寸法は docs/spec/design/tokens.json の値だけを使う（:root の変数に書き、ほかの場所に色の値を直接書かない）。
  * 変数の名前は tokens.json の鍵（--color-<鍵をハイフンでつないだもの>・--radius-<鍵>・--border-<鍵>）。
- * backend/hosting/test/landing.test.ts で tokens.json の値と一致することを確かめる。
+ * backend/hosting/test/hosting.test.ts で tokens.json の値と一致することを確かめる。
  *
  * フォントは同梱しない（アプリの ttf は合わせて 20MB あり、ページが重くなる）。端末に入っていれば使い、
  * 無ければ丸ゴシックの系統のフォントで表示する。

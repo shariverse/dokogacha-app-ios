@@ -4,7 +4,7 @@
  * 正しいコードのときだけ大きく表示する（ディファードディープリンクは MVP の対象外なので、アプリで入力してもらう）。
  *
  * 外部の JS・CDN は使わない。コードは検証してから textContent で入れる（HTML として解釈させない）。
- * 規則はアプリの InviteCode（Swift）・Functions の inviteCode.ts と同じで、backend/hosting/test/landing.test.ts で
+ * 規則はアプリの InviteCode（Swift）・Functions の inviteCode.ts と同じで、backend/hosting/test/hosting.test.ts で
  * inviteCode.ts の parseInviteCode と同じ結果になることを確かめる。
  * Jest からも読めるよう、関数は globalThis.DokogachaLanding に置き、document があるときだけ画面に反映する。
  */

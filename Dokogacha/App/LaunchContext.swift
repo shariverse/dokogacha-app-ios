@@ -12,12 +12,12 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// UI テストが渡す起動引数。メモリ上の擬似のサーバーで動かし、Firebase を初期化しない
     static let uiTestingArgument = "-uiTesting"
 
-    /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
-    /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
     /// UI テスト・撮影モードで、招待リンクで開かれたことにする起動引数（`-open-url <URL>`）。
     /// Simulator では Universal Links でアプリを開けない（AASA を取りに行けない）ので、起動の直後に `DeepLinkRouter` へ渡す
     static let openURLArgument = "-open-url"
 
+    /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
+    /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
     static let unitTestHostEnvironmentKeys = ["XCTestConfigurationFilePath", "XCTestBundlePath", "XCTestSessionIdentifier"]
 
     /// Unit テストのホストとして起動されたか
