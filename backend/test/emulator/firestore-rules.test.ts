@@ -194,6 +194,28 @@ describe("firestore.rules", () => {
     });
   });
 
+  describe("通知の記録（notificationLog・emulatorPushOutbox。F-60）", () => {
+    beforeEach(async () => {
+      await seed();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, "rooms/room1/notificationLog/unlocked"), { kind: "unlocked", sentAt: Timestamp.fromMillis(0) });
+        await setDoc(doc(db, "emulatorPushOutbox/m1"), { token: "t", body: "本文", threadId: "room1" });
+      });
+    });
+
+    it("送った印は、メンバー・作成者でも読めない・作れない・消せない（もう一度送らせない）", async () => {
+      await assertFails(getDoc(doc(as("alice"), "rooms/room1/notificationLog/unlocked")));
+      await assertFails(setDoc(doc(as("alice"), "rooms/room1/notificationLog/drawn-d1"), { kind: "drawn" }));
+      await assertFails(deleteDoc(doc(as("alice"), "rooms/room1/notificationLog/unlocked")));
+    });
+
+    it("Emulator の送った通知（トークンを含む）は読めない", async () => {
+      await assertFails(getDoc(doc(as("alice"), "emulatorPushOutbox/m1")));
+      await assertFails(getDocs(collection(as("bob"), "emulatorPushOutbox")));
+    });
+  });
+
   describe("rooms", () => {
     beforeEach(() => seed());
 
