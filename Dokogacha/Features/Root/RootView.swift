@@ -55,6 +55,8 @@ struct RootView: View {
             .onChange(of: network?.reachability) { _, reachability in
                 if reachability == .online {
                     model.retryIfFailed()
+                    // 通信の失敗で送れなかった広告非表示の購入も送り直す（PR #97 の持ち越し）
+                    purchases?.retryVerificationIfNeeded()
                 }
             }
             // 広告を出すかの判定に、自分が広告非表示を買ったか（`users.adFree` か端末の購入）を渡す（05 の §8）
