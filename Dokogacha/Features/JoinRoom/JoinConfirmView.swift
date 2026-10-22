@@ -101,7 +101,7 @@ struct JoinConfirmView: View {
                     .font(.dg(.displayL))
                     .foregroundStyle(Color.dgInk)
                     .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityAddTraits(.isHeader)
+                // カードは 1 つの要素にまとめて読むので、ルーム名に見出しを付けない（付けるとカード全体が見出しとして読まれる）
             }
             DGDashedLine()
             VStack(alignment: .leading, spacing: DGSpacing.s10) {
