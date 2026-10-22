@@ -477,8 +477,7 @@ describe("firestore.rules", () => {
       await assertFails(setDoc(doc(as("carol"), "inviteCodes/AAAAAA"), { roomId: "room1" }));
     });
 
-    it("過去のアイデア・報告は、本人・メンバーでも読み書きできない", async () => {
-      await assertFails(getDocs(collection(as("alice"), "users/alice/pastIdeas")));
+    it("報告は、メンバーでも読み書きできない（過去のアイデアは past-ideas-rules.test.ts）", async () => {
       await assertFails(setDoc(doc(as("bob"), "reports/r1"), { roomId: "room1" }));
     });
   });
