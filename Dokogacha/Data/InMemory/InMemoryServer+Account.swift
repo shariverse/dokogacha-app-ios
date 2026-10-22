@@ -53,5 +53,14 @@ extension InMemoryServer {
         users[userID] = nil
         pastIdeas[userID] = nil
         appleAccounts = appleAccounts.filter { $0.value != userID }
+        deletedUserIDs.insert(userID)
+    }
+
+    /// サインインしている人を、アカウントの削除で消したか（Firebase の `reload` が userNotFound で失敗するのと同じ）
+    func isCurrentAccountDeleted() async -> Bool {
+        guard let signedInUserID else {
+            return false
+        }
+        return deletedUserIDs.contains(signedInUserID)
     }
 }

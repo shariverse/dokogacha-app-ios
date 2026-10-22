@@ -19,6 +19,14 @@ enum SaveBehavior {
 
 /// S-01 オンボーディング（F-01「表示名 1〜10 文字、必須」）の入力の検証・登録・二重送信の防止・通信エラーを確かめる
 struct OnboardingModelTests {
+    /// `ControlledAuth` の、アカウントに対する呼び出し
+    enum AccountCall: Equatable {
+        /// Apple のトークンの取り消し
+        case revoke(authorizationCode: String)
+        /// アカウントの削除
+        case delete
+    }
+
     /// 表示名の登録の結果を決められ、送られた名前を記録する擬似の認証（擬似のサーバーの上に作る）
     final class ControlledAuth: AuthService {
         let server: InMemoryServer
@@ -35,6 +43,14 @@ struct OnboardingModelTests {
         private(set) var deleteCount = 0
         /// サインアウトした回数
         private(set) var signOutCount = 0
+        /// Apple のトークンの取り消しを失敗させるエラー（nil なら擬似のサーバーで取り消す）
+        var revokeError: AppError?
+        /// アカウントの削除を、サーバーで消し終えてから失敗させるエラー（応答が届かなかったときの再現）
+        var deleteErrorAfterDeleting: AppError?
+        /// 別のアカウントでのサインインし直しを失敗させるエラー
+        var signInWithLinkedError: AppError?
+        /// Apple のトークンの取り消しとアカウントの削除を呼んだ順
+        private(set) var accountCalls: [AccountCall] = []
         private var pending: CheckedContinuation<Void, Never>?
         private var pendingDelete: CheckedContinuation<Void, Never>?
 
@@ -99,7 +115,10 @@ struct OnboardingModelTests {
         }
 
         func signInWithLinkedAppleAccount() async throws -> String {
-            try await server.signInWithLinkedAppleAccount()
+            if let signInWithLinkedError {
+                throw signInWithLinkedError
+            }
+            return try await server.signInWithLinkedAppleAccount()
         }
 
         /// 削除の途中で止まっているか
@@ -115,6 +134,7 @@ struct OnboardingModelTests {
 
         func deleteAccount() async throws {
             deleteCount += 1
+            accountCalls.append(.delete)
             switch deleteBehavior {
             case .save:
                 break
@@ -124,6 +144,21 @@ struct OnboardingModelTests {
                 await withCheckedContinuation { pendingDelete = $0 }
             }
             try await server.deleteAccount()
+            if let deleteErrorAfterDeleting {
+                throw deleteErrorAfterDeleting
+            }
+        }
+
+        func revokeAppleToken(authorizationCode: String) async throws {
+            accountCalls.append(.revoke(authorizationCode: authorizationCode))
+            if let revokeError {
+                throw revokeError
+            }
+            try await server.revokeAppleToken(authorizationCode: authorizationCode)
+        }
+
+        func isCurrentAccountDeleted() async -> Bool {
+            await server.isCurrentAccountDeleted()
         }
 
         func signOut() {

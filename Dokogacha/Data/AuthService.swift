@@ -48,6 +48,22 @@ protocol AuthService {
     /// 途中で失敗しても、もう一度呼べば続きから終わる。この端末のサインインはそのまま残るので、終えたら `signOut` で外す
     func deleteAccount() async throws
 
+    /// Sign in with Apple のトークンを取り消す（Firebase Auth の `revokeToken(withAuthorizationCode:)`）。
+    ///
+    /// Sign in with Apple に連携したアカウントを削除するときは、Apple の REST API でトークンを取り消す必要がある
+    /// （Apple の「Offering account deletion in your app」・App Store 審査ガイドライン 5.1.1(v)）。サーバーでアカウントを消すと
+    /// Auth のユーザーが無くなって取り消せないので、`deleteAccount` の前に呼ぶ
+    /// - Parameter authorizationCode: Apple の認証をし直して受け取った authorization code（`AppleAuthorizing.authorizationCode`）
+    func revokeAppleToken(authorizationCode: String) async throws
+
+    /// サインインしているアカウントの Auth のユーザーが、サーバーで消えているかを確かめる（`deleteAccount` が失敗したとき）。
+    ///
+    /// サーバーは `users/{uid}` を Auth のユーザーより先に消すので、応答が届かなかった・途中で失敗したときに、
+    /// 消し終えているのに失敗として扱うと、この端末が消えた uid のまま残る（プロフィールが無いので S-01 に替わり、
+    /// 表示名を登録すると `users/{uid}` を作り直してしまう）。消えていれば、呼んだ側は削除できたときと同じに後片付けをする。
+    /// 通信できないなどで確かめられなければ false
+    func isCurrentAccountDeleted() async -> Bool
+
     /// この端末でサインアウトする（アカウントを削除した後）。
     ///
     /// `userIDChanges` に nil が流れ、起動の流れが匿名でサインインし直して S-01 を出す（新しいユーザーにはプロフィールが無い）

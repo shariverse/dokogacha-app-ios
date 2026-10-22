@@ -59,6 +59,14 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
         throw error
     }
 
+    func revokeAppleToken(authorizationCode: String) async throws {
+        throw error
+    }
+
+    func isCurrentAccountDeleted() async -> Bool {
+        false
+    }
+
     func signOut() {}
 
     // MARK: RoomRepository

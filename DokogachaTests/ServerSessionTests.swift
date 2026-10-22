@@ -61,6 +61,14 @@ struct ServerSessionTests {
             try await server.deleteAccount()
         }
 
+        func revokeAppleToken(authorizationCode: String) async throws {
+            try await server.revokeAppleToken(authorizationCode: authorizationCode)
+        }
+
+        func isCurrentAccountDeleted() async -> Bool {
+            await server.isCurrentAccountDeleted()
+        }
+
         func signOut() {
             server.signOut()
         }
@@ -120,6 +128,14 @@ struct ServerSessionTests {
 
         func deleteAccount() async throws {
             try await server.deleteAccount()
+        }
+
+        func revokeAppleToken(authorizationCode: String) async throws {
+            try await server.revokeAppleToken(authorizationCode: authorizationCode)
+        }
+
+        func isCurrentAccountDeleted() async -> Bool {
+            await server.isCurrentAccountDeleted()
         }
 
         func signOut() {
@@ -192,6 +208,14 @@ struct ServerSessionTests {
 
         func deleteAccount() async throws {
             try await server.deleteAccount()
+        }
+
+        func revokeAppleToken(authorizationCode: String) async throws {
+            try await server.revokeAppleToken(authorizationCode: authorizationCode)
+        }
+
+        func isCurrentAccountDeleted() async -> Bool {
+            await server.isCurrentAccountDeleted()
         }
 
         func signOut() {

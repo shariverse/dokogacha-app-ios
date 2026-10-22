@@ -12,10 +12,14 @@ import Testing
 struct SettingsModelAppleLinkTests {
     typealias ControlledAuth = OnboardingModelTests.ControlledAuth
 
-    /// Apple の認証を差し替えたもの（渡された nonce のハッシュを記録し、決めた ID トークンを返す。nil ならやめた）
+    /// Apple の認証を差し替えたもの（渡された nonce のハッシュを記録し、決めた ID トークン・authorization code を返す。nil ならやめた）
     final class StubAuthorizer: AppleAuthorizing {
         var idToken: String?
         var error: AppError?
+        /// トークンの取り消しのために返す authorization code（nil ならやめた）
+        var code: String? = "apple-authorization-code-1"
+        /// authorization code を求められた回数
+        private(set) var authorizationCodeCount = 0
         private(set) var nonceHashes: [String] = []
 
         init(idToken: String? = "apple-account-1") {
@@ -28,6 +32,14 @@ struct SettingsModelAppleLinkTests {
                 throw error
             }
             return idToken
+        }
+
+        func authorizationCode() async throws -> String? {
+            authorizationCodeCount += 1
+            if let error {
+                throw error
+            }
+            return code
         }
     }
 
