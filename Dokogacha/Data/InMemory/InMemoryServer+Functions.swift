@@ -291,7 +291,7 @@ extension InMemoryServer: FunctionsClient {
     }
 
     func deleteAccount() async throws {
-        throw AppError(.notImplemented)
+        try deleteAccount(by: signedInUserID)
     }
 }
 
@@ -387,7 +387,11 @@ private extension InMemoryServer {
         }
         throw Self.error(.inviteCodeUnavailable)
     }
+}
 
+// MARK: - メンバーを外す（アカウントの削除（`InMemoryServer+Account.swift`）でも使う）
+
+extension InMemoryServer {
     /// メンバーをルームから外す（退出と削除で共通。backend の `removeFromRoom`）。
     ///
     /// メンバーを消し、`memberIds` と、`memberCount`・`readyCount`・`status`（onMemberWrite の数え直しと解禁の判定に当たる）を更新し、その人のいいねと
