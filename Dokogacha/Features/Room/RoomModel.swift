@@ -21,7 +21,8 @@ import Observation
 /// - 押したらすぐに `pendingLikes` に入れて表示を変え、直接の書き込み（`setLike`）を送る
 /// - 押した候補の自分のいいねが、届いた値で楽観的な値と一致したときに確定する（`OptimisticWrite`）。
 ///   送っている途中にほかの人のいいねや別の候補の変化が届いても、押した候補の値が追いつくまでは楽観的な表示を続ける
-/// - 送る前に分かる失敗（接続できないなど）なら、表示を戻してトースト「通信できませんでした」を出す
+/// - 送る前に分かる失敗（接続できない・オフラインなど）なら、表示を戻して `AppError` の文言のトースト
+///   （「通信できませんでした」「オフラインのため操作できません」）を出す
 /// - 送っている途中（確定する前）は同じ候補をもう一度押しても何もしない（二度押し）。自分の投稿・`drawn`・`closed` も押せない
 ///
 /// 準備OK（F-30）もいいねと同じ形の楽観的更新にする（自分のメンバーの `ready` が楽観的な値と一致したら確定する）。
@@ -63,11 +64,6 @@ final class RoomModel {
         case members
         case candidates
     }
-
-    /// いいねの書き込みに失敗したときのトースト（goal のタスク 19〜21「失敗したら戻してトースト「通信できませんでした」」）
-    static let likeFailureMessage: LocalizedStringResource = "通信できませんでした"
-    /// 準備OKの書き込みに失敗したときのトースト（いいねと同じ）
-    static let readyFailureMessage: LocalizedStringResource = "通信できませんでした"
 
     /// ルームの ID
     let roomID: String
@@ -332,9 +328,7 @@ final class RoomModel {
             pendingLikes[candidateID] = pending.sent(current: current) ? nil : pending
         } catch {
             pendingLikes[candidateID] = nil
-            if !AppError.wrapping(error).isCancellation {
-                toasts.show(Self.likeFailureMessage)
-            }
+            toasts.showFailure(error)
         }
     }
 
@@ -383,9 +377,7 @@ extension RoomModel {
             pendingReady = pending.sent(current: current) ? nil : pending
         } catch {
             pendingReady = nil
-            if !AppError.wrapping(error).isCancellation {
-                toasts.show(Self.readyFailureMessage)
-            }
+            toasts.showFailure(error)
         }
     }
 
@@ -424,10 +416,7 @@ extension RoomModel {
         do {
             try await functions.forceUnlock(RoomRequest(roomId: roomID))
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

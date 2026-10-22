@@ -111,10 +111,7 @@ final class LastMembersInviteModel {
                 toasts.show(text: String(localized: "招待できる前回のメンバーがいません"))
             }
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 

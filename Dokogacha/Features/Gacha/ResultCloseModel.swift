@@ -83,10 +83,7 @@ final class ResultCloseModel {
             analytics.log(.roomClose(auto: false))
             return true
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
             return false
         }
     }

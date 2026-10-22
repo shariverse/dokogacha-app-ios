@@ -362,10 +362,7 @@ final class RoomSettingsModel {
             }
             didSave = true
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

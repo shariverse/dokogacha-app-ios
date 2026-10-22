@@ -214,10 +214,7 @@ final class CreateRoomModel {
             createdRoom = InviteDestination(roomID: response.roomId, roomName: request.name, inviteCode: code)
             analytics.log(.roomCreate(postLimit: request.postLimit, unlockRule: request.unlockRule, likeMode: request.likeMode))
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

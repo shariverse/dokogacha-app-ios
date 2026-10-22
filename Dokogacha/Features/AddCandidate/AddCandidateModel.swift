@@ -26,8 +26,6 @@ final class AddCandidateModel {
     static let addedMessage: LocalizedStringResource = "候補に追加しました"
     /// 過去のアイデアを持ち込めたときのトースト（03 の S-09「持ち込み時は「過去のアイデアを持ち込みました」」）
     static let broughtMessage: LocalizedStringResource = "過去のアイデアを持ち込みました"
-    /// いいねの書き込みに失敗したときのトースト（S-07 のいいねと同じ）
-    static let likeFailureMessage: LocalizedStringResource = "通信できませんでした"
     /// ひとことの文字数（02 の §3.1「最大40文字」）
     static let noteLength = DomainConstants.Limits.noteLength
 
@@ -335,10 +333,7 @@ final class AddCandidateModel {
                 duplicatePrompt = DuplicatePrompt(candidateID: candidateID)
             }
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                currentToasts.show(text: appError.message)
-            }
+            currentToasts.showFailure(error)
         }
     }
 
@@ -383,9 +378,7 @@ final class AddCandidateModel {
             }
             finishFlow()
         } catch {
-            if !AppError.wrapping(error).isCancellation, !Task.isCancelled {
-                currentToasts.show(Self.likeFailureMessage)
-            }
+            currentToasts.showFailure(error)
         }
     }
 

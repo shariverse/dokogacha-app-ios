@@ -219,10 +219,7 @@ final class CandidateDetailModel {
             room.reportedCandidates.markReported(roomID: room.roomID, candidateID: candidateID)
             toasts.show(Self.reportedMessage)
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 
@@ -277,10 +274,7 @@ final class CandidateDetailModel {
             }
             didDelete = true
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation, !Task.isCancelled {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

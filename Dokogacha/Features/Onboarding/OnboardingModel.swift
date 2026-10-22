@@ -110,10 +110,7 @@ final class OnboardingModel {
             _ = try await auth.saveDisplayName(name)
             didRegister = true
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }

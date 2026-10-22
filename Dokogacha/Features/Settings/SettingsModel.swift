@@ -226,10 +226,7 @@ final class SettingsModel {
             profile?.displayName = response.displayName
             isEditingName = false
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }
@@ -426,10 +423,7 @@ extension SettingsModel {
         do {
             try await operation()
         } catch {
-            let appError = AppError.wrapping(error)
-            if !appError.isCancellation {
-                toasts.show(text: appError.message)
-            }
+            toasts.showFailure(error)
         }
     }
 }
