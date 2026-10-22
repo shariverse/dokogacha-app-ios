@@ -3,7 +3,6 @@
 <!--
   アプリ本体（Dokogacha）の entitlements。Configs/Project.xcconfig の CODE_SIGN_ENTITLEMENTS で指定する
   （Dokogacha/ の下に置くとリソースとしてアプリにコピーされるので、ここに置く）。
-  Sign in with Apple（タスク 38）も、このファイルにキーを足す。
   値に書いた $(…) は、ビルドのときに xcconfig の変数に置き換わる。
 -->
 <plist version="1.0">
@@ -15,6 +14,11 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:$(DG_WEB_DOMAIN)</string>
+	</array>
+	<!-- Sign in with Apple（02 の §1 F-01。設定画面から匿名のアカウントを Apple ID に連携する） -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
 	</array>
 </dict>
 </plist>
