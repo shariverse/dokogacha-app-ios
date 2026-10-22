@@ -106,8 +106,45 @@ struct MainNavigationView: View {
                     toasts: toasts
                 )
             )
-        case .members, .roomSettings, .gacha:
+        case let .members(roomID):
+            members(roomID: roomID)
+        case let .roomSettings(roomID):
+            roomSettings(roomID: roomID)
+        case .gacha:
             PendingScreenView(route: route)
+        }
+    }
+
+    /// S-11 メンバー一覧（シート）。退出できたら、シートを閉じてホームに戻り、トーストで知らせる
+    private func members(roomID: String) -> some View {
+        let sheetToasts = DGToastCenter()
+        let model = MembersModel(
+            roomID: roomID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: sheetToasts
+        )
+        return MembersView(model: model, toasts: sheetToasts) {
+            sheet = nil
+            path = []
+            toasts.show("ルームから退出しました")
+        }
+    }
+
+    /// S-12 ルーム設定（シート）。保存できたら、シートを閉じてトーストで知らせる
+    private func roomSettings(roomID: String) -> some View {
+        let sheetToasts = DGToastCenter()
+        let model = RoomSettingsModel(
+            roomID: roomID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: sheetToasts
+        )
+        return RoomSettingsView(model: model, toasts: sheetToasts) {
+            sheet = nil
+            toasts.show("設定を保存しました")
         }
     }
 
