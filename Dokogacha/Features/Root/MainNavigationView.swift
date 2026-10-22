@@ -66,6 +66,12 @@ struct MainNavigationView: View {
             onDismiss: { presentation.fullScreenDismissed() },
             content: { route in
                 destination(route)
+                    // S-14 で作成者がルームを終了したら、カバーを閉じてホームに戻る（03 の §2「この行き先で決定 → S-02」）
+                    .environment(\.roomClosed, RoomClosedAction {
+                        presentation.fullScreen = nil
+                        presentation.path = []
+                        toasts.show("行き先が決まりました！")
+                    })
             }
         )
         // 招待リンクで開かれたら、そのコードで S-05・S-06 を開く（この画面が出る前に届いていたものも、出たときに開く）
