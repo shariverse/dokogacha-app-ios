@@ -371,6 +371,31 @@ struct AddCandidateDuplicateTests {
         #expect(repository.likeCallCount == 0)
     }
 
+    /// 重複の確認からいいねを送っている間は、ほかの行の「追加」で S-09 を開かない（いいねが届くと S-07 に戻るため）
+    @Test
+    func addIsIgnoredWhileLiking() async throws {
+        let server = Base.makeServer()
+        let repository = RoomControlledRepository(server: server)
+        repository.holdsLikes = true
+        let model = Base.makeModel(server: server, repository: repository)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Base.waitUntilLoaded(model))
+
+        model.addTapped(try Base.place("明治神宮"))
+        let prompt = try #require(model.duplicatePrompt)
+        model.likeDuplicateTapped(prompt)
+        #expect(await AsyncTestSupport.eventually { repository.isHoldingLike })
+        #expect(model.isLiking)
+
+        model.addTapped(try Base.place("すみだ水族館"))
+        #expect(model.draft == nil)
+
+        repository.release()
+        #expect(await AsyncTestSupport.eventually { model.finish == .fromList })
+        #expect(model.draft == nil)
+    }
+
     /// いいねの書き込みに失敗したら、トースト「通信できませんでした」を出し、この画面に留まる
     @Test
     func duplicateLikeFailureShowsToast() async throws {

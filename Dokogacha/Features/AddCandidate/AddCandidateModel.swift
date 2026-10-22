@@ -237,9 +237,11 @@ final class AddCandidateModel {
 
     // MARK: - 追加
 
-    /// 検索結果の「追加」が押された。追加できれば S-09 を開き、ほかの人が同じ場所を投稿していれば重複の確認を出す
+    /// 検索結果の「追加」が押された。追加できれば S-09 を開き、ほかの人が同じ場所を投稿していれば重複の確認を出す。
+    ///
+    /// 重複の確認からいいねを送っている間は開かない（いいねが届くと S-07 に戻るので、開いた S-09 がすぐ閉じてしまう）
     func addTapped(_ place: SearchedPlace) {
-        guard draft == nil, duplicatePrompt == nil, finish == nil else {
+        guard draft == nil, duplicatePrompt == nil, finish == nil, !isLiking else {
             return
         }
         switch availability(of: place) {
