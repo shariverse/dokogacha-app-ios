@@ -224,6 +224,8 @@ extension AppError {
         case unreadableData = "app/unreadable-data"
         /// 擬似のサーバーにまだ無い操作（後続のタスクで足す）
         case notImplemented = "app/not-implemented"
+        /// Sign in with Apple の連携・サインインに失敗した（Apple の認証の画面のエラー・Firebase Auth が資格情報を受け付けなかった）
+        case appleSignInFailed = "app/apple-sign-in-failed"
         /// cancel した（`Task` の cancel・SDK の cancel）。通信の失敗ではないので、画面はトーストを出さない（`isCancellation`）
         case cancelled = "app/cancelled"
 
@@ -297,6 +299,8 @@ extension AppError {
                 String(localized: "購入を確認できませんでした")
             case .permissionDenied:
                 String(localized: "この操作はできません")
+            case .appleSignInFailed:
+                String(localized: "Apple でサインインできませんでした")
             case .unauthenticated, .purchaseVerificationUnavailable, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,
                  .unreadableData, .notImplemented, .cancelled:
                 String(localized: "通信できませんでした")

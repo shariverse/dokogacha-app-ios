@@ -49,7 +49,17 @@ struct RootModelTests {
             try await server.saveDisplayName(displayName)
         }
 
-        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+        var isLinkedWithApple: Bool {
+            false
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+            .linked
+        }
+
+        func signInWithLinkedAppleAccount() async throws -> String {
+            throw AppError(.appleSignInFailed)
+        }
     }
 
     /// 読めたプロフィールの後に、購読が一度だけ失敗で終わる擬似の認証（2 回目からは擬似のサーバーのまま）
@@ -91,7 +101,17 @@ struct RootModelTests {
             try await server.saveDisplayName(displayName)
         }
 
-        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+        var isLinkedWithApple: Bool {
+            false
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+            .linked
+        }
+
+        func signInWithLinkedAppleAccount() async throws -> String {
+            throw AppError(.appleSignInFailed)
+        }
     }
 
     /// トーストを出したままにする窓口（テストの間に消えないよう、出しておく時間を長くする）

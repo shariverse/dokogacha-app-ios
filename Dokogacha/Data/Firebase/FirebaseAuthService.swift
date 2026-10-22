@@ -11,11 +11,6 @@ import Foundation
 /// プロフィールの購読は Firestore（`users/{uid}`）、表示名の保存は Callable の `saveProfile` を通す
 /// （`users/{uid}` はセキュリティルールで直接作れない。色と `adFree` をサーバーが決めるため）。
 final class FirebaseAuthService: AuthService {
-    /// Sign in with Apple の連携がまだ無い（設定画面のタスクで作る）
-    enum LinkError: Error {
-        case notImplemented
-    }
-
     /// サインインの結果にユーザーが無かった（SDK が成功もエラーも返さなかった）
     enum SignInError: Error {
         case missingUser
@@ -23,6 +18,11 @@ final class FirebaseAuthService: AuthService {
 
     private let gateway: any FirestoreGateway
     private let functions: any FunctionsClient
+    /// 直前の連携で「既に別のアカウントに連携されている」と返った Apple の資格情報（`signInWithLinkedAppleAccount` で使う）。
+    ///
+    /// Apple の ID トークンは 1 回しか使えないので、連携の失敗のエラーに入っている Firebase が作り直した資格情報
+    /// （`AuthErrors.userInfoUpdatedCredentialKey`）を持っておく
+    private var pendingAppleCredential: AuthCredential?
 
     /// Firestore と Callable の窓口を受け取って作る
     init(gateway: any FirestoreGateway, functions: any FunctionsClient) {
@@ -75,8 +75,68 @@ final class FirebaseAuthService: AuthService {
         try await functions.saveProfile(SaveProfileRequest(displayName: displayName))
     }
 
-    func linkWithApple(_ credential: AppleIDCredential) async throws {
-        throw LinkError.notImplemented
+    var isLinkedWithApple: Bool {
+        AppleAccountLink.isLinked(providerIDs: Auth.auth().currentUser?.providerData.map(\.providerID) ?? [])
+    }
+
+    func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+        guard let user = Auth.auth().currentUser else {
+            throw AppError(.unauthenticated)
+        }
+        pendingAppleCredential = nil
+        let appleCredential = OAuthProvider.appleCredential(withIDToken: credential.idToken, rawNonce: credential.rawNonce, fullName: nil)
+        // SDK の結果（AuthDataResult）は Sendable でないので、コールバックの中で結果の分類だけを取り出して渡す
+        // （SDK はコールバックをメインスレッドで呼ぶ。資格情報はこの MainActor のオブジェクトに残す）
+        return try await withCheckedThrowingContinuation { continuation in
+            user.link(with: appleCredential) { [weak self] _, error in
+                guard let error else {
+                    continuation.resume(returning: .linked)
+                    return
+                }
+                let nsError = error as NSError
+                switch AuthErrorCode(rawValue: nsError.code) {
+                case .providerAlreadyLinked:
+                    continuation.resume(returning: .linked)
+                case .credentialAlreadyInUse:
+                    guard let updated = nsError.userInfo[AuthErrors.userInfoUpdatedCredentialKey] as? AuthCredential else {
+                        continuation.resume(throwing: AppError(.appleSignInFailed))
+                        return
+                    }
+                    self?.pendingAppleCredential = updated
+                    continuation.resume(returning: .alreadyInUse)
+                default:
+                    continuation.resume(throwing: Self.appError(from: nsError))
+                }
+            }
+        }
+    }
+
+    func signInWithLinkedAppleAccount() async throws -> String {
+        guard let credential = pendingAppleCredential else {
+            throw AppError(.appleSignInFailed)
+        }
+        pendingAppleCredential = nil
+        return try await withCheckedThrowingContinuation { continuation in
+            Auth.auth().signIn(with: credential) { result, error in
+                if let userID = result?.user.uid {
+                    continuation.resume(returning: userID)
+                } else if let error {
+                    continuation.resume(throwing: Self.appError(from: error as NSError))
+                } else {
+                    continuation.resume(throwing: SignInError.missingUser)
+                }
+            }
+        }
+    }
+
+    /// Firebase Auth のエラーをアプリのエラーにする（通信の失敗は「通信できませんでした」、それ以外は「Apple でサインインできませんでした」）
+    nonisolated private static func appError(from error: NSError) -> AppError {
+        switch AuthErrorCode(rawValue: error.code) {
+        case .networkError:
+            AppError(.network)
+        default:
+            AppError(.appleSignInFailed)
+        }
     }
 }
 

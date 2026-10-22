@@ -43,6 +43,12 @@ final class InMemoryServer {
         didSet { notifySubscribers() }
     }
 
+    /// Sign in with Apple に連携したアカウント（鍵は Apple のアカウント（擬似の ID トークン）→ uid。Firebase Auth の連携の代わり。`InMemoryServer+Apple.swift`）
+    var appleAccounts: [String: String] = [:]
+
+    /// 直前の連携で「既に別のアカウントに連携されている」と返った Apple のアカウント（`signInWithLinkedAppleAccount` で使う）
+    var pendingAppleAccount: String?
+
     /// `users/{uid}/pastIdeas/{ideaId}`（鍵は uid → 過去のアイデアの ID。ルームが終了したときに作る。F-13）
     var pastIdeas: [String: [String: PastIdea]] = [:] {
         didSet { notifySubscribers() }
@@ -180,7 +186,7 @@ final class InMemoryServer {
             .permissionDenied
         case .inviteCodeUnavailable, .purchaseVerificationUnavailable, .network, .serverUnavailable:
             .unavailable
-        case .internal, .unreadableData, .notImplemented:
+        case .internal, .unreadableData, .notImplemented, .appleSignInFailed:
             .internal
         case .cancelled:
             .cancelled
@@ -220,10 +226,6 @@ extension InMemoryServer: AuthService {
 
     func saveDisplayName(_ displayName: String) async throws -> SaveProfileResponse {
         try await saveProfile(SaveProfileRequest(displayName: displayName))
-    }
-
-    func linkWithApple(_ credential: AppleIDCredential) async throws {
-        throw AppError(.notImplemented)
     }
 
     /// サーバー側でサインアウトされたことを再現する（ユーザーの削除・トークンの更新の失敗）

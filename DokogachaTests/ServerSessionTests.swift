@@ -45,7 +45,17 @@ struct ServerSessionTests {
             try await server.saveDisplayName(displayName)
         }
 
-        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+        var isLinkedWithApple: Bool {
+            false
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+            .linked
+        }
+
+        func signInWithLinkedAppleAccount() async throws -> String {
+            throw AppError(.appleSignInFailed)
+        }
     }
 
     /// サインインを、テストが `finishSignIn` を呼ぶまで止めておく擬似の認証
@@ -88,7 +98,17 @@ struct ServerSessionTests {
             try await server.saveDisplayName(displayName)
         }
 
-        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+        var isLinkedWithApple: Bool {
+            false
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+            .linked
+        }
+
+        func signInWithLinkedAppleAccount() async throws -> String {
+            throw AppError(.appleSignInFailed)
+        }
     }
 
     /// ユーザーの ID の変化を、テストが 1 件ずつ手で流す擬似の認証。
@@ -142,7 +162,17 @@ struct ServerSessionTests {
             try await server.saveDisplayName(displayName)
         }
 
-        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+        var isLinkedWithApple: Bool {
+            false
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+            .linked
+        }
+
+        func signInWithLinkedAppleAccount() async throws -> String {
+            throw AppError(.appleSignInFailed)
+        }
     }
 
     /// 擬似の認証を使う窓口
