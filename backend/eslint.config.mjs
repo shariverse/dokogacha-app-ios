@@ -30,4 +30,12 @@ export default tseslint.config(
       sourceType: "commonjs",
     },
   },
+  {
+    // Hosting で配信するページの JS はブラウザで動く（モジュールではない classic な script）
+    files: ["hosting/public/**/*.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: globals.browser,
+    },
+  },
 );

@@ -22,7 +22,14 @@
   ],
   "hosting": {
     "public": "hosting/public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    "ignore": ["firebase.json", "**/.DS_Store", "**/node_modules/**"],
+    "headers": [
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      }
+    ],
+    "rewrites": [{ "source": "/r/**", "destination": "/invite.html" }]
   },
   "emulators": {
     "singleProjectMode": true,
