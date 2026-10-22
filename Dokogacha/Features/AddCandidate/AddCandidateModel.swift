@@ -71,6 +71,8 @@ final class AddCandidateModel {
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
+    /// 追加・いいねできたら `candidate_add`・`like_toggle` を送る窓口
+    @ObservationIgnored private let analytics: any AnalyticsService
     /// 送っている `addCandidate`（画面が消えたら止める）
     @ObservationIgnored private var submitTask: Task<Void, Never>?
     /// 送っているいいね（画面が消えたら止める）
@@ -88,6 +90,7 @@ final class AddCandidateModel {
     ///   - sheetToasts: S-09 のシートの中のトースト（既定は新しく作る）
     ///   - sleep: 検索まで待つ処理（テストでは手で進めるものを渡す）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方
+    ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
     init(
         roomID: String,
         userID: String,
@@ -97,7 +100,8 @@ final class AddCandidateModel {
         toasts: DGToastCenter,
         sheetToasts: DGToastCenter = DGToastCenter(),
         sleep: @escaping PlaceSearchModel.Sleep = { try await Task.sleep(for: $0) },
-        resubscribeDelay: ResubscribeDelay = .standard
+        resubscribeDelay: ResubscribeDelay = .standard,
+        analytics: any AnalyticsService = DisabledAnalyticsService()
     ) {
         self.roomID = roomID
         self.userID = userID
@@ -106,6 +110,7 @@ final class AddCandidateModel {
         self.toasts = toasts
         self.sheetToasts = sheetToasts
         self.resubscribeDelay = resubscribeDelay
+        self.analytics = analytics
         search = PlaceSearchModel(places: places, toasts: toasts, sleep: sleep)
     }
 
@@ -324,6 +329,7 @@ final class AddCandidateModel {
             switch result {
             case .added:
                 toasts.show(request.fromPastIdeaId == nil ? Self.addedMessage : Self.broughtMessage)
+                analytics.log(.candidateAdd(source: request.fromPastIdeaId == nil ? .search : .past, category: request.category))
                 finishFlow()
             case let .duplicate(candidateID):
                 duplicatePrompt = DuplicatePrompt(candidateID: candidateID)
@@ -371,6 +377,7 @@ final class AddCandidateModel {
         defer { isLiking = false }
         do {
             try await repository.setLike(true, candidateID: prompt.candidateID, roomID: roomID, userID: userID)
+            analytics.log(.likeToggle(on: true))
             guard !Task.isCancelled else {
                 return
             }

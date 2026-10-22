@@ -63,6 +63,8 @@ final class GachaModel {
     @ObservationIgnored private let seenDraws: any SeenDrawStore
     @ObservationIgnored private let sleep: Sleep
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
+    /// 自分が回せたら `gacha_draw` を送る窓口
+    @ObservationIgnored private let analytics: any AnalyticsService
     /// いま動かしている演出（回す・再生する・開ける）
     @ObservationIgnored private var playTask: Task<Void, Never>?
     /// いま失敗している購読（トーストを 1 回にする）
@@ -85,6 +87,7 @@ final class GachaModel {
     ///   - seenDraws: 演出を見終えた抽選を覚える窓口
     ///   - sleep: 演出の時間を待つ処理（テストでは待たないものを渡す）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方
+    ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
     init(
         roomID: String,
         userID: String,
@@ -93,7 +96,8 @@ final class GachaModel {
         toasts: DGToastCenter,
         seenDraws: any SeenDrawStore,
         sleep: @escaping Sleep = { try await Task.sleep(for: $0) },
-        resubscribeDelay: ResubscribeDelay = .standard
+        resubscribeDelay: ResubscribeDelay = .standard,
+        analytics: any AnalyticsService = DisabledAnalyticsService()
     ) {
         self.roomID = roomID
         self.userID = userID
@@ -103,6 +107,7 @@ final class GachaModel {
         self.seenDraws = seenDraws
         self.sleep = sleep
         self.resubscribeDelay = resubscribeDelay
+        self.analytics = analytics
     }
 
     // MARK: - 表示の値
@@ -282,6 +287,8 @@ final class GachaModel {
         if response.alreadyDrawn {
             // 同時に回して先を越された。先に回した人の名前で、同じ結果を見せる
             drawnByName = await drawerName(of: response.drawId)
+        } else if let room {
+            analytics.log(.gachaDraw(winnerID: response.candidateId, candidates: candidates, room: room))
         }
         await withTaskCancellationHandler {
             await spin.value

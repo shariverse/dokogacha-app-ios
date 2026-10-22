@@ -63,6 +63,7 @@ final class CandidateDetailModel {
     ///   - mapOpener: 「マップで開く」の窓口（テストでは呼び出しを記録するもの）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
     ///   - reportedCandidates: 自分が報告した候補（報告できたら覚え、ひとこととURLを隠す）
+    ///   - analytics: Analytics のイベント（05 の §9。いいね）を送る窓口
     init(
         roomID: String,
         candidateID: String,
@@ -72,7 +73,8 @@ final class CandidateDetailModel {
         toasts: DGToastCenter,
         mapOpener: any MapOpener = AppleMapsOpener(),
         resubscribeDelay: ResubscribeDelay = .standard,
-        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore()
+        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore(),
+        analytics: any AnalyticsService = DisabledAnalyticsService()
     ) {
         self.candidateID = candidateID
         room = RoomModel(
@@ -82,7 +84,8 @@ final class CandidateDetailModel {
             functions: functions,
             toasts: toasts,
             resubscribeDelay: resubscribeDelay,
-            reportedCandidates: reportedCandidates
+            reportedCandidates: reportedCandidates,
+            analytics: analytics
         )
         self.functions = functions
         self.mapOpener = mapOpener

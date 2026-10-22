@@ -17,8 +17,9 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
     case invite(InviteDestination)
     /// S-05 招待コードで参加（シート。タスク 15）
     case joinByCode
-    /// 招待リンクで開いた S-05・S-06（シート。タスク 34）。S-05 にコードを入れた状態で始め、すぐに確かめて S-06 を積む
-    case joinByInviteLink(InviteCode)
+    /// 招待リンクで開いた S-05・S-06（シート。タスク 34）。S-05 にコードを入れた状態で始め、すぐに確かめて S-06 を積む。
+    /// `via` はコードが届いた道（招待リンク・前回のメンバーへの招待の通知。`room_join` の `via`）
+    case joinByInviteLink(InviteCode, via: RoomJoinVia = .link)
     /// S-07 ルーム（プッシュ。タスク 19）
     case room(id: String)
     /// S-15 設定（プッシュ。タスク 16）
@@ -77,10 +78,22 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
 
     /// 招待リンクで開いた S-05・S-06 の招待コード（ほかの行き先では nil）
     var inviteLinkCode: InviteCode? {
-        if case let .joinByInviteLink(code) = self {
+        if case let .joinByInviteLink(code, _) = self {
             return code
         }
         return nil
+    }
+
+    /// S-05・S-06 を開いた道（`room_join` の `via`。参加の行き先でなければ nil）
+    var joinVia: RoomJoinVia? {
+        switch self {
+        case .joinByCode:
+            .code
+        case let .joinByInviteLink(_, via):
+            via
+        default:
+            nil
+        }
     }
 }
 

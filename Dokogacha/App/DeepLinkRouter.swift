@@ -23,6 +23,8 @@ import Observation
 final class DeepLinkRouter {
     /// まだ開いていない招待コード（招待リンクで開かれ、S-06 をまだ出していないもの）
     private(set) var pendingInviteCode: InviteCode?
+    /// `pendingInviteCode` が届いた道（招待リンクか、前回のメンバーへの招待の通知か。`room_join` の `via`）
+    private(set) var pendingInviteVia = RoomJoinVia.link
     /// まだ開いていない通知の行き先（通知を開かれ、ルームをまだ出していないもの）
     private(set) var pendingNotification: PushDestination?
 
@@ -37,6 +39,7 @@ final class DeepLinkRouter {
             return false
         }
         pendingInviteCode = code
+        pendingInviteVia = .link
         return true
     }
 
@@ -66,6 +69,7 @@ final class DeepLinkRouter {
     func handle(_ destination: PushDestination) {
         if destination.target == .join, let code = destination.inviteCode {
             pendingInviteCode = code
+            pendingInviteVia = .push
             return
         }
         pendingNotification = destination

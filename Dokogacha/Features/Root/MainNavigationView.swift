@@ -82,8 +82,9 @@ struct MainNavigationView: View {
         )
         // 招待リンクで開かれたら、そのコードで S-05・S-06 を開く（この画面が出る前に届いていたものも、出たときに開く）
         .onChange(of: deepLinks.pendingInviteCode, initial: true) {
+            let via = deepLinks.pendingInviteVia
             if let code = deepLinks.takePendingInviteCode() {
-                openInviteLink(code)
+                openInviteLink(code, via: via)
             }
         }
         .modifier(PushNotificationRouting(presentation: $presentation, userID: userID, deepLinks: deepLinks, push: push))
@@ -99,8 +100,8 @@ struct MainNavigationView: View {
     /// 積んだ画面はそのまま残す（参加したら、その上にルームを積む）。別のシートを出していたら差し替える。
     /// フルスクリーンカバー（S-13・S-14）を出していたら閉じずに待たせ、ユーザーがカバーを閉じてからシートを出す
     /// （S-13 は演出中に閉じられない。`AppPresentation`）
-    private func openInviteLink(_ code: InviteCode) {
-        presentation.open(.joinByInviteLink(code))
+    private func openInviteLink(_ code: InviteCode, via: RoomJoinVia) {
+        presentation.open(.joinByInviteLink(code, via: via))
     }
 
     /// 行き先を開く（積む・シート・フルスクリーンカバーで出す。シートが出ていればシートを閉じてからカバーを出す）
@@ -112,7 +113,8 @@ struct MainNavigationView: View {
     @ViewBuilder private func destination(_ route: AppRoute) -> some View {
         switch route {
         case .createRoom:
-            CreateRoomView(model: CreateRoomModel(functions: services.functions, toasts: toasts)) { created in
+            let model = CreateRoomModel(functions: services.functions, toasts: toasts, analytics: services.analytics)
+            CreateRoomView(model: model) { created in
                 presentation.path = AppRoute.pathAfterCreating(created, from: presentation.path)
                 requestNotificationPermission()
             }
@@ -130,7 +132,7 @@ struct MainNavigationView: View {
                 presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
             }
         case .joinByCode, .joinByInviteLink:
-            joinRoomFlow(initialCode: route.inviteLinkCode)
+            joinRoomFlow(initialCode: route.inviteLinkCode, via: route.joinVia ?? .code)
         case let .room(roomID):
             room(roomID: roomID)
         case .settings:
@@ -145,7 +147,8 @@ struct MainNavigationView: View {
                     repository: services.rooms,
                     functions: services.functions,
                     places: services.places,
-                    toasts: toasts
+                    toasts: toasts,
+                    analytics: services.analytics
                 )
             )
         case let .members(roomID):
@@ -166,7 +169,9 @@ struct MainNavigationView: View {
             functions: services.functions,
             toasts: toasts,
             seenDraws: services.seenDraws,
-            reportedCandidates: services.reportedCandidates
+            reportedCandidates: services.reportedCandidates,
+            analytics: services.analytics,
+            logsRoomChanges: true
         )
         return RoomView(model: model) { route in
             open(route)
@@ -190,9 +195,11 @@ struct MainNavigationView: View {
     }
 
     /// S-05・S-06（シート）。参加したら（もとからメンバーなら）シートを閉じて、そのルームを開く（03 の §2「S-06 → 参加する → S-07」）
-    /// - Parameter initialCode: 招待リンクで開いたときの招待コード（ホームの「招待コードで参加」からなら nil）
-    private func joinRoomFlow(initialCode: InviteCode?) -> some View {
-        JoinRoomFlowView(functions: services.functions, initialCode: initialCode) { roomID in
+    /// - Parameters:
+    ///   - initialCode: 招待リンクで開いたときの招待コード（ホームの「招待コードで参加」からなら nil）
+    ///   - via: 開いた道（`room_join` の `via`）
+    private func joinRoomFlow(initialCode: InviteCode?, via: RoomJoinVia) -> some View {
+        JoinRoomFlowView(functions: services.functions, initialCode: initialCode, via: via, analytics: services.analytics) { roomID in
             presentation.sheet = nil
             presentation.path.append(.room(id: roomID))
             requestNotificationPermission()
@@ -253,7 +260,8 @@ struct MainNavigationView: View {
             repository: services.rooms,
             functions: services.functions,
             toasts: coverToasts,
-            seenDraws: services.seenDraws
+            seenDraws: services.seenDraws,
+            analytics: services.analytics
         )
         return GachaView(model: model, toasts: coverToasts, forcesReducedMotion: LaunchContext.current.isUITesting, onOpened: onOpened)
     }
@@ -269,7 +277,8 @@ struct MainNavigationView: View {
             repository: services.rooms,
             functions: services.functions,
             toasts: coverToasts,
-            reportedCandidates: services.reportedCandidates
+            reportedCandidates: services.reportedCandidates,
+            analytics: services.analytics
         )
         return ResultView(model: model, toasts: coverToasts, animatesIn: !LaunchContext.current.isUITesting, onPlayAgain: onPlayAgain)
     }
@@ -284,7 +293,8 @@ struct MainNavigationView: View {
             repository: services.rooms,
             functions: services.functions,
             toasts: sheetToasts,
-            reportedCandidates: services.reportedCandidates
+            reportedCandidates: services.reportedCandidates,
+            analytics: services.analytics
         )
         return CandidateDetailView(model: model, toasts: sheetToasts)
     }

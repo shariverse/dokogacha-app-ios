@@ -65,6 +65,8 @@ final class CreateRoomModel {
 
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
+    /// 作成できたら `room_create` を送る窓口
+    @ObservationIgnored private let analytics: any AnalyticsService
     /// 今の時刻（締切の範囲を計算し直すたびに読む）
     @ObservationIgnored private let clock: () -> Date
     /// ボタンから始めた作成。画面が消えたら（`cancelSubmit`）止める
@@ -75,14 +77,17 @@ final class CreateRoomModel {
     ///   - toasts: 通信エラーを出すトーストの窓口
     ///   - clock: 今の時刻（締切の範囲と初期値を決める。テストで進める）
     ///   - calendar: 暦（締切の初期値「3日後の21:00」を端末のタイムゾーンで決める）
+    ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
     init(
         functions: any FunctionsClient,
         toasts: DGToastCenter,
         clock: @escaping () -> Date = { Date() },
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        analytics: any AnalyticsService = DisabledAnalyticsService()
     ) {
         self.functions = functions
         self.toasts = toasts
+        self.analytics = analytics
         self.clock = clock
         let now = clock()
         deadlineSelection = DeadlineSelection(date: RoomDeadline.defaultDeadline(now: now, calendar: calendar), now: now)
@@ -207,6 +212,7 @@ final class CreateRoomModel {
                 throw AppError(.unreadableData)
             }
             createdRoom = InviteDestination(roomID: response.roomId, roomName: request.name, inviteCode: code)
+            analytics.log(.roomCreate(postLimit: request.postLimit, unlockRule: request.unlockRule, likeMode: request.likeMode))
         } catch {
             let appError = AppError.wrapping(error)
             if !appError.isCancellation, !Task.isCancelled {

@@ -194,6 +194,8 @@ struct ResultView: View {
             }
         }
         .buttonStyle(.dg(.secondary))
+        // `ShareLink` は押したときの処理を持てないので、押したことを同時のタップで受けて `ticket_share` を送る
+        .simultaneousGesture(TapGesture().onEnded { model.shareTapped() })
         .accessibilityIdentifier(Identifier.share)
     }
 

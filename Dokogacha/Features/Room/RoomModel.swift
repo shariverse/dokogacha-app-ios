@@ -110,6 +110,11 @@ final class RoomModel {
     @ObservationIgnored let reportedCandidates: any ReportedCandidateStore
     /// いま失敗している購読
     @ObservationIgnored private var failingSources: Set<Source> = []
+    /// いいね・準備OKを送れたら `like_toggle`・`ready_toggle` を、ルームの変化を見たら `room_unlock`・`reroll_result` を送る窓口
+    @ObservationIgnored private let analytics: any AnalyticsService
+    /// ルームの変化（解禁・引き直しの結果）のイベントを送るか。S-07 の Model だけが送る
+    /// （S-10・S-11・S-12・S-14 は中に別の `RoomModel` を持ち、S-07 の下で同じルームを購読しているので、送ると重なる）
+    @ObservationIgnored private let logsRoomChanges: Bool
 
     /// - Parameters:
     ///   - roomID: ルームの ID
@@ -120,6 +125,8 @@ final class RoomModel {
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
     ///   - seenDraws: ガチャの演出を見終えた抽選（ほかの人が回したときに S-13 を開くかを決める）
     ///   - reportedCandidates: 自分が報告した候補（ひとこととURLを隠す）
+    ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
+    ///   - logsRoomChanges: ルームの変化（解禁・引き直しの結果）のイベントも送るか（S-07 の Model だけ true）
     init(
         roomID: String,
         userID: String,
@@ -128,7 +135,9 @@ final class RoomModel {
         toasts: DGToastCenter,
         resubscribeDelay: ResubscribeDelay = .standard,
         seenDraws: any SeenDrawStore = InMemorySeenDrawStore(),
-        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore()
+        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore(),
+        analytics: any AnalyticsService = DisabledAnalyticsService(),
+        logsRoomChanges: Bool = false
     ) {
         self.roomID = roomID
         self.userID = userID
@@ -138,6 +147,8 @@ final class RoomModel {
         self.resubscribeDelay = resubscribeDelay
         self.seenDraws = seenDraws
         self.reportedCandidates = reportedCandidates
+        self.analytics = analytics
+        self.logsRoomChanges = logsRoomChanges
     }
 
     // MARK: - 購読
@@ -227,6 +238,9 @@ final class RoomModel {
         }
         drawToReplay = DrawReplay.drawID(previous: room?.status, room: value.value, hasSeen: seenDraws.hasSeen(drawID:)) ?? drawToReplay
         resultToOpen = DrawReplay.resultDrawID(previous: room?.status, room: value.value) ?? resultToOpen
+        if logsRoomChanges {
+            logRoomChanges(previous: room, current: value.value)
+        }
         room = value.value
         loadState = .loaded
         if !RoomCandidateRow.likeableStatuses.contains(value.status) {
@@ -268,6 +282,13 @@ final class RoomModel {
         }
     }
 
+    /// ルームの変化（解禁・引き直しの結果）のイベントを送る
+    private func logRoomChanges(previous: Room?, current: Room) {
+        for event in AnalyticsEvent.roomChanges(previous: previous, current: current) {
+            analytics.log(event)
+        }
+    }
+
     /// S-13 を開いた（`drawToReplay` を消す）
     func replayOpened() {
         drawToReplay = nil
@@ -302,6 +323,7 @@ final class RoomModel {
         pendingLikes[candidateID] = OptimisticWrite(liked)
         do {
             try await repository.setLike(liked, candidateID: candidateID, roomID: roomID, userID: userID)
+            analytics.log(.likeToggle(on: liked))
             guard var pending = pendingLikes[candidateID] else {
                 return
             }
@@ -353,6 +375,7 @@ extension RoomModel {
         pendingReady = OptimisticWrite(ready)
         do {
             try await repository.setReady(ready, roomID: roomID, userID: userID)
+            analytics.log(.readyToggle(on: ready))
             guard var pending = pendingReady else {
                 return
             }
