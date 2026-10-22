@@ -14,6 +14,12 @@ struct CandidateRulesTests {
     /// 江の島（緯度 35.3, 経度 139.48）
     nonisolated static let enoshima = Place(name: "江の島", area: "神奈川・藤沢市", latitude: 35.3, longitude: 139.48, mapItemId: nil)
 
+    /// 候補を投稿・削除できるのは `open`・`unlocked` だけ（02 の §2.1。backend の `CANDIDATE_EDITABLE_STATUSES` と同じ）
+    @Test
+    func editableStatusesAreOpenAndUnlocked() {
+        #expect(CandidateRules.editableStatuses == [.open, .unlocked])
+    }
+
     /// 緯度だけを `deltaLatitude` 度ずらした場所
     static func shifted(_ place: Place, _ deltaLatitude: Double, name: String? = nil, mapItemId: String? = nil) -> Place {
         Place(

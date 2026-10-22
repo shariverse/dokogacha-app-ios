@@ -114,7 +114,7 @@ final class AddCandidateModel {
 
     /// ルームが投稿を受け付ける状態か（F-10「投稿できるのは open/unlocked のときだけ」）
     var acceptsCandidates: Bool {
-        room.map { RoomCandidateRow.likeableStatuses.contains($0.status) } ?? false
+        room.map { CandidateRules.editableStatuses.contains($0.status) } ?? false
     }
 
     /// 検索結果の行の状態（「追加」「追加済み」「上限」）。候補がまだ届いていなければ押せない

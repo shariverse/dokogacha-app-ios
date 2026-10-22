@@ -15,8 +15,6 @@ extension InMemoryServer: FunctionsClient {
     static let deadlineEarliestGrace: TimeInterval = 5 * 60
     /// 参加できる状態（02 の F-04）
     static let joinableStatuses: Set<RoomStatus> = [.open, .unlocked]
-    /// 候補を追加・削除できる状態（02 の §2.1。backend の `CANDIDATE_EDITABLE_STATUSES`）
-    static let candidateEditableStatuses: Set<RoomStatus> = [.open, .unlocked]
 
     // MARK: この端末（サインインしている人）からの呼び出し
 
@@ -216,7 +214,7 @@ extension InMemoryServer: FunctionsClient {
         guard let member = record.members[userID] else {
             throw Self.error(.notRoomMember)
         }
-        guard Self.candidateEditableStatuses.contains(record.room.status) else {
+        guard CandidateRules.editableStatuses.contains(record.room.status) else {
             throw Self.error(.roomAlreadyDecided)
         }
         let existing = record.candidates.map { Identified(id: $0.key, value: $0.value) }
@@ -266,7 +264,7 @@ extension InMemoryServer: FunctionsClient {
         guard candidate.postedBy == userID || record.room.ownerId == userID else {
             throw Self.error(.notCandidateOwner)
         }
-        guard Self.candidateEditableStatuses.contains(record.room.status) else {
+        guard CandidateRules.editableStatuses.contains(record.room.status) else {
             throw Self.error(.roomAlreadyDecided)
         }
         let referencedByDraw = record.draws.values.contains { $0.candidateId == candidateID }
