@@ -8,6 +8,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "settings.deadlineAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

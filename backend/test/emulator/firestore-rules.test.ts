@@ -32,14 +32,14 @@ import { BACKEND_DIR, parseHostPort, PROJECT_ID, requireEnv } from "./env";
 import { isLockTimeout, retryWhileLocked } from "./firestore-admin";
 
 /** ルーム room1（alice が作成者、bob・dave がメンバー。carol はメンバーでない） */
-function roomData(status = "open") {
+function roomData(status = "open", forcedUnlock = false) {
   return {
     name: "年末の旅行",
     ownerId: "alice",
     inviteCode: "DK729Q",
     status,
     settings: { postLimit: 3, unlockRule: "all", deadlineAt: null, likeMode: "boost" },
-    forcedUnlock: false,
+    forcedUnlock,
     memberIds: ["alice", "bob", "dave"],
     memberCount: 3,
     readyCount: 0,
@@ -91,8 +91,12 @@ describe("firestore.rules", () => {
     return uid === null ? testEnv.unauthenticatedContext().firestore() : testEnv.authenticatedContext(uid).firestore();
   }
 
-  /** ルール抜きでデータを入れる */
-  async function seed(status = "open"): Promise<void> {
+  /**
+   * ルール抜きでデータを入れる。
+   * メンバーを入れるとトリガー（onMemberWrite）が数え直して open⇄unlocked を判定し直すので、unlocked のままにしたいときは
+   * `forcedUnlock` を立てる（準備OKが 0 人の全員OK条件の unlocked は、トリガーが open に戻す）
+   */
+  async function seed(status = "open", forcedUnlock = false): Promise<void> {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
       await setDoc(doc(db, "users/alice"), {
@@ -102,7 +106,7 @@ describe("firestore.rules", () => {
         fcmTokens: [],
         createdAt: Timestamp.fromMillis(0),
       });
-      await setDoc(doc(db, "rooms/room1"), roomData(status));
+      await setDoc(doc(db, "rooms/room1"), roomData(status, forcedUnlock));
       await setDoc(doc(db, "rooms/room1/members/alice"), memberData("owner"));
       await setDoc(doc(db, "rooms/room1/members/bob"), memberData("member"));
       await setDoc(doc(db, "rooms/room1/members/dave"), memberData("member"));
@@ -238,8 +242,33 @@ describe("firestore.rules", () => {
     });
 
     it("unlocked でも準備OKを変えられる（取り消しで open に戻るため）", async () => {
-      await seed("unlocked");
+      await seed("unlocked", true);
       await assertSucceeds(updateDoc(doc(as("bob"), "rooms/room1/members/bob"), { ready: true }));
+      await assertSucceeds(updateDoc(doc(as("bob"), "rooms/room1/members/bob"), { ready: false }));
+    });
+
+    it("他人の準備OKを取り消すこともできない（解禁を戻せない）・メンバーでない人は自分の分も書けない", async () => {
+      await seed("unlocked", true);
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await updateDoc(doc(context.firestore(), "rooms/room1/members/bob"), { ready: true });
+      });
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1/members/bob"), { ready: false }));
+      await assertFails(updateDoc(doc(as("dave"), "rooms/room1/members/bob"), { ready: false }));
+      // carol はメンバーでない（メンバーのドキュメントが無い）
+      await assertFails(updateDoc(doc(as("carol"), "rooms/room1/members/carol"), { ready: true }));
+      await assertFails(setDoc(doc(as("carol"), "rooms/room1/members/carol"), { ...memberData("member"), ready: true }));
+    });
+
+    it("サインインしていなければ準備OKを書けない", async () => {
+      await seed();
+      await assertFails(updateDoc(doc(as(null), "rooms/room1/members/bob"), { ready: true }));
+    });
+
+    it("ルームの readyCount・status・forcedUnlock は直接書けない（作成者でも。数え直しと解禁は Functions）", async () => {
+      await seed();
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { readyCount: 3 }));
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { forcedUnlock: true, status: "unlocked" }));
+      await assertFails(updateDoc(doc(as("bob"), "rooms/room1"), { "settings.unlockRule": "majority" }));
     });
 
     it("他人の準備OK・lastSeenAt は変えられない（作成者でも）", async () => {

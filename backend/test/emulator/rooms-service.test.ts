@@ -296,8 +296,8 @@ describe("ルームの Functions の処理（Emulator の Firestore）", () => {
     async function expectBobRemoved(roomId: string): Promise<void> {
       expect((await db.doc(`rooms/${roomId}/members/bob`).get()).exists).toBe(false);
       const room = await roomData(roomId);
-      // readyCount は onMemberWrite（タスク 23）が数え直すので、退出・削除の Callable では変えない
-      expect(room).toMatchObject({ memberIds: ["alice", "carol"], memberCount: 2, readyCount: 1 });
+      // readyCount は退出・削除の Callable では変えず、トリガーの onMemberWrite が非同期に数え直す（unlock.test.ts で確かめる）
+      expect(room).toMatchObject({ memberIds: ["alice", "carol"], memberCount: 2 });
       expect(room.reroll).toMatchObject({ votesFor: [], votesAgainst: ["carol"] });
       expect(await likedBy(roomId, "c1")).toEqual(["carol"]);
       expect(await likedBy(roomId, "c2")).toEqual([]);
