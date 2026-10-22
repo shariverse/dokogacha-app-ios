@@ -33,6 +33,8 @@ enum UITestID {
     static let inviteCode = "invite.code"
     /// S-04 の「ルームへ進む」（`InviteView.Identifier.openRoom`）
     static let openRoomButton = "invite.openRoom"
+    /// S-04 の「前回のメンバー（{前回ルーム名}・N人）を招待」（`InviteView.Identifier.lastMembers`）
+    static let inviteLastMembersButton = "invite.lastMembers"
     /// ホームの設定の歯車（`HomeView.Identifier.settings`）
     static let settingsButton = "home.settings"
     /// S-15 設定（`SettingsView.Identifier.screen`）
