@@ -89,6 +89,8 @@ final class RoomModel {
     var isConfirmingForceUnlock = false
     /// 強制解禁を送っている途中か（二重に送らない・画面を閉じさせない）
     private(set) var isForceUnlocking = false
+    /// 強制解禁が通ったか。購読の `unlocked` が届くまでの間に、もう一度押せないようにする（PR #61 の持ち越し）
+    private(set) var hasForceUnlocked = false
     /// ほかの人が回したので、ガチャ（S-13）を開いて演出を再生する抽選の ID（開いたら `replayOpened()` で消す）
     private(set) var drawToReplay: String?
     /// 開いたときに `drawn`・`closed` だったので、結果（S-14）を自動で出す抽選の ID（開いたら `resultOpened()` で消す）
@@ -96,8 +98,8 @@ final class RoomModel {
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let functions: any FunctionsClient
-    /// 確認のダイアログから始めた強制解禁（二重に始めないために持つ）
-    @ObservationIgnored private var forceUnlockTask: Task<Void, Never>?
+    /// 確認のダイアログから始めた強制解禁（二重に始めないために持つ。始めた時点から画面の戻る操作を止めるので、画面からも見る）
+    private var forceUnlockTask: Task<Void, Never>?
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
     /// ガチャの演出を見終えた抽選
@@ -415,8 +417,22 @@ extension RoomModel {
         defer { isForceUnlocking = false }
         do {
             try await functions.forceUnlock(RoomRequest(roomId: roomID))
+            hasForceUnlocked = true
         } catch {
             toasts.showFailure(error)
+        }
+    }
+
+    /// 強制解禁を送っている途中か（確認のダイアログで押してから、送り終えるまで。戻る操作と二度押しを止める）
+    var isSendingForceUnlock: Bool {
+        isForceUnlocking || forceUnlockTask != nil
+    }
+
+    /// 強制解禁の確認のダイアログを出している間に、押せなくなった（ほかの人の準備OKで解禁した・ガチャが回された）ら、ダイアログを閉じる
+    /// （閉じないと「解禁する」を押しても何も起きない。PR #61 の持ち越し）。画面が `canForceUnlock` の変化で呼ぶ
+    func closeUnavailableConfirmation() {
+        if isConfirmingForceUnlock, !canForceUnlock {
+            isConfirmingForceUnlock = false
         }
     }
 }

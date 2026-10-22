@@ -83,9 +83,9 @@ extension RoomModel {
         room.map { Self.readyStatuses.contains($0.status) } ?? false
     }
 
-    /// 「強制解禁（作成者）」を出すか（F-32「作成者だけ・未解禁のとき」。`status` が `open`）
+    /// 「強制解禁（作成者）」を出すか（F-32「作成者だけ・未解禁のとき」。`status` が `open`。強制解禁が通った後は、購読が追いつく前でも出さない）
     var canForceUnlock: Bool {
-        isOwner && room?.status == .open
+        isOwner && room?.status == .open && !hasForceUnlocked
     }
 
     /// ルームパネルのヒント（F-31。抽選の後は nil）。解禁の文言は `status` が `unlocked` のときだけ（`ReadyHint`）
