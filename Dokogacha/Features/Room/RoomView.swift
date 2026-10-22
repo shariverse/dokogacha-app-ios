@@ -234,7 +234,7 @@ struct RoomView: View {
                     .padding(.top, DGSpacing.s6)
                 if model.newCount > 0 {
                     Text("前回見たあとに \(model.newCount)件の候補が増えました")
-                        .font(.dgBody(Self.newNoticeSize, weight: .black, relativeTo: .caption))
+                        .font(.dgBody(Self.newNoticeSize, weight: .bold, relativeTo: .caption))
                         .foregroundStyle(Color.dgAccentText)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier(Identifier.newNotice)
