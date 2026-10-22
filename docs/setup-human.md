@@ -106,7 +106,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
 - plist の Secret が無いとき、Stg は警告を出して Firebase に繋がらないアプリを Archive し、`release/**` の Upload（Release）は止まる。読めない値を入れると Archive の前に止まる
 - Archive の後に、アプリの `Info.plist` の `DGFirebaseEnvironment`（Stg は `dev`・Release は `prod`）と、入った plist が構成どおりかを確かめる（「Verify Firebase settings in the app」）
-- plist があるときは、Upload の後に dSYM を Crashlytics に上げる（「Upload dSYMs to Crashlytics」）
+- plist があるときは、Upload のワークフローで Archive と「Verify Firebase settings in the app」の後（Export・Upload の前）に dSYM を Crashlytics に上げる（「Upload dSYMs to Crashlytics」）
 
 **確かめ方**: `develop` への push の Upload で「`GoogleService-Info-Dev.plist` がアプリに入っています」と「dSYM を Crashlytics に上げました（GoogleService-Info-Dev）」が出る。Crashlytics の dSYM の一覧に上がる（#95）。
 
@@ -184,9 +184,13 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 1. SMTP の事業者を決め、送信用のアカウントを用意する（送り主のアドレス・接続先・パスワード）
 2. SMTP のパスワードを、dev と prod のそれぞれの Secret Manager に `firestore-send-email-SMTP_PASSWORD` という名前で置く（拡張の設定はこの名前の `latest` を参照する）
 
+   `firebase functions:secrets:set` は使わない（firebase-tools 15 は大文字・アンダースコアでない名前を `FIRESTORE_SEND_EMAIL_SMTP_PASSWORD` に替えるか聞き、替えると拡張の設定の参照と食い違って拡張がパスワードを読めない）。gcloud で作る（シェルの履歴にパスワードを残さないよう、プロンプトで読む）:
+
    ```bash
-   npx firebase functions:secrets:set firestore-send-email-SMTP_PASSWORD --project <プロジェクト ID>   # 値はプロンプトで入れる
+   read -rs SMTP_PASSWORD && printf '%s' "$SMTP_PASSWORD" | gcloud secrets create firestore-send-email-SMTP_PASSWORD --data-file=- --replication-policy=automatic --project <プロジェクト ID>; unset SMTP_PASSWORD
    ```
+
+   作らずに手順 4 の `firebase deploy --only extensions` を対話のモードで実行しても、Secret が無ければ作るか聞かれる（その場合も名前を替えない）
 
 3. プロジェクトごとの拡張のパラメータを `backend/extensions/firestore-send-email.env.<プロジェクト ID>` に書く（git の管理外。`.gitignore` の `backend/extensions/*.env.*`）
 
@@ -253,7 +257,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
    | `backend/hosting/public/invite.html` | `<a id="app-store-link" … href="…">` |
 
 4. prod の Hosting をデプロイし直す（`npx firebase deploy --only hosting --project <prod のプロジェクト ID>`）
-5. ドメインを `dokogacha.app` から変えるときは、`Configs/Project.xcconfig` の `DG_WEB_DOMAIN`・`DomainConstants.Web.domain`・`backend/functions/src/domain/constants.ts` の `WEB_DOMAIN`・`AppStore/metadata/shared.json` の URL を同時に変える（`DomainConstantsTests`・`AppStoreMetadataTests` が突き合わせる）
+5. ドメインを `dokogacha.app` から変えるときは、`Configs/Project.xcconfig` の `DG_WEB_DOMAIN`・`DomainConstants.Web.domain`・`backend/functions/src/domain/constants.ts` の `WEB_DOMAIN`・`AppStore/metadata/shared.json` の URL・`backend/hosting/public/invite.html` の `og:url`・`og:image` を同時に変える（`DomainConstantsTests`・`AppStoreMetadataTests` が突き合わせる）
 
 **確かめ方**:
 
@@ -269,7 +273,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
    - `【運営者名】`: `terms.html`（前文）・`privacy.html`（前文と「10. お問い合わせ」）・`support.html`（運営者）
    - `【施行日】`: `terms.html`・`privacy.html` の冒頭と末尾
    - `【管轄裁判所】`: `terms.html` の第 13 条
-   - 埋めたら `grep -rn "【" backend/hosting/public` で残りが無いことを確かめる
+   - 埋めたら `grep -rn "【運営者名】\|【施行日】\|【管轄裁判所】" backend/hosting/public` で残りが無いことを確かめる（`grep "【"` だと各ページの先頭の HTML コメントの説明にも当たる）
 2. 法的な確認をする: 規約の第 11 条（免責）と消費者契約法・第 7 条（払い戻し）・第 12 条（規約の変更。民法 548 条の 4）、ポリシーの外国にある第三者への提供（個人情報保護法 28 条）・電気通信事業法の外部送信規律
 3. 実装と照らして確かめる: Sign in with Apple で受け取る情報（名前・メールは要求しない）、報告・Analytics・Crashlytics の保存期間、`Dokogacha/PrivacyInfo.xcprivacy` と App Store Connect の「App のプライバシー」（手順 12）との一致
 4. **位置情報の書き方を決める**: `privacy.html` は「本サービスは、端末の位置情報を取得しません」と書いている。アプリは Core Location を使わないが、`PrivacyInfo.xcprivacy` と App Store の申告は AdMob に合わせて **おおよその位置（CoarseLocation。第三者広告）** を収集するとしている（広告の配信事業者が IP アドレスから地域を推定する。判断ログ #119）。
@@ -299,7 +303,8 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
    | 広告データ | ○ | × | 第三者広告 |
    | 製品の操作 | ○ | × | 分析・第三者広告 |
    | おおよその位置 | ○ | × | 第三者広告（AdMob。アプリは Core Location を使わない） |
-   | クラッシュデータ・その他の診断データ | × | × | アプリの機能・分析 |
+   | クラッシュデータ | × | × | アプリの機能 |
+   | その他の診断データ | × | × | アプリの機能・分析 |
    | パフォーマンスデータ | × | × | 分析・第三者広告 |
 
 4. 年齢区分の質問に答える（ユーザーが投稿する内容がある・報告と削除の仕組みがある・広告がある）
