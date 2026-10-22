@@ -66,6 +66,11 @@ final class AddCandidateModel {
     var duplicatePrompt: DuplicatePrompt?
     /// 重複の確認から、いいねを送っている途中か
     private(set) var isLiking = false
+
+    /// 送っている途中で、S-09 のシートを閉じさせない・S-08 から戻らせないか（押してから送り終えるまで。Task が動き出す前も含める）
+    var locksNavigation: Bool {
+        isSubmitting || isLiking || submitTask != nil || likeTask != nil
+    }
     /// S-07 に戻る（入ったら画面が戻る）
     private(set) var finish: Finish?
 
@@ -79,9 +84,9 @@ final class AddCandidateModel {
     /// 追加・いいねできたら `candidate_add`・`like_toggle` を送る窓口
     @ObservationIgnored private let analytics: any AnalyticsService
     /// 送っている `addCandidate`（画面が消えたら止める）
-    @ObservationIgnored private var submitTask: Task<Void, Never>?
+    private var submitTask: Task<Void, Never>?
     /// 送っているいいね（画面が消えたら止める）
-    @ObservationIgnored private var likeTask: Task<Void, Never>?
+    private var likeTask: Task<Void, Never>?
     /// いま失敗している購読（どれも失敗していない状態から失敗したときだけトーストを出す）。
     ///
     /// 購読ごとに持つのは、1 本だけが失敗し続けているときに、ほかの購読が値を受け取るたびにトーストを出し直さないため（PR #83 の持ち越し）

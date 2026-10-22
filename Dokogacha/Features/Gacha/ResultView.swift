@@ -76,6 +76,8 @@ struct ResultView: View {
         VStack(spacing: 0) {
             DGHeader(Text(verbatim: model.room.room?.name ?? ""), onBack: { dismiss() })
                 .padding(.leading, DGSpacing.s4)
+                // 引き直し・決定を送っている途中は閉じさせない（送った結果を見せる相手がいなくなるため）
+                .disabled(model.isSendingReroll || model.closing.isClosing)
             ScrollView {
                 content
                     .padding(.horizontal, DGSpacing.screenX)

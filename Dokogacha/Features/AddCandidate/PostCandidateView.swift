@@ -90,7 +90,7 @@ struct PostCandidateView: View {
         .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
         .presentationDragIndicator(.visible)
         // 送っている途中は閉じさせない（送った結果を見せる相手がいなくなるため）
-        .interactiveDismissDisabled(model.isSubmitting || model.isLiking)
+        .lockNavigation(while: model.locksNavigation)
         .alert(
             Text("すでに候補にあります。いいねしますか？"),
             isPresented: duplicatePromptOnSheet,
@@ -126,7 +126,7 @@ struct PostCandidateView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.dgBare)
-        .disabled(model.isSubmitting || model.isLiking)
+        .disabled(model.locksNavigation)
         .accessibilityLabel(Text("閉じる"))
         .accessibilityIdentifier(Identifier.close)
     }

@@ -71,7 +71,7 @@ struct MembersView: View {
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
         // 送っている間は、下スワイプで閉じさせない（S-09・S-10 と同じ）
-        .interactiveDismissDisabled(model.isSending)
+        .lockNavigation(while: model.locksNavigation)
         .confirmationDialog(
             Text("ルームから退出しますか？"),
             isPresented: $model.isConfirmingLeave,
@@ -129,7 +129,7 @@ struct MembersView: View {
     private var header: some View {
         DGHeader(Text("メンバー"), onBack: nil) {
             JoinSheetCloseButton { dismiss() }
-                .disabled(model.isSending)
+                .disabled(model.locksNavigation)
                 .accessibilityIdentifier(Identifier.close)
         }
         .padding(.leading, DGSpacing.s12)

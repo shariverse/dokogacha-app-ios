@@ -22,6 +22,8 @@ import SwiftUI
 struct MainNavigationView: View {
     /// 出している行き先（積み・シート・フルスクリーンカバー）
     @State private var presentation = AppPresentation()
+    /// 積んだ画面が送っている途中なら、端からのスワイプで戻らせない
+    @State private var navigationLock = NavigationLock()
     @State private var homeModel: HomeModel
     /// 自分の uid
     private let userID: String
@@ -54,12 +56,13 @@ struct MainNavigationView: View {
             HomeView(model: homeModel) { route in
                 open(route)
             }
-            // ナビゲーションバーを隠しても、端からのスワイプで戻れるようにする
-            .background(InteractivePopGesture())
+            // ナビゲーションバーを隠しても、端からのスワイプで戻れるようにする（送っている途中の画面があれば止める）
+            .background(InteractivePopGesture(lock: navigationLock))
             .navigationDestination(for: AppRoute.self) { route in
                 destination(route)
             }
         }
+        .environment(\.navigationLock, navigationLock)
         // シートを閉じ終えたら、その間に開こうとしたカバーを出す（`AppPresentation`）
         .sheet(
             item: $presentation.sheet,

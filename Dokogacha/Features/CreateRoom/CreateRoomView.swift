@@ -46,6 +46,7 @@ struct CreateRoomView: View {
         VStack(spacing: 0) {
             DGHeader(Text("ルームを作る"), onBack: { dismiss() })
                 .padding(.horizontal, DGSpacing.s4)
+                .disabled(model.locksNavigation)
             ScrollView {
                 form
                     .padding(.horizontal, DGSpacing.screenX)
@@ -81,6 +82,8 @@ struct CreateRoomView: View {
             }
         }
         // 戻った・S-04 に進んだら、送っている途中の作成を止める（Task が Model を持ち続けないように）
+        // 送っている途中は、端からのスワイプでも戻らせない
+        .lockNavigation(while: model.locksNavigation)
         .onDisappear { model.cancelSubmit() }
     }
 

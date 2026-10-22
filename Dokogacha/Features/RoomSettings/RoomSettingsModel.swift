@@ -65,12 +65,17 @@ final class RoomSettingsModel {
     /// 保存できたか（入ったら画面はシートを閉じる）
     private(set) var didSave = false
 
+    /// 送っている途中で、シートを閉じさせないか（「保存」を押してから送り終えるまで。Task が動き出す前も含める。PR #55 の持ち越し）
+    var locksNavigation: Bool {
+        isSaving || saveTask != nil
+    }
+
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let toasts: DGToastCenter
     /// 今の時刻（締切の範囲を計算し直すたびに読む）
     @ObservationIgnored private let clock: () -> Date
     /// 「保存」から始めた保存。画面が消えたら（`cancelSave`）止める
-    @ObservationIgnored private var saveTask: Task<Void, Never>?
+    private var saveTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - roomID: ルームの ID

@@ -12,18 +12,25 @@ import UIKit
 /// `UINavigationController` は端からのスワイプ（`interactivePopGestureRecognizer`）を始めなくなる（iOS 26.5 の Simulator で確かめた）。
 /// ジェスチャーの delegate を差し替え、積んだ画面が 2 つ以上で、画面の切り替えの途中でないときだけ始めさせる。
 ///
-/// `NavigationStack` の根元の画面に `.background(InteractivePopGesture())` で 1 回だけ付ける
+/// `NavigationStack` の根元の画面に `.background(InteractivePopGesture(lock:))` で 1 回だけ付ける
 /// （`UINavigationController` は積んだ画面で共有なので、根元で差し替えれば全部の画面に効く）。
+/// 積んだ画面が送っている途中（`NavigationLock`）は始めない。
 struct InteractivePopGesture: UIViewControllerRepresentable {
+    /// 送っている途中の画面があるか（無ければ止めない）
+    var lock: NavigationLock?
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
     func makeUIViewController(context: Context) -> ProbeViewController {
-        ProbeViewController(coordinator: context.coordinator)
+        context.coordinator.lock = lock
+        return ProbeViewController(coordinator: context.coordinator)
     }
 
-    func updateUIViewController(_ uiViewController: ProbeViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: ProbeViewController, context: Context) {
+        context.coordinator.lock = lock
+    }
 
     /// 端からのスワイプの delegate。
     ///
@@ -31,10 +38,13 @@ struct InteractivePopGesture: UIViewControllerRepresentable {
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         /// 差し替えた `UINavigationController`（弱い参照。持ち主は SwiftUI）
         weak var navigationController: UINavigationController?
+        /// 送っている途中の画面があるか
+        var lock: NavigationLock?
 
-        /// 積んだ画面が 2 つ以上で、切り替えの途中でないときだけ始める（根元でスワイプすると画面が固まるのを防ぐ）
+        /// 積んだ画面が 2 つ以上で、切り替えの途中でなく、送っている途中の画面が無いときだけ始める
+        /// （根元でスワイプすると画面が固まるのを防ぐ。送っている途中に戻ると、Task が止まって画面が進まない）
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let navigationController else {
+            guard let navigationController, lock?.isLocked != true else {
                 return false
             }
             return navigationController.viewControllers.count > 1 && navigationController.transitionCoordinator == nil
