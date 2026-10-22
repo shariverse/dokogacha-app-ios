@@ -43,7 +43,7 @@ struct DokoGachaApp: App {
         case .invite:
             ScreenshotDemo.InviteScene()
         case .settings:
-            ScreenshotDemo.SettingsScene(auth: appDelegate.serverSession.services.auth)
+            ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services)
         case .room:
             ScreenshotDemo.RoomScene(services: appDelegate.serverSession.services)
         case .candidateDetail:
@@ -68,6 +68,14 @@ struct DokoGachaApp: App {
             ScreenshotDemo.InviteLastMembersScene(services: appDelegate.serverSession.services)
         case .roomAdFree:
             ScreenshotDemo.RoomAdFreeScene(services: appDelegate.serverSession.services)
+        case .settingsAppleLinked:
+            ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, appleLinked: true)
+        case .settingsAdFree:
+            ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, adFree: true)
+        case .licenses:
+            NavigationStack {
+                LicensesView()
+            }
         }
     }
 }

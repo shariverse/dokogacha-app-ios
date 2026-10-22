@@ -47,7 +47,15 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
         throw error
     }
 
-    func linkWithApple(_ credential: AppleIDCredential) async throws {
+    var isLinkedWithApple: Bool {
+        false
+    }
+
+    func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+        throw error
+    }
+
+    func signInWithLinkedAppleAccount() async throws -> String {
         throw error
     }
 

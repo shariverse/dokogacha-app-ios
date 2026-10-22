@@ -25,6 +25,10 @@ struct OnboardingModelTests {
         var behavior: SaveBehavior
         /// 送られた表示名（送られた順）
         private(set) var savedNames: [String] = []
+        /// Sign in with Apple の連携に送られた資格情報（送られた順）
+        private(set) var linkedCredentials: [AppleIDCredential] = []
+        /// 連携を失敗させるエラー（nil なら擬似のサーバーで連携する）
+        var linkError: AppError?
         private var pending: CheckedContinuation<Void, Never>?
 
         /// - Parameters:
@@ -75,7 +79,21 @@ struct OnboardingModelTests {
             return try await server.saveDisplayName(displayName)
         }
 
-        func linkWithApple(_ credential: AppleIDCredential) async throws {}
+        var isLinkedWithApple: Bool {
+            server.isLinkedWithApple
+        }
+
+        func linkWithApple(_ credential: AppleIDCredential) async throws -> AppleLinkOutcome {
+            linkedCredentials.append(credential)
+            if let linkError {
+                throw linkError
+            }
+            return try await server.linkWithApple(credential)
+        }
+
+        func signInWithLinkedAppleAccount() async throws -> String {
+            try await server.signInWithLinkedAppleAccount()
+        }
     }
 
     /// トーストを出したままにする窓口（テストの間に 2.2 秒が過ぎて消えないよう、出しておく時間を長くする）

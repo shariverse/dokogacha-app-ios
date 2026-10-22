@@ -83,7 +83,12 @@ struct DisplayNameEditor: View {
 }
 
 #Preview("表示名の変更") {
-    let model = SettingsModel(userID: DemoScenario.myUserID, auth: InMemoryServer.demo(.oneRoom), toasts: DGToastCenter())
+    let model = SettingsModel(
+        userID: DemoScenario.myUserID,
+        auth: InMemoryServer.demo(.oneRoom),
+        purchases: .disabled,
+        toasts: DGToastCenter()
+    )
     model.draftName = "たくみ"
     return DisplayNameEditor(model: model)
 }

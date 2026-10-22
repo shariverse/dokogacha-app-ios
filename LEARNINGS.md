@@ -19,6 +19,9 @@
 - Simulator でも Google のテスト用の広告ユニット ID なら、テスト広告（「Test mode」）が読み込まれる。撮影モードは本物の広告を写さないよう固定の枠（`DGAdPlaceholder`）にしてあるので、見た目を確かめるときは `AdMode.make` の撮影モードの分岐を一時的に外してビルドする（コミットしない）（2026-10-22）
 - Crashlytics・Analytics の収集の設定は、コードで渡した値（`setCrashlyticsCollectionEnabled`・`setAnalyticsCollectionEnabled`）が端末に残り、Info.plist の `FirebaseCrashlyticsCollectionEnabled`・`FIREBASE_ANALYTICS_COLLECTION_ENABLED` より優先される（plist は初回の既定だけ）。同じ端末に Stg と Debug を入れ替えても取り違えないよう、起動ごとに渡し直している（`FirebaseTelemetry`）。xcconfig の変数で入れた plist の値は文字列の `YES`・`NO` になり、Crashlytics は文字列も `boolValue` で読む（2026-10-22）
 - Crashlytics の `upload-symbols`（universal binary）と `run` は、SPM が取ってきた `SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/` にある。CI の Archive は `-derivedDataPath` を付けないので `~/Library/Developer/Xcode/DerivedData` の下を探し、Archive の後に `--google-service-plist <plist> --platform ios <xcarchive>/dSYMs` で上げている（`_archive.yml`。Run Script のビルドフェーズは pbxproj を変えるので使わない）（2026-10-22）
+- Sign in with Apple は、SwiftUI の `@Environment(\.authorizationController)`（iOS 16.4 から。`AuthorizationController.performRequest` の async）で要求すると、`ASAuthorizationControllerDelegate`・`PresentationContextProviding` を自分で持たずに済み、Swift 6 の既定の分離（MainActor）のまま書ける（`SystemAppleAuthorizer`）。やめたときは `ASAuthorizationError.canceled` が投げられる（2026-10-22）
+- Firebase Auth で匿名のユーザーに Apple を `link(with:)` して、その Apple ID が既に別のユーザーに使われていると `credentialAlreadyInUse`（17025）になる。Apple の ID トークンは 1 回しか使えないので、サインインし直すときはエラーの `userInfo[AuthErrors.userInfoUpdatedCredentialKey]` の資格情報を使う（`FirebaseAuthService.pendingAppleCredential`）（2026-10-22）
+- SPM の checkouts（`SourcePackages/checkouts/…`）のファイルは読み取り専用（`r--r--r--`）なので、ライセンスの全文などを `cp` で `Dokogacha/` に持ってくると、そのままでは書き換えられない（`chmod 644` してから直す）（2026-10-22）
 
 ## テスト
 
