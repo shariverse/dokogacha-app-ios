@@ -10,7 +10,6 @@ import Foundation
 /// `NavigationStack` の行き先（`navigationDestination(for:)`）と、シート（`sheet(item:)`）・フルスクリーンカバー
 /// （`fullScreenCover(item:)`）の行き先を 1 つの enum にまとめ、
 /// どちらで出すかは `presentation` で決める（03 の §1 の「表示形式」）。
-/// まだ作っていない画面は仮の画面（`PendingScreenView`）を出し、後のタスクで `MainNavigationView` の行き先を差し替える。
 nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
     /// S-03 ルーム作成（プッシュ）
     case createRoom

@@ -7,7 +7,7 @@ import SwiftUI
 
 /// 表示名を登録した後の画面の根元。ホーム（S-02）を根元にした `NavigationStack` と、シート・フルスクリーンカバーの行き先を持つ（03 の §2）。
 ///
-/// 行き先は `AppRoute` で受け取り、`presentation` に合わせて積むかシート・フルスクリーンカバーで出す。まだ無い画面は `PendingScreenView`。
+/// 行き先は `AppRoute` で受け取り、`presentation` に合わせて積むかシート・フルスクリーンカバーで出す。
 /// 標準のナビゲーションバーは各画面で隠し、画面ごとのヘッダー（`DGHeader`）を使う（03 の §3）。
 ///
 /// ルームを作ったら、S-03 を積みから外して作ったルーム（S-07）とその上に S-04 を積む（`AppRoute.pathAfterCreating`）。
@@ -63,7 +63,7 @@ struct MainNavigationView: View {
         presentation.open(route)
     }
 
-    /// 行き先の画面（後のタスクで本物の画面に差し替える）
+    /// 行き先の画面
     @ViewBuilder private func destination(_ route: AppRoute) -> some View {
         switch route {
         case .createRoom:
@@ -133,7 +133,8 @@ struct MainNavigationView: View {
         case let .result(roomID, drawID):
             result(roomID: roomID, drawID: drawID)
         default:
-            PendingScreenView(route: route)
+            // カバーで出す行き先は S-13・S-14 だけ（`AppRoute.presentation`）
+            EmptyView()
         }
     }
 
