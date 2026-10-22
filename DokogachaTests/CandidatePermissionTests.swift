@@ -70,10 +70,17 @@ struct CandidatePermissionTests {
         #expect(!CandidatePermission.isDrawn(candidateID: "c3", in: room))
     }
 
-    /// 報告できるのは他人の投稿だけ
-    @Test
-    func canReportOnlyOthersPosts() {
-        #expect(CandidatePermission.canReport(postedBy: "other", userID: "me"))
-        #expect(!CandidatePermission.canReport(postedBy: "me", userID: "me"))
+    /// backend の `reports/logic.test.ts` の `canReport` と同じケース（報告するのは takumi。
+    /// 他人の投稿は報告できる・自分の投稿は報告できない・退出した人の投稿も報告できる）
+    nonisolated static let reportCases: [(postedBy: String, expected: Bool)] = [
+        ("haruka", true),
+        ("takumi", false),
+        ("departed", true)
+    ]
+
+    /// 報告できるのは他人の投稿だけ（02 の §3.5・03 の S-10）
+    @Test(arguments: reportCases)
+    func canReportOnlyOthersPosts(postedBy: String, expected: Bool) {
+        #expect(CandidatePermission.canReport(postedBy: postedBy, userID: "takumi") == expected)
     }
 }

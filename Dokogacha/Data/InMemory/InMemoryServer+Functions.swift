@@ -290,10 +290,6 @@ extension InMemoryServer: FunctionsClient {
         try inviteLastMembers(request, by: signedInUserID)
     }
 
-    func reportCandidate(_ request: ReportCandidateRequest) async throws {
-        throw AppError(.notImplemented)
-    }
-
     func verifyPurchase(_ request: VerifyPurchaseRequest) async throws -> VerifyPurchaseResponse {
         throw AppError(.notImplemented)
     }

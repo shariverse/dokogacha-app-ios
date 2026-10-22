@@ -52,6 +52,10 @@ final class InMemoryServer {
     /// backend の `rooms/{今のルーム}/notificationLog/invited-{uid}-{前回のルームの ID}` の代わり。擬似のサーバーは通知を送らないので、送った相手を残す）
     var lastMembersInvitations: [String: [String]] = [:]
 
+    /// `reports/{id}`（投稿の報告。鍵は `reportKey`（ルーム・候補・報告した人）。F-14）。
+    /// backend と同じくクライアントからは読めない（購読に流さない）ので、変えても購読し直さない
+    var reports: [String: CandidateReport] = [:]
+
     /// この端末でサインインしているユーザー（nil ならサインインしていない）
     var signedInUserID: String? {
         didSet { notifySubscribers() }
@@ -166,7 +170,7 @@ final class InMemoryServer {
             .invalidArgument
         case .profileRequired, .roomAlreadyDecided, .ownerCannotLeave, .cannotRemoveOwner, .roomClosed, .postLimitDecrease,
              .unlockRuleLocked, .likeModeLocked, .roomNotUnlocked, .noCandidates, .candidateDrawn, .roomNotDrawn, .rerollUsed,
-             .rerollNotVoting:
+             .rerollNotVoting, .cannotReportOwnCandidate:
             .failedPrecondition
         case .inviteCodeNotFound, .roomNotFound, .memberNotFound, .candidateNotFound:
             .notFound
