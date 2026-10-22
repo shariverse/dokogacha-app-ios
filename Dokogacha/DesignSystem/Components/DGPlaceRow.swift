@@ -36,6 +36,10 @@ struct DGPlaceRow: View {
     let actionTitle: LocalizedStringKey
     /// 右のボタンを押せるか（「追加済み」「上限」のときは押せない）
     var isActionEnabled: Bool = true
+    /// 右のボタンの VoiceOver の補足（何に対する「追加」かを読む）。無ければ nil
+    var actionHint: Text?
+    /// UI テストが右のボタンを探す ID。無ければ nil
+    var actionIdentifier: String?
     /// 右のボタンを押したときの処理
     let action: () -> Void
 
@@ -111,6 +115,8 @@ struct DGPlaceRow: View {
         .buttonStyle(.dgBare)
         .disabled(!isActionEnabled)
         .fixedSize()
+        .accessibilityHint(actionHint ?? Text(verbatim: ""))
+        .accessibilityIdentifier(actionIdentifier ?? "")
     }
 }
 

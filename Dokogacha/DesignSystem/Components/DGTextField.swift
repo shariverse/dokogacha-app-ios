@@ -30,6 +30,8 @@ struct DGTextField: View {
     var errorMessage: LocalizedStringKey?
     /// UI テストが入力欄を探す ID。無ければ nil
     var identifier: String?
+    /// 文字数（「n/上限」）を出すか（上限が画面の目安にならない入力（参考 URL）では出さない）
+    var showsCount = true
 
     /// ラベルの文字の大きさ（本文 Bold 14）
     private static let labelSize: CGFloat = 14
@@ -39,16 +41,20 @@ struct DGTextField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DGSpacing.s6) {
             // 文字が大きいときはラベルと文字数を縦に並べ、どちらも切らない
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline) {
-                    labelText
-                    Spacer(minLength: DGSpacing.s8)
-                    counter
+            if showsCount {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline) {
+                        labelText
+                        Spacer(minLength: DGSpacing.s8)
+                        counter
+                    }
+                    VStack(alignment: .leading, spacing: DGSpacing.s4) {
+                        labelText
+                        counter
+                    }
                 }
-                VStack(alignment: .leading, spacing: DGSpacing.s4) {
-                    labelText
-                    counter
-                }
+            } else {
+                labelText
             }
             field
             if let hint {
@@ -104,12 +110,21 @@ struct DGTextField: View {
 
     /// VoiceOver で値の後に読む文言（文字数・エラー・補足）
     private var accessibilityHint: Text {
-        var hintText = Text("\(limit)文字中\(count)文字")
+        var parts: [Text] = []
+        if showsCount {
+            parts.append(Text("\(limit)文字中\(count)文字"))
+        }
         if let errorMessage {
-            hintText = hintText + Text(verbatim: "、") + Text(errorMessage)
+            parts.append(Text(errorMessage))
         }
         if let hint {
-            hintText = hintText + Text(verbatim: "、") + Text(hint)
+            parts.append(Text(hint))
+        }
+        guard var hintText = parts.first else {
+            return Text(verbatim: "")
+        }
+        for part in parts.dropFirst() {
+            hintText = hintText + Text(verbatim: "、") + part
         }
         return hintText
     }
