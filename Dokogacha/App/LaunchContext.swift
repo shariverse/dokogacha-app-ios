@@ -16,6 +16,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// Simulator では Universal Links でアプリを開けない（AASA を取りに行けない）ので、起動の直後に `DeepLinkRouter` へ渡す
     static let openURLArgument = "-open-url"
 
+    /// UI テスト・撮影モードで、通知から開かれたことにする起動引数（`-open-notification <ペイロードの JSON>`。
+    /// 例: `{"roomId":"demo-room","target":"room"}`）。擬似のサーバーでは通知が届かないので、起動の直後に `DeepLinkRouter` へ渡す
+    static let openNotificationArgument = "-open-notification"
+
     /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
     /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
     static let unitTestHostEnvironmentKeys = ["XCTestConfigurationFilePath", "XCTestBundlePath", "XCTestSessionIdentifier"]
@@ -31,6 +35,8 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let demoScenario: DemoScenario
     /// 起動の直後に開いたことにする URL（`-open-url <URL>`）。`-uiTesting`・撮影モードのときだけ読み、ほかは nil
     let openURL: URL?
+    /// 起動の直後に開いたことにする通知のペイロード（`-open-notification <JSON>`）。`-uiTesting`・撮影モードのときだけ読み、ほかは nil
+    let openNotification: [String: String]?
 
     /// 起動引数と環境変数から作る
     init(arguments: [String], environment: [String: String]) {
@@ -44,8 +50,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
         )
         if isUITesting || isScreenshotDemo {
             openURL = Self.value(after: Self.openURLArgument, in: arguments).flatMap { URL(string: $0) }
+            openNotification = Self.value(after: Self.openNotificationArgument, in: arguments).flatMap(Self.payload(fromJSON:))
         } else {
             openURL = nil
+            openNotification = nil
         }
     }
 
@@ -55,6 +63,14 @@ nonisolated struct LaunchContext: Equatable, Sendable {
             return nil
         }
         return arguments[index + 1]
+    }
+
+    /// JSON のオブジェクト（値はすべて文字列）を読む。読めなければ nil
+    private static func payload(fromJSON json: String) -> [String: String]? {
+        guard let data = json.data(using: .utf8) else {
+            return nil
+        }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: String]
     }
 
     /// いまのプロセスの起動のしかた

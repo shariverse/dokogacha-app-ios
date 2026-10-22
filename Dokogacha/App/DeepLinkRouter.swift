@@ -14,11 +14,17 @@ import Observation
 /// 表示名を登録する前（S-01）に届いたときは、ホームが出るまで覚えておき、登録した後に開く。
 ///
 /// URL からコードを取り出す判定は `InviteLink.inviteCode(from:)`（純粋な関数）に任せ、ここは覚えておくことだけをする。
-/// `AppDelegate` が 1 つ持つ（後のタスクで、通知を開いたときの行き先もここに足す）。
+/// `AppDelegate` が 1 つ持つ。
+///
+/// プッシュ通知を開いたとき（02 の §8）の行き先も同じ仕組みで覚える（`PushNotificationCoordinator` が `handle(_:)` に渡し、
+/// `MainNavigationView` が `takePendingNotification()` で受け取ってそのルームを開く）。起動していないときに開かれた通知も、
+/// 表示名を登録する前に開かれた通知も、ホームが出たときに開く。
 @Observable
 final class DeepLinkRouter {
     /// まだ開いていない招待コード（招待リンクで開かれ、S-06 をまだ出していないもの）
     private(set) var pendingInviteCode: InviteCode?
+    /// まだ開いていない通知の行き先（通知を開かれ、ルームをまだ出していないもの）
+    private(set) var pendingNotification: PushDestination?
 
     /// 開かれた URL を受け取る。招待リンクなら招待コードを覚える（前に覚えていたコードは新しいもので置き換える）。
     ///
@@ -50,5 +56,18 @@ final class DeepLinkRouter {
     func takePendingInviteCode() -> InviteCode? {
         defer { pendingInviteCode = nil }
         return pendingInviteCode
+    }
+
+    /// 開かれた通知の行き先を覚える（前に覚えていた行き先は新しいもので置き換える）
+    /// - Parameter destination: 通知の行き先
+    func handle(_ destination: PushDestination) {
+        pendingNotification = destination
+    }
+
+    /// 覚えている通知の行き先を受け取って消す（同じ通知で 2 回開かないように）
+    /// - Returns: 覚えていた行き先。無ければ nil
+    func takePendingNotification() -> PushDestination? {
+        defer { pendingNotification = nil }
+        return pendingNotification
     }
 }
