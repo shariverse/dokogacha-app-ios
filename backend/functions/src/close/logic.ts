@@ -37,7 +37,8 @@ export type ClosableRoom = Pick<RoomDoc, "status" | "ownerId"> & Partial<Pick<Ro
  *
  * もう `closed` なら失敗にせず、何もしない（`alreadyClosed`）。作成者が確認のダイアログを出している間に、
  * 抽選から 7 日たって自動で終了したとき・二度押しで、トーストを出さずにホームへ戻せるようにする。
- * 引き直しの投票中（`reroll.status` が `voting`）でも終了できる（作成者が行き先を決める。投票は終了とともに意味を失う）。
+ * 引き直しの投票中（`reroll.status` が `voting`）でも終了できる（作成者が行き先を決める。投票は終了とともに意味を失う。
+ * 終了するときに否決にする（`rerollUpdateOnClose`））。
  * @param room ルーム
  * @param uid 呼んだ人
  * @throws `not-room-member`・`not-room-owner`・`room-not-drawn`
@@ -58,6 +59,21 @@ export function decideClose(room: ClosableRoom, uid: string): CloseDecision {
     case "unlocked":
       throw appError("room-not-drawn");
   }
+}
+
+/**
+ * ルームを終了するときに、引き直しの状態に書き足す値（作成者の決定・抽選から 7 日の自動の終了のどちらでも使う）。
+ *
+ * 投票中（`reroll.status` が `voting`）なら否決（`rejected`）にして投票を締める。票（`votesFor`・`votesAgainst`）と
+ * 使ったこと（`used`）はそのまま残す。投票中のまま残すと、`expireRerolls` のクエリ（`reroll.status == voting`）が
+ * 提案から 24 時間後に終了したルームを拾って書き込む（閲覧のみのルームを後から変える）ので、終了と同じ書き込みで締める。
+ * 投票中でなければ何も足さない（可決・否決・提案されていないは変えない）。
+ * @param room ルーム（`reroll` が無い壊れたデータでもよい）
+ * @returns ルームの更新に足す値（ネストしたフィールドはキーを文字列で持つ）
+ */
+export function rerollUpdateOnClose(room: { reroll?: unknown }): Record<string, unknown> {
+  const reroll = room.reroll as { status?: unknown } | null | undefined;
+  return reroll?.status === "voting" ? { "reroll.status": "rejected" } : {};
 }
 
 /**

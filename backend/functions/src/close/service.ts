@@ -15,14 +15,24 @@ import type { ServiceDeps } from "../deps";
 import { appError } from "../errors";
 import { candidatesRef, roomRef, userRef } from "../paths";
 import { parseRoomIdInput } from "../unlock/input";
-import { autoCloseCutoffMs, decideClose, isAutoCloseDue, PAST_IDEA_BATCH_SIZE, planPastIdeas } from "./logic";
+import {
+  autoCloseCutoffMs,
+  decideClose,
+  isAutoCloseDue,
+  PAST_IDEA_BATCH_SIZE,
+  planPastIdeas,
+  rerollUpdateOnClose,
+} from "./logic";
 
 /** 自動の終了で、同時に処理するルームの数（トランザクションを一度に開きすぎない） */
 export const AUTO_CLOSE_PARALLEL_ROOMS = 10;
 
-/** 終了のトランザクションで書く値 */
-function closedUpdate(): { status: "closed"; closedAt: FieldValue } {
-  return { status: "closed", closedAt: FieldValue.serverTimestamp() };
+/**
+ * 終了のトランザクションで書く値（引き直しの投票中なら、同じ書き込みで否決にする。`rerollUpdateOnClose`）
+ * @param room トランザクションで読んだルーム
+ */
+function closedUpdate(room: Partial<RoomDoc>): Record<string, unknown> {
+  return { ...rerollUpdateOnClose(room), status: "closed", closedAt: FieldValue.serverTimestamp() };
 }
 
 /**
@@ -42,7 +52,7 @@ export async function closeRoom(deps: Pick<ServiceDeps, "db">, uid: string, data
       throw appError("room-not-found");
     }
     if (decideClose(room, uid) === "close") {
-      tx.update(ref, closedUpdate());
+      tx.update(ref, closedUpdate(room));
     }
   });
   return {};
@@ -68,7 +78,7 @@ export async function autoCloseRoom(deps: Pick<ServiceDeps, "db" | "nowMs">, roo
       deps.nowMs(),
     );
     if (due) {
-      tx.update(ref, closedUpdate());
+      tx.update(ref, closedUpdate(room));
     }
     return due;
   });

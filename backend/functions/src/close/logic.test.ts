@@ -10,6 +10,7 @@ import {
   isAutoCloseDue,
   pastIdeaId,
   planPastIdeas,
+  rerollUpdateOnClose,
   roomClosedBy,
   type ClosedRoomSource,
 } from "./logic";
@@ -61,6 +62,21 @@ describe("decideClose（02 の §6.3「この行き先で決定」・F-44）", (
 
   it("room-not-drawn は failed-precondition で「まだ行き先が決まっていません」", () => {
     expect(APP_ERRORS["room-not-drawn"]).toEqual({ code: "failed-precondition", message: "まだ行き先が決まっていません" });
+  });
+});
+
+describe("rerollUpdateOnClose（終了するときに引き直しの投票を締める）", () => {
+  it("投票中なら否決にする（票と使ったことは変えない）", () => {
+    const reroll = { used: true, status: "voting", votesFor: ["bob"], votesAgainst: ["alice"] };
+    expect(rerollUpdateOnClose({ reroll })).toEqual({ "reroll.status": "rejected" });
+  });
+
+  it("投票中でなければ何も足さない（提案されていない・可決・否決・壊れたデータ）", () => {
+    for (const status of ["none", "passed", "rejected", undefined]) {
+      expect(rerollUpdateOnClose({ reroll: { status } })).toEqual({});
+    }
+    expect(rerollUpdateOnClose({})).toEqual({});
+    expect(rerollUpdateOnClose({ reroll: null })).toEqual({});
   });
 });
 

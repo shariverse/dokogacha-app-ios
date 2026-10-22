@@ -13,6 +13,7 @@ import type { App } from "firebase-admin/app";
 import { closeOverdueRooms, closeRoom, registerPastIdeas, autoCloseRoom } from "../../functions/src/close/service";
 import { AUTO_CLOSE_AFTER_DRAW_MS } from "../../functions/src/domain/constants";
 import { cryptoRandomInt } from "../../functions/src/domain/random";
+import { expireRerolls } from "../../functions/src/reroll/service";
 import type { ServiceDeps } from "../../functions/src/deps";
 import { clearFirestore, closeAdmin, openAdmin } from "./firestore-admin";
 
@@ -43,7 +44,7 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
    */
   async function addRoom(
     roomId: string,
-    options: { status?: string; drawnAt?: Timestamp | null; members?: string[] } = {},
+    options: { status?: string; drawnAt?: Timestamp | null; members?: string[]; reroll?: Record<string, unknown> } = {},
   ): Promise<void> {
     const status = options.status ?? "drawn";
     await db.doc(`rooms/${roomId}`).set({
@@ -61,7 +62,7 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
       currentDrawId: status === "open" ? null : "d2",
       winnerCandidateId: status === "open" ? null : "c1",
       excludedCandidateIds: ["c3"],
-      reroll: { used: true, votesFor: ["alice", "bob"], votesAgainst: [], status: "passed" },
+      reroll: options.reroll ?? { used: true, votesFor: ["alice", "bob"], votesAgainst: [], status: "passed" },
       createdAt: Timestamp.fromMillis(Date.now() - 10 * DAY_MS),
       drawnAt: options.drawnAt === undefined ? Timestamp.now() : options.drawnAt,
       closedAt: null,
@@ -184,6 +185,22 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
       await waitForPastIdeas("bob", "close-race", ["close-race_c2", "close-race_c3"]);
     });
 
+    it("引き直しの投票中でも終了でき、同じ書き込みで投票を否決にする（expireRerolls が後で終了したルームを拾わない）", async () => {
+      const proposedAt = Timestamp.now();
+      await addRoom("close-voting", {
+        reroll: { used: true, proposedBy: "bob", proposedAt, votesFor: ["bob"], votesAgainst: [], status: "voting" },
+      });
+      await expect(closeRoom(deps(), "alice", { roomId: "close-voting" })).resolves.toEqual({});
+
+      const room = await roomData("close-voting");
+      expect(room.status).toBe("closed");
+      expect(room.reroll).toEqual({ used: true, proposedBy: "bob", proposedAt, votesFor: ["bob"], votesAgainst: [], status: "rejected" });
+      // 提案から 24 時間を過ぎても、期限の判定は終了したルームを見つけない（書き込まない）
+      await expect(expireRerolls({ db, nowMs: () => Date.now() + 2 * DAY_MS })).resolves.toEqual({ rooms: 0, rejected: 0, passed: 0 });
+      expect((await roomData("close-voting")).reroll).toEqual(room.reroll);
+      await waitForPastIdeas("bob", "close-voting", ["close-voting_c2", "close-voting_c3"]);
+    });
+
     it("作成者以外は not-room-owner・メンバー以外は not-room-member（ルームは drawn のまま）", async () => {
       await addRoom("close-denied");
       await expectReason(closeRoom(deps(), "bob", { roomId: "close-denied" }), "permission-denied", "not-room-owner");
@@ -213,6 +230,18 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
       expect((await roomData("close-auto-new")).status).toBe("drawn");
       expect((await roomData("close-auto-open")).status).toBe("open");
       await waitForPastIdeas("carol", "close-auto-old", ["close-auto-old_c2", "close-auto-old_c3"]);
+    });
+
+    it("引き直しの投票中に 7 日たったら、終了と同じ書き込みで投票を否決にする", async () => {
+      const now = Date.now();
+      await addRoom("close-auto-voting", {
+        drawnAt: Timestamp.fromMillis(now - AUTO_CLOSE_AFTER_DRAW_MS - 1_000),
+        reroll: { used: true, proposedBy: "bob", proposedAt: Timestamp.fromMillis(now - 1_000), votesFor: ["bob"], votesAgainst: [], status: "voting" },
+      });
+      await expect(closeOverdueRooms({ db, nowMs: () => now })).resolves.toEqual({ rooms: 1, closed: 1 });
+      const room = await roomData("close-auto-voting");
+      expect(room.status).toBe("closed");
+      expect((room.reroll as { status: string }).status).toBe("rejected");
     });
 
     it("見つけた後に作成者が決定していたら書かない（読み直して確かめる）", async () => {
