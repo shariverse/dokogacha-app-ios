@@ -284,7 +284,8 @@ extension InMemoryServer {
                 place: Place(name: "サンシャイン水族館", area: "東京・豊島区", latitude: 35.728_9, longitude: 139.719_7, mapItemId: nil),
                 category: .aquarium,
                 note: "ペンギンが空を飛ぶ水槽が見たい",
-                url: nil,
+                // 参考 URL のある候補（S-10 の参考 URL の行と、報告した人の画面で隠れること（F-14）を確かめる・撮る）
+                url: "https://sunshinecity.jp/aquarium/",
                 postedBy: "demo-haruka",
                 postedByName: "はるか",
                 colorIndex: 0,
