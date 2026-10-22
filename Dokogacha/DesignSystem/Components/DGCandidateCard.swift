@@ -14,10 +14,13 @@ import SwiftUI
 /// 人気カード（F-23）は背景 `surface.highlight`・線 2.5・ハードシャドウ・上の余白 20 にし、左上にリボン（「みんな推し」「全員いいね」）を重ねる。
 ///
 /// ドメインのモデルには依存させず、表示に要る値だけを受け取る（人気・レベル・表示 % などの判定は呼び出し側で行う）。
-/// カードを押したときの遷移（S-10）は、画面の側で付ける。
+/// カードを押したときの処理（S-10 を開く）は `onOpen` で受け取る。カードのどこを押しても開き（いいねボタンを除く）、
+/// VoiceOver では候補の情報の列を 1 つのボタンとして読む。
 ///
 /// リボンはカードの上の縁に中心をそろえて上にはみ出すので、はみ出す分（リボンの高さの半分）をカードの上に余白として取る。
 /// 余白を取らないと、並べたときに上のカードや見出しに重なる（文字を大きくするとリボンも高くなり、一覧の間隔 14 を超える）。
+///
+/// 引き直しで抽選の対象から外れた候補（`isExcludedFromDraw`）は、出やすさのメーターの代わりに外れたことを出す（表示 % を出さない）。
 struct DGCandidateCard: View {
     /// 候補の投稿者
     nonisolated enum Author: Equatable, Sendable {
@@ -71,6 +74,8 @@ struct DGCandidateCard: View {
     private static let ribbonCornerRadius: CGFloat = 8
     /// リボンの左端の位置（カードの左端から）
     private static let ribbonLeading: CGFloat = 14
+    /// 抽選の対象から外れた候補の文言の大きさ（メーターの代わりに出す）
+    private static let excludedTextSize: CGFloat = 12
 
     /// 候補名（場所名）
     let name: String
@@ -98,6 +103,10 @@ struct DGCandidateCard: View {
     let percent: Int
     /// 全候補の中で最大の表示 %（メーターの長さに使う）
     let maxPercent: Int
+    /// 引き直しで抽選の対象から外れた候補か（メーターの代わりに外れたことを出し、`level`・`percent` は使わない）
+    var isExcludedFromDraw = false
+    /// カードを押したときの処理（S-10 の候補の詳細を開く）。nil なら押せない
+    var onOpen: (() -> Void)?
     /// いいねボタンを押したときの処理
     let onLike: () -> Void
 
@@ -116,13 +125,21 @@ struct DGCandidateCard: View {
             header
             DGLikeRow(likers: likers, isPopular: highlight != nil, cardBackground: background)
             DGDashedLine()
-            DGProbabilityMeter(level: level, percent: percent, maxPercent: maxPercent)
+            if isExcludedFromDraw {
+                excludedNotice
+            } else {
+                DGProbabilityMeter(level: level, percent: percent, maxPercent: maxPercent)
+            }
         }
         .padding(DGSpacing.cardPadding)
         .padding(.top, highlight != nil ? popularTopPadding - DGSpacing.cardPadding : 0)
         .background(background, in: shape)
         .overlay(shape.strokeBorder(Color.dgInk, lineWidth: highlight != nil ? DGBorder.strong : DGBorder.regular))
         .modifier(PopularShadow(isOn: highlight != nil, cornerRadius: Self.cornerRadius))
+        .contentShape(shape)
+        .onTapGesture {
+            onOpen?()
+        }
         .overlay(alignment: .topLeading) {
             if let highlight {
                 ribbon(highlight)
@@ -136,6 +153,15 @@ struct DGCandidateCard: View {
         // リボンが上にはみ出す分（高さの半分）を、カードの上に余白として取る
         .padding(.top, highlight != nil ? ribbonHeight / 2 : 0)
         .accessibilityElement(children: .contain)
+    }
+
+    /// 引き直しで抽選の対象から外れた候補の、メーターの代わりの文言
+    private var excludedNotice: some View {
+        Text("引き直しで抽選の対象から外れました")
+            .font(.dgBody(Self.excludedTextSize, weight: .bold, relativeTo: .caption))
+            .foregroundStyle(Color.dgTextSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// カテゴリタイル・候補の情報・いいねボタン。
@@ -167,8 +193,14 @@ struct DGCandidateCard: View {
         highlight != nil ? .dgSurfaceHighlight : .dgSurfaceCard
     }
 
-    /// 候補名からひとこと・投稿者までの列
+    /// 候補名からひとこと・投稿者までの列。押せるときは、VoiceOver で 1 つのボタン（候補の詳細を開く）として読む
     private var details: some View {
+        detailsColumn
+            .modifier(OpenableDetails(onOpen: onOpen))
+    }
+
+    /// 候補名からひとこと・投稿者までの列の中身
+    private var detailsColumn: some View {
         VStack(alignment: .leading, spacing: DGSpacing.s4) {
             HStack(spacing: DGSpacing.s6) {
                 if isNew {
@@ -252,6 +284,26 @@ struct DGCandidateCard: View {
         // overlay の中では alignmentGuide が効かなかったので、自分の高さの半分だけ上にずらす
         .visualEffect { content, proxy in
             content.offset(y: -proxy.size.height / 2)
+        }
+    }
+}
+
+/// 押せる候補の情報の列を、VoiceOver で 1 つのボタンとして読ませる（押すと候補の詳細を開く）。
+///
+/// カードの中にいいねボタンがあるので、カード全体を `Button` にはできない（ボタンの入れ子になる）。
+/// 見た目の上の「押す」はカードの `onTapGesture` で受け、VoiceOver の操作はこの列で受ける。
+private struct OpenableDetails: ViewModifier {
+    let onOpen: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if let onOpen {
+            content
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint(Text("候補の詳細を開きます"))
+                .accessibilityAction(.default) { onOpen() }
+        } else {
+            content
         }
     }
 }
@@ -355,6 +407,28 @@ private let previewLikers: [DGLikeRow.Liker] = [
             level: .flat,
             percent: 13,
             maxPercent: 13
+        ) {}
+    }
+    .padding(DGSpacing.screenX)
+    .frame(maxHeight: .infinity)
+    .background(Color.dgBgBase)
+}
+
+#Preview("CandidateCard 抽選の対象外") {
+    VStack(spacing: DGSpacing.s14) {
+        DGCandidateCard(
+            name: "高尾山",
+            meta: "東京・八王子市 · 自然",
+            category: .nature,
+            author: .member("みさき"),
+            elapsed: "昨日",
+            highlight: .popular,
+            likeStatus: .notLiked,
+            likers: Array(previewLikers.prefix(3)),
+            level: .mid,
+            percent: 0,
+            maxPercent: 0,
+            isExcludedFromDraw: true
         ) {}
     }
     .padding(DGSpacing.screenX)
