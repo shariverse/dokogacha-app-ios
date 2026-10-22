@@ -99,6 +99,12 @@ nonisolated enum DomainConstants {
         /// アプリの ID は App Store Connect でアプリを登録するまで決まらないので仮の値。登録したら差し替える）。
         /// 招待リンクのランディングページ（`backend/hosting/public/assets/landing.js` の `APP_STORE_URL`）も同じ値にする
         static let appStoreURL = "https://apps.apple.com/jp/app/id0000000000"
+        /// 利用規約のページ（`backend/hosting/public/terms.html`。`firebase.json` の `cleanUrls` で拡張子なしの URL で開く）。
+        /// 設定画面（S-15）の「利用規約」から開く
+        static let termsURL = "\(scheme)://\(domain)/terms"
+        /// プライバシーポリシーのページ（`backend/hosting/public/privacy.html`。`termsURL` と同じく拡張子なし）。
+        /// 設定画面（S-15）の「プライバシーポリシー」から開く
+        static let privacyPolicyURL = "\(scheme)://\(domain)/privacy"
     }
 
     /// サーバーの時間の決まり（Functions のスケジュール・期限）。
