@@ -24,9 +24,10 @@ final class GachaUITests: XCTestCase {
     }
 
     /// 解禁済みのルーム（S-07）の「ガチャを回す」で S-13 が開き、レバーを回すとカプセルが出て、カプセルを開けると
-    /// S-07 に戻り、ルームは行き先が決まった状態（「ガチャを回す」が無い）になる（F-40・S-13。S-14 はタスク 28）
+    /// 同じカバーの中で S-14 結果（行き先きっぷ）に替わる（F-40〜42・S-13・S-14）。S-14 から戻ると S-07 は行き先が決まった状態になり、
+    /// 「行き先きっぷを見る」でもう一度 S-14 を開ける。ホームからルームを開き直すと、S-14 を自動で出す（03 の §2）
     @MainActor
-    func testTurnLeverAndOpenCapsule() throws {
+    func testTurnLeverOpenCapsuleAndShowResult() throws {
         let app = XCUIApplication()
         app.launchArguments += ["-uiTesting", "-demo-scenario", "several-rooms"]
         app.launch()
@@ -61,11 +62,43 @@ final class GachaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["開けると行き先が決まります"].exists)
         XCTAssertFalse(lever.isEnabled)
 
-        // カプセルを開けると S-07 に戻り、ルームは行き先が決まっている
+        // カプセルを開けると S-14 に替わる
         capsule.tap()
-        XCTAssertTrue(screen.waitForNonExistence(timeout: UITestID.timeout))
+        assertResultShown(app)
+        XCTAssertFalse(screen.exists)
+
+        // 戻ると S-07。行き先が決まっていて、「行き先きっぷを見る」でもう一度開ける
+        app.otherElements[UITestID.resultScreen].buttons["戻る"].firstMatch.tap()
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.staticTexts["行き先決定"].waitForExistence(timeout: UITestID.timeout))
         XCTAssertFalse(app.buttons[UITestID.roomGacha].exists)
+        let resultButton = app.buttons[UITestID.roomResult]
+        XCTAssertTrue(resultButton.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertEqual(resultButton.label, "行き先きっぷを見る")
+        resultButton.tap()
+        assertResultShown(app)
+
+        // S-14 → S-07 → ホームに戻り、ルームを開き直すと S-14 を自動で出す
+        app.otherElements[UITestID.resultScreen].buttons["戻る"].firstMatch.tap()
+        XCTAssertTrue(app.otherElements[UITestID.resultScreen].waitForNonExistence(timeout: UITestID.timeout))
+        app.otherElements[UITestID.roomScreen].buttons["戻る"].firstMatch.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
+        card.tap()
+        assertResultShown(app)
+    }
+
+    /// S-14 が出て、見出し・行き先きっぷ・「マップで開く」「きっぷを共有」がある
+    @MainActor
+    private func assertResultShown(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        let result = app.otherElements[UITestID.resultScreen]
+        XCTAssertTrue(result.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
+        let heading = app.staticTexts[UITestID.resultTitle]
+        XCTAssertTrue(heading.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
+        XCTAssertEqual(heading.label, "行き先が決まりました", file: file, line: line)
+        let ticket = result.descendants(matching: .any)[UITestID.resultTicket]
+        XCTAssertTrue(ticket.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
+        XCTAssertTrue(ticket.label.hasPrefix("行き先きっぷ、週末のランチ。"), file: file, line: line)
+        XCTAssertTrue(app.buttons[UITestID.resultOpenInMaps].isEnabled, file: file, line: line)
+        XCTAssertTrue(app.buttons[UITestID.resultShare].exists, file: file, line: line)
     }
 }
