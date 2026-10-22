@@ -16,6 +16,11 @@ echo "Emulator の設定: ${config}（ポートのずらし: ${DG_EMULATOR_PORT_
 # Emulator だけを使うので、Google Cloud のメタデータサーバー（GCE）を探しに行かない（探すと待たされ、警告が出る）
 export METADATA_SERVER_DETECTION=none
 
+# Functions の Emulator は起動時にコードを読み込んで関数の一覧を作る（既定の上限は 10 秒）。
+# Mac が混んでいると 10 秒を超えて「Cannot determine backend specification. Timeout after 10000」で読み込みに失敗し、
+# トリガーと Callable が動かないままテストが待ちで落ちる。上限を 60 秒に延ばす（単位は秒）
+export FUNCTIONS_DISCOVERY_TIMEOUT="${FUNCTIONS_DISCOVERY_TIMEOUT:-60}"
+
 # firebase-tools は devDependencies のものを使う（--no でダウンロードしない）。
 # emulators:exec に渡すテストは node_modules/.bin の jest を直接呼ぶ（npx を通すと jest に --config が届かず、テストが見つからなかった）
 npx --no firebase emulators:exec \
