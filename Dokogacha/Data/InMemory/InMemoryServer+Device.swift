@@ -34,6 +34,11 @@ extension InMemoryServer {
             try server.joinRoom(request, by: userID)
         }
 
+        /// 参加する前にルームを確かめる（`previewRoom`）
+        func previewRoom(_ request: PreviewRoomRequest) async throws -> RoomPreview {
+            try server.previewRoom(request, by: userID)
+        }
+
         /// ルームから退出する（`leaveRoom`）
         func leaveRoom(_ request: RoomRequest) async throws {
             try server.leaveRoom(request, by: userID)

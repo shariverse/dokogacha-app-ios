@@ -64,6 +64,10 @@ struct CreateRoomModelTests {
             try await server.joinRoom(request)
         }
 
+        func previewRoom(_ request: PreviewRoomRequest) async throws -> RoomPreview {
+            try await server.previewRoom(request)
+        }
+
         func leaveRoom(_ request: RoomRequest) async throws {
             try await server.leaveRoom(request)
         }

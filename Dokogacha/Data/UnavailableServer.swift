@@ -95,6 +95,10 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
         throw error
     }
 
+    func previewRoom(_ request: PreviewRoomRequest) async throws -> RoomPreview {
+        throw error
+    }
+
     func leaveRoom(_ request: RoomRequest) async throws {
         throw error
     }
