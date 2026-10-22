@@ -280,14 +280,6 @@ extension InMemoryServer: FunctionsClient {
 
     // MARK: まだ backend に無い Callable（backend のタスクで足すときに、ここにも同じ検証を足す）
 
-    func proposeReroll(_ request: RoomRequest) async throws {
-        throw AppError(.notImplemented)
-    }
-
-    func voteReroll(_ request: VoteRerollRequest) async throws {
-        throw AppError(.notImplemented)
-    }
-
     func closeRoom(_ request: RoomRequest) async throws {
         throw AppError(.notImplemented)
     }
@@ -405,7 +397,7 @@ private extension InMemoryServer {
     /// メンバーをルームから外す（退出と削除で共通。backend の `removeFromRoom`）。
     ///
     /// メンバーを消し、`memberIds` と、`memberCount`・`readyCount`・`status`（onMemberWrite の数え直しと解禁の判定に当たる）を更新し、その人のいいねと
-    /// 引き直しの投票を取り除き、広告非表示の購入者だったら残りのメンバーから参加の早い順（同着は uid の順）に探し直す。候補は残す
+    /// 引き直しの投票を取り除き（投票中なら判定し直し）、広告非表示の購入者だったら残りのメンバーから参加の早い順（同着は uid の順）に探し直す。候補は残す
     func remove(_ memberID: String, from record: inout RoomRecord, notMember: AppError.Reason) throws {
         guard record.members.removeValue(forKey: memberID) != nil else {
             throw Self.error(notMember)
@@ -416,6 +408,8 @@ private extension InMemoryServer {
         rejudgeUnlock(&record)
         record.room.reroll.votesFor.removeAll { $0 == memberID }
         record.room.reroll.votesAgainst.removeAll { $0 == memberID }
+        // 投票中なら、残りのメンバーで判定し直す（賛成が過半数になれば、その場で可決する。backend の `planAfterLeave`）
+        Self.settleReroll(in: &record)
         for (candidateID, candidate) in record.candidates where candidate.likedBy.contains(memberID) {
             record.candidates[candidateID]?.likedBy.removeAll { $0 == memberID }
         }
