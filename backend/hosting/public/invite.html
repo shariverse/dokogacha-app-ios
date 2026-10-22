@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 招待コードが URL に入るので、検索エンジンに載せない -->
+  <meta name="robots" content="noindex">
+  <meta name="format-detection" content="telephone=no">
+  <title>ドコガチャに招待されました</title>
+  <meta name="description" content="友だちの「ここ行きたい」を持ち寄って、揃ったらみんなでガチャ。行き先は運が決める。">
+  <!-- OGP は固定の画像と固定のタイトル（06 の §4 の仮決め。05 の §7） -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ドコガチャ">
+  <meta property="og:title" content="ドコガチャに招待されました">
+  <meta property="og:description" content="友だちの「ここ行きたい」を持ち寄って、揃ったらみんなでガチャ。行き先は運が決める。">
+  <meta property="og:url" content="https://dokogacha.app/">
+  <meta property="og:image" content="https://dokogacha.app/assets/ogp.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="ドコガチャ">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="/assets/landing.css">
+  <script src="/assets/landing.js" defer></script>
+</head>
+<body>
+  <!-- 招待リンク（/r/{招待コード}）のランディングページ。firebase.json の rewrites で /r/** をこのファイルに向ける -->
+  <main>
+    <p class="brand">ドコガチャ</p>
+    <ul class="capsules" aria-hidden="true">
+      <li></li><li></li><li></li><li></li><li></li><li></li>
+    </ul>
+    <h1 class="title">ドコガチャに招待されました</h1>
+    <p class="lead">友だちの「ここ行きたい」を持ち寄って、揃ったらみんなでガチャ。行き先は運が決める。</p>
+
+    <!-- URL のパスの招待コードが正しいときだけ、landing.js が表示する -->
+    <section id="invite-code-card" class="card" aria-labelledby="invite-code-label" hidden>
+      <p id="invite-code-label" class="code-label">招待コード</p>
+      <p id="invite-code" class="code"></p>
+      <p class="code-note">アプリの「招待コードで参加」で入力してください</p>
+    </section>
+
+    <ol class="steps">
+      <li>App Store からドコガチャをダウンロード</li>
+      <li>表示名を決めてはじめる</li>
+      <li>ホームの「招待コードで参加」から招待コードを入力</li>
+    </ol>
+
+    <a id="app-store-link" class="app-store" href="https://apps.apple.com/jp/app/id0000000000">App Store でダウンロード</a>
+    <p class="footnote">iPhone 向けのアプリです（iOS 17 以上）</p>
+  </main>
+</body>
+</html>

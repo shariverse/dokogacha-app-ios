@@ -51,13 +51,20 @@ final class JoinByCodeModel {
     @ObservationIgnored private let toasts: DGToastCenter
     /// ボタンから始めた確認。画面が消えたら（`cancelSubmit`）止める
     @ObservationIgnored private var submitTask: Task<Void, Never>?
+    /// 招待リンクで開いたときに、最初の 1 回だけ自動で確かめるか（`submitInitialCodeIfNeeded`）
+    @ObservationIgnored private var needsInitialSubmit: Bool
 
     /// - Parameters:
     ///   - functions: `previewRoom` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 通信エラーを出すトーストの窓口
-    init(functions: any FunctionsClient, toasts: DGToastCenter) {
+    ///   - initialCode: 招待リンクで開いたときの招待コード。入力欄に入れた状態で始め、画面が出たら自動で確かめる
+    init(functions: any FunctionsClient, toasts: DGToastCenter, initialCode: InviteCode? = nil) {
         self.functions = functions
         self.toasts = toasts
+        needsInitialSubmit = initialCode != nil
+        if let initialCode {
+            codeText = initialCode.displayText
+        }
     }
 
     /// 入力した文字の数（ハイフンを除く）
@@ -98,6 +105,18 @@ final class JoinByCodeModel {
                 submitTask = nil
             }
         }
+    }
+
+    /// 招待リンクで開いたとき、入れておいたコードで最初の 1 回だけ確認を始める（画面が出たときに呼ぶ）。
+    ///
+    /// 結果は「参加する」を押したときと同じ（S-06 を出す・メンバーならルームを開く・エラーは入力欄の下かトースト）。
+    /// S-06 から戻って S-05 がもう一度出たときは確かめ直さない（戻ってコードを直せるように）
+    func submitInitialCodeIfNeeded() {
+        guard needsInitialSubmit else {
+            return
+        }
+        needsInitialSubmit = false
+        submitTapped()
     }
 
     /// 画面が消えたとき、確かめている途中の確認を止める（結果を待つ相手がいないため。cancel ではトーストを出さない）。

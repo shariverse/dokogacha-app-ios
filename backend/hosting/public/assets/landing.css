@@ -1,0 +1,202 @@
+/*
+ * 招待リンクのランディングページ（/r/{招待コード}）の見た目。
+ * 色・フォント・寸法は docs/spec/design/tokens.json の値だけを使う（:root の変数に書き、ほかの場所に色の値を直接書かない）。
+ * 変数の名前は tokens.json の鍵（--color-<鍵をハイフンでつないだもの>・--radius-<鍵>・--border-<鍵>）。
+ * backend/hosting/test/hosting.test.ts で tokens.json の値と一致することを確かめる。
+ *
+ * フォントは同梱しない（アプリの ttf は合わせて 20MB あり、ページが重くなる）。端末に入っていれば使い、
+ * 無ければ丸ゴシックの系統のフォントで表示する。
+ */
+:root {
+  --color-bg-base: #FFF7EE;
+  --color-surface-card: #FFFFFF;
+  --color-surface-highlight: #FFF1C9;
+  --color-ink: #2B2118;
+  --color-text-secondary: #6E5E50;
+  --color-text-onAccent: #FFFFFF;
+  --color-line-dashed: #E3D3C2;
+  --color-accent-primary: #D93A1F;
+  --color-accent-text: #B8321A;
+  --color-accent-secondary: #FFC93C;
+  --color-capsule-0: #FF7A59;
+  --color-capsule-1: #FFC93C;
+  --color-capsule-2: #3CC9A0;
+  --color-capsule-3: #4DA3FF;
+  --color-capsule-4: #FF8FC7;
+  --color-capsule-5: #9B7BFF;
+
+  --radius-s: 12px;
+  --radius-m: 16px;
+  --radius-l: 20px;
+  --radius-pill: 999px;
+  --border-regular: 2px;
+  --border-strong: 2.5px;
+  --shadow-hard-y: 4px;
+  --spacing-screenX: 16px;
+  --spacing-cardPadding: 14px;
+
+  --font-display: "Mochiy Pop One", "Hiragino Maru Gothic ProN", "Hiragino Maru Gothic Pro", "BIZ UDPGothic", sans-serif;
+  --font-body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Maru Gothic Pro", "BIZ UDPGothic", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+main {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px var(--spacing-screenX);
+}
+
+/* 見出しフォント（Mochiy Pop One）は Regular だけなので太字にしない */
+.brand,
+.title,
+.code {
+  font-family: var(--font-display);
+  font-weight: normal;
+}
+
+.brand {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.capsules {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.capsules li {
+  width: 18px;
+  height: 18px;
+  border: var(--border-regular) solid var(--color-ink);
+  border-radius: var(--radius-pill);
+}
+
+.capsules li:nth-child(1) { background: var(--color-capsule-0); }
+.capsules li:nth-child(2) { background: var(--color-capsule-1); }
+.capsules li:nth-child(3) { background: var(--color-capsule-2); }
+.capsules li:nth-child(4) { background: var(--color-capsule-3); }
+.capsules li:nth-child(5) { background: var(--color-capsule-4); }
+.capsules li:nth-child(6) { background: var(--color-capsule-5); }
+
+.title {
+  margin: 0 0 8px;
+  font-size: 1.375rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.lead {
+  margin: 0 0 24px;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.card {
+  margin: 0 0 24px;
+  padding: 22px var(--spacing-cardPadding);
+  background: var(--color-surface-card);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: var(--radius-l);
+  box-shadow: 0 var(--shadow-hard-y) 0 var(--color-ink);
+  text-align: center;
+}
+
+.card[hidden] {
+  display: none;
+}
+
+.code-label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.code {
+  margin: 6px 0 10px;
+  font-size: 2.25rem;
+  line-height: 1.3;
+  letter-spacing: 0.12em;
+  color: var(--color-accent-text);
+  -webkit-user-select: all;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.code-note {
+  margin: 0;
+  padding-top: 10px;
+  border-top: var(--border-regular) dashed var(--color-line-dashed);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.steps {
+  margin: 0 0 28px;
+  padding: var(--spacing-cardPadding) var(--spacing-cardPadding) var(--spacing-cardPadding) 2.25em;
+  background: var(--color-surface-highlight);
+  border-radius: var(--radius-m);
+  font-size: 0.875rem;
+}
+
+.steps li + li {
+  margin-top: 6px;
+}
+
+.app-store {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 12px 22px;
+  background: var(--color-accent-primary);
+  color: var(--color-text-onAccent);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: var(--radius-l);
+  box-shadow: 0 var(--shadow-hard-y) 0 var(--color-ink);
+  font-size: 1.0625rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.app-store:active {
+  transform: translateY(var(--shadow-hard-y));
+  box-shadow: none;
+}
+
+.app-store:focus-visible {
+  outline: var(--border-strong) solid var(--color-accent-secondary);
+  outline-offset: 4px;
+}
+
+.footnote {
+  margin: 16px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-align: center;
+}

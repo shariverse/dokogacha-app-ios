@@ -13,9 +13,14 @@ struct RootView: View {
     @State private var model: RootModel
     @State private var toasts: DGToastCenter
     @Environment(\.scenePhase) private var scenePhase
+    /// 招待リンクで開かれたときの行き先（表示名を登録するまでは覚えておくだけで、ホームが出たら S-06 を開く）
+    private let deepLinks: DeepLinkRouter
 
-    /// - Parameter session: サーバーへの接続とサインインの状態（`AppDelegate` で `start` 済みのもの）
-    init(session: ServerSession) {
+    /// - Parameters:
+    ///   - session: サーバーへの接続とサインインの状態（`AppDelegate` で `start` 済みのもの）
+    ///   - deepLinks: 招待リンクで開かれたときの行き先
+    init(session: ServerSession, deepLinks: DeepLinkRouter) {
+        self.deepLinks = deepLinks
         let toasts = DGToastCenter()
         _toasts = State(initialValue: toasts)
         _model = State(initialValue: RootModel(session: session, toasts: toasts))
@@ -52,7 +57,7 @@ struct RootView: View {
             OnboardingView(model: OnboardingModel(auth: model.auth, toasts: toasts))
         case .home:
             if let userID = model.signedInUserID {
-                MainNavigationView(userID: userID, services: model.session.services, toasts: toasts)
+                MainNavigationView(userID: userID, services: model.session.services, toasts: toasts, deepLinks: deepLinks)
                     // ユーザーが替わったら、ホームの購読と積んだ画面を作り直す
                     .id(userID)
             }

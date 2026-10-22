@@ -96,7 +96,8 @@ nonisolated enum DomainConstants {
         /// 招待リンクの OGP のタイトル（06 の §4 の仮決め「固定画像・固定タイトル」。05 の §7。アプリの画面には出さない）
         static let ogpTitle = "ドコガチャに招待されました"
         /// App Store のアプリのページ（02 の §6.3「App Store のURL（仮）」。行き先きっぷの共有画像に入れる。
-        /// アプリの ID は App Store Connect でアプリを登録するまで決まらないので仮の値。登録したら差し替える）
+        /// アプリの ID は App Store Connect でアプリを登録するまで決まらないので仮の値。登録したら差し替える）。
+        /// 招待リンクのランディングページ（`backend/hosting/public/assets/landing.js` の `APP_STORE_URL`）も同じ値にする
         static let appStoreURL = "https://apps.apple.com/jp/app/id0000000000"
     }
 

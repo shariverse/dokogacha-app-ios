@@ -7,6 +7,6 @@
     "checkJs": true,
     "noEmit": true
   },
-  "include": ["functions/src", "scripts", "test"],
+  "include": ["functions/src", "scripts", "test", "hosting/test"],
   "exclude": ["node_modules", "functions/lib"]
 }
