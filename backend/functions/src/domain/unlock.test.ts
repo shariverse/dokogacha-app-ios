@@ -130,6 +130,18 @@ describe("数え直し前の値", () => {
     expect(judgeUnlock(input("majority", 5, 7), NOW_MS)).toEqual({ kind: "unlocked", reason: "majorityReady" });
   });
 
+  test("数でない人数（NaN・Infinity・フィールドが無い undefined）は 0 とみなす（Swift の Int と結果をそろえる）", () => {
+    const missing = undefined as unknown as number;
+    expect(judgeUnlock(input("all", Number.NaN, 1), NOW_MS)).toEqual({ kind: "waitingForAll", remaining: 1 });
+    expect(judgeUnlock(input("all", missing, 1), NOW_MS)).toEqual({ kind: "waitingForAll", remaining: 1 });
+    expect(judgeUnlock(input("all", 3, Number.NaN), NOW_MS)).toEqual({ kind: "waitingForAll", remaining: 3 });
+    expect(judgeUnlock(input("majority", 3, missing), NOW_MS)).toEqual({ kind: "waitingForMajority", remaining: 2 });
+    expect(judgeUnlock(input("all", Number.POSITIVE_INFINITY, 2), NOW_MS)).toEqual({ kind: "waitingForAll", remaining: 1 });
+    expect(nextStatusOf(input("all", Number.NaN, Number.NaN, { status: "unlocked" }), NOW_MS)).toBe("open");
+    expect(requiredReadyCountOf("all", Number.NaN)).toBe(1);
+    expect(requiredReadyCountOf("majority", missing)).toBe(1);
+  });
+
   test("負の数は 0 とみなす。メンバーが 0 人のルームは解禁しない", () => {
     expect(judgeUnlock(input("all", 5, -1), NOW_MS)).toEqual({ kind: "waitingForAll", remaining: 5 });
     expect(judgeUnlock(input("all", 0, 0), NOW_MS)).toEqual({ kind: "waitingForAll", remaining: 1 });
