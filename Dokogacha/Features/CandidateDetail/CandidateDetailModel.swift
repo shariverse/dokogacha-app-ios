@@ -49,9 +49,9 @@ final class CandidateDetailModel {
     @ObservationIgnored private let mapOpener: any MapOpener
     @ObservationIgnored private let toasts: DGToastCenter
     /// 確認のダイアログから始めた削除。画面が消えたら（`cancelSending`）止める
-    @ObservationIgnored private var deleteTask: Task<Void, Never>?
+    private var deleteTask: Task<Void, Never>?
     /// 理由のダイアログから始めた報告。画面が消えたら（`cancelSending`）止める
-    @ObservationIgnored private var reportTask: Task<Void, Never>?
+    private var reportTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - roomID: ルームの ID
@@ -146,9 +146,11 @@ final class CandidateDetailModel {
         return CandidatePermission.canReport(postedBy: candidate.postedBy, userID: room.userID)
     }
 
-    /// 送っている途中の操作があるか（閉じるボタンと下スワイプを止める）
+    /// 送っている途中の操作があるか（閉じるボタンと下スワイプを止める）。
+    ///
+    /// 確認で押してから Task が動き出すまでの間も含める（`isDeleting`・`isReporting` は Task の中で立つため。PR #55 の持ち越し）
     var isSending: Bool {
-        isDeleting || isReporting
+        isDeleting || isReporting || deleteTask != nil || reportTask != nil
     }
 
     /// シートを閉じるか（削除できた・候補が購読から消えた・ルームが無くなった）
@@ -225,6 +227,20 @@ final class CandidateDetailModel {
     }
 
     // MARK: - 削除
+
+    /// 削除の確認のダイアログを出している間に削除できなくなったら、ダイアログを閉じる（PR #55 の持ち越し）。
+    ///
+    /// 閉じないと「削除する」を押しても何も起きない。ルームの行き先が決まった（ほかの人がガチャを回した）ときは、その理由をトーストで出す。
+    /// 画面が `canDelete` の変化で呼ぶ
+    func closeUnavailableConfirmation() {
+        guard isConfirmingDelete, !canDelete, !isDeleting else {
+            return
+        }
+        isConfirmingDelete = false
+        if let status = room.room?.status, status == .drawn || status == .closed {
+            toasts.show(text: AppError(.roomAlreadyDecided).message)
+        }
+    }
 
     /// 「この候補を削除」が押された。確認のダイアログを出す（削除できないとき・送っている途中なら出さない）
     func deleteTapped() {
