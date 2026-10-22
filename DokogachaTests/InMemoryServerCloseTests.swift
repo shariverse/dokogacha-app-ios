@@ -57,6 +57,26 @@ struct InMemoryServerCloseTests {
         #expect(server.rooms[Self.roomID]?.room.closedAt == RoomModelTests.now)
     }
 
+    /// 引き直しの投票中でも終了でき、同時に投票を否決にする（票は残す）。期限を過ぎても `expireRerolls` は終了したルームを書き換えない
+    @Test
+    func closingWhileRerollVotingRejectsTheVote() throws {
+        var now = RoomModelTests.now
+        let server = InMemoryServer.demo(.drawnRooms) { now }
+        try server.proposeReroll(RoomRequest(roomId: Self.roomID), by: Self.haruka)
+        #expect(server.rooms[Self.roomID]?.room.reroll.status == .voting)
+
+        try server.closeRoom(RoomRequest(roomId: Self.roomID), by: DemoScenario.myUserID)
+        let closed = try #require(server.rooms[Self.roomID]?.room)
+        #expect(closed.status == .closed)
+        #expect(closed.reroll.status == .rejected)
+        #expect(closed.reroll.used)
+        #expect(closed.reroll.votesFor == [Self.haruka])
+
+        now = now.addingTimeInterval(DomainConstants.Schedule.rerollVotingDuration * 2)
+        #expect(server.expireRerolls() == 0)
+        #expect(server.rooms[Self.roomID]?.room == closed)
+    }
+
     /// 作成者以外は not-room-owner・メンバー以外は not-room-member・行き先が決まる前は room-not-drawn・無いルームは room-not-found
     @Test
     func rejectsInTheSameOrderAsBackend() throws {

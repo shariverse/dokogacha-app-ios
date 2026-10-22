@@ -14,7 +14,8 @@ extension InMemoryServer {
     ///
     /// 入力の検証 → ルーム（無ければ `room-not-found`）→ メンバーか（`not-room-member`）→ 作成者か（`not-room-owner`）
     /// → 状態（`drawn` なら終了・`closed` なら何もしない・`open`・`unlocked` は `room-not-drawn`）の順に確かめる。
-    /// 終了したら、当選しなかった候補を各メンバーの過去のアイデアに登録する
+    /// 引き直しの投票中なら、終了と同時に否決にする（backend の `rerollUpdateOnClose`。投票中のまま残すと `expireRerolls` が
+    /// 終了したルームを後から書き換える）。終了したら、当選しなかった候補を各メンバーの過去のアイデアに登録する
     func closeRoom(_ request: RoomRequest, by callerID: String?) throws {
         let userID = try Self.requireCaller(callerID)
         let roomID = try Self.documentID(request.roomId)
@@ -37,6 +38,9 @@ extension InMemoryServer {
         }
         record.room.status = .closed
         record.room.closedAt = clock()
+        if record.room.reroll.status == .voting {
+            record.room.reroll.status = .rejected
+        }
         rooms[roomID] = record
         registerPastIdeas(roomID: roomID)
     }
