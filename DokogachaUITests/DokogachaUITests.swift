@@ -19,8 +19,8 @@ final class DokogachaUITests: XCTestCase {
     private static let demoRoomCard = "home.room.demo-room"
     /// 進行中のルームの空の表示（`HomeView.Identifier.roomsEmpty`）
     private static let roomsEmpty = "home.rooms.empty"
-    /// ルーム画面の仮の画面（`PendingScreenView.Identifier.screen(.room)`）
-    private static let pendingRoom = "pending.room"
+    /// S-07 ルーム（`RoomView.Identifier.screen`）
+    private static let roomScreen = "room.screen"
     /// ホームの「＋ ルームを作る」（`HomeView.Identifier.createRoom`）
     private static let createRoomButton = "home.createRoom"
     /// S-03（`CreateRoomView.Identifier.screen`）
@@ -106,7 +106,7 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[Self.roomsEmpty].waitForExistence(timeout: Self.timeout))
     }
 
-    /// 進行中のルームがあればホームにカードが並び、押すとルーム画面（いまは仮の画面）へ進み、戻るとホームに戻る
+    /// 進行中のルームがあればホームにカードが並び、押すとルーム画面へ進み、戻るとホームに戻る
     @MainActor
     func testHomeListsRoomAndOpensRoomScreen() throws {
         let app = XCUIApplication()
@@ -119,13 +119,13 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts[Self.roomsEmpty].exists)
 
         card.tap()
-        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.otherElements[Self.roomScreen].waitForExistence(timeout: Self.timeout))
         app.buttons["戻る"].tap()
         XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
     }
 
     /// ホームから「ルームを作る」→ 名前を入れて「ルームを作成」→ 招待の画面に招待コードが出る。
-    /// 「ルームへ進む」でルーム画面（いまは仮の画面）に出て、戻るとホームに戻る（S-03 には戻らない。03 の §1）
+    /// 「ルームへ進む」でルーム画面に出て、戻るとホームに戻る（S-03 には戻らない。03 の §1）
     @MainActor
     func testCreateRoomShowsInviteCode() throws {
         let app = XCUIApplication()
@@ -157,7 +157,7 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertNotNil(code.label.range(of: pattern, options: .regularExpression), code.label)
 
         app.buttons[Self.openRoomButton].tap()
-        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.otherElements[Self.roomScreen].waitForExistence(timeout: Self.timeout))
         app.buttons["戻る"].tap()
         XCTAssertTrue(app.otherElements[Self.home].waitForExistence(timeout: Self.timeout))
         XCTAssertFalse(app.otherElements[Self.createRoomScreen].exists)
@@ -166,7 +166,7 @@ final class DokogachaUITests: XCTestCase {
     }
 
     /// ホームから「招待コードで参加」→ 存在しないコードでは入力欄の下にエラー → 正しいコード（小文字・ハイフンなし）を入れて
-    /// 「参加する」→ S-06 にルーム名が出る → 「参加する」でシートが閉じてルーム画面（いまは仮の画面）が開く（F-04 の AC）。
+    /// 「参加する」→ S-06 にルーム名が出る → 「参加する」でシートが閉じてルーム画面が開く（F-04 の AC）。
     /// 戻るとホームに参加したルームが並ぶ
     @MainActor
     func testJoinRoomByInviteCode() throws {
@@ -207,7 +207,7 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(card.label.contains("はるか"), card.label)
         app.buttons[Self.joinConfirmJoin].tap()
 
-        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.otherElements[Self.roomScreen].waitForExistence(timeout: Self.timeout))
         XCTAssertFalse(app.otherElements[Self.joinConfirmScreen].exists)
         app.buttons["戻る"].tap()
         XCTAssertTrue(app.otherElements[Self.home].waitForExistence(timeout: Self.timeout))
@@ -224,11 +224,11 @@ final class DokogachaUITests: XCTestCase {
         let card = app.buttons[Self.demoRoomCard]
         XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
         card.tap()
-        XCTAssertTrue(app.otherElements[Self.pendingRoom].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.otherElements[Self.roomScreen].waitForExistence(timeout: Self.timeout))
 
         swipeFromLeftEdge(app)
         XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
-        XCTAssertFalse(app.otherElements[Self.pendingRoom].exists)
+        XCTAssertFalse(app.otherElements[Self.roomScreen].exists)
     }
 
     /// 画面の左端から右へスワイプする（端からの戻る操作。`swipeRight()` は端から始まらないので座標で動かす）

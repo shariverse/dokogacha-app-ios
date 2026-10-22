@@ -86,9 +86,13 @@ struct MainNavigationView: View {
                 sheet = nil
                 path.append(.room(id: roomID))
             }
+        case let .room(roomID):
+            RoomView(model: RoomModel(roomID: roomID, userID: userID, repository: services.rooms, toasts: toasts)) { route in
+                open(route)
+            }
         case .settings:
             SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
-        case .room, .addCandidate, .candidateDetail, .members, .roomSettings, .gacha:
+        case .addCandidate, .candidateDetail, .members, .roomSettings, .gacha:
             PendingScreenView(route: route)
         }
     }
