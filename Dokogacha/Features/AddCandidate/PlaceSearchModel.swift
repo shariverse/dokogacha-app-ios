@@ -113,11 +113,11 @@ final class PlaceSearchModel {
         return word
     }
 
-    /// 検索して結果を映す。cancel された・語が変わったときは映さない
+    /// 検索して結果を映す（同じ ID の結果は 1 件にする）。cancel された・語が変わったときは映さない
     func run(_ word: String) async {
         phase = .searching
         do {
-            let results = try await places.search(word)
+            let results = SearchedPlace.uniqued(try await places.search(word))
             guard !Task.isCancelled, trimmedQuery == word else {
                 return
             }

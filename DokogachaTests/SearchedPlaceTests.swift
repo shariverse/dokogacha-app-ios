@@ -111,6 +111,21 @@ struct SearchedPlaceTests {
         #expect(SearchedPlace.make(Self.hit(name: tooLong)) == nil)
     }
 
+    /// 同じ ID の結果は先の 1 件だけを残し、並びは保つ（MapKit が同じ場所を 2 件返しても、行の ID が重ならない）
+    @Test
+    func uniquedDropsRepeatedIDs() throws {
+        let station = try #require(SearchedPlace.make(Self.hit(mapItemID: "I1")))
+        let same = try #require(SearchedPlace.make(Self.hit(name: "東京駅 丸の内口", mapItemID: "I1")))
+        let other = try #require(SearchedPlace.make(Self.hit(name: "皇居")))
+        let unnamedTwin = try #require(SearchedPlace.make(Self.hit(name: "皇居")))
+
+        let result = SearchedPlace.uniqued([station, other, same, unnamedTwin])
+
+        #expect(result.map(\.id) == ["I1", other.id])
+        #expect(result.first?.place.name == "東京駅")
+        #expect(SearchedPlace.uniqued([]).isEmpty)
+    }
+
     // MARK: - 擬似の検索
 
     /// 擬似の検索は、名前・エリア・語に当たる場所を一覧の順に返し、同じ判定でカテゴリを付ける。空の語では何も返さない
