@@ -13,6 +13,9 @@ import Foundation
 /// 逆に、カバーを出している間（S-13 の演出中を含む）にシートを開こうとしたとき（招待リンクが届いたときなど）は、カバーを閉じずに待たせ、
 /// ユーザーがカバーを閉じ終えた（`fullScreenDismissed()`）ところでシートを出す。S-13 は演出中に閉じられない取り決めで、
 /// 閉じると本人が結果を見ないまま演出が止まり、見た印（`markSeen`）も付かないため。
+/// 同じルームの S-13・S-14 のカバーを出している（出す待ちを含む）間は、同じルームの `gacha`・`result` を開いても値を替えない。
+/// カバーの中の S-13 で回す・ほかの人が回すと、カバーの下の S-07 が S-13 を開こうとするが、値が替わると SwiftUI がカバーを閉じて出し直し、
+/// 回している途中の演出が止まって新しい S-13 が同じ抽選をもう一度再生するため（新しい抽選はカバーの中の `GachaFlowView` が見せる）。
 /// 画面の状態を値の型にして、開く順を Unit テストで確かめる。
 nonisolated struct AppPresentation: Equatable, Sendable {
     /// 積んでいる行き先
@@ -39,6 +42,10 @@ nonisolated struct AppPresentation: Equatable, Sendable {
                 pendingSheet = route
             }
         case .fullScreenCover:
+            if let roomID = route.gachaRoomID, isCoveringGacha(roomID: roomID) {
+                // 同じルームの S-13・S-14 のカバーを出している（出す待ちを含む）。カバーの中で行き来するので替えない
+                return
+            }
             if sheet == nil {
                 fullScreen = route
             } else {
@@ -46,6 +53,12 @@ nonisolated struct AppPresentation: Equatable, Sendable {
                 sheet = nil
             }
         }
+    }
+
+    /// そのルームの S-13・S-14 のカバーを出しているか（シートを閉じてから出す待ちを含む）
+    /// - Parameter roomID: ルームの ID
+    private func isCoveringGacha(roomID: String) -> Bool {
+        fullScreen?.gachaRoomID == roomID || pendingFullScreen?.gachaRoomID == roomID
     }
 
     /// シートが閉じ終えた（`sheet(item:onDismiss:)` の `onDismiss`）。待たせていたカバーがあれば出す

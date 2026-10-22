@@ -62,6 +62,19 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
         self
     }
 
+    /// S-13・S-14 のカバー（`gacha`・`result`）のルームの ID（ほかの行き先では nil）。
+    ///
+    /// 同じルームの S-13・S-14 は 1 つのカバー（`GachaFlowView`）の中で行き来するので、
+    /// カバーを出している間に同じルームの `gacha`・`result` を開き直さないかを決めるのに使う（`AppPresentation.open`）
+    var gachaRoomID: String? {
+        switch self {
+        case let .gacha(roomID), let .result(roomID, _):
+            roomID
+        default:
+            nil
+        }
+    }
+
     /// 招待リンクで開いた S-05・S-06 の招待コード（ほかの行き先では nil）
     var inviteLinkCode: InviteCode? {
         if case let .joinByInviteLink(code) = self {

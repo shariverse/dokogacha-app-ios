@@ -3,7 +3,7 @@
  * Firestore の読み書きは `service.ts` が行い、判定はここに切り出して Jest で確かめる。
  * 擬似のサーバー（`Dokogacha/Data/InMemory/InMemoryServer+Draw.swift`）も同じ順で判定する。
  */
-import type { MemberDoc, RoomDoc } from "../domain/models";
+import { isOneOf, ROOM_STATUSES, type MemberDoc, type RoomDoc } from "../domain/models";
 import { appError } from "../errors";
 import { statusAfterRecount, type MemberCounts, type RoomUnlockState } from "../unlock/logic";
 
@@ -32,7 +32,7 @@ export type DrawableRoom = Pick<RoomDoc, "status"> & Partial<Pick<RoomDoc, "curr
  * 1. 呼んだ人がメンバー（`members/{uid}` がある。無ければ `not-room-member`）
  * 2. `drawn` で抽選の ID と当選がある → 抽選せずに、その結果を返す（同時に 2 人が回しても抽選は 1 回だけ）。
  *    `drawn` なのに抽選の ID が無い壊れたデータと `closed` は `room-already-decided`
- * 3. `unlocked` でない（`open`）→ `room-not-unlocked`
+ * 3. `unlocked` でない（`open`・知らない状態の壊れたデータ）→ `room-not-unlocked`
  * 4. `unlocked` でも、数え直した準備OKで判定し直すと `open` に戻る（参加の直後で `onMemberWrite` がまだ動いていない）→ `room-not-unlocked`。
  *    強制解禁・締切日時・引き直しの可決の後の扱いは `planUnlock` と同じ（`statusAfterRecount`）
  *
@@ -53,6 +53,10 @@ export function decideDraw(
 ): DrawDecision {
   if (member === undefined) {
     throw appError("not-room-member");
+  }
+  if (!isOneOf(ROOM_STATUSES, room.status)) {
+    // 知らない状態の壊れたデータ。回さずに、理由つきのエラーで返す（`internal` にしない）
+    throw appError("room-not-unlocked");
   }
   switch (room.status) {
     case "drawn": {

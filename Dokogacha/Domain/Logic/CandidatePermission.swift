@@ -23,8 +23,8 @@ nonisolated enum CandidatePermission {
     ///   - ownerID: ルームの作成者の uid
     ///   - roomStatus: ルームの状態
     ///   - userID: 自分の uid
-    ///   - isDrawn: ガチャで当選した候補か（`isDrawn(candidateID:in:)`）
-    static func canDelete(postedBy: String, ownerID: String, roomStatus: RoomStatus, userID: String, isDrawn: Bool = false) -> Bool {
+    ///   - isDrawn: ガチャで当選した候補か（`isDrawn(candidateID:in:)`。呼ぶ場所が渡し忘れないよう、既定の値を持たせない）
+    static func canDelete(postedBy: String, ownerID: String, roomStatus: RoomStatus, userID: String, isDrawn: Bool) -> Bool {
         (postedBy == userID || ownerID == userID) && editableStatuses.contains(roomStatus) && !isDrawn
     }
 

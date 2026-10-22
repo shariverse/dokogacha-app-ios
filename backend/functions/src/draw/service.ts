@@ -6,7 +6,15 @@
 import { FieldValue } from "firebase-admin/firestore";
 
 import { drawCandidate } from "../domain/draw";
-import { isOneOf, LIKE_MODES, type CandidateDoc, type DrawDoc, type MemberDoc, type RoomDoc } from "../domain/models";
+import {
+  isOneOf,
+  LIKE_MODES,
+  type CandidateDoc,
+  type DrawDoc,
+  type MemberDoc,
+  type RoomDoc,
+  type RoomSettings,
+} from "../domain/models";
 import type { ServiceDeps } from "../deps";
 import { appError } from "../errors";
 import { candidatesRef, drawsRef, membersRef, roomRef } from "../paths";
@@ -56,7 +64,9 @@ export async function drawGacha(deps: ServiceDeps, uid: string, data: unknown): 
       const likedBy = (doc.data() as Partial<CandidateDoc>).likedBy;
       return { id: doc.id, likeCount: Array.isArray(likedBy) ? likedBy.length : 0 };
     });
-    const mode = isOneOf(LIKE_MODES, room.settings.likeMode) ? room.settings.likeMode : "boost";
+    // 設定が無い・知らない値の壊れたデータでも止めない（共感ブーストで回す）
+    const settings = room.settings as Partial<RoomSettings> | undefined;
+    const mode = isOneOf(LIKE_MODES, settings?.likeMode) ? settings.likeMode : "boost";
     const excluded = Array.isArray(room.excludedCandidateIds) ? room.excludedCandidateIds : [];
     const result = drawCandidate(inputs, mode, excluded, deps.random);
     if (result === null) {

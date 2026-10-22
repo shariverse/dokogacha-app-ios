@@ -144,17 +144,14 @@ struct MainNavigationView: View {
         }
     }
 
-    /// S-13・S-14 のフルスクリーンカバー。S-13 はカプセルを開け終えたら同じカバーの中で S-14 に替わる（`GachaFlowView`）
+    /// S-13・S-14 のフルスクリーンカバー。S-13 はカプセルを開け終えたら同じカバーの中で S-14 に替わり、
+    /// S-14 は引き直しが可決したら同じカバーの中で S-13 に戻る（`GachaFlowView`）
     @ViewBuilder private func cover(_ route: AppRoute) -> some View {
         switch route {
         case let .gacha(roomID):
-            GachaFlowView { onOpened in
-                gacha(roomID: roomID, onOpened: onOpened)
-            } result: { drawID in
-                result(roomID: roomID, drawID: drawID)
-            }
+            gachaFlow(roomID: roomID, startingWith: nil)
         case let .result(roomID, drawID):
-            result(roomID: roomID, drawID: drawID)
+            gachaFlow(roomID: roomID, startingWith: drawID)
         default:
             // カバーで出す行き先は S-13・S-14 だけ（`AppRoute.presentation`）
             EmptyView()
@@ -167,6 +164,15 @@ struct MainNavigationView: View {
         JoinRoomFlowView(functions: services.functions, initialCode: initialCode) { roomID in
             presentation.sheet = nil
             presentation.path.append(.room(id: roomID))
+        }
+    }
+
+    /// S-13 と S-14 を行き来するカバーの中身（`drawID` があれば S-14 から始める）
+    private func gachaFlow(roomID: String, startingWith drawID: String?) -> some View {
+        GachaFlowView(startingWith: drawID) { onOpened in
+            gacha(roomID: roomID, onOpened: onOpened)
+        } result: { drawID, onPlayAgain in
+            result(roomID: roomID, drawID: drawID, onPlayAgain: onPlayAgain)
         }
     }
 
@@ -220,8 +226,9 @@ struct MainNavigationView: View {
         return GachaView(model: model, toasts: coverToasts, forcesReducedMotion: LaunchContext.current.isUITesting, onOpened: onOpened)
     }
 
-    /// S-14 結果（フルスクリーンカバー）。トーストはカバーの中に重ねる。UI テストではきっぷとハンコを動かさない
-    private func result(roomID: String, drawID: String) -> ResultView {
+    /// S-14 結果（フルスクリーンカバー）。トーストはカバーの中に重ねる。UI テストではきっぷとハンコを動かさない。
+    /// 引き直しが可決したら、「ガチャを回す」で `onPlayAgain`（同じカバーの中の S-13 に戻る）
+    private func result(roomID: String, drawID: String, onPlayAgain: @escaping () -> Void) -> ResultView {
         let coverToasts = DGToastCenter()
         let model = ResultModel(
             roomID: roomID,
@@ -231,7 +238,7 @@ struct MainNavigationView: View {
             functions: services.functions,
             toasts: coverToasts
         )
-        return ResultView(model: model, toasts: coverToasts, animatesIn: !LaunchContext.current.isUITesting)
+        return ResultView(model: model, toasts: coverToasts, animatesIn: !LaunchContext.current.isUITesting, onPlayAgain: onPlayAgain)
     }
 
     /// S-10 候補の詳細（シート）。トーストはシートの中に重ねるので、シート用の窓口を作って渡す

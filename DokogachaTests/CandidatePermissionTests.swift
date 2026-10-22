@@ -43,7 +43,8 @@ struct CandidatePermissionTests {
                 postedBy: testCase.postedBy,
                 ownerID: testCase.ownerID,
                 roomStatus: testCase.status,
-                userID: "me"
+                userID: "me",
+                isDrawn: false
             ) == testCase.expected
         )
     }

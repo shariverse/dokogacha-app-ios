@@ -62,7 +62,7 @@ export const APP_ERRORS = {
   /** `open` 以外で解禁の条件（締切日時を含む）を変えようとした（02 の F-03「open のときのみ変更可」） */
   "unlock-rule-locked": { code: "failed-precondition", message: "解禁の条件は候補募集中のときだけ変更できます" },
   /** `drawn`・`closed` でいいねの効き方を変えようとした（02 の F-03「open/unlocked のときのみ変更可」） */
-  "like-mode-locked": { code: "failed-precondition", message: "いいねの効き方はガチャを回す前だけ変更できます" },
+  "like-mode-locked": { code: "failed-precondition", message: "行き先が決まった後は、いいねの効き方を変更できません" },
   /**
    * ガチャを回そうとしたが、ルームが解禁されていない（02 の F-40「unlocked のとき、メンバーなら誰でも回せる」）。
    * `status` が `unlocked` でも、`drawGacha` が数え直した準備OKで解禁の条件を満たさないとき（参加した直後で、
@@ -76,6 +76,15 @@ export const APP_ERRORS = {
    * 抽選の記録（`draws`）と行き先きっぷ・過去のアイデアが指す候補が消えないようにする
    */
   "candidate-drawn": { code: "failed-precondition", message: "ガチャで当選した候補は削除できません" },
+  /** 行き先が決まる前（`open`・`unlocked`）に引き直しを提案した（02 の §6.4「drawn のとき、メンバーの誰かが提案」） */
+  "room-not-drawn": { code: "failed-precondition", message: "まだ行き先が決まっていません" },
+  /**
+   * 引き直しの権利を使った後に、もう一度提案した（02 の §6.4「ルームにつき1回まで」「否決後は再提案できない」・
+   * F-43 の AC「引き直しは2回目を提案できない」）。文言は 02 の §6.4 の「使用済み」の表示
+   */
+  "reroll-used": { code: "failed-precondition", message: "引き直しは使用済みです" },
+  /** 投票中でない（提案されていない・可決・否決の後）引き直しに投票した */
+  "reroll-not-voting": { code: "failed-precondition", message: "引き直しの投票は終わっています" },
   /** 招待コードを決められなかった（重複が続いた。もう一度呼べば通る見込みが高い） */
   "invite-code-unavailable": { code: "unavailable", message: "通信できませんでした" },
   /** 想定していないエラー */

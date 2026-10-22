@@ -122,4 +122,52 @@ struct AppPresentationTests {
         covered.fullScreenDismissed()
         #expect(covered.sheet == nil)
     }
+
+    /// S-14 のカバーの中の S-13 で回した（ほかの人が回した）とき、下の S-07 が同じルームの S-13 を開いても、カバーを替えない（出し直して演出を止めない）
+    @Test
+    func sameRoomGachaDoesNotReplaceResultCover() {
+        var presentation = AppPresentation()
+        presentation.open(.room(id: "r"))
+        presentation.open(.result(roomID: "r", drawID: "d1"))
+        presentation.open(.gacha(roomID: "r"))
+        #expect(presentation.fullScreen == .result(roomID: "r", drawID: "d1"))
+        presentation.open(.result(roomID: "r", drawID: "d2"))
+        #expect(presentation.fullScreen == .result(roomID: "r", drawID: "d1"))
+
+        var gacha = AppPresentation()
+        gacha.open(.gacha(roomID: "r"))
+        gacha.open(.result(roomID: "r", drawID: "d1"))
+        gacha.open(.gacha(roomID: "r"))
+        #expect(gacha.fullScreen == .gacha(roomID: "r"))
+        #expect(gacha.pendingFullScreen == nil)
+    }
+
+    /// シートを閉じてから出す待ちのカバーが同じルームのものなら、同じルームの S-13・S-14 を開いても待ちのカバーを替えない
+    @Test
+    func sameRoomGachaDoesNotReplacePendingCover() {
+        var presentation = AppPresentation()
+        presentation.open(.members(roomID: "r"))
+        presentation.open(.result(roomID: "r", drawID: "d1"))
+        presentation.open(.gacha(roomID: "r"))
+        #expect(presentation.pendingFullScreen == .result(roomID: "r", drawID: "d1"))
+
+        presentation.sheetDismissed()
+        #expect(presentation.fullScreen == .result(roomID: "r", drawID: "d1"))
+    }
+
+    /// 出しているカバーが別のルームのものなら、開いたルームのカバーに替える。カバーを閉じた後は同じルームでも開く
+    @Test
+    func otherRoomGachaReplacesCover() {
+        var presentation = AppPresentation()
+        presentation.open(.result(roomID: "r1", drawID: "d1"))
+        presentation.open(.gacha(roomID: "r2"))
+        #expect(presentation.fullScreen == .gacha(roomID: "r2"))
+
+        var closed = AppPresentation()
+        closed.open(.result(roomID: "r", drawID: "d1"))
+        closed.fullScreen = nil
+        closed.fullScreenDismissed()
+        closed.open(.gacha(roomID: "r"))
+        #expect(closed.fullScreen == .gacha(roomID: "r"))
+    }
 }

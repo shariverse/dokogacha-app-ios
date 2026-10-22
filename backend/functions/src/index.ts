@@ -1,7 +1,7 @@
 /**
  * Cloud Functions（2nd gen）の入口。
  * Callable やトリガーの関数は、機能を作るタスクでここから export する（05_architecture.md の §5）。
- * 処理の中身は `rooms/`・`users/`・`candidates/`・`unlock/`・`settings/`・`draw/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
+ * 処理の中身は `rooms/`・`users/`・`candidates/`・`unlock/`・`settings/`・`draw/`・`reroll/` にあり、ここでは Callable に包むだけにする（Emulator のテストは中身を直接呼べる）。
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -14,11 +14,12 @@ import { runCallable } from "./callable";
 import * as candidates from "./candidates/service";
 import { FUNCTIONS_REGION } from "./config";
 import { defaultDeps } from "./deps";
-import { DEADLINE_CHECK_INTERVAL_MINUTES, SCHEDULE_TIME_ZONE } from "./domain/constants";
+import { DEADLINE_CHECK_INTERVAL_MINUTES, REROLL_EXPIRY_CHECK_INTERVAL_MINUTES, SCHEDULE_TIME_ZONE } from "./domain/constants";
 import type { MemberDoc, RoomDoc } from "./domain/models";
 import { drawnEventOf } from "./draw/logic";
 import { notifyRoomDrawn } from "./draw/notify";
 import * as draw from "./draw/service";
+import * as reroll from "./reroll/service";
 import * as rooms from "./rooms/service";
 import * as settings from "./settings/service";
 import { memberWriteAffectsUnlock } from "./unlock/logic";
@@ -158,3 +159,27 @@ export const onRoomDrawn = onDocumentUpdated({ document: "rooms/{roomId}", retry
   }
   await notifyRoomDrawn(event.params.roomId, drawn.drawId);
 });
+
+/** 引き直しを提案する（02 の F-43。drawn のときだけ・ルームにつき 1 回・提案者は自動で賛成） */
+export const proposeReroll = onCall((request) =>
+  runCallable("proposeReroll", request, (uid, data) => reroll.proposeReroll(deps(), uid, data)),
+);
+
+/** 引き直しに投票する（02 の F-43。賛成が過半数になったら、直前の当選を除外してルームを unlocked に戻す） */
+export const voteReroll = onCall((request) =>
+  runCallable("voteReroll", request, (uid, data) => reroll.voteReroll(deps(), uid, data)),
+);
+
+/**
+ * 提案から 24 時間を過ぎた引き直しの投票を否決にする（02 の §6.4・05 の §5。1 時間ごと。06 の §4 の仮決め）。
+ * 一部のルームで失敗しても残りを処理してから投げる（次の実行でもう一度拾う）
+ */
+export const expireRerolls = onSchedule(
+  { schedule: `every ${String(REROLL_EXPIRY_CHECK_INTERVAL_MINUTES)} minutes`, timeZone: SCHEDULE_TIME_ZONE },
+  async () => {
+    const result = await reroll.expireRerolls(deps());
+    if (result.rooms > 0) {
+      logger.info("期限を過ぎた引き直しの投票を判定した", result);
+    }
+  },
+);

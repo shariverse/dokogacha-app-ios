@@ -6,12 +6,14 @@
 import SwiftUI
 
 /// S-14 結果（行き先きっぷ。フルスクリーンカバー）。03 の S-14 の上から順に、「行き先が決まりました」、レア当選のバッジ、
-/// 行き先きっぷ、「マップで開く」「きっぷを共有」の 2 列のボタンを並べる。
+/// 行き先きっぷ、「マップで開く」「きっぷを共有」の 2 列のボタン、引き直しの欄（F-43。`ResultRerollSection`）を並べる。
 ///
 /// 03 の S-14 には閉じる操作が無いが、S-13 と同じヘッダー（戻る矢印・ルーム名）を置き、ルーム（S-07）に戻れるようにする
 /// （「この行き先で決定」（F-44）はタスク 30 まで無いので、ほかに抜ける操作が無いため）。
-/// 引き直しの提案・投票（F-43）と「この行き先で決定」（作成者のみ）はタスク 29・30 で足す。押しても何もしないボタンは置かない。
-/// `closed` のルームは閲覧のみで、どちらも出さない。
+/// 引き直しが可決したら、欄の「ガチャを回す」で `onPlayAgain` を呼び、同じカバーの中で S-13 に戻る（`GachaFlowView`）。
+/// 可決の後にほかの人が先に回し直したら、欄の「結果を見る」で同じく S-13 に戻り、新しい抽選の演出を見てから S-14 に進む。
+/// 「この行き先で決定」（作成者のみ）はタスク 30 で足す。押しても何もしないボタンは置かない。
+/// `closed` のルームは閲覧のみで、引き直しの欄を出さない。
 ///
 /// 表示したときに、きっぷがポップインし（04 の §5 の `pop`。0.45 秒）、0.5 秒後にハンコを押す（`stamp`）。
 /// 「視差効果を減らす」ではフェード（0.2 秒）だけにする。撮影モード・UI テストでは `animatesIn` を false にして止める。
@@ -45,6 +47,8 @@ struct ResultView: View {
     @State private var toasts: DGToastCenter
     /// 表示したときにきっぷとハンコを動かすか
     private let animatesIn: Bool
+    /// 引き直しの可決の後に「ガチャを回す」・「結果を見る」が押された（S-13 に戻る）
+    private let onPlayAgain: () -> Void
     /// きっぷを出し終えたか（ポップインの後の状態）
     @State private var hasPopped = false
 
@@ -57,10 +61,12 @@ struct ResultView: View {
     ///   - model: 画面の状態（最初の 1 回だけ使う）
     ///   - toasts: トーストの窓口（最初の 1 回だけ使う）
     ///   - animatesIn: 表示したときにきっぷとハンコを動かすか（撮影・UI テストでは false）
-    init(model: ResultModel, toasts: DGToastCenter, animatesIn: Bool = true) {
+    ///   - onPlayAgain: 引き直しの可決の後に「ガチャを回す」・「結果を見る」が押された（S-13 に戻る）
+    init(model: ResultModel, toasts: DGToastCenter, animatesIn: Bool = true, onPlayAgain: @escaping () -> Void = {}) {
         _model = State(initialValue: model)
         _toasts = State(initialValue: toasts)
         self.animatesIn = animatesIn
+        self.onPlayAgain = onPlayAgain
         _hasPopped = State(initialValue: !animatesIn)
     }
 
@@ -82,6 +88,9 @@ struct ResultView: View {
         .dgToast(toasts)
         .task {
             await model.observe()
+        }
+        .onDisappear {
+            model.cancelSending()
         }
     }
 
@@ -113,6 +122,13 @@ struct ResultView: View {
                 .accessibilityIdentifier(Identifier.ticket)
             actions(ticket)
                 .padding(.top, DGSpacing.s4)
+            ResultRerollSection(
+                state: model.rerollPanel,
+                isSending: model.isSendingReroll,
+                onPropose: model.proposeRerollTapped,
+                onVote: { model.voteTapped(approve: $0) },
+                onPlayAgain: onPlayAgain
+            )
         }
         .frame(maxWidth: .infinity)
     }

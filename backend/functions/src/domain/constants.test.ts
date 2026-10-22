@@ -40,6 +40,7 @@ describe("06 の §4 の仮決め", () => {
     expect(constants.INVITE_LINK_PATH_PREFIX).toBe("/r/");
     expect(constants.OGP_TITLE).toBe("ドコガチャに招待されました");
     expect(constants.REROLL_VOTING_DURATION_MS).toBe(24 * 3_600_000);
+    expect(constants.REROLL_EXPIRY_CHECK_INTERVAL_MINUTES).toBe(60);
     expect(constants.AUTO_CLOSE_AFTER_DRAW_MS).toBe(7 * 86_400_000);
     expect(constants.DEADLINE_CHECK_INTERVAL_MINUTES).toBe(5);
     expect(constants.NEW_CANDIDATES_DIGEST_TIME).toEqual({ hour: 20, minute: 0 });

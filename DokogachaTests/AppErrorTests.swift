@@ -30,10 +30,13 @@ struct AppErrorTests {
         ("room-closed", "このルームは終了しています"),
         ("post-limit-decrease", "投稿数は今より少なくできません"),
         ("unlock-rule-locked", "解禁の条件は候補募集中のときだけ変更できます"),
-        ("like-mode-locked", "いいねの効き方はガチャを回す前だけ変更できます"),
+        ("like-mode-locked", "行き先が決まった後は、いいねの効き方を変更できません"),
         ("room-not-unlocked", "まだガチャは解禁されていません"),
         ("no-candidates", "候補がありません"),
         ("candidate-drawn", "ガチャで当選した候補は削除できません"),
+        ("room-not-drawn", "まだ行き先が決まっていません"),
+        ("reroll-used", "引き直しは使用済みです"),
+        ("reroll-not-voting", "引き直しの投票は終わっています"),
         ("invite-code-unavailable", "通信できませんでした"),
         ("internal", "通信できませんでした")
     ]

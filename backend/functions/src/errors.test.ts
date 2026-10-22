@@ -31,7 +31,7 @@ describe("APP_ERRORS", () => {
     });
     expect(APP_ERRORS["like-mode-locked"]).toEqual({
       code: "failed-precondition",
-      message: "いいねの効き方はガチャを回す前だけ変更できます",
+      message: "行き先が決まった後は、いいねの効き方を変更できません",
     });
   });
 
@@ -44,6 +44,15 @@ describe("APP_ERRORS", () => {
     expect(APP_ERRORS["candidate-drawn"]).toEqual({
       code: "failed-precondition",
       message: "ガチャで当選した候補は削除できません",
+    });
+  });
+
+  it("引き直し（02 の §6.4「使用済み」の表示・F-43 の AC「2回目を提案できない」）の文言", () => {
+    expect(APP_ERRORS["room-not-drawn"]).toEqual({ code: "failed-precondition", message: "まだ行き先が決まっていません" });
+    expect(APP_ERRORS["reroll-used"]).toEqual({ code: "failed-precondition", message: "引き直しは使用済みです" });
+    expect(APP_ERRORS["reroll-not-voting"]).toEqual({
+      code: "failed-precondition",
+      message: "引き直しの投票は終わっています",
     });
   });
 

@@ -105,4 +105,21 @@ extension RoomModelTests {
         // 確定の後は購読の値（最後に届いた、戻した値）を映す
         #expect(try Self.row(model, Self.shrine).likeStatus == .notLiked)
     }
+
+    /// 引き直しで抽選の対象から外れた候補は、unlocked でもいいねを送らない（ボタンは押せない状態。PR #52 の持ち越し）
+    @Test
+    func excludedCandidateCannotBeLiked() async throws {
+        let server = Self.makeServer()
+        server.rooms[DemoScenario.roomID]?.room.status = .unlocked
+        server.rooms[DemoScenario.roomID]?.room.excludedCandidateIds = [Self.shrine]
+        let model = Self.makeModel(server)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+        #expect(try Self.row(model, Self.shrine).likeStatus == .locked)
+
+        await model.toggleLike(Self.shrine)
+        #expect(model.pendingLikes.isEmpty)
+        #expect(server.rooms[DemoScenario.roomID]?.candidates[Self.shrine]?.likedBy.isEmpty == true)
+    }
 }

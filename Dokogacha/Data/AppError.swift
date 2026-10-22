@@ -195,6 +195,12 @@ extension AppError {
         case noCandidates = "no-candidates"
         /// ガチャで当選した候補（今の当選・引き直しで除外した前の当選）を削除しようとした
         case candidateDrawn = "candidate-drawn"
+        /// 行き先が決まる前（`open`・`unlocked`）に引き直しを提案した（F-43）
+        case roomNotDrawn = "room-not-drawn"
+        /// 引き直しの権利を使った後に、もう一度提案した（F-43 の AC「引き直しは2回目を提案できない」）
+        case rerollUsed = "reroll-used"
+        /// 投票中でない引き直しに投票した（可決・否決の後など）
+        case rerollNotVoting = "reroll-not-voting"
         /// 招待コードを決められなかった（もう一度で通る見込みが高い）
         case inviteCodeUnavailable = "invite-code-unavailable"
         /// 想定していないエラー
@@ -266,13 +272,19 @@ extension AppError {
             case .unlockRuleLocked:
                 String(localized: "解禁の条件は候補募集中のときだけ変更できます")
             case .likeModeLocked:
-                String(localized: "いいねの効き方はガチャを回す前だけ変更できます")
+                String(localized: "行き先が決まった後は、いいねの効き方を変更できません")
             case .roomNotUnlocked:
                 String(localized: "まだガチャは解禁されていません")
             case .noCandidates:
                 String(localized: "候補がありません")
             case .candidateDrawn:
                 String(localized: "ガチャで当選した候補は削除できません")
+            case .roomNotDrawn:
+                String(localized: "まだ行き先が決まっていません")
+            case .rerollUsed:
+                String(localized: "引き直しは使用済みです")
+            case .rerollNotVoting:
+                String(localized: "引き直しの投票は終わっています")
             case .permissionDenied:
                 String(localized: "この操作はできません")
             case .unauthenticated, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,

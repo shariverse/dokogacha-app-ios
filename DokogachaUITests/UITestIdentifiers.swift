@@ -127,6 +127,14 @@ enum UITestID {
     static let resultOpenInMaps = "result.openInMaps"
     /// S-14 の「きっぷを共有」（`ResultView.Identifier.share`）
     static let resultShare = "result.share"
+    /// S-14 の「引き直しを提案（過半数の賛成で1回まで）」（`ResultRerollSection.Identifier.propose`）
+    static let resultRerollPropose = "result.reroll.propose"
+    /// S-14 の「賛成を集めています…（N/M人）」・「引き直しは使用済みです」（`ResultRerollSection.Identifier.status`）
+    static let resultRerollStatus = "result.reroll.status"
+    /// S-14 の引き直しの「賛成」（`ResultRerollSection.Identifier.approve`）
+    static let resultRerollApprove = "result.reroll.approve"
+    /// S-14 の引き直しの「反対」（`ResultRerollSection.Identifier.reject`）
+    static let resultRerollReject = "result.reroll.reject"
     /// 画面が出るのを待つ時間
     static let timeout: TimeInterval = 10
 

@@ -288,6 +288,7 @@ final class RoomModel {
     func toggleLike(_ candidateID: String) async {
         guard pendingLikes[candidateID] == nil,
               let room, RoomCandidateRow.likeableStatuses.contains(room.status),
+              !room.excludedCandidateIds.contains(candidateID),
               let candidate = candidates.first(where: { $0.id == candidateID }),
               candidate.postedBy != userID else {
             return

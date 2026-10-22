@@ -16,6 +16,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "settings.deadlineAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reroll.status", "order": "ASCENDING" },
+        { "fieldPath": "reroll.proposedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

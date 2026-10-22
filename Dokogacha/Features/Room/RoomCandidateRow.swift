@@ -56,7 +56,8 @@ nonisolated struct RoomCandidateRow: Identifiable, Equatable, Sendable {
     /// - 並びは新しい順（`CandidateList.sorted`。F-12）
     /// - いいねの数は、購読の `likedBy` に自分の送っている途中のいいね（`pendingLikes`）を映してから数える。
     ///   押した候補の人数・アバター・出やすさだけでなく、ほかの候補の % も同時に変わる（F-20〜23 の AC）
-    /// - 出やすさは `Probability.odds`（引き直しで外れた候補は対象外で nil）、人気は `Probability.highlight`（メンバー数は `memberCount`）
+    /// - 出やすさは `Probability.odds`（引き直しで外れた候補は対象外で nil）、人気は `Probability.highlight`（メンバー数は `memberCount`）。
+    ///   引き直しで外れた候補は、人気の強調を付けず、いいねも押せない（もう当たらないため）
     /// - NEW は `CandidateList.isNew`（`lastSeenAt` は画面を開いたときの値。まだ読めていなければ NEW にしない）
     /// - 投稿者は、自分なら「あなた」、ルームのメンバーなら今の表示名（読めていなければ投稿時の名前）、いなければ退出した人
     /// - Parameters:
@@ -78,10 +79,11 @@ nonisolated struct RoomCandidateRow: Identifiable, Equatable, Sendable {
         let likedBy = Dictionary(uniqueKeysWithValues: sorted.map { candidate in
             (candidate.id, effectiveLikedBy(candidate.likedBy, pending: pendingLikes[candidate.id], myUserID: myUserID))
         })
+        let excluded = Set(room.excludedCandidateIds)
         let table = Probability.odds(
             of: sorted.map { OddsInput(id: $0.id, likeCount: likedBy[$0.id]?.count ?? 0) },
             mode: room.settings.likeMode,
-            excluding: Set(room.excludedCandidateIds)
+            excluding: excluded
         )
         let membersByID = Dictionary(members.map { ($0.id, $0.value) }) { first, _ in first }
         return sorted.map { candidate in
@@ -95,11 +97,15 @@ nonisolated struct RoomCandidateRow: Identifiable, Equatable, Sendable {
                 author: author(of: candidate.value, room: room, members: membersByID, myUserID: myUserID),
                 createdAt: candidate.createdAt,
                 isNew: lastSeenAt.map { CandidateList.isNew(candidate.value, myUID: myUserID, lastSeenAt: $0) } ?? false,
-                highlight: Probability.highlight(likeCount: likers.count, memberCount: room.memberCount),
+                // 引き直しで外れた候補は、もう当たらないので人気の強調（リボン）を付けない
+                highlight: excluded.contains(candidate.id)
+                    ? nil
+                    : Probability.highlight(likeCount: likers.count, memberCount: room.memberCount),
                 likeStatus: likeStatus(
                     postedBy: candidate.postedBy,
                     isLiked: likers.contains(myUserID),
                     roomStatus: room.status,
+                    isExcluded: excluded.contains(candidate.id),
                     myUserID: myUserID
                 ),
                 likers: likers.map { userID in
@@ -132,17 +138,25 @@ nonisolated struct RoomCandidateRow: Identifiable, Equatable, Sendable {
         }
     }
 
-    /// いいねボタンの状態。自分の投稿は「自分」（F-20）、いいねを受け付けない状態（`drawn`・`closed`）は押せない状態
+    /// いいねボタンの状態。自分の投稿は「自分」（F-20）、いいねを受け付けない状態（`drawn`・`closed`）と、
+    /// 引き直しで抽選の対象から外れた候補（いいねしても出やすさが変わらない）は押せない状態
     /// - Parameters:
     ///   - postedBy: 投稿者の uid
     ///   - isLiked: 自分がいいねしているか
     ///   - roomStatus: ルームの状態
+    ///   - isExcluded: 引き直しで抽選の対象から外れた候補か
     ///   - myUserID: 自分の uid
-    static func likeStatus(postedBy: String, isLiked: Bool, roomStatus: RoomStatus, myUserID: String) -> DGLikeButton.Status {
+    static func likeStatus(
+        postedBy: String,
+        isLiked: Bool,
+        roomStatus: RoomStatus,
+        isExcluded: Bool,
+        myUserID: String
+    ) -> DGLikeButton.Status {
         if postedBy == myUserID {
             return .mine
         }
-        guard likeableStatuses.contains(roomStatus) else {
+        guard likeableStatuses.contains(roomStatus), !isExcluded else {
             return isLiked ? .lockedLiked : .locked
         }
         return isLiked ? .liked : .notLiked

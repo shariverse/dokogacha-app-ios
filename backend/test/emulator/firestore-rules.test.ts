@@ -454,6 +454,19 @@ describe("firestore.rules", () => {
       await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { winnerCandidateId: "c1" }));
       await assertFails(updateDoc(doc(as("bob"), "rooms/room1"), { status: "unlocked", currentDrawId: null }));
     });
+
+    it("引き直しの状態・票・除外リストは直接書き換えられない（作成者でも。提案・投票は Callable。F-43）", async () => {
+      await assertFails(updateDoc(doc(as("bob"), "rooms/room1"), { "reroll.votesFor": ["alice", "bob", "dave"] }));
+      await assertFails(updateDoc(doc(as("bob"), "rooms/room1"), { "reroll.votesAgainst": [] }));
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { "reroll.status": "passed", status: "unlocked" }));
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { "reroll.used": false, "reroll.status": "none" }));
+      await assertFails(updateDoc(doc(as("alice"), "rooms/room1"), { excludedCandidateIds: ["c1"] }));
+      await assertFails(
+        updateDoc(doc(as("dave"), "rooms/room1"), {
+          reroll: { used: true, proposedBy: "dave", votesFor: ["dave"], votesAgainst: [], status: "voting" },
+        }),
+      );
+    });
   });
 
   describe("まだ作っていないコレクション", () => {

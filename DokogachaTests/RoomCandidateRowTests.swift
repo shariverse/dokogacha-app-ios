@@ -75,16 +75,44 @@ struct RoomCandidateRowTests {
         #expect(RoomCandidateRow.effectiveLikedBy(["a"], pending: nil, myUserID: "me") == ["a"])
     }
 
-    /// いいねボタンの状態: 自分の投稿は「自分」。`open`・`unlocked` は押せて、`drawn`・`closed` は押せない
+    /// いいねボタンの状態: 自分の投稿は「自分」。`open`・`unlocked` は押せて、`drawn`・`closed` と引き直しで外れた候補は押せない
     @Test
     func likeStatusByRoomStatus() {
-        for status in RoomStatus.allCases {
-            #expect(RoomCandidateRow.likeStatus(postedBy: "me", isLiked: false, roomStatus: status, myUserID: "me") == .mine)
+        func status(_ postedBy: String, liked: Bool, _ roomStatus: RoomStatus, excluded: Bool = false) -> DGLikeButton.Status {
+            RoomCandidateRow.likeStatus(postedBy: postedBy, isLiked: liked, roomStatus: roomStatus, isExcluded: excluded, myUserID: "me")
         }
-        #expect(RoomCandidateRow.likeStatus(postedBy: "a", isLiked: false, roomStatus: .open, myUserID: "me") == .notLiked)
-        #expect(RoomCandidateRow.likeStatus(postedBy: "a", isLiked: true, roomStatus: .unlocked, myUserID: "me") == .liked)
-        #expect(RoomCandidateRow.likeStatus(postedBy: "a", isLiked: false, roomStatus: .drawn, myUserID: "me") == .locked)
-        #expect(RoomCandidateRow.likeStatus(postedBy: "a", isLiked: true, roomStatus: .closed, myUserID: "me") == .lockedLiked)
+        for roomStatus in RoomStatus.allCases {
+            #expect(status("me", liked: false, roomStatus) == .mine)
+            #expect(status("me", liked: false, roomStatus, excluded: true) == .mine)
+        }
+        #expect(status("a", liked: false, .open) == .notLiked)
+        #expect(status("a", liked: true, .unlocked) == .liked)
+        #expect(status("a", liked: false, .drawn) == .locked)
+        #expect(status("a", liked: true, .closed) == .lockedLiked)
+        #expect(status("a", liked: false, .unlocked, excluded: true) == .locked)
+        #expect(status("a", liked: true, .unlocked, excluded: true) == .lockedLiked)
+    }
+
+    /// 引き直しで外れた候補は、いいねが多くても人気の強調（リボン）を付けず、いいねも押せない。出やすさは対象外（PR #52 の持ち越し）
+    @Test
+    func excludedCandidateHasNoRibbonAndLockedLike() {
+        var room = Self.room(memberIds: ["me", "a", "b", "c", "d"], status: .unlocked)
+        room.excludedCandidateIds = ["four"]
+        let rows = RoomCandidateRow.rows(
+            candidates: [
+                Self.candidate("three", by: "a", likedBy: ["b", "c", "d"], minutesAgo: 1),
+                Self.candidate("four", by: "a", likedBy: ["me", "b", "c", "d"], minutesAgo: 2)
+            ],
+            members: [],
+            room: room,
+            myUserID: "me",
+            lastSeenAt: nil
+        )
+        #expect(rows.map(\.highlight) == [.popular, nil])
+        #expect(rows.map(\.likeStatus) == [.notLiked, .lockedLiked])
+        #expect(rows[1].odds == nil)
+        #expect(rows[1].likers.map(\.id) == ["me", "b", "c", "d"])
+        #expect(rows[0].odds?.displayPercent == 100)
     }
 
     /// 投稿者: 自分・メンバー（今の表示名。メンバーを読む前は投稿時の名前）・退出した人
