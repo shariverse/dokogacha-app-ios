@@ -102,6 +102,33 @@ nonisolated enum LicenseCatalog {
         LicenseEntry(id: id, name: name, notice: "Copyright Google LLC", kind: .apache2, textResource: apacheResource)
     }
 
+    /// ライセンスの全文を段落に分ける（空の行で区切り、段落の中の折り返しの改行と行頭の字下げは詰めて 1 行にする）。
+    ///
+    /// 全文の `.txt` は 80 桁ほどで折り返してあり、そのまま 1 つの `Text` で出すと、文字を大きくしたときに短い行が並んで読みにくく、
+    /// VoiceOver でも途中から読めない（PR #100 の持ち越し）。段落ごとに `Text` にし、画面の幅で折り返す
+    /// - Parameter text: ライセンスの全文
+    /// - Returns: 段落（空の段落は含めない）
+    static func paragraphs(of text: String) -> [String] {
+        var paragraphs: [String] = []
+        var lines: [String] = []
+        func flush() {
+            if !lines.isEmpty {
+                paragraphs.append(lines.joined(separator: " "))
+                lines.removeAll()
+            }
+        }
+        for line in text.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                flush()
+            } else {
+                lines.append(trimmed)
+            }
+        }
+        flush()
+        return paragraphs
+    }
+
     /// ライセンスの全文（アプリのバンドルから読む。読めなければ nil）
     static func text(of entry: LicenseEntry, in bundle: Bundle = .main) -> String? {
         guard let url = bundle.url(forResource: entry.textResource, withExtension: "txt") else {
