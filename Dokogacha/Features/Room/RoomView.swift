@@ -281,7 +281,9 @@ struct RoomView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("読み込み中"))
     }
+}
 
+extension RoomView {
     // MARK: - 候補
 
     /// 「候補」「N件 · 新しい順」と右端の「＋ 候補を追加」。入らなければボタンを下の行に回す
