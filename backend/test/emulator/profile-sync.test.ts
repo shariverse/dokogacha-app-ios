@@ -10,7 +10,11 @@ import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { App } from "firebase-admin/app";
 
 import { AVATAR_COLORS } from "../../functions/src/domain/avatarPalette";
-import { PROFILE_SYNC_PARALLEL_ROOMS, syncProfileCopies } from "../../functions/src/users/profileSync";
+import {
+  handleProfileUpdate,
+  PROFILE_SYNC_PARALLEL_ROOMS,
+  syncProfileCopies,
+} from "../../functions/src/users/profileSync";
 import { clearFirestore, closeAdmin, openAdmin } from "./firestore-admin";
 
 /** 複製を書き換える人 */
@@ -163,6 +167,29 @@ describe("プロフィールの複製の反映（onUserProfileUpdate）", () => 
       const mine = members.docs.filter((doc) => doc.id === ME);
       expect(mine).toHaveLength(count);
       expect(mine.every((doc) => doc.get("displayName") === "あと")).toBe(true);
+    });
+
+    it("古い変更（まえ → つぎ）のトリガーが後から動いても、トランザクションの中で読み直した最新の名前（さいご）を書く", async () => {
+      // 作成なので onUserProfileUpdate は動かない。今の名前は「さいご」で、複製は「まえ」のまま
+      await addUser(ME, "さいご");
+      await addRoom("sync-room");
+
+      await expect(
+        handleProfileUpdate(db, ME, { displayName: "まえ", avatarColor: AVATAR_COLORS[0] }, {
+          displayName: "つぎ",
+          avatarColor: AVATAR_COLORS[0],
+        }),
+      ).resolves.toEqual({ rooms: 1, writes: 2 });
+      expect(await field(`rooms/sync-room/members/${ME}`, "displayName")).toBe("さいご");
+      expect(await field("rooms/sync-room/candidates/c0", "postedByName")).toBe("さいご");
+    });
+
+    it("表示名と色が変わっていない更新（通知のトークンだけなど）では何もしない", async () => {
+      await addUser(ME, "あと");
+      await addRoom("sync-room");
+      const same = { displayName: "まえ", avatarColor: AVATAR_COLORS[0] };
+      await expect(handleProfileUpdate(db, ME, same, same)).resolves.toBeNull();
+      expect(await field(`rooms/sync-room/members/${ME}`, "displayName")).toBe("まえ");
     });
 
     it("プロフィールが無い（削除された）なら何も書かない", async () => {

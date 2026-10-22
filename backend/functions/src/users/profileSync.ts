@@ -8,13 +8,15 @@
  * - トランザクションの中でプロフィールを読み直し、その時点の値を書く。表示名を続けて変えてトリガーの順が前後しても、
  *   最後に動いたものが今の値を書くので、古い名前に戻らない
  * - 今の値と同じものは書かない（冪等。同じ更新でトリガーが 2 回動いても、2 回目は何も書かない）
+ * - 1 つのルームで失敗しても、残りのルームを最後まで処理してから失敗を投げる（`settleInGroups`）。
+ *   トリガーは `retry: true` なのでやり直し、反映済みのルームは冪等なので何も書かない
  */
 import type { Firestore, Transaction } from "firebase-admin/firestore";
 
-import { chunk } from "../batch";
+import { settleInGroups } from "../batch";
 import type { MemberDoc, RoomDoc, UserDoc } from "../domain/models";
 import { candidatesRef, membersRef, roomRef, userRef } from "../paths";
-import { countRoomCopyWrites, planRoomCopyUpdates } from "./logic";
+import { countRoomCopyWrites, planRoomCopyUpdates, profileCopyChanged, type ProfileCopy } from "./logic";
 
 /** 同時に処理するルームの数（ルームが多い人でも、トランザクションを一度に開きすぎない） */
 export const PROFILE_SYNC_PARALLEL_ROOMS = 10;
@@ -67,14 +69,36 @@ async function syncRoom(db: Firestore, uid: string, roomId: string): Promise<num
  * @param db Firestore（Admin SDK）
  * @param uid プロフィールの持ち主
  * @returns 見たルームの数と書き込んだ数
+ * @throws `AggregateError`（一部のルームで失敗したとき。残りのルームは処理し終えている）
  */
 export async function syncProfileCopies(db: Firestore, uid: string): Promise<ProfileSyncResult> {
   // ルームの ID だけが要るので、フィールドを読まない（`select()`）
   const rooms = await db.collection("rooms").where("memberIds", "array-contains", uid).select().get();
-  let writes = 0;
-  for (const group of chunk(rooms.docs, PROFILE_SYNC_PARALLEL_ROOMS)) {
-    const counts = await Promise.all(group.map((doc) => syncRoom(db, uid, doc.id)));
-    writes += counts.reduce((sum, count) => sum + count, 0);
-  }
+  const counts = await settleInGroups(rooms.docs, PROFILE_SYNC_PARALLEL_ROOMS, (doc) => syncRoom(db, uid, doc.id));
+  const writes = counts.reduce((sum, count) => sum + count, 0);
   return { rooms: rooms.size, writes };
+}
+
+/**
+ * `users/{uid}` の更新のトリガー（`onUserProfileUpdate`）の中身。
+ * 表示名・アバターの色が変わったときだけ、参加中のルームの複製に反映する（通知のトークンだけの更新などでは何もしない）。
+ *
+ * 書く値は `before`・`after`（トリガーが受け取った変更）ではなく、ルームごとのトランザクションの中で読み直した今のプロフィール。
+ * 表示名を続けて変えて、古い変更のトリガーが後から動いたり、やり直し（`retry`）で遅れて動いたりしても、最新の名前を書く。
+ * @param db Firestore（Admin SDK）
+ * @param uid プロフィールの持ち主
+ * @param before 更新の前のプロフィール
+ * @param after 更新の後のプロフィール
+ * @returns 反映の結果（反映しなかったときは null）
+ */
+export async function handleProfileUpdate(
+  db: Firestore,
+  uid: string,
+  before: Partial<ProfileCopy> | undefined,
+  after: Partial<ProfileCopy> | undefined,
+): Promise<ProfileSyncResult | null> {
+  if (!profileCopyChanged(before, after)) {
+    return null;
+  }
+  return syncProfileCopies(db, uid);
 }
