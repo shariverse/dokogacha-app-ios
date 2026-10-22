@@ -9,12 +9,15 @@ import Foundation
 
 /// 検索結果の場所を、いまのルームに追加できるか。
 ///
-/// サーバー（`addCandidate`）は「状態 → 重複 → 上限」の順に確かめる。画面では、押す前に分かることを先に出す:
-/// - 自分がすでに投稿した場所は「追加済み」（押せない。自分の投稿にはいいねもできないので、誘導する先が無い）
-/// - 投稿数が上限に達していたら「上限」（押せない。02 の F-10「ボタンを「上限」表示にして無効化」）
-/// - ほかの人がすでに投稿した場所は「追加」のまま押せ、押すと S-09 を開かずに「すでに候補にあります。いいねしますか？」を出す
-///   （02 の F-10 の重複の確認。入力を書かせてから断らないため）
-/// - 投稿を受け付けない状態（`drawn`・`closed`）・ルームがまだ届いていないときは押せない
+/// サーバー（`addCandidate`）は「状態 → 重複 → 上限」の順に確かめる。画面も同じ順で、押す前に分かることを出す:
+/// 1. 投稿を受け付けない状態（`drawn`・`closed`）・ルームがまだ届いていないときは押せない
+/// 2. 自分がすでに投稿した場所は「追加済み」（押せない。自分の投稿にはいいねもできないので、誘導する先が無い）
+/// 3. ほかの人がすでに投稿した場所は「追加」のまま押せ、押すと S-09 を開かずに「すでに候補にあります。いいねしますか？」を出す
+///    （02 の F-10 の重複の確認。入力を書かせてから断らないため）。上限に達していても重複を先に出す
+///    （サーバーも上限より重複を先に返すので、上限の人もほかの人の候補にいいねできる）
+/// 4. 投稿数が上限に達していたら「上限」（押せない。02 の F-10「ボタンを「上限」表示にして無効化」）
+///
+/// 2 はサーバーでは重複（自分の投稿でも `duplicateOf`）に含まれる。画面では誘導する先が無いので先に分けて出す
 nonisolated enum PlaceAddAvailability: Equatable, Sendable {
     /// 追加できる（「追加」→ S-09）
     case addable
@@ -61,11 +64,11 @@ nonisolated enum PlaceAddAvailability: Equatable, Sendable {
         if postedByMe {
             return .added
         }
-        if myPostCount(in: candidates, userID: userID) >= postLimit {
-            return .limitReached
-        }
         if let duplicateID {
             return .duplicate(candidateID: duplicateID)
+        }
+        if myPostCount(in: candidates, userID: userID) >= postLimit {
+            return .limitReached
         }
         return .addable
     }
