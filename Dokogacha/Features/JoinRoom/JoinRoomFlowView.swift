@@ -9,6 +9,8 @@ import SwiftUI
 ///
 /// シートの中に `NavigationStack` を持ち、根元に S-05 招待コードで参加、確かめたら上に S-06 参加確認を積む
 /// （S-06 の戻るで S-05 に戻ってコードを直せる）。すでにメンバーなら S-06 を出さずに `onJoined` を呼ぶ。
+/// 招待リンクで開いたとき（`initialCode`）は、S-05 にコードを入れた状態で始め、画面が出たらすぐに確かめて S-06 を積む
+/// （コードが見つからない・満員などのときは、S-05 の入力欄の下にエラーを出す。押したときと同じ扱い）。
 /// 参加したら `onJoined` でルームの ID を親（`MainNavigationView`）に渡し、親がシートを閉じてルームを開く。
 ///
 /// トーストの窓口をシートの中で持ち、シートの根元に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）。
@@ -27,11 +29,12 @@ struct JoinRoomFlowView: View {
 
     /// - Parameters:
     ///   - functions: `previewRoom`・`joinRoom` を呼ぶ窓口（Firebase か擬似のサーバー）
+    ///   - initialCode: 招待リンクで開いたときの招待コード。S-05 に入れた状態で始め、すぐに確かめて S-06 を積む
     ///   - onJoined: 参加した（もとからメンバーだった）ときの処理。値はルームの ID
-    init(functions: any FunctionsClient, onJoined: @escaping (String) -> Void) {
+    init(functions: any FunctionsClient, initialCode: InviteCode? = nil, onJoined: @escaping (String) -> Void) {
         let toasts = DGToastCenter()
         _toasts = State(initialValue: toasts)
-        _codeModel = State(initialValue: JoinByCodeModel(functions: functions, toasts: toasts))
+        _codeModel = State(initialValue: JoinByCodeModel(functions: functions, toasts: toasts, initialCode: initialCode))
         self.functions = functions
         self.onJoined = onJoined
     }
@@ -50,6 +53,9 @@ struct JoinRoomFlowView: View {
                     }
                 }
             )
+            .task {
+                codeModel.submitInitialCodeIfNeeded()
+            }
             .navigationDestination(for: JoinConfirmDestination.self) { destination in
                 JoinConfirmView(
                     model: JoinConfirmModel(destination: destination, functions: functions, toasts: toasts),

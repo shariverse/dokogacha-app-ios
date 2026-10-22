@@ -7,7 +7,10 @@
 
 import SwiftUI
 
-/// アプリの入口。Firebase の初期化は `AppDelegate` で行い、サインインと最初の画面の選択は `RootView`（起動の流れ）が行う
+/// アプリの入口。Firebase の初期化は `AppDelegate` で行い、サインインと最初の画面の選択は `RootView`（起動の流れ）が行う。
+///
+/// 招待リンク（Universal Links）は、SwiftUI の `onOpenURL` と `onContinueUserActivity(NSUserActivityTypeBrowsingWeb)` の
+/// どちらで届いても `DeepLinkRouter` に渡す（同じ URL が両方に届いても、覚えるコードは同じなので開くのは 1 回）
 @main
 struct DokoGachaApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -16,6 +19,12 @@ struct DokoGachaApp: App {
         WindowGroup {
             rootView
                 .environment(appDelegate.serverSession)
+                .onOpenURL { url in
+                    appDelegate.deepLinks.handle(url)
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    appDelegate.deepLinks.handle(activity)
+                }
         }
     }
 
@@ -23,7 +32,7 @@ struct DokoGachaApp: App {
     @ViewBuilder private var rootView: some View {
         switch ScreenshotDemo.scene {
         case .home, nil:
-            RootView(session: appDelegate.serverSession)
+            RootView(session: appDelegate.serverSession, deepLinks: appDelegate.deepLinks)
         case .onboarding:
             ScreenshotDemo.OnboardingScene(auth: appDelegate.serverSession.services.auth)
         case .createRoom:

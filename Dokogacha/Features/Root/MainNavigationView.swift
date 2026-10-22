@@ -12,9 +12,14 @@ import SwiftUI
 ///
 /// ルームを作ったら、S-03 を積みから外して作ったルーム（S-07）とその上に S-04 を積む（`AppRoute.pathAfterCreating`）。
 /// S-04 から戻る・「ルームへ進む」と S-07 に出て、S-07 から戻るとホームに戻る（03 の §1「S-04 招待：プッシュ（戻るとルーム）」）。
+///
+/// 招待リンクで開かれたら（`DeepLinkRouter` に招待コードが入ったら）、いま出している画面の上に S-05・S-06 のシートを
+/// そのコードで開く（03 の §2「招待リンク → S-06」）。表示名を登録する前に届いたコードは、この画面が出たときに開く。
 struct MainNavigationView: View {
     /// 出している行き先（積み・シート・フルスクリーンカバー）
     @State private var presentation = AppPresentation()
+    /// フルスクリーンカバーを閉じた後に出すシート（カバーを出したままではシートを出せないため、閉じ終わってから出す）
+    @State private var sheetAfterFullScreen: AppRoute?
     @State private var homeModel: HomeModel
     /// 自分の uid
     private let userID: String
@@ -22,16 +27,20 @@ struct MainNavigationView: View {
     private let services: DataServices
     /// 通信エラーを出すトーストの窓口
     private let toasts: DGToastCenter
+    /// 招待リンクで開かれたときの行き先
+    private let deepLinks: DeepLinkRouter
 
     /// - Parameters:
     ///   - userID: 自分の uid
     ///   - services: データ層の窓口
     ///   - toasts: 通信エラーを出すトーストの窓口
-    init(userID: String, services: DataServices, toasts: DGToastCenter) {
+    ///   - deepLinks: 招待リンクで開かれたときの行き先
+    init(userID: String, services: DataServices, toasts: DGToastCenter, deepLinks: DeepLinkRouter) {
         _homeModel = State(initialValue: HomeModel(userID: userID, repository: services.rooms, toasts: toasts))
         self.userID = userID
         self.services = services
         self.toasts = toasts
+        self.deepLinks = deepLinks
     }
 
     var body: some View {
@@ -53,8 +62,36 @@ struct MainNavigationView: View {
                 destination(route)
             }
         )
-        .fullScreenCover(item: $presentation.fullScreen) { route in
+        .fullScreenCover(item: $presentation.fullScreen, onDismiss: showSheetAfterFullScreen) { route in
             destination(route)
+        }
+        // 招待リンクで開かれたら、そのコードで S-05・S-06 を開く（この画面が出る前に届いていたものも、出たときに開く）
+        .onChange(of: deepLinks.pendingInviteCode, initial: true) {
+            if let code = deepLinks.takePendingInviteCode() {
+                openInviteLink(code)
+            }
+        }
+    }
+
+    /// 招待リンクのコードで S-05・S-06 のシートを開く。
+    ///
+    /// 積んだ画面はそのまま残す（参加したら、その上にルームを積む）。別のシートを出していたら差し替える。
+    /// フルスクリーンカバー（S-13 など）を出していたら閉じ、閉じ終わってからシートを出す
+    private func openInviteLink(_ code: InviteCode) {
+        let route = AppRoute.joinByInviteLink(code)
+        if presentation.fullScreen != nil {
+            sheetAfterFullScreen = route
+            presentation.fullScreen = nil
+        } else {
+            presentation.sheet = route
+        }
+    }
+
+    /// フルスクリーンカバーを閉じ終えたとき、待たせていたシートを出す
+    private func showSheetAfterFullScreen() {
+        if let route = sheetAfterFullScreen {
+            sheetAfterFullScreen = nil
+            presentation.sheet = route
         }
     }
 
@@ -74,12 +111,8 @@ struct MainNavigationView: View {
             InviteView(model: InviteModel(destination: created, toasts: toasts)) {
                 presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
             }
-        case .joinByCode:
-            // 参加したら（もとからメンバーなら）シートを閉じて、そのルームを開く（03 の §2「S-06 → 参加する → S-07」）
-            JoinRoomFlowView(functions: services.functions) { roomID in
-                presentation.sheet = nil
-                presentation.path.append(.room(id: roomID))
-            }
+        case .joinByCode, .joinByInviteLink:
+            joinRoomFlow(initialCode: route.inviteLinkCode)
         case let .room(roomID):
             room(roomID: roomID)
         case .settings:
@@ -135,6 +168,15 @@ struct MainNavigationView: View {
         default:
             // カバーで出す行き先は S-13・S-14 だけ（`AppRoute.presentation`）
             EmptyView()
+        }
+    }
+
+    /// S-05・S-06（シート）。参加したら（もとからメンバーなら）シートを閉じて、そのルームを開く（03 の §2「S-06 → 参加する → S-07」）
+    /// - Parameter initialCode: 招待リンクで開いたときの招待コード（ホームの「招待コードで参加」からなら nil）
+    private func joinRoomFlow(initialCode: InviteCode?) -> some View {
+        JoinRoomFlowView(functions: services.functions, initialCode: initialCode) { roomID in
+            presentation.sheet = nil
+            presentation.path.append(.room(id: roomID))
         }
     }
 

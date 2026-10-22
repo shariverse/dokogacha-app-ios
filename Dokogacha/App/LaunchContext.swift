@@ -14,6 +14,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
 
     /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
     /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
+    /// UI テスト・撮影モードで、招待リンクで開かれたことにする起動引数（`-open-url <URL>`）。
+    /// Simulator では Universal Links でアプリを開けない（AASA を取りに行けない）ので、起動の直後に `DeepLinkRouter` へ渡す
+    static let openURLArgument = "-open-url"
+
     static let unitTestHostEnvironmentKeys = ["XCTestConfigurationFilePath", "XCTestBundlePath", "XCTestSessionIdentifier"]
 
     /// Unit テストのホストとして起動されたか
@@ -25,6 +29,8 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// 擬似のサーバーに入れるデモのデータ（`-demo-scenario <名前>`。`-uiTesting`・撮影モードのときに使う。
     /// 指定が無ければ、撮影モードでは `DemoScenario.screenshotFallback`、それ以外では `DemoScenario.fallback`）
     let demoScenario: DemoScenario
+    /// 起動の直後に開いたことにする URL（`-open-url <URL>`）。`-uiTesting`・撮影モードのときだけ読み、ほかは nil
+    let openURL: URL?
 
     /// 起動引数と環境変数から作る
     init(arguments: [String], environment: [String: String]) {
@@ -36,6 +42,19 @@ nonisolated struct LaunchContext: Equatable, Sendable {
             arguments: arguments,
             fallback: isScreenshotDemo ? DemoScenario.screenshotFallback : DemoScenario.fallback
         )
+        if isUITesting || isScreenshotDemo {
+            openURL = Self.value(after: Self.openURLArgument, in: arguments).flatMap { URL(string: $0) }
+        } else {
+            openURL = nil
+        }
+    }
+
+    /// 起動引数で `name` の次にある値（無ければ nil）
+    private static func value(after name: String, in arguments: [String]) -> String? {
+        guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1) else {
+            return nil
+        }
+        return arguments[index + 1]
     }
 
     /// いまのプロセスの起動のしかた

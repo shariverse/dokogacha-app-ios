@@ -24,6 +24,14 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     /// 表示名を登録済みで、自分のルームは無い。ほかの人のルームが 3 つあり、招待コードで参加できるもの（`joinableInviteCode`）・
     /// 満員のもの（`fullInviteCode`）・行き先が決まったもの（`decidedInviteCode`）がある（S-05・S-06 の UI テスト・撮影用）
     case joinable
+    /// 表示名をまだ登録していない（S-01 を出す）。`joinable` と同じ、ほかの人のルームが 3 つある
+    /// （登録する前に招待リンクで開かれ、登録した後に S-06 が開く UI テスト用）
+    case firstLaunchInvited = "first-launch-invited"
+
+    /// 表示名をまだ登録していないシナリオか（自分とほかのメンバーのプロフィールを入れない）
+    var isFirstLaunch: Bool {
+        self == .firstLaunch || self == .firstLaunchInvited
+    }
 
     /// 起動引数でシナリオを選ぶときの名前（`-demo-scenario <rawValue>`）
     static let argument = "-demo-scenario"
@@ -80,7 +88,7 @@ extension InMemoryServer {
     static func demo(_ scenario: DemoScenario, clock: @escaping () -> Date = { Date() }) -> InMemoryServer {
         let server = InMemoryServer(clock: clock, signedInUserID: DemoScenario.myUserID)
         let now = clock()
-        if scenario != .firstLaunch {
+        if !scenario.isFirstLaunch {
             for (offset, person) in demoPeople.enumerated() {
                 server.users[person.id] = UserProfile(
                     displayName: person.name,
@@ -112,7 +120,7 @@ extension InMemoryServer {
                 createdAt: now.addingTimeInterval(-86_400)
             )
         }
-        if scenario == .joinable {
+        if scenario == .joinable || scenario == .firstLaunchInvited {
             addJoinableRooms(to: server, now: now)
         }
         return server
