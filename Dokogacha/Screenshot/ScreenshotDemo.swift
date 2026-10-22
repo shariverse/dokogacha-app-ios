@@ -171,7 +171,13 @@ extension ScreenshotDemo {
                     try server.writeLike(true, candidateID: candidateID, roomID: DemoScenario.roomID, userID: userID, by: userID)
                 }
             }
-            model = RoomModel(roomID: DemoScenario.roomID, userID: userID, repository: services.rooms, toasts: toasts)
+            model = RoomModel(
+                roomID: DemoScenario.roomID,
+                userID: userID,
+                repository: services.rooms,
+                functions: services.functions,
+                toasts: toasts
+            )
             _toasts = State(initialValue: toasts)
         }
 

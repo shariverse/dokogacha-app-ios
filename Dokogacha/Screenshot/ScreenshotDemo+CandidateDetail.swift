@@ -46,7 +46,13 @@ extension ScreenshotDemo {
             }
             let roomToasts = DGToastCenter()
             let sheetToasts = DGToastCenter()
-            roomModel = RoomModel(roomID: DemoScenario.roomID, userID: userID, repository: services.rooms, toasts: roomToasts)
+            roomModel = RoomModel(
+                roomID: DemoScenario.roomID,
+                userID: userID,
+                repository: services.rooms,
+                functions: services.functions,
+                toasts: roomToasts
+            )
             let detailModel = CandidateDetailModel(
                 roomID: DemoScenario.roomID,
                 candidateID: ScreenshotDemo.value(after: Self.candidateArgument) ?? Self.defaultCandidateID,

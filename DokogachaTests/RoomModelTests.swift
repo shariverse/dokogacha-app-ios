@@ -31,14 +31,22 @@ struct RoomModelTests {
         InMemoryServer.demo(scenario) { Self.now }
     }
 
+    /// - Parameters:
+    ///   - repository: 購読と直接の書き込みの窓口
+    ///   - functions: `forceUnlock` の窓口（既定は接続できないサーバー。強制解禁を確かめるテストだけが渡す）
+    ///   - toasts: トーストの窓口
+    ///   - userID: この Model の自分（既定はこの端末のユーザー。ほかのメンバーの画面を作るときに替える）
     static func makeModel(
         _ repository: any RoomRepository,
-        toasts: DGToastCenter = DGToastCenter(visibleFor: .seconds(3_600))
+        functions: any FunctionsClient = UnavailableServer(),
+        toasts: DGToastCenter = DGToastCenter(visibleFor: .seconds(3_600)),
+        userID: String = DemoScenario.myUserID
     ) -> RoomModel {
         RoomModel(
             roomID: DemoScenario.roomID,
-            userID: DemoScenario.myUserID,
+            userID: userID,
             repository: repository,
+            functions: functions,
             toasts: toasts,
             resubscribeDelay: immediateResubscribe
         )

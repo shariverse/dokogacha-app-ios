@@ -22,6 +22,13 @@ import Observation
 /// - 送る前に分かる失敗（接続できないなど）なら、表示を戻してトースト「通信できませんでした」を出す
 /// - 送っている途中（確定する前）は同じ候補をもう一度押しても何もしない（二度押し）。自分の投稿・`drawn`・`closed` も押せない
 ///
+/// 準備OK（F-30）もいいねと同じ形の楽観的更新にする（自分のメンバーの `ready` が楽観的な値と一致したら確定する）。
+/// ボタンを出すかは `room.status`（`open`・`unlocked`）で決め、ヒントの「あと N人」だけに `UnlockJudge` を使う（`ReadyHint`）。
+///
+/// 強制解禁（F-32）は作成者だけ・`open` のときだけ出し、確認のダイアログ（02 の §5.3）を挟んで Callable の `forceUnlock` を呼ぶ。
+/// 送っている途中は二重に送らず、画面の戻る操作を止める。失敗したら `AppError` の文言のトーストを出す。成功したら購読の
+/// `unlocked` で全員の画面が「ガチャ解禁！」になる（自分の画面も購読の値で変わる）。
+///
 /// `lastSeenAt`（F-12 の NEW）は 02 の §3.3「ルーム画面を離れたときに更新する」のとおり、画面が消えたとき・アプリが裏に回ったときに書く。
 /// NEW の判定には、画面を開いて最初に届いた自分の `lastSeenAt` を使い続ける（画面を出している間は NEW を消さない）。
 @Observable
@@ -53,6 +60,8 @@ final class RoomModel {
 
     /// いいねの書き込みに失敗したときのトースト（goal のタスク 19〜21「失敗したら戻してトースト「通信できませんでした」」）
     static let likeFailureMessage: LocalizedStringResource = "通信できませんでした"
+    /// 準備OKの書き込みに失敗したときのトースト（いいねと同じ）
+    static let readyFailureMessage: LocalizedStringResource = "通信できませんでした"
 
     /// ルームの ID
     let roomID: String
@@ -70,10 +79,19 @@ final class RoomModel {
     private(set) var hasLoadedCandidates = false
     /// 送っている途中のいいね（候補の ID ごと）
     private(set) var pendingLikes: [String: OptimisticWrite<Bool>] = [:]
+    /// 送っている途中の自分の準備OK（無ければ nil）
+    private(set) var pendingReady: OptimisticWrite<Bool>?
     /// NEW の判定に使う、画面を開いて最初に届いた自分の `lastSeenAt`（まだ届いていなければ nil）
     private(set) var seenBaseline: Date?
+    /// 強制解禁の確認のダイアログを出しているか
+    var isConfirmingForceUnlock = false
+    /// 強制解禁を送っている途中か（二重に送らない・画面を閉じさせない）
+    private(set) var isForceUnlocking = false
 
     @ObservationIgnored private let repository: any RoomRepository
+    @ObservationIgnored private let functions: any FunctionsClient
+    /// 確認のダイアログから始めた強制解禁（二重に始めないために持つ）
+    @ObservationIgnored private var forceUnlockTask: Task<Void, Never>?
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
     /// いま失敗している購読
@@ -83,18 +101,21 @@ final class RoomModel {
     ///   - roomID: ルームの ID
     ///   - userID: 自分の uid
     ///   - repository: 購読と直接の書き込みの窓口（Firebase か擬似のサーバー）
+    ///   - functions: `forceUnlock` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 通信エラーを出すトーストの窓口
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
     init(
         roomID: String,
         userID: String,
         repository: any RoomRepository,
+        functions: any FunctionsClient,
         toasts: DGToastCenter,
         resubscribeDelay: ResubscribeDelay = .standard
     ) {
         self.roomID = roomID
         self.userID = userID
         self.repository = repository
+        self.functions = functions
         self.toasts = toasts
         self.resubscribeDelay = resubscribeDelay
     }
@@ -139,9 +160,54 @@ final class RoomModel {
         room?.ownerId == userID
     }
 
-    /// 準備OKの人数（メンバーを読めていればその数、読めていなければルームの `readyCount`）
+    /// ルームパネルに出すメンバー（参加の早い順。自分の準備OKは送っている途中の値を映す）
+    var displayedMembers: [Identified<Member>] {
+        guard let pendingReady else {
+            return members
+        }
+        return members.map { member in
+            guard member.id == userID else {
+                return member
+            }
+            var value = member.value
+            value.ready = pendingReady.value
+            return Identified(id: member.id, value: value)
+        }
+    }
+
+    /// 準備OKの人数（メンバーを読めていればその数（自分の送っている途中の準備OKを含む）、読めていなければルームの `readyCount`）
     var readyCount: Int {
-        members.isEmpty ? room?.readyCount ?? 0 : members.count(where: \.ready)
+        members.isEmpty ? room?.readyCount ?? 0 : displayedMembers.count(where: \.ready)
+    }
+
+    /// 自分が準備OKにしているか（送っている途中ならその値）
+    var isReady: Bool {
+        pendingReady?.value ?? members.first { $0.id == userID }?.ready ?? false
+    }
+
+    /// 「準備OK」「準備OKを取り消す」を出すか（F-30「open/unlocked のとき」。判定ではなくルームの `status` で決める）
+    var showsReadyButton: Bool {
+        room.map { Self.readyStatuses.contains($0.status) } ?? false
+    }
+
+    /// 「強制解禁（作成者）」を出すか（F-32「作成者だけ・未解禁のとき」。`status` が `open`）
+    var canForceUnlock: Bool {
+        isOwner && room?.status == .open
+    }
+
+    /// ルームパネルのヒント（F-31。抽選の後は nil）。解禁の文言は `status` が `unlocked` のときだけ（`ReadyHint`）
+    var readyHint: ReadyHint? {
+        guard let room else {
+            return nil
+        }
+        return ReadyHint.make(UnlockInput(
+            status: room.status,
+            rule: room.settings.unlockRule,
+            memberCount: memberCount,
+            readyCount: readyCount,
+            deadlineAt: room.settings.deadlineAt,
+            forcedUnlock: room.forcedUnlock
+        ))
     }
 
     /// メンバーの人数
@@ -158,6 +224,9 @@ final class RoomModel {
     var acceptsCandidates: Bool {
         room.map { RoomCandidateRow.likeableStatuses.contains($0.status) } ?? false
     }
+
+    /// 準備OKを変えられるルームの状態（02 の §2.1）
+    static let readyStatuses: Set<RoomStatus> = [.open, .unlocked]
 
     /// 下部の「ガチャを回す」の状態。`drawn`・`closed` は結果の画面（タスク 28）を出すので、ボタンを出さない（nil）
     var gachaButtonState: GachaButtonState? {
@@ -234,12 +303,14 @@ final class RoomModel {
         }
     }
 
-    /// 届いたルームを映す。いいねを受け付けない状態になったら、送っている途中のいいねの表示を捨てる
+    /// 届いたルームを映す。いいね・準備OKを受け付けない状態になったら、送っている途中の表示を捨てる
+    /// （その状態では書き込みが拒まれ、一致する値が届かないため）
     private func applyRoom(_ value: Identified<Room>?) {
         guard let value else {
             room = nil
             loadState = .missing
             pendingLikes = [:]
+            pendingReady = nil
             return
         }
         room = value.value
@@ -247,11 +318,22 @@ final class RoomModel {
         if !RoomCandidateRow.likeableStatuses.contains(value.status) {
             pendingLikes = [:]
         }
+        if !Self.readyStatuses.contains(value.status) {
+            pendingReady = nil
+        }
     }
 
-    /// 届いたメンバーを映す。自分の `lastSeenAt` は最初に届いた値だけを NEW の判定に使う
+    /// 届いたメンバーを映す。送っている途中の準備OKは、自分の `ready` が一致したら確定し、自分がいなければ
+    /// （削除された）捨てる。自分の `lastSeenAt` は最初に届いた値だけを NEW の判定に使う
     private func applyMembers(_ value: [Identified<Member>]) {
         members = value
+        if var pending = pendingReady {
+            if let me = value.first(where: { $0.id == userID }), !pending.received(me.ready) {
+                pendingReady = pending
+            } else {
+                pendingReady = nil
+            }
+        }
         if seenBaseline == nil, let me = value.first(where: { $0.id == userID }) {
             seenBaseline = me.lastSeenAt
         }
@@ -323,5 +405,81 @@ final class RoomModel {
     /// 失敗してもトーストは出さない（画面を離れるときの裏の書き込みで、次に開いたときの NEW が多めに出るだけのため）
     func recordSeen() async {
         try? await repository.markSeen(roomID: roomID, userID: userID)
+    }
+}
+
+extension RoomModel {
+    // MARK: - 準備OK
+
+    /// 「準備OK」「準備OKを取り消す」が押された。付ける・外すを送る（`toggleReady()` を `Task` で動かす。いいねと同じく画面が消えても止めない）
+    func readyTapped() {
+        Task {
+            await toggleReady()
+        }
+    }
+
+    /// 自分の準備OKを付ける・外す（楽観的更新）。`open`・`unlocked` 以外・メンバーを読めていない・送っている途中なら何もしない
+    func toggleReady() async {
+        guard pendingReady == nil, showsReadyButton,
+              let me = members.first(where: { $0.id == userID }) else {
+            return
+        }
+        let ready = !me.ready
+        pendingReady = OptimisticWrite(ready)
+        do {
+            try await repository.setReady(ready, roomID: roomID, userID: userID)
+            guard var pending = pendingReady else {
+                return
+            }
+            let current = members.first { $0.id == userID }?.ready
+            pendingReady = pending.sent(current: current) ? nil : pending
+        } catch {
+            pendingReady = nil
+            if !AppError.wrapping(error).isCancellation {
+                toasts.show(Self.readyFailureMessage)
+            }
+        }
+    }
+
+    // MARK: - 強制解禁
+
+    /// 「強制解禁（作成者）」が押された。確認のダイアログを出す（出せないとき・送っている途中なら出さない）
+    func forceUnlockTapped() {
+        guard canForceUnlock, !isForceUnlocking else {
+            return
+        }
+        isConfirmingForceUnlock = true
+    }
+
+    /// 確認のダイアログで「解禁する」が押された。強制解禁を始める（始めた Task が残っている間は受け付けない）。
+    ///
+    /// 画面が消えても止めない（作成者が解禁を決めたので、送ったものは送り切る。失敗のトーストは前の画面に出る）
+    func confirmForceUnlockTapped() {
+        guard forceUnlockTask == nil else {
+            return
+        }
+        forceUnlockTask = Task { [weak self] in
+            await self?.forceUnlock()
+            self?.forceUnlockTask = nil
+        }
+    }
+
+    /// 強制解禁する（`forceUnlock`）。作成者でない・`open` でない・送っている途中なら何もしない。
+    ///
+    /// 成功したら何もしない（購読の `unlocked` と `forcedUnlock` で表示が変わる）。失敗したら `AppError` の文言のトーストを出す
+    func forceUnlock() async {
+        guard canForceUnlock, !isForceUnlocking else {
+            return
+        }
+        isForceUnlocking = true
+        defer { isForceUnlocking = false }
+        do {
+            try await functions.forceUnlock(RoomRequest(roomId: roomID))
+        } catch {
+            let appError = AppError.wrapping(error)
+            if !appError.isCancellation {
+                toasts.show(text: appError.message)
+            }
+        }
     }
 }
