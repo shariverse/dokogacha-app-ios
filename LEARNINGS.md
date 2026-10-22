@@ -15,6 +15,8 @@
 - firebase-ios-sdk 13 の FirebaseMessaging は、登録トークンの API（`token()`・`deleteToken()`・`fcmToken`）を非推奨にして Firebase Installations の ID で登録する方式（`register`）を勧めている（既定は従来のトークン）。05 の §3 の `users.fcmTokens` で送るので従来の API を使い、呼ぶ関数に `@available(*, deprecated)` を付けて警告を止めている（protocol を通して呼ぶので呼ぶ側にも出ない。`FirebasePushTokenProvider`）（2026-10-22）
 - FCM の AppDelegate の差し替え（swizzling）は `Info.plist` の `FirebaseAppDelegateProxyEnabled = NO` で止め、APNs のトークンは `AppDelegate` から `Messaging.apnsToken` に渡している（SwiftUI の `UIApplicationDelegateAdaptor` と `UNUserNotificationCenter.delegate` を自分で持つため）。Simulator のビルドの entitlements は `Dokogacha.app-Simulated.xcent`（`Dokogacha.app.xcent` は空）で確かめる（2026-10-22）
 - Emulator の Auth のユーザー一覧は `POST http://localhost:9099/identitytoolkit.googleapis.com/v1/projects/demo-dokogacha/accounts:query`（ヘッダー `Authorization: Bearer owner`・本文 `{}`）で取れる（2026-10-22）
+- Google Mobile Ads 13 には `currentOrientationAnchoredAdaptiveBanner` が無く、アンカー型アダプティブバナーの大きさは `largeAnchoredAdaptiveBanner(width:)`（高さ 50〜150。iPhone 17 Pro の幅 370 で約 115）で取る。`BannerView` を `UIViewRepresentable` で置くと、SwiftUI は広告の素材の intrinsicContentSize で並べるので、枠からはみ出して下のボタンに重なる。`sizeThatFits(_:uiView:context:)` で提案された大きさを返し、`.clipped()` する（`GoogleBannerAdView`）（2026-10-22）
+- Simulator でも Google のテスト用の広告ユニット ID なら、テスト広告（「Test mode」）が読み込まれる。撮影モードは本物の広告を写さないよう固定の枠（`DGAdPlaceholder`）にしてあるので、見た目を確かめるときは `AdMode.make` の撮影モードの分岐を一時的に外してビルドする（コミットしない）（2026-10-22）
 
 ## テスト
 
