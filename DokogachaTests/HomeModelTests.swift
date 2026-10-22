@@ -145,6 +145,46 @@ struct HomeModelTests {
         #expect(model.membersByRoom.isEmpty)
     }
 
+    /// ルームが一覧から消えたら、そのルームのメンバーの購読を止める（購読の数が減る）
+    @Test
+    func removedRoomStopsItsMemberSubscription() async {
+        let server = InMemoryServer.demo(.severalRooms)
+        let model = Self.makeModel(server)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        // ルーム 1 つ＋メンバー 3 つ
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 && model.membersByRoom.count == 3 })
+
+        server.rooms[DemoScenario.othersRoomID]?.room.status = .closed
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 3 })
+        #expect(model.membersByRoom[DemoScenario.othersRoomID] == nil)
+        // 消えたルームのメンバーが後から変わっても、映さない
+        server.rooms[DemoScenario.othersRoomID]?.members["demo-mio"]?.ready = true
+        #expect(model.membersByRoom[DemoScenario.othersRoomID] == nil)
+    }
+
+    /// 画面を素早く出し直した（前の `observe()` の後片付けが、次の `observe()` が始まった後に走る）ときも、
+    /// 次の `observe()` が始めたメンバーの購読は止めない
+    @Test
+    func restartingObserveKeepsNewMemberSubscriptions() async {
+        let server = InMemoryServer.demo(.severalRooms)
+        let model = Self.makeModel(server)
+        let first = Task { await model.observe() }
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 })
+
+        first.cancel()
+        let second = Task { await model.observe() }
+        defer { second.cancel() }
+        await first.value
+        // 前の分（4）が外れ、次の分（ルーム 1 つ＋メンバー 3 つ）だけが残る
+        #expect(await AsyncTestSupport.eventually { server.subscriberCount == 4 })
+
+        server.rooms[DemoScenario.roomID]?.members["demo-sota"]?.ready = true
+        #expect(await AsyncTestSupport.eventually {
+            model.membersByRoom[DemoScenario.roomID]?.first { $0.id == "demo-sota" }?.ready == true
+        })
+    }
+
     /// 一覧を出した後に購読が一時的に失敗しても、一覧は残したままトーストを出し、購読し直す
     @Test
     func failureAfterLoadKeepsRoomsShowsToastAndResubscribes() async {
@@ -266,5 +306,10 @@ struct AppRouteTests {
         #expect(AppRoute.room(id: "r1").presentation == .push)
         #expect(AppRoute.settings.presentation == .push)
         #expect(AppRoute.joinByCode.presentation == .sheet)
+        #expect(AppRoute.addCandidate(roomID: "r1").presentation == .push)
+        #expect(AppRoute.candidateDetail(roomID: "r1", candidateID: "c1").presentation == .sheet)
+        #expect(AppRoute.members(roomID: "r1").presentation == .sheet)
+        #expect(AppRoute.roomSettings(roomID: "r1").presentation == .sheet)
+        #expect(AppRoute.gacha(roomID: "r1").presentation == .fullScreenCover)
     }
 }

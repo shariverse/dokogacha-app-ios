@@ -5,9 +5,10 @@
 
 import Foundation
 
-/// ホームから開く画面の行き先（03 の §2 の画面遷移）。
+/// ホーム・ルームから開く画面の行き先（03 の §2 の画面遷移）。
 ///
-/// `NavigationStack` の行き先（`navigationDestination(for:)`）と、シートの行き先（`sheet(item:)`）を 1 つの enum にまとめ、
+/// `NavigationStack` の行き先（`navigationDestination(for:)`）と、シート（`sheet(item:)`）・フルスクリーンカバー
+/// （`fullScreenCover(item:)`）の行き先を 1 つの enum にまとめ、
 /// どちらで出すかは `presentation` で決める（03 の §1 の「表示形式」）。
 /// まだ作っていない画面は仮の画面（`PendingScreenView`）を出し、後のタスクで `MainNavigationView` の行き先を差し替える。
 nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
@@ -21,6 +22,16 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
     case room(id: String)
     /// S-15 設定（プッシュ。タスク 16）
     case settings
+    /// S-08 候補を追加（ルームから。プッシュ。タスク 20）
+    case addCandidate(roomID: String)
+    /// S-10 候補の詳細（ルームの候補から。シート。タスク 21）
+    case candidateDetail(roomID: String, candidateID: String)
+    /// S-11 メンバー一覧（ルームのアバターから。シート。タスク 25）
+    case members(roomID: String)
+    /// S-12 ルーム設定（ルームのヘッダーの設定から。作成者だけ。シート。タスク 25）
+    case roomSettings(roomID: String)
+    /// S-13 ガチャ（ルームの「ガチャを回す」から。フルスクリーンカバー。タスク 27）
+    case gacha(roomID: String)
 
     /// 出し方
     enum Presentation: Equatable, Sendable {
@@ -28,15 +39,19 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
         case push
         /// シートで出す
         case sheet
+        /// フルスクリーンカバーで出す
+        case fullScreenCover
     }
 
     /// 出し方（03 の §1 の表のとおり）
     var presentation: Presentation {
         switch self {
-        case .createRoom, .invite, .room, .settings:
+        case .createRoom, .invite, .room, .settings, .addCandidate:
             .push
-        case .joinByCode:
+        case .joinByCode, .candidateDetail, .members, .roomSettings:
             .sheet
+        case .gacha:
+            .fullScreenCover
         }
     }
 

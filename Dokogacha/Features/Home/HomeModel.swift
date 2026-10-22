@@ -12,6 +12,10 @@ import Observation
 /// `memberIds array-contains uid` で購読」）、カードのアバターと準備OKのために、並んでいるルームごとに `members` も購読する。
 /// 画面（`HomeView`）は `.task` で `observe()` を呼び、画面が消えると cancel してすべての購読を止める。
 ///
+/// メンバーの購読の `Task` は、それを始めた `observe()` の呼び出しが自分の局所の変数で持ち、終わるときに自分の分だけ止める。
+/// Model のプロパティで持つと、画面を素早く出し直したとき（push と pop の繰り返し）に、前の `observe()` の後片付けが
+/// 新しい `observe()` の始めた購読まで止めてしまうため。`Task` は self を弱く持ち、値を映すときだけ self を使う。
+///
 /// 通信エラーでは画面を壊さない:
 /// - ルームの購読が失敗したら、トースト（続けて失敗しても 1 回だけ）を出し、出していた一覧（まだ無ければ読み込み中の形）のまま、
 ///   少し待って購読し直す
@@ -40,8 +44,6 @@ final class HomeModel {
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
-    /// ルームごとのメンバーの購読（並んでいるルームの分だけ持つ）
-    @ObservationIgnored private var memberTasks: [String: Task<Void, Never>] = [:]
 
     /// - Parameters:
     ///   - userID: 自分の uid
@@ -60,12 +62,6 @@ final class HomeModel {
         self.resubscribeDelay = resubscribeDelay
     }
 
-    deinit {
-        for task in memberTasks.values {
-            task.cancel()
-        }
-    }
-
     /// 進行中のルームのカード（作成日時の新しい順）
     var cards: [HomeRoomCard] {
         HomeRoomCard.cards(rooms: rooms, members: membersByRoom)
@@ -76,14 +72,24 @@ final class HomeModel {
         roomsState == .loaded && cards.isEmpty
     }
 
-    /// 進行中のルームを購読し、呼んだ `Task` が cancel されるまで続ける（cancel されたらメンバーの購読も止める）
+    /// 進行中のルームを購読し、呼んだ `Task` が cancel されるまで続ける（cancel されたら、この呼び出しが始めたメンバーの購読も止める）
     func observe() async {
+        var memberTasks: [String: Task<Void, Never>] = [:]
+        defer {
+            for task in memberTasks.values {
+                task.cancel()
+            }
+        }
         var didShowFailure = false
         while !Task.isCancelled {
             for await update in repository.activeRooms(userID: userID) {
+                // 画面が消えた後に流れ残りの値で戻さない
+                guard !Task.isCancelled else {
+                    break
+                }
                 switch update {
                 case let .value(value):
-                    apply(value)
+                    apply(value, memberTasks: &memberTasks)
                     didShowFailure = false
                 case let .failure(error):
                     guard !error.isCancellation, !didShowFailure else {
@@ -97,11 +103,13 @@ final class HomeModel {
                 break
             }
         }
-        stopAllMemberSubscriptions()
     }
 
     /// 届いたルームの一覧を映し、メンバーの購読を一覧に合わせる（増えたルームは購読を始め、消えたルームは止めて捨てる）
-    private func apply(_ value: [Identified<Room>]) {
+    /// - Parameters:
+    ///   - value: 届いた進行中のルーム
+    ///   - memberTasks: この `observe()` が持つメンバーの購読（ルームの ID ごと）
+    private func apply(_ value: [Identified<Room>], memberTasks: inout [String: Task<Void, Never>]) {
         rooms = value
         roomsState = .loaded
         let roomIDs = Set(value.map(\.id))
@@ -111,32 +119,46 @@ final class HomeModel {
             membersByRoom[roomID] = nil
         }
         for roomID in roomIDs where memberTasks[roomID] == nil {
-            memberTasks[roomID] = Task { [weak self] in
-                await self?.followMembers(of: roomID)
+            memberTasks[roomID] = Self.followMembers(
+                of: roomID,
+                repository: repository,
+                resubscribeDelay: resubscribeDelay
+            ) { [weak self] members in
+                self?.membersByRoom[roomID] = members
             }
         }
     }
 
-    /// ルームのメンバーを購読し続ける。失敗で終わったら、少し待って購読し直す（トーストは出さない）
-    private func followMembers(of roomID: String) async {
-        while !Task.isCancelled {
-            for await update in repository.members(roomID: roomID) {
-                // 一覧から消えて止めた後に、流れ残りの値で戻さない
-                if let members = update.value, !Task.isCancelled {
-                    membersByRoom[roomID] = members
+    /// ルームのメンバーを購読し続ける `Task` を始める。失敗で終わったら、少し待って購読し直す（トーストは出さない）。
+    ///
+    /// `Task` には self を渡さず、値が届いたときに `onValue`（self を弱く持つ）で映す。
+    /// `self?.method()` の形で await すると、待っている間ずっと self を強く持ち、`[weak self]` が効かないため
+    /// - Parameters:
+    ///   - roomID: ルームの ID
+    ///   - repository: 購読の窓口
+    ///   - resubscribeDelay: 購読し直すまでの待ち方
+    ///   - onValue: メンバーが届いたときの処理
+    private static func followMembers(
+        of roomID: String,
+        repository: any RoomRepository,
+        resubscribeDelay: ResubscribeDelay,
+        onValue: @escaping ([Identified<Member>]) -> Void
+    ) -> Task<Void, Never> {
+        Task {
+            while !Task.isCancelled {
+                for await update in repository.members(roomID: roomID) {
+                    // 一覧から消えて止めた後に、流れ残りの値で戻さない
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                    if let members = update.value {
+                        onValue(members)
+                    }
+                }
+                guard await resubscribeDelay.wait() else {
+                    return
                 }
             }
-            guard await resubscribeDelay.wait() else {
-                return
-            }
         }
-    }
-
-    /// メンバーの購読をすべて止める
-    private func stopAllMemberSubscriptions() {
-        for task in memberTasks.values {
-            task.cancel()
-        }
-        memberTasks = [:]
     }
 }

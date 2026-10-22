@@ -22,6 +22,7 @@ enum ScreenshotDemo {
         case createRoom
         case invite
         case settings
+        case room
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
@@ -143,6 +144,38 @@ extension ScreenshotDemo {
         var body: some View {
             NavigationStack {
                 SettingsView(model: model, toasts: toasts)
+            }
+            .dgToast(toasts)
+        }
+    }
+
+    /// S-07 ルームを、デモのルーム（`DemoScenario.roomID`）で開く（ホームから進まずに、ルームを `NavigationStack` に入れて出す）。
+    ///
+    /// データは `-demo-scenario` で選ぶ（候補あり: `room-with-candidates`、空: `one-room`）。
+    /// 起動引数 `-screenshot-like <候補の ID>` を付けると、その候補に自分がいいねした状態で開く（いいねした後を撮るため）
+    struct RoomScene: View {
+        /// いいねしておく候補の起動引数
+        static let likeArgument = "-screenshot-like"
+
+        @State private var toasts: DGToastCenter
+        private let model: RoomModel
+
+        /// - Parameter services: データ層の窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
+        init(services: DataServices) {
+            let toasts = DGToastCenter()
+            let userID = services.auth.currentUserID ?? DemoScenario.myUserID
+            if let server = services.inMemoryServer, let candidateID = ScreenshotDemo.value(after: Self.likeArgument) {
+                server.applyDirectWrite {
+                    try server.writeLike(true, candidateID: candidateID, roomID: DemoScenario.roomID, userID: userID, by: userID)
+                }
+            }
+            model = RoomModel(roomID: DemoScenario.roomID, userID: userID, repository: services.rooms, toasts: toasts)
+            _toasts = State(initialValue: toasts)
+        }
+
+        var body: some View {
+            NavigationStack {
+                RoomView(model: model) { _ in }
             }
             .dgToast(toasts)
         }

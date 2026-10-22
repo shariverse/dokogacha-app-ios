@@ -75,6 +75,13 @@ nonisolated enum DGMotion {
     static let toastVisibleFor: Double = 2.2
     /// ボタンを押したときの縮みと影の変化（04 の §4 の Button「0.1秒」。tokens.json には無い）
     static let press = DGMotionSpec(duration: 0.1, curve: .easeOut)
+    /// いいねのハートを弾ませる時間（04 の §5 の「いいね」の「0.25秒（spring）」。tokens.json には無い）。
+    ///
+    /// 大きくして戻すまでの合計の時間。曲線はばねで、`DGLikeButton` が `SpringKeyframe` を半分ずつに分けて使う
+    /// （`DGMotionCurve` はばねを持たないので `curve` は nil）
+    static let like = DGMotionSpec(duration: 0.25, curve: nil)
+    /// いいねのハートをいちばん大きくしたときの倍率（04 の §5 の「いいね」の「1.0→1.25→1.0」）
+    static let likeScale: CGFloat = 1.25
 
     /// きっぷが出てくるばね（04 の §5 の `pop` の「SwiftUI では」の値）。
     ///

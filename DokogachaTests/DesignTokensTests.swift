@@ -350,6 +350,15 @@ struct DesignTokensTests {
         #expect(try Self.number("motion.toast.visibleFor", in: root) == DGMotion.toastVisibleFor)
     }
 
+    /// tokens.json に無い、04 の §5 の「いいね」（ハートを 1.0→1.25→1.0 に 0.25 秒のばねで弾ませる）の値
+    @Test
+    func likeMotionMatchesDesignSystem() {
+        #expect(DGMotion.like.duration == 0.25)
+        #expect(DGMotion.like.delay == 0)
+        #expect(DGMotion.like.repeatCount == nil)
+        #expect(DGMotion.likeScale == 1.25)
+    }
+
     /// tokens.json の `curve`（名前か、制御点 4 つの配列）を `DGMotionCurve` にする
     static func curve(_ raw: Any?) -> DGMotionCurve? {
         if let name = raw as? String {
