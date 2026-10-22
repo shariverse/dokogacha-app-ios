@@ -58,9 +58,16 @@ final class DeepLinkRouter {
         return pendingInviteCode
     }
 
-    /// 開かれた通知の行き先を覚える（前に覚えていた行き先は新しいもので置き換える）
+    /// 開かれた通知の行き先を覚える（前に覚えていた行き先は新しいもので置き換える）。
+    ///
+    /// 前回のメンバーへの招待（`target` が `join`）は、招待リンクで開かれたときと同じく招待コードを覚える
+    /// （S-05・S-06 をそのコードで開く。表示名を登録する前に開かれたときも、登録した後に開く）
     /// - Parameter destination: 通知の行き先
     func handle(_ destination: PushDestination) {
+        if destination.target == .join, let code = destination.inviteCode {
+            pendingInviteCode = code
+            return
+        }
         pendingNotification = destination
     }
 
