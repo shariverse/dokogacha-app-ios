@@ -13,12 +13,8 @@ import SwiftUI
 /// ルームを作ったら、S-03 を積みから外して作ったルーム（S-07）とその上に S-04 を積む（`AppRoute.pathAfterCreating`）。
 /// S-04 から戻る・「ルームへ進む」と S-07 に出て、S-07 から戻るとホームに戻る（03 の §1「S-04 招待：プッシュ（戻るとルーム）」）。
 struct MainNavigationView: View {
-    /// 積んでいる行き先
-    @State private var path: [AppRoute] = []
-    /// シートで出している行き先
-    @State private var sheet: AppRoute?
-    /// フルスクリーンカバーで出している行き先
-    @State private var fullScreen: AppRoute?
+    /// 出している行き先（積み・シート・フルスクリーンカバー）
+    @State private var presentation = AppPresentation()
     @State private var homeModel: HomeModel
     /// 自分の uid
     private let userID: String
@@ -39,7 +35,7 @@ struct MainNavigationView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $presentation.path) {
             HomeView(model: homeModel) { route in
                 open(route)
             }
@@ -49,24 +45,22 @@ struct MainNavigationView: View {
                 destination(route)
             }
         }
-        .sheet(item: $sheet) { route in
-            destination(route)
-        }
-        .fullScreenCover(item: $fullScreen) { route in
+        // シートを閉じ終えたら、その間に開こうとしたカバーを出す（`AppPresentation`）
+        .sheet(
+            item: $presentation.sheet,
+            onDismiss: { presentation.sheetDismissed() },
+            content: { route in
+                destination(route)
+            }
+        )
+        .fullScreenCover(item: $presentation.fullScreen) { route in
             destination(route)
         }
     }
 
-    /// 行き先を開く（積む・シート・フルスクリーンカバーで出す）
+    /// 行き先を開く（積む・シート・フルスクリーンカバーで出す。シートが出ていればシートを閉じてからカバーを出す）
     private func open(_ route: AppRoute) {
-        switch route.presentation {
-        case .push:
-            path.append(route)
-        case .sheet:
-            sheet = route
-        case .fullScreenCover:
-            fullScreen = route
-        }
+        presentation.open(route)
     }
 
     /// 行き先の画面（後のタスクで本物の画面に差し替える）
@@ -74,17 +68,17 @@ struct MainNavigationView: View {
         switch route {
         case .createRoom:
             CreateRoomView(model: CreateRoomModel(functions: services.functions, toasts: toasts)) { created in
-                path = AppRoute.pathAfterCreating(created, from: path)
+                presentation.path = AppRoute.pathAfterCreating(created, from: presentation.path)
             }
         case let .invite(created):
             InviteView(model: InviteModel(destination: created, toasts: toasts)) {
-                path = AppRoute.pathOpeningRoom(from: path)
+                presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
             }
         case .joinByCode:
             // 参加したら（もとからメンバーなら）シートを閉じて、そのルームを開く（03 の §2「S-06 → 参加する → S-07」）
             JoinRoomFlowView(functions: services.functions) { roomID in
-                sheet = nil
-                path.append(.room(id: roomID))
+                presentation.sheet = nil
+                presentation.path.append(.room(id: roomID))
             }
         case let .room(roomID):
             let model = RoomModel(
@@ -133,8 +127,8 @@ struct MainNavigationView: View {
             toasts: sheetToasts
         )
         return MembersView(model: model, toasts: sheetToasts) {
-            sheet = nil
-            path = []
+            presentation.sheet = nil
+            presentation.path = []
             toasts.show("ルームから退出しました")
         }
     }
@@ -150,7 +144,7 @@ struct MainNavigationView: View {
             toasts: sheetToasts
         )
         return RoomSettingsView(model: model, toasts: sheetToasts) {
-            sheet = nil
+            presentation.sheet = nil
             toasts.show("設定を保存しました")
         }
     }
@@ -170,7 +164,7 @@ struct MainNavigationView: View {
             seenDraws: services.seenDraws
         )
         return GachaView(model: model, toasts: coverToasts, forcesReducedMotion: LaunchContext.current.isUITesting) { _ in
-            fullScreen = nil
+            presentation.fullScreen = nil
         }
     }
 
