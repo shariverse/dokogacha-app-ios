@@ -34,10 +34,11 @@ final class RerollUITests: XCTestCase {
         XCTAssertTrue(propose.isEnabled)
         propose.tap()
 
-        let status = app.buttons[UITestID.resultRerollStatus]
+        // 状態の表示は押せないボタンではなく文として読む（PR #76 の持ち越し）
+        let status = app.staticTexts[UITestID.resultRerollStatus]
         XCTAssertTrue(status.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(status.label, "賛成を集めています…（1/3人）")
-        XCTAssertFalse(status.isEnabled)
+        XCTAssertFalse(app.buttons[UITestID.resultRerollStatus].exists)
         XCTAssertTrue(propose.waitForNonExistence(timeout: UITestID.timeout))
         let approve = app.buttons[UITestID.resultRerollApprove]
         let reject = app.buttons[UITestID.resultRerollReject]
