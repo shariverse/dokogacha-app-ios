@@ -197,4 +197,23 @@ struct InMemoryServerDrawTests {
         }
         #expect(server.rooms[emptyRoom]?.room.status == .unlocked)
     }
+
+    /// 抽選の記録はメンバーだけが読める（ルールの `draws/{drawId}`）。無い記録は nil
+    @Test
+    func drawRecordIsReadableOnlyByMembers() async throws {
+        let server = Self.makeServer()
+        let (roomID, candidates) = try await Self.makeRoom(server)
+        let response = try await server.device(of: "carol").drawGacha(RoomRequest(roomId: roomID))
+
+        var iterator = server.draw(roomID: roomID, drawID: response.drawId).makeAsyncIterator()
+        let draw = try #require(await iterator.next()?.value)
+        #expect(draw?.drawnByName == "carol")
+        #expect(draw?.candidateId == candidates[0])
+        var missing = server.draw(roomID: roomID, drawID: "missing").makeAsyncIterator()
+        #expect(await missing.next() == .value(nil))
+
+        server.signedInUserID = "mallory"
+        var denied = server.draw(roomID: roomID, drawID: response.drawId).makeAsyncIterator()
+        #expect(await denied.next() == .failure(InMemoryServer.permissionDenied))
+    }
 }

@@ -69,6 +69,10 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
         failedStream()
     }
 
+    func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>> {
+        failedStream()
+    }
+
     func setReady(_ ready: Bool, roomID: String, userID: String) async throws {
         throw error
     }

@@ -96,6 +96,8 @@ struct DGGachaMachine: View {
     let dispensedColor: Color?
     /// レバーを回せるか（回転中・取り出し中・候補が 0 件のときは `false`）
     let isLeverEnabled: Bool
+    /// 取り出し口のカプセルを押せるか（落ちている途中・開いている途中は `false`。演出の途中で二度開けないため）
+    let isCapsuleEnabled: Bool
     /// 動かす値
     let pose: Pose
     /// レバーを押したときの処理
@@ -107,6 +109,7 @@ struct DGGachaMachine: View {
     ///   - capsuleColors: ドームに入れるカプセルの色（50 個を超えた分は描かない）
     ///   - dispensedColor: 取り出し口に出ている当選のカプセルの色。出ていなければ `nil`
     ///   - isLeverEnabled: レバーを回せるか
+    ///   - isCapsuleEnabled: 取り出し口のカプセルを押せるか
     ///   - pose: 動かす値。静止状態は `.rest`
     ///   - onTurnLever: レバーを押したときの処理
     ///   - onOpenCapsule: 取り出し口のカプセルを押したときの処理
@@ -114,6 +117,7 @@ struct DGGachaMachine: View {
         capsuleColors: [Color],
         dispensedColor: Color? = nil,
         isLeverEnabled: Bool = true,
+        isCapsuleEnabled: Bool = true,
         pose: Pose = .rest,
         onTurnLever: @escaping () -> Void,
         onOpenCapsule: @escaping () -> Void = {}
@@ -121,6 +125,7 @@ struct DGGachaMachine: View {
         self.capsuleColors = capsuleColors
         self.dispensedColor = dispensedColor
         self.isLeverEnabled = isLeverEnabled
+        self.isCapsuleEnabled = isCapsuleEnabled
         self.pose = pose
         self.onTurnLever = onTurnLever
         self.onOpenCapsule = onOpenCapsule
@@ -234,7 +239,7 @@ struct DGGachaMachine: View {
         .accessibilityLabel(Text("レバーを回す"))
     }
 
-    /// 墨色の取り出し口と、出ている当選のカプセル（押すと開ける）
+    /// 墨色の取り出し口と、出ている当選のカプセル（`isCapsuleEnabled` のときだけ押せて、押すと開ける）
     private var outlet: some View {
         RoundedRectangle(cornerRadius: DGRadius.md)
             .fill(Color.dgInk)
@@ -247,6 +252,9 @@ struct DGGachaMachine: View {
                             .contentShape(Circle())
                     }
                     .buttonStyle(.dgBare)
+                    .disabled(!isCapsuleEnabled)
+                    // 押せない間は、拡大縮小の途中の形でもタップを受けない
+                    .allowsHitTesting(isCapsuleEnabled)
                     .scaleEffect(pose.dispensedScale)
                     .opacity(pose.dispensedOpacity)
                     .offset(y: pose.dispensedOffsetY)

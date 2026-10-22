@@ -1,0 +1,107 @@
+//
+//  ScreenshotDemo+Gacha.swift
+//  Dokogacha
+//
+
+import SwiftUI
+
+extension ScreenshotDemo {
+    /// S-13 ガチャを、`several-rooms` の解禁済みのルーム（週末のランチ）で開く（ルームから進まずに、S-13 だけを出す）。
+    ///
+    /// 起動引数 `-screenshot-gacha <状態>` で撮る状態を選ぶ（既定は `ready`）:
+    /// - `ready`: 回す前
+    /// - `dispensed`: 自分が回し終え、取り出し口にカプセルがある（見終えた抽選として開く）
+    /// - `others`: 開いて少し後にはるかが回し、「はるかさんが回しました！」の回転中のまま止める（静止画を撮るため）
+    /// - `others-live`: 開いて少し後にはるかが回し、そのまま演出を再生する（動画を撮るため）
+    /// - `play`: 開いて少し後に自分がレバーを回し、カプセルが出たら少し後に開ける（動画を撮るため）
+    ///
+    /// 開け終えても画面は閉じない（撮影モードには戻る先が無いため）
+    struct GachaScene: View {
+        /// 撮る状態の起動引数
+        static let modeArgument = "-screenshot-gacha"
+        /// 開いてから操作するまでの間（動画で操作の前の状態が分かるように）
+        static let actionDelay: Duration = .seconds(1.5)
+        /// 回すほかの人（はるか）
+        static let otherDrawer = "demo-haruka"
+
+        @State private var toasts: DGToastCenter
+        @State private var model: GachaModel
+        private let mode: ScreenshotGachaMode
+        private let server: InMemoryServer?
+
+        /// - Parameter services: データ層の窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
+        init(services: DataServices) {
+            let mode = ScreenshotDemo.value(after: Self.modeArgument).flatMap(ScreenshotGachaMode.init(rawValue:)) ?? .ready
+            let userID = services.auth.currentUserID ?? DemoScenario.myUserID
+            let roomID = DemoScenario.unlockedRoomID
+            let seenDraws = InMemorySeenDrawStore()
+            if mode == .dispensed, let server = services.inMemoryServer,
+               let response = try? server.drawGacha(RoomRequest(roomId: roomID), by: userID) {
+                seenDraws.markSeen(drawID: response.drawId)
+            }
+            let toasts = DGToastCenter()
+            // 静止画の `others` は、回転中のまま進めない
+            let sleep: GachaModel.Sleep
+            if mode == .others {
+                sleep = { @Sendable _ in try await Task.sleep(for: .seconds(3_600)) }
+            } else {
+                sleep = { @Sendable duration in try await Task.sleep(for: duration) }
+            }
+            _model = State(initialValue: GachaModel(
+                roomID: roomID,
+                userID: userID,
+                repository: services.rooms,
+                functions: services.functions,
+                toasts: toasts,
+                seenDraws: seenDraws,
+                sleep: sleep
+            ))
+            _toasts = State(initialValue: toasts)
+            self.mode = mode
+            server = services.inMemoryServer
+        }
+
+        var body: some View {
+            GachaView(model: model, toasts: toasts) { _ in }
+                .task {
+                    await act()
+                }
+                .onChange(of: model.phase) { _, phase in
+                    guard mode == .play, phase == .dispensed else {
+                        return
+                    }
+                    Task {
+                        try? await Task.sleep(for: Self.actionDelay)
+                        model.capsuleTapped()
+                    }
+                }
+        }
+
+        /// 状態に合わせて、少し待ってから回す
+        private func act() async {
+            guard mode == .others || mode == .othersLive || mode == .play else {
+                return
+            }
+            try? await Task.sleep(for: Self.actionDelay)
+            if mode == .play {
+                model.leverTapped()
+            } else {
+                _ = try? server?.drawGacha(RoomRequest(roomId: DemoScenario.unlockedRoomID), by: Self.otherDrawer)
+            }
+        }
+    }
+}
+
+/// S-13 の撮影モードで撮る状態（`-screenshot-gacha <rawValue>`。`ScreenshotDemo.GachaScene` の説明を参照）
+enum ScreenshotGachaMode: String {
+    /// 回す前
+    case ready
+    /// 取り出し口にカプセルがある
+    case dispensed
+    /// ほかの人が回した回転中のまま止める
+    case others
+    /// ほかの人が回した演出を再生する
+    case othersLive = "others-live"
+    /// 自分が回して開けるまで再生する
+    case play
+}

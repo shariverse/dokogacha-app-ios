@@ -172,6 +172,31 @@ struct FirestoreRoomRepositoryTests {
         #expect(room.status == .unlocked)
     }
 
+    /// 抽選の記録は `rooms/{roomId}/draws/{drawId}` を購読し、backend が書く形（日時は `Timestamp`・重みは map）を読む
+    @Test
+    func drawStreamReadsRecord() async throws {
+        let gateway = FakeGateway()
+        var iterator = FirestoreRoomRepository(gateway: gateway).draw(roomID: "r1", drawID: "d1").makeAsyncIterator()
+        let path = "rooms/r1/draws/d1"
+        #expect(gateway.documentHandlers[path] != nil)
+        let data: [String: Any] = [
+            "candidateId": "c1", "probability": 0.5, "weights": ["c1": 2.0, "c2": 2.0], "drawnBy": "u1",
+            "drawnByName": "はるか", "isReroll": false, "createdAt": Timestamp(date: Self.createdAt)
+        ]
+        gateway.sendDocument(FirestoreDocument(id: "d1", data: data), path: path)
+        #expect(await iterator.next() == .value(Draw(
+            candidateId: "c1",
+            probability: 0.5,
+            weights: ["c1": 2, "c2": 2],
+            drawnBy: "u1",
+            drawnByName: "はるか",
+            isReroll: false,
+            createdAt: Self.createdAt
+        )))
+        gateway.sendDocument(nil, path: path)
+        #expect(await iterator.next() == .value(nil))
+    }
+
     /// リスナーが失敗したら（メンバーから外されて読めなくなったなど）、失敗を流して終わる
     @Test
     func listenerFailureFinishesStream() async throws {

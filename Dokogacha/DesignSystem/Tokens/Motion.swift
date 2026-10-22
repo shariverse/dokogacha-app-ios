@@ -31,18 +31,29 @@ nonisolated struct DGMotionSpec: Sendable, Equatable {
     let curve: DGMotionCurve?
     /// 始めるまでの遅れ（秒）
     var delay: Double = 0
-    /// 繰り返す回数。`nil` なら 1 回だけ
+    /// 繰り返す回数。`nil` なら 1 回だけ（`repeatsForever` のときは使わない）
     var repeatCount: Int?
+    /// 止めるまで繰り返すか（`pulse`。tokens.json では `period` で周期だけを書いたもの）。
+    ///
+    /// 止めるのは呼び出し側（`keyframeAnimator(initialValue:repeating:)` の `repeating` を false にする・ビューを外す）。
+    /// 「視差効果を減らす」がオンのときは繰り返さない（04 の §5「すべて即時切り替え」）
+    var repeatsForever = false
 
-    /// この値の SwiftUI のアニメーション（遅れ・繰り返しを含む。繰り返しは行って戻る）
+    /// この値の SwiftUI のアニメーション（遅れ・繰り返しを含む）。
+    ///
+    /// - `repeatCount` があれば、その回数だけ行って戻る
+    /// - `repeatsForever` なら、`duration` を 1 周期（行って戻るまで）とし、片道を半分の時間にして止めるまで行って戻る
     var animation: Animation {
+        let oneWay = repeatsForever ? duration / 2 : duration
         var animation: Animation = switch curve {
-        case .easeIn: .easeIn(duration: duration)
-        case .easeOut: .easeOut(duration: duration)
-        case .easeInOut, nil: .easeInOut(duration: duration)
-        case let .bezier(x1, y1, x2, y2): .timingCurve(x1, y1, x2, y2, duration: duration)
+        case .easeIn: .easeIn(duration: oneWay)
+        case .easeOut: .easeOut(duration: oneWay)
+        case .easeInOut, nil: .easeInOut(duration: oneWay)
+        case let .bezier(x1, y1, x2, y2): .timingCurve(x1, y1, x2, y2, duration: oneWay)
         }
-        if let repeatCount {
+        if repeatsForever {
+            animation = animation.repeatForever(autoreverses: true)
+        } else if let repeatCount {
             animation = animation.repeatCount(repeatCount, autoreverses: true)
         }
         return animation.delay(delay)
@@ -53,14 +64,17 @@ nonisolated struct DGMotionSpec: Sendable, Equatable {
 ///
 /// 動きの中身（揺れの角度・落ちる距離など）は部品の側で持ち、ここは時間と曲線だけを持つ。
 nonisolated enum DGMotion {
-    /// ドームの揺れ（`motion.shake`。0.4 秒 × 4 回）
+    /// ドームの揺れ（`motion.shake`。0.4 秒 × 4 回）。
+    ///
+    /// 1 回は 0 → −4° → 4° → −3° → 3° → 0（プロトタイプの `dgShake`）で、行って戻るだけの `repeatCount(autoreverses:)` では作れない。
+    /// 画面の側で `keyframeAnimator` に `duration` と `repeatCount` を渡して作る（S-13）
     static let shake = DGMotionSpec(duration: 0.4, curve: .easeInOut, repeatCount: 4)
     /// レバーのバーの回転（`motion.turn`）
     static let turn = DGMotionSpec(duration: 1.6, curve: .bezier(0.4, 0, 0.2, 1))
     /// 出てくるカプセルの落下（`motion.drop`）
     static let drop = DGMotionSpec(duration: 0.7, curve: .easeOut)
     /// 出てきたカプセルの拡大縮小（`motion.pulse`。1.2 秒周期、0.8 秒後から。止めるまで繰り返す）
-    static let pulse = DGMotionSpec(duration: 1.2, curve: nil, delay: 0.8)
+    static let pulse = DGMotionSpec(duration: 1.2, curve: nil, delay: 0.8, repeatsForever: true)
     /// カプセルが開いて消える（`motion.open`）
     static let open = DGMotionSpec(duration: 0.5, curve: .easeIn)
     /// きっぷが出てくる（`motion.pop`）。SwiftUI では `popSpring` を使う

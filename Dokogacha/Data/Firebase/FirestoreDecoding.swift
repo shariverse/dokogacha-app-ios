@@ -56,6 +56,11 @@ enum FirestoreDecoding {
         try decode(Candidate.self, document, fallbacks: [categoryFallback])
     }
 
+    /// `rooms/{roomId}/draws/{drawId}` を読む（ID は呼び出し側が知っているので、中身だけを返す）
+    static func draw(_ document: FirestoreDocument) throws -> Draw {
+        try decode(Draw.self, document).value
+    }
+
     /// `users/{uid}` を読む
     static func userProfile(_ document: FirestoreDocument) throws -> UserProfile {
         try decode(UserProfile.self, document).value

@@ -30,6 +30,7 @@ import Observation
 /// 強制解禁（F-32）は作成者だけ・`open` のときだけ出し、確認のダイアログ（02 の §5.3）を挟んで Callable の `forceUnlock` を呼ぶ。
 /// 送っている途中は二重に送らず、画面の戻る操作を止める。失敗したら `AppError` の文言のトーストを出す。成功したら購読の
 /// `unlocked` で全員の画面が「ガチャ解禁！」になる（自分の画面も購読の値で変わる）。
+/// ほかの人がガチャを回した（F-41）ら、`DrawReplay` で決めた抽選を `drawToReplay` に入れ、画面が S-13 を開く。
 ///
 /// `lastSeenAt`（F-12 の NEW）は 02 の §3.3「ルーム画面を離れたときに更新する」のとおり、画面が消えたとき・アプリが裏に回ったときに書く。
 /// NEW の判定には、画面を開いて最初に届いた自分の `lastSeenAt` を使い続ける（画面を出している間は NEW を消さない）。
@@ -89,6 +90,8 @@ final class RoomModel {
     var isConfirmingForceUnlock = false
     /// 強制解禁を送っている途中か（二重に送らない・画面を閉じさせない）
     private(set) var isForceUnlocking = false
+    /// ほかの人が回したので、ガチャ（S-13）を開いて演出を再生する抽選の ID（開いたら `replayOpened()` で消す）
+    private(set) var drawToReplay: String?
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let functions: any FunctionsClient
@@ -96,6 +99,8 @@ final class RoomModel {
     @ObservationIgnored private var forceUnlockTask: Task<Void, Never>?
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
+    /// ガチャの演出を見終えた抽選
+    @ObservationIgnored private let seenDraws: any SeenDrawStore
     /// いま失敗している購読
     @ObservationIgnored private var failingSources: Set<Source> = []
 
@@ -106,13 +111,15 @@ final class RoomModel {
     ///   - functions: `forceUnlock` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 通信エラーを出すトーストの窓口
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
+    ///   - seenDraws: ガチャの演出を見終えた抽選（ほかの人が回したときに S-13 を開くかを決める）
     init(
         roomID: String,
         userID: String,
         repository: any RoomRepository,
         functions: any FunctionsClient,
         toasts: DGToastCenter,
-        resubscribeDelay: ResubscribeDelay = .standard
+        resubscribeDelay: ResubscribeDelay = .standard,
+        seenDraws: any SeenDrawStore = InMemorySeenDrawStore()
     ) {
         self.roomID = roomID
         self.userID = userID
@@ -120,123 +127,7 @@ final class RoomModel {
         self.functions = functions
         self.toasts = toasts
         self.resubscribeDelay = resubscribeDelay
-    }
-
-    // MARK: - 表示の値
-
-    /// 候補一覧の行（新しい順。送っている途中のいいねを映したもの）
-    var rows: [RoomCandidateRow] {
-        guard let room else {
-            return []
-        }
-        return RoomCandidateRow.rows(
-            candidates: candidates,
-            members: members,
-            room: room,
-            myUserID: userID,
-            lastSeenAt: seenBaseline,
-            pendingLikes: pendingLikes.mapValues(\.value)
-        )
-    }
-
-    /// NEW の候補の数（「前回見たあとに N件の候補が増えました」の N）
-    var newCount: Int {
-        rows.count(where: \.isNew)
-    }
-
-    /// 候補が 1 件も無いと分かったか（空の表示を出す）
-    var isEmpty: Bool {
-        hasLoadedCandidates && candidates.isEmpty
-    }
-
-    /// 行き先表示の「カプセル N個」（引き直しで外れた候補を除いた数。ホームのカードと同じ数え方）
-    var capsuleCount: Int {
-        guard let room else {
-            return 0
-        }
-        return HomeRoomCard.capsuleCount(of: room)
-    }
-
-    /// 自分がルームの作成者か（設定の入口を出す）
-    var isOwner: Bool {
-        room?.ownerId == userID
-    }
-
-    /// ルームパネルに出すメンバー（参加の早い順。自分の準備OKは送っている途中の値を映す）
-    var displayedMembers: [Identified<Member>] {
-        guard let pendingReady else {
-            return members
-        }
-        return members.map { member in
-            guard member.id == userID else {
-                return member
-            }
-            var value = member.value
-            value.ready = pendingReady.value
-            return Identified(id: member.id, value: value)
-        }
-    }
-
-    /// 準備OKの人数（メンバーを読めていればその数（自分の送っている途中の準備OKを含む）、読めていなければルームの `readyCount`）
-    var readyCount: Int {
-        members.isEmpty ? room?.readyCount ?? 0 : displayedMembers.count(where: \.ready)
-    }
-
-    /// 自分が準備OKにしているか（送っている途中ならその値）
-    var isReady: Bool {
-        pendingReady?.value ?? members.first { $0.id == userID }?.ready ?? false
-    }
-
-    /// 「準備OK」「準備OKを取り消す」を出すか（F-30「open/unlocked のとき」。判定ではなくルームの `status` で決める）
-    var showsReadyButton: Bool {
-        room.map { Self.readyStatuses.contains($0.status) } ?? false
-    }
-
-    /// 「強制解禁（作成者）」を出すか（F-32「作成者だけ・未解禁のとき」。`status` が `open`）
-    var canForceUnlock: Bool {
-        isOwner && room?.status == .open
-    }
-
-    /// ルームパネルのヒント（F-31。抽選の後は nil）。解禁の文言は `status` が `unlocked` のときだけ（`ReadyHint`）
-    var readyHint: ReadyHint? {
-        guard let room else {
-            return nil
-        }
-        return ReadyHint.make(UnlockInput(
-            status: room.status,
-            rule: room.settings.unlockRule,
-            memberCount: memberCount,
-            readyCount: readyCount,
-            deadlineAt: room.settings.deadlineAt,
-            forcedUnlock: room.forcedUnlock
-        ))
-    }
-
-    /// メンバーの人数
-    var memberCount: Int {
-        members.isEmpty ? room?.memberCount ?? 0 : members.count
-    }
-
-    /// 自分の投稿の数（「あなたの投稿 n/上限件」の n）
-    var myPostCount: Int {
-        candidates.count { $0.postedBy == userID }
-    }
-
-    /// 候補を追加できる状態か（F-10「投稿できるのは open/unlocked のときだけ」）
-    var acceptsCandidates: Bool {
-        room.map { RoomCandidateRow.likeableStatuses.contains($0.status) } ?? false
-    }
-
-    /// 準備OKを変えられるルームの状態（02 の §2.1）
-    static let readyStatuses: Set<RoomStatus> = [.open, .unlocked]
-
-    /// 下部の「ガチャを回す」の状態。`drawn`・`closed` は結果の画面（タスク 28）を出すので、ボタンを出さない（nil）
-    var gachaButtonState: GachaButtonState? {
-        switch room?.status {
-        case .unlocked: .ready
-        case .open: .waiting
-        case .drawn, .closed, nil: nil
-        }
+        self.seenDraws = seenDraws
     }
 
     // MARK: - 購読
@@ -324,6 +215,7 @@ final class RoomModel {
             pendingReady = nil
             return
         }
+        drawToReplay = DrawReplay.drawID(previous: room?.status, room: value.value, hasSeen: seenDraws.hasSeen(drawID:)) ?? drawToReplay
         room = value.value
         loadState = .loaded
         if !RoomCandidateRow.likeableStatuses.contains(value.status) {
@@ -363,6 +255,11 @@ final class RoomModel {
             }
             pendingLikes[id] = pending.received(candidate.likedBy.contains(userID)) ? nil : pending
         }
+    }
+
+    /// S-13 を開いた（`drawToReplay` を消す）
+    func replayOpened() {
+        drawToReplay = nil
     }
 
     // MARK: - いいね

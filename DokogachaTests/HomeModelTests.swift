@@ -57,6 +57,10 @@ struct HomeModelTests {
             server.candidates(roomID: roomID)
         }
 
+        func draw(roomID: String, drawID: String) -> AsyncStream<LiveUpdate<Draw?>> {
+            server.draw(roomID: roomID, drawID: drawID)
+        }
+
         func setReady(_ ready: Bool, roomID: String, userID: String) async throws {}
 
         func setLike(_ liked: Bool, candidateID: String, roomID: String, userID: String) async throws {}

@@ -112,6 +112,14 @@ struct RoomView: View {
         .onDisappear {
             model.leftRoom()
         }
+        // ほかの人が回したら、S-13 を開いて同じ演出を再生する（F-41）
+        .onChange(of: model.drawToReplay) { _, drawID in
+            guard drawID != nil else {
+                return
+            }
+            model.replayOpened()
+            navigate(.gacha(roomID: model.roomID))
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
                 model.leftRoom()
@@ -273,7 +281,9 @@ struct RoomView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("読み込み中"))
     }
+}
 
+extension RoomView {
     // MARK: - 候補
 
     /// 「候補」「N件 · 新しい順」と右端の「＋ 候補を追加」。入らなければボタンを下の行に回す

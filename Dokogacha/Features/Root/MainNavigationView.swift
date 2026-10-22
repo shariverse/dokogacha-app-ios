@@ -87,7 +87,14 @@ struct MainNavigationView: View {
                 path.append(.room(id: roomID))
             }
         case let .room(roomID):
-            let model = RoomModel(roomID: roomID, userID: userID, repository: services.rooms, functions: services.functions, toasts: toasts)
+            let model = RoomModel(
+                roomID: roomID,
+                userID: userID,
+                repository: services.rooms,
+                functions: services.functions,
+                toasts: toasts,
+                seenDraws: services.seenDraws
+            )
             RoomView(model: model) { route in
                 open(route)
             }
@@ -110,8 +117,8 @@ struct MainNavigationView: View {
             members(roomID: roomID)
         case let .roomSettings(roomID):
             roomSettings(roomID: roomID)
-        case .gacha:
-            PendingScreenView(route: route)
+        case let .gacha(roomID):
+            gacha(roomID: roomID)
         }
     }
 
@@ -145,6 +152,25 @@ struct MainNavigationView: View {
         return RoomSettingsView(model: model, toasts: sheetToasts) {
             sheet = nil
             toasts.show("設定を保存しました")
+        }
+    }
+
+    /// S-13 ガチャ（フルスクリーンカバー）。トーストはカバーの中に重ねるので、カバー用の窓口を作って渡す。
+    ///
+    /// カプセルを開け終えたら、いまはカバーを閉じてルーム（S-07）に戻る（S-14 結果はタスク 28 で差し替える）。
+    /// UI テストでは演出を待たないよう、常に「視差効果を減らす」で動かす
+    private func gacha(roomID: String) -> some View {
+        let coverToasts = DGToastCenter()
+        let model = GachaModel(
+            roomID: roomID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: coverToasts,
+            seenDraws: services.seenDraws
+        )
+        return GachaView(model: model, toasts: coverToasts, forcesReducedMotion: LaunchContext.current.isUITesting) { _ in
+            fullScreen = nil
         }
     }
 
