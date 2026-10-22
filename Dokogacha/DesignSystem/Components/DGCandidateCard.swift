@@ -288,7 +288,7 @@ struct DGCandidateCard: View {
     }
 }
 
-/// 押せる候補の情報の列を、VoiceOver で 1 つのボタンとして読ませる（押すと候補の詳細を開く）。
+/// 押せる候補の情報の列を、VoiceOver で 1 つのボタンとして読ませる（押すと候補の詳細を開く）。押せないときは 1 つの要素として読ませる。
 ///
 /// カードの中にいいねボタンがあるので、カード全体を `Button` にはできない（ボタンの入れ子になる）。
 /// 見た目の上の「押す」はカードの `onTapGesture` で受け、VoiceOver の操作はこの列で受ける。
@@ -303,7 +303,9 @@ private struct OpenableDetails: ViewModifier {
                 .accessibilityHint(Text("候補の詳細を開きます"))
                 .accessibilityAction(.default) { onOpen() }
         } else {
+            // 押せないカード（S-10）でも、名前・メタ情報・ひとこと・投稿者をばらばらに読まず 1 つにまとめる
             content
+                .accessibilityElement(children: .combine)
         }
     }
 }
