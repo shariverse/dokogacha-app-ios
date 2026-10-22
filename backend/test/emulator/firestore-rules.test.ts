@@ -499,8 +499,46 @@ describe("firestore.rules", () => {
       await assertFails(setDoc(doc(as("carol"), "inviteCodes/AAAAAA"), { roomId: "room1" }));
     });
 
-    it("報告は、メンバーでも読み書きできない（過去のアイデアは past-ideas-rules.test.ts）", async () => {
-      await assertFails(setDoc(doc(as("bob"), "reports/r1"), { roomId: "room1" }));
+  });
+
+  describe("投稿の報告（reports）と運営へのメール（mail）。F-14", () => {
+    /** reportCandidate が作るのと同じ形の報告（bob が alice の c1 を報告）とメール */
+    async function seedReport(): Promise<void> {
+      await seed();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, "reports/r1"), {
+          roomId: "room1",
+          candidateId: "c1",
+          reporterId: "bob",
+          reason: "spam",
+          createdAt: Timestamp.fromMillis(0),
+        });
+        await setDoc(doc(db, "mail/r1"), { to: "emulator-report-inbox", message: { subject: "件名", text: "本文" } });
+      });
+    }
+
+    beforeEach(() => seedReport());
+
+    it.each(["alice", "bob", "carol", null])("%s は報告を読めない（報告した本人・投稿した人・作成者でも）", async (uid) => {
+      await assertFails(getDoc(doc(as(uid), "reports/r1")));
+      await assertFails(getDocs(collection(as(uid), "reports")));
+      await assertFails(getDocs(query(collection(as(uid), "reports"), where("reporterId", "==", uid ?? ""))));
+    });
+
+    it("報告を直接作る・変える・消すことはできない（reportCandidate を通す）", async () => {
+      const report = { roomId: "room1", candidateId: "c2", reporterId: "alice", reason: "other", createdAt: serverTimestamp() };
+      await assertFails(setDoc(doc(as("alice"), "reports/r2"), report));
+      await assertFails(updateDoc(doc(as("bob"), "reports/r1"), { reason: "other" }));
+      await assertFails(deleteDoc(doc(as("bob"), "reports/r1")));
+    });
+
+    it.each(["alice", "bob", "carol", null])("%s は運営へのメールを読めない・作れない・変えられない・消せない", async (uid) => {
+      await assertFails(getDoc(doc(as(uid), "mail/r1")));
+      await assertFails(getDocs(collection(as(uid), "mail")));
+      await assertFails(setDoc(doc(as(uid), "mail/m2"), { to: "x", message: { subject: "s", text: "t" } }));
+      await assertFails(updateDoc(doc(as(uid), "mail/r1"), { to: "x" }));
+      await assertFails(deleteDoc(doc(as(uid), "mail/r1")));
     });
   });
 });

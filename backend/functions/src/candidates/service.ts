@@ -16,8 +16,9 @@ import { assertCanDeleteCandidate, decideAddCandidate, isDrawnCandidate, newCand
 /**
  * トランザクションの中で、ルームと呼んだ人のメンバーのドキュメントを読む。
  * ルームが無ければ `room-not-found`、メンバーでなければ `not-room-member`。
+ * 投稿の報告（`reports/service.ts`）も同じ確かめ方をするので export する。
  */
-async function getRoomAsMember(
+export async function getRoomAsMember(
   tx: Transaction,
   ref: DocumentReference,
   uid: string,

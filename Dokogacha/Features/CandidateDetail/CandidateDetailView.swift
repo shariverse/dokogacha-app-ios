@@ -9,11 +9,12 @@ import SwiftUI
 /// S-10 候補の詳細（シート）。03 の S-10 のとおり、S-07 の候補カードと同じ情報（カテゴリ・場所名・エリア・ひとこと・
 /// 投稿者と経過時間・いいね・出やすさ）に、地図（高さ 200pt）・参考 URL（タップで Safari）・いいねした人の名前を足し、
 /// 「マップで開く」と、投稿した本人か作成者なら「この候補を削除」（確認のダイアログ）を並べる。
-/// 右上の「…」のメニューには、他人の投稿なら「この投稿を報告」（F-14。送信はタスク 40）を置く。
+/// 右上の「…」のメニューには、他人の投稿でまだ報告していなければ「この投稿を報告」（F-14）を置き、理由を選ばせて送る
+/// （`CandidateDetailView+Report.swift`）。報告した候補は、ひとことと参考 URL を出さない（02 の §3.5）。
 ///
 /// 標準のナビゲーションバーは使わず、ヘッダー（タイトルと右端の閉じる）を置く（03 の §3）。
 /// トーストの窓口はシートの中で持ち、シートの根元に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）。
-/// 削除を送っている間は、閉じるボタンと下スワイプで閉じられないようにする。
+/// 削除・報告を送っている間は、閉じるボタンと下スワイプで閉じられないようにする。
 struct CandidateDetailView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -33,6 +34,8 @@ struct CandidateDetailView: View {
         static let delete = "candidateDetail.delete"
         /// 「…」のメニュー
         static let more = "candidateDetail.more"
+        /// 「…」のメニューの「この投稿を報告」
+        static let report = "candidateDetail.report"
         /// 閉じるボタン
         static let close = "candidateDetail.close"
     }
@@ -76,8 +79,9 @@ struct CandidateDetailView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
-        // 削除を送っている間は、下スワイプで閉じさせない（申し送り「送信中は戻る・シートの下スワイプを止める」）
-        .interactiveDismissDisabled(model.isDeleting)
+        // 削除・報告を送っている間は、下スワイプで閉じさせない（申し送り「送信中は戻る・シートの下スワイプを止める」）
+        .interactiveDismissDisabled(model.isSending)
+        .candidateReportDialog(model)
         .confirmationDialog(
             Text("この候補を削除しますか？"),
             isPresented: $model.isConfirmingDelete,
@@ -103,8 +107,8 @@ struct CandidateDetailView: View {
                 dismiss()
             }
         }
-        // 閉じたら、送っている途中の削除を止める（Task が Model を持ち続けないように）
-        .onDisappear { model.cancelDelete() }
+        // 閉じたら、送っている途中の削除・報告を止める（Task が Model を持ち続けないように）
+        .onDisappear { model.cancelSending() }
     }
 
     // MARK: - ヘッダー
@@ -117,7 +121,7 @@ struct CandidateDetailView: View {
                     moreMenu
                 }
                 JoinSheetCloseButton { dismiss() }
-                    .disabled(model.isDeleting)
+                    .disabled(model.isSending)
                     .accessibilityIdentifier(Identifier.close)
             }
         }
@@ -132,6 +136,7 @@ struct CandidateDetailView: View {
             } label: {
                 Text("この投稿を報告")
             }
+            .accessibilityIdentifier(Identifier.report)
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: moreIconSize))
@@ -140,6 +145,7 @@ struct CandidateDetailView: View {
                 .frame(minWidth: DGMetrics.minTapTarget, minHeight: DGMetrics.minTapTarget)
                 .contentShape(Rectangle())
         }
+        .disabled(model.isSending)
         .accessibilityLabel(Text("その他の操作"))
         .accessibilityIdentifier(Identifier.more)
     }

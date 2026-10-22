@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { parseOffset, shiftEmulatorPorts } from "./emulator-config.cjs";
+import { parseOffset, shiftEmulatorPorts, withoutExtensions } from "./emulator-config.cjs";
 
 /** リポジトリの firebase.json */
 const firebaseJson = JSON.parse(
@@ -56,5 +56,19 @@ describe("shiftEmulatorPorts", () => {
 
   it("65535 を超えると失敗する", () => {
     expect(() => shiftEmulatorPorts(firebaseJson, 60000)).toThrow("65535");
+  });
+});
+
+describe("withoutExtensions", () => {
+  it("firebase.json には Trigger Email 拡張（firestore-send-email）がある", () => {
+    expect(firebaseJson.extensions).toEqual({ "firestore-send-email": expect.stringMatching(/^firebase\/firestore-send-email@\d+\.\d+\.\d+$/) as unknown });
+  });
+
+  it("Emulator の設定からは拡張を外し、ほかはそのまま残す。元の設定は変えない", () => {
+    const config = withoutExtensions(firebaseJson);
+    expect(config).not.toHaveProperty("extensions");
+    expect(config.functions).toEqual(firebaseJson.functions);
+    expect(config.emulators).toEqual(firebaseJson.emulators);
+    expect(firebaseJson).toHaveProperty("extensions");
   });
 });

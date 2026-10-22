@@ -59,6 +59,7 @@ nonisolated struct RoomCandidateRow: Identifiable, Equatable, Sendable {
     /// - 出やすさは `Probability.odds`（引き直しで外れた候補は対象外で nil）、人気は `Probability.highlight`（メンバー数は `memberCount`）。
     ///   引き直しで外れた候補は、人気の強調を付けず、いいねも押せない（もう当たらないため）
     /// - NEW は `CandidateList.isNew`（`lastSeenAt` は画面を開いたときの値。まだ読めていなければ NEW にしない）
+    /// - 自分が報告した候補は、ひとことを出さない（02 の §3.5）
     /// - 投稿者は、自分なら「あなた」、ルームのメンバーなら今の表示名（読めていなければ投稿時の名前）、いなければ退出した人
     /// - Parameters:
     ///   - candidates: 候補（購読の値）
@@ -67,13 +68,15 @@ nonisolated struct RoomCandidateRow: Identifiable, Equatable, Sendable {
     ///   - myUserID: 自分の uid
     ///   - lastSeenAt: NEW の判定に使う、自分が前回ルームを見た日時
     ///   - pendingLikes: 送っている途中のいいね（候補の ID → 付ける・外す）
+    ///   - reportedIDs: 自分が報告した候補の ID（ひとことを出さない。F-14・`ReportedContent`）
     static func rows(
         candidates: [Identified<Candidate>],
         members: [Identified<Member>],
         room: Room,
         myUserID: String,
         lastSeenAt: Date?,
-        pendingLikes: [String: Bool] = [:]
+        pendingLikes: [String: Bool] = [:],
+        reportedIDs: Set<String> = []
     ) -> [Self] {
         let sorted = CandidateList.sorted(candidates)
         let likedBy = Dictionary(uniqueKeysWithValues: sorted.map { candidate in
@@ -93,7 +96,7 @@ nonisolated struct RoomCandidateRow: Identifiable, Equatable, Sendable {
                 name: candidate.place.name,
                 area: candidate.place.area,
                 category: candidate.category,
-                note: candidate.note.isEmpty ? nil : candidate.note,
+                note: ReportedContent.visibleNote(candidate.note, isReported: reportedIDs.contains(candidate.id)),
                 author: author(of: candidate.value, room: room, members: membersByID, myUserID: myUserID),
                 createdAt: candidate.createdAt,
                 isNew: lastSeenAt.map { CandidateList.isNew(candidate.value, myUID: myUserID, lastSeenAt: $0) } ?? false,

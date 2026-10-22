@@ -88,6 +88,10 @@ export const APP_ERRORS = {
   "reroll-used": { code: "failed-precondition", message: "引き直しは使用済みです" },
   /** 投票中でない（提案されていない・可決・否決の後）引き直しに投票した */
   "reroll-not-voting": { code: "failed-precondition", message: "引き直しの投票は終わっています" },
+  /**
+   * 自分の投稿を報告しようとした（02 の §3.5・03 の S-10「他人の投稿なら『この投稿を報告』」。アプリは自分の投稿にメニューを出さないので、通常は出ない）
+   */
+  "cannot-report-own-candidate": { code: "failed-precondition", message: "自分の投稿は報告できません" },
   /** 招待コードを決められなかった（重複が続いた。もう一度呼べば通る見込みが高い） */
   "invite-code-unavailable": { code: "unavailable", message: "通信できませんでした" },
   /** 想定していないエラー */

@@ -57,6 +57,7 @@ final class ResultModel {
     ///   - toasts: 失敗を出すトーストの窓口（フルスクリーンカバーの中に重ねるもの）
     ///   - mapOpener: 「マップで開く」の窓口（テストでは呼び出しを記録するもの）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
+    ///   - reportedCandidates: 自分が報告した候補（きっぷのひとことを隠す。F-14）
     init(
         roomID: String,
         drawID: String,
@@ -65,7 +66,8 @@ final class ResultModel {
         functions: any FunctionsClient,
         toasts: DGToastCenter,
         mapOpener: any MapOpener = AppleMapsOpener(),
-        resubscribeDelay: ResubscribeDelay = .standard
+        resubscribeDelay: ResubscribeDelay = .standard,
+        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore()
     ) {
         self.drawID = drawID
         room = RoomModel(
@@ -74,7 +76,8 @@ final class ResultModel {
             repository: repository,
             functions: functions,
             toasts: toasts,
-            resubscribeDelay: resubscribeDelay
+            resubscribeDelay: resubscribeDelay,
+            reportedCandidates: reportedCandidates
         )
         closing = ResultCloseModel(roomID: roomID, functions: functions, toasts: toasts)
         self.repository = repository

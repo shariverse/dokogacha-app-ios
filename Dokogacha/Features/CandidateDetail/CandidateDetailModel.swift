@@ -19,10 +19,15 @@ import Observation
 /// - 成功したら `shouldClose` を立て、画面はシートを閉じて S-07 に戻る
 ///
 /// 候補が購読から消えたとき（ほかの人が削除した・自分が削除した）・ルームが無くなったときも `shouldClose` を立てる。
+///
+/// 報告（F-14）は「…」の「この投稿を報告」から理由を選ばせ、Callable の `reportCandidate` を呼ぶ:
+/// - 出すのは他人の投稿で、まだ報告していないとき（`CandidatePermission.canReport`・`ReportedCandidateStore`）
+/// - 成功したら（もう報告済みと返ったときも）端末に覚え、トースト「報告しました」。ひとことと参考 URL を隠す（`ReportedContent`）
+/// - 送っている途中は二度押しを受け付けず、シートを閉じる操作を止める。失敗したら `AppError` の文言のトースト
 @Observable
 final class CandidateDetailModel {
-    /// 「この投稿を報告」の仮の文言（報告の送信は F-14 のタスク 40 で作る）
-    static let reportPendingMessage: LocalizedStringResource = "この機能は準備中です"
+    /// 報告できたときのトースト（02・03 に文言が無いので、ここで決める）
+    static let reportedMessage: LocalizedStringResource = "報告しました"
 
     /// 候補の ID
     let candidateID: String
@@ -35,22 +40,29 @@ final class CandidateDetailModel {
     private(set) var isDeleting = false
     /// 削除できたか
     private(set) var didDelete = false
+    /// 報告の理由を選ぶダイアログを出しているか
+    var isChoosingReportReason = false
+    /// 報告を送っている途中か（二重に送らない・シートを閉じさせない）
+    private(set) var isReporting = false
 
     @ObservationIgnored private let functions: any FunctionsClient
     @ObservationIgnored private let mapOpener: any MapOpener
     @ObservationIgnored private let toasts: DGToastCenter
-    /// 確認のダイアログから始めた削除。画面が消えたら（`cancelDelete`）止める
+    /// 確認のダイアログから始めた削除。画面が消えたら（`cancelSending`）止める
     @ObservationIgnored private var deleteTask: Task<Void, Never>?
+    /// 理由のダイアログから始めた報告。画面が消えたら（`cancelSending`）止める
+    @ObservationIgnored private var reportTask: Task<Void, Never>?
 
     /// - Parameters:
     ///   - roomID: ルームの ID
     ///   - candidateID: 候補の ID
     ///   - userID: 自分の uid
     ///   - repository: 購読といいねの窓口（Firebase か擬似のサーバー）
-    ///   - functions: `deleteCandidate` を呼ぶ窓口（Firebase か擬似のサーバー）
+    ///   - functions: `deleteCandidate`・`reportCandidate` を呼ぶ窓口（Firebase か擬似のサーバー）
     ///   - toasts: 失敗を出すトーストの窓口（シートの中に重ねるもの）
     ///   - mapOpener: 「マップで開く」の窓口（テストでは呼び出しを記録するもの）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
+    ///   - reportedCandidates: 自分が報告した候補（報告できたら覚え、ひとこととURLを隠す）
     init(
         roomID: String,
         candidateID: String,
@@ -59,7 +71,8 @@ final class CandidateDetailModel {
         functions: any FunctionsClient,
         toasts: DGToastCenter,
         mapOpener: any MapOpener = AppleMapsOpener(),
-        resubscribeDelay: ResubscribeDelay = .standard
+        resubscribeDelay: ResubscribeDelay = .standard,
+        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore()
     ) {
         self.candidateID = candidateID
         room = RoomModel(
@@ -68,7 +81,8 @@ final class CandidateDetailModel {
             repository: repository,
             functions: functions,
             toasts: toasts,
-            resubscribeDelay: resubscribeDelay
+            resubscribeDelay: resubscribeDelay,
+            reportedCandidates: reportedCandidates
         )
         self.functions = functions
         self.mapOpener = mapOpener
@@ -92,13 +106,14 @@ final class CandidateDetailModel {
         candidate?.place
     }
 
-    /// 参考 URL（`http`・`https` で開けるものだけ。無ければ nil）
+    /// 参考 URL（`http`・`https` で開けるものだけ。無い・自分が報告した候補なら nil）
     var referenceURL: URL? {
-        guard let text = candidate?.url, let url = URL(string: text),
-              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else {
-            return nil
-        }
-        return url
+        ReportedContent.visibleURL(candidate?.url, isReported: isReported)
+    }
+
+    /// 自分がこの候補を報告したか（ひとこととURLを隠し、「この投稿を報告」を出さない）
+    var isReported: Bool {
+        room.reportedCandidates.hasReported(roomID: room.roomID, candidateID: candidateID)
     }
 
     /// いいねした人の名前（いいねした順。メンバーをまだ読めていない人・退出した人は除く）
@@ -120,9 +135,17 @@ final class CandidateDetailModel {
         )
     }
 
-    /// 「…」のメニューに「この投稿を報告」を出すか（他人の投稿のとき）
+    /// 「…」のメニューに「この投稿を報告」を出すか（他人の投稿で、まだ報告していないとき）
     var canReport: Bool {
-        candidate.map { CandidatePermission.canReport(postedBy: $0.postedBy, userID: room.userID) } ?? false
+        guard let candidate, !isReported else {
+            return false
+        }
+        return CandidatePermission.canReport(postedBy: candidate.postedBy, userID: room.userID)
+    }
+
+    /// 送っている途中の操作があるか（閉じるボタンと下スワイプを止める）
+    var isSending: Bool {
+        isDeleting || isReporting
     }
 
     /// シートを閉じるか（削除できた・候補が購読から消えた・ルームが無くなった）
@@ -152,9 +175,52 @@ final class CandidateDetailModel {
         mapOpener.open(place)
     }
 
-    /// 「この投稿を報告」が押された。報告の送信はタスク 40（F-14）で作るので、今は準備中と出す
+    /// 「この投稿を報告」が押された。理由を選ぶダイアログを出す（報告できないとき・送っている途中なら出さない）
     func reportTapped() {
-        toasts.show(Self.reportPendingMessage)
+        guard canReport, !isReporting else {
+            return
+        }
+        isChoosingReportReason = true
+    }
+
+    /// 理由のダイアログで理由が選ばれた。報告を始める（送っている途中なら何もしない）
+    func reportReasonChosen(_ reason: ReportReason) {
+        guard reportTask == nil else {
+            return
+        }
+        reportTask = Task { [weak self] in
+            await self?.report(reason: reason)
+            if !Task.isCancelled {
+                self?.reportTask = nil
+            }
+        }
+    }
+
+    /// 候補を報告する（`reportCandidate`）。報告できない・送っている途中なら何もしない。
+    ///
+    /// 成功したら（サーバーがもう報告済みと返したときも）報告した候補として覚え、トースト「報告しました」を出す。
+    /// 失敗したら `AppError` の文言のトーストを出す（cancel のときは出さない）
+    func report(reason: ReportReason) async {
+        guard canReport, !isReporting else {
+            return
+        }
+        isReporting = true
+        defer { isReporting = false }
+        do {
+            try await functions.reportCandidate(
+                ReportCandidateRequest(roomId: room.roomID, candidateId: candidateID, reason: reason)
+            )
+            guard !Task.isCancelled else {
+                return
+            }
+            room.reportedCandidates.markReported(roomID: room.roomID, candidateID: candidateID)
+            toasts.show(Self.reportedMessage)
+        } catch {
+            let appError = AppError.wrapping(error)
+            if !appError.isCancellation, !Task.isCancelled {
+                toasts.show(text: appError.message)
+            }
+        }
     }
 
     // MARK: - 削除
@@ -177,17 +243,19 @@ final class CandidateDetailModel {
         }
         deleteTask = Task { [weak self] in
             await self?.delete()
-            // cancel された Task は `cancelDelete` が外し済み（その後に始めた Task を外さない）
+            // cancel された Task は `cancelSending` が外し済み（その後に始めた Task を外さない）
             if !Task.isCancelled {
                 self?.deleteTask = nil
             }
         }
     }
 
-    /// 画面が消えたとき、送っている途中の削除を止める（結果を待つ相手がいないため。cancel ではトーストを出さない）
-    func cancelDelete() {
+    /// 画面が消えたとき、送っている途中の削除と報告を止める（結果を待つ相手がいないため。cancel ではトーストを出さない）
+    func cancelSending() {
         deleteTask?.cancel()
         deleteTask = nil
+        reportTask?.cancel()
+        reportTask = nil
     }
 
     /// 候補を削除する（`deleteCandidate`）。削除できない状態・送っている途中なら何もしない。

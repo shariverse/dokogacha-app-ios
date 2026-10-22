@@ -164,7 +164,8 @@ struct MainNavigationView: View {
             repository: services.rooms,
             functions: services.functions,
             toasts: toasts,
-            seenDraws: services.seenDraws
+            seenDraws: services.seenDraws,
+            reportedCandidates: services.reportedCandidates
         )
         return RoomView(model: model) { route in
             open(route)
@@ -264,7 +265,8 @@ struct MainNavigationView: View {
             userID: userID,
             repository: services.rooms,
             functions: services.functions,
-            toasts: coverToasts
+            toasts: coverToasts,
+            reportedCandidates: services.reportedCandidates
         )
         return ResultView(model: model, toasts: coverToasts, animatesIn: !LaunchContext.current.isUITesting, onPlayAgain: onPlayAgain)
     }
@@ -278,7 +280,8 @@ struct MainNavigationView: View {
             userID: userID,
             repository: services.rooms,
             functions: services.functions,
-            toasts: sheetToasts
+            toasts: sheetToasts,
+            reportedCandidates: services.reportedCandidates
         )
         return CandidateDetailView(model: model, toasts: sheetToasts)
     }

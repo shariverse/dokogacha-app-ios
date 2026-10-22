@@ -33,6 +33,8 @@ struct DataServices {
     var places: any PlaceSearchService = MapKitPlaceSearchService()
     /// ガチャの演出を見終えた抽選（F-41）。既定は端末に残す。擬似のサーバーのときはメモリだけ（起動ごとに空から始める）
     var seenDraws: any SeenDrawStore = UserDefaultsSeenDrawStore()
+    /// 報告した候補（F-14。ひとこととURLを隠す）。既定は端末に残す。擬似のサーバーのときはメモリだけ（起動ごとに空から始める）
+    var reportedCandidates: any ReportedCandidateStore = UserDefaultsReportedCandidateStore()
 
     /// サインインしてよいか（接続できないときは、サインインを試みない）
     var allowsSignIn: Bool {
@@ -54,7 +56,8 @@ struct DataServices {
             functions: server,
             inMemoryServer: server,
             places: DemoPlaceSearchService(),
-            seenDraws: InMemorySeenDrawStore()
+            seenDraws: InMemorySeenDrawStore(),
+            reportedCandidates: InMemoryReportedCandidateStore()
         )
     }
 

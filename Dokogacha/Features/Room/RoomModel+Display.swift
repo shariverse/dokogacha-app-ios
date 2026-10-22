@@ -9,7 +9,7 @@ import Foundation
 ///
 /// `RoomModel.swift` が SwiftLint の `file_length` を超えないよう、読むだけの計算をこのファイルに分けている
 extension RoomModel {
-    /// 候補一覧の行（新しい順。送っている途中のいいねを映したもの）
+    /// 候補一覧の行（新しい順。送っている途中のいいねを映し、報告した候補のひとことを隠したもの）
     var rows: [RoomCandidateRow] {
         guard let room else {
             return []
@@ -20,8 +20,14 @@ extension RoomModel {
             room: room,
             myUserID: userID,
             lastSeenAt: seenBaseline,
-            pendingLikes: pendingLikes.mapValues(\.value)
+            pendingLikes: pendingLikes.mapValues(\.value),
+            reportedIDs: reportedCandidateIDs
         )
+    }
+
+    /// 自分が報告した候補の ID（ひとこととURLを出さない。F-14）
+    var reportedCandidateIDs: Set<String> {
+        Set(candidates.map(\.id).filter { reportedCandidates.hasReported(roomID: roomID, candidateID: $0) })
     }
 
     /// NEW の候補の数（「前回見たあとに N件の候補が増えました」の N）

@@ -32,3 +32,13 @@ export function drawsRef(room: DocumentReference): CollectionReference {
 export function inviteCodeRef(db: Firestore, code: string): DocumentReference {
   return db.collection("inviteCodes").doc(code);
 }
+
+/** `reports/{reportId}`（投稿の報告。F-14） */
+export function reportRef(db: Firestore, reportId: string): DocumentReference {
+  return db.collection("reports").doc(reportId);
+}
+
+/** `mail/{mailId}`（Trigger Email 拡張（firestore-send-email）が読んで送るメール。拡張の `MAIL_COLLECTION`） */
+export function mailRef(db: Firestore, mailId: string): DocumentReference {
+  return db.collection("mail").doc(mailId);
+}

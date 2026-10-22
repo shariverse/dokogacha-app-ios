@@ -201,6 +201,8 @@ extension AppError {
         case rerollUsed = "reroll-used"
         /// 投票中でない引き直しに投票した（可決・否決の後など）
         case rerollNotVoting = "reroll-not-voting"
+        /// 自分の投稿を報告しようとした（F-14。画面は自分の投稿に「この投稿を報告」を出さないので、通常は出ない）
+        case cannotReportOwnCandidate = "cannot-report-own-candidate"
         /// 招待コードを決められなかった（もう一度で通る見込みが高い）
         case inviteCodeUnavailable = "invite-code-unavailable"
         /// 想定していないエラー
@@ -285,6 +287,8 @@ extension AppError {
                 String(localized: "引き直しは使用済みです")
             case .rerollNotVoting:
                 String(localized: "引き直しの投票は終わっています")
+            case .cannotReportOwnCandidate:
+                String(localized: "自分の投稿は報告できません")
             case .permissionDenied:
                 String(localized: "この操作はできません")
             case .unauthenticated, .inviteCodeUnavailable, .internal, .network, .serverUnavailable,

@@ -116,3 +116,9 @@ backend/functions/lib/
 *-debug.log
 # Emulator のポートをずらして書き出す設定ファイル（backend/scripts/emulator-config.cjs）
 backend/firebase.emulators.local.json
+# Functions のパラメータ（報告の宛先 REPORT_MAIL_TO など）と Trigger Email 拡張の SMTP の設定は、プロジェクトごとに人間が書く（Discussion #5 の Q7）。
+# public リポジトリなのでコミットしない。Emulator（demo-dokogacha）の目印の値だけはコミットする
+backend/functions/.env.*
+!backend/functions/.env.demo-dokogacha
+backend/extensions/*.env.*
+backend/extensions/*.secret.local

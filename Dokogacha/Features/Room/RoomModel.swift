@@ -106,6 +106,8 @@ final class RoomModel {
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
     /// ガチャの演出を見終えた抽選
     @ObservationIgnored private let seenDraws: any SeenDrawStore
+    /// 自分が報告した候補（F-14。ひとこととURLを隠す。実装が `@Observable` なので、覚えた候補が増えると行を計算し直す）
+    @ObservationIgnored let reportedCandidates: any ReportedCandidateStore
     /// いま失敗している購読
     @ObservationIgnored private var failingSources: Set<Source> = []
 
@@ -117,6 +119,7 @@ final class RoomModel {
     ///   - toasts: 通信エラーを出すトーストの窓口
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
     ///   - seenDraws: ガチャの演出を見終えた抽選（ほかの人が回したときに S-13 を開くかを決める）
+    ///   - reportedCandidates: 自分が報告した候補（ひとこととURLを隠す）
     init(
         roomID: String,
         userID: String,
@@ -124,7 +127,8 @@ final class RoomModel {
         functions: any FunctionsClient,
         toasts: DGToastCenter,
         resubscribeDelay: ResubscribeDelay = .standard,
-        seenDraws: any SeenDrawStore = InMemorySeenDrawStore()
+        seenDraws: any SeenDrawStore = InMemorySeenDrawStore(),
+        reportedCandidates: any ReportedCandidateStore = InMemoryReportedCandidateStore()
     ) {
         self.roomID = roomID
         self.userID = userID
@@ -133,6 +137,7 @@ final class RoomModel {
         self.toasts = toasts
         self.resubscribeDelay = resubscribeDelay
         self.seenDraws = seenDraws
+        self.reportedCandidates = reportedCandidates
     }
 
     // MARK: - 購読
