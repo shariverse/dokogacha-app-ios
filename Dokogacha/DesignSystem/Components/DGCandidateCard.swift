@@ -15,6 +15,9 @@ import SwiftUI
 ///
 /// ドメインのモデルには依存させず、表示に要る値だけを受け取る（人気・レベル・表示 % などの判定は呼び出し側で行う）。
 /// カードを押したときの遷移（S-10）は、画面の側で付ける。
+///
+/// リボンはカードの上の縁に中心をそろえて上にはみ出すので、はみ出す分（リボンの高さの半分）をカードの上に余白として取る。
+/// 余白を取らないと、並べたときに上のカードや見出しに重なる（文字を大きくするとリボンも高くなり、一覧の間隔 14 を超える）。
 struct DGCandidateCard: View {
     /// 候補の投稿者
     nonisolated enum Author: Equatable, Sendable {
@@ -98,6 +101,9 @@ struct DGCandidateCard: View {
     /// いいねボタンを押したときの処理
     let onLike: () -> Void
 
+    /// リボンの高さ（はみ出す分の余白に使う。リボンが無ければ 0）
+    @State private var ribbonHeight: CGFloat = 0
+
     /// 人気カードの上の余白。リボンが文字の大きさで伸びても中身に重ならないよう、Dynamic Type に合わせて広げる
     @ScaledMetric(relativeTo: .caption) private var popularTopPadding = DGSpacing.popularCardTopPadding
     /// ピンのアイコンを Dynamic Type に合わせて大きくする倍率
@@ -120,8 +126,15 @@ struct DGCandidateCard: View {
         .overlay(alignment: .topLeading) {
             if let highlight {
                 ribbon(highlight)
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { height in
+                        ribbonHeight = height
+                    }
             }
         }
+        // リボンが上にはみ出す分（高さの半分）を、カードの上に余白として取る
+        .padding(.top, highlight != nil ? ribbonHeight / 2 : 0)
         .accessibilityElement(children: .contain)
     }
 
