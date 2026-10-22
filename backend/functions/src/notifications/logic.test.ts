@@ -1,4 +1,5 @@
 import {
+  audienceOf,
   excludedRecipient,
   MAX_TOKEN_LENGTH,
   MAX_TOKENS_PER_USER,
@@ -15,6 +16,54 @@ import {
 const unlocked: PushEvent = { kind: "unlocked", roomId: "r1", roomName: "年末の旅行" };
 const drawn: PushEvent = { kind: "drawn", roomId: "r1", roomName: "年末の旅行", drawId: "d1", drawnBy: "alice" };
 const reroll: PushEvent = { kind: "rerollProposed", roomId: "r1", drawId: "d1", proposedBy: "bob", proposerName: "ぼぶ" };
+const invited: PushEvent = {
+  kind: "invited",
+  roomId: "r1",
+  roomName: "年末の旅行",
+  inviteCode: "DK729Q",
+  inviterId: "alice",
+  inviterName: "ありす",
+  sourceRoomId: "old",
+  inviteeIds: ["dave", "erin"],
+};
+const newCandidates: PushEvent = {
+  kind: "newCandidates",
+  roomId: "r1",
+  roomName: "年末の旅行",
+  dateKey: "2026-10-22",
+  count: 3,
+  onlyPosterId: null,
+};
+
+describe("前回のメンバーへの招待と新しい候補のまとめ（02 の §8）", () => {
+  test("文面", () => {
+    expect(pushBody(invited)).toBe("ありすさんから「年末の旅行」に招待されました");
+    expect(pushBody(newCandidates)).toBe("「年末の旅行」に新しい候補が 3件増えました");
+  });
+
+  test("招待は招待コードで参加確認（join）、まとめはルームを開く", () => {
+    expect(pushData(invited)).toEqual({ type: "invited", roomId: "r1", target: "join", inviteCode: "DK729Q" });
+    expect(pushData(newCandidates)).toEqual({ type: "newCandidates", roomId: "r1", target: "room" });
+  });
+
+  test("招待の宛先は招待した人たち（ルームのメンバーではない）。まとめはメンバー", () => {
+    expect(audienceOf(invited, ["alice"])).toEqual(["dave", "erin"]);
+    expect(audienceOf(newCandidates, ["alice", "bob"])).toEqual(["alice", "bob"]);
+    expect(audienceOf(unlocked, ["alice", "bob"])).toEqual(["alice", "bob"]);
+  });
+
+  test("招待は招待した人を、まとめは自分の投稿しか増えていない人を外す", () => {
+    expect(excludedRecipient(invited)).toBe("alice");
+    expect(excludedRecipient(newCandidates)).toBeNull();
+    expect(excludedRecipient({ ...newCandidates, onlyPosterId: "bob" })).toBe("bob");
+  });
+
+  test("印のキー: 招待は招いた人と前回のルームごと、まとめはルームの日ごと", () => {
+    expect(notificationLogKey(invited)).toBe("invited-alice-old");
+    expect(notificationLogKey({ ...invited, sourceRoomId: "older" })).toBe("invited-alice-older");
+    expect(notificationLogKey(newCandidates)).toBe("newCandidates-2026-10-22");
+  });
+});
 
 describe("通知の文面（02 の §8）", () => {
   test("解禁・抽選結果・引き直し提案の文面", () => {
