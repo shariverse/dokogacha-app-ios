@@ -21,6 +21,10 @@ struct GachaStageTests {
         #expect(make(.idle, reroll: true, count: 2) == .ready(isReroll: true))
         #expect(make(.idle, count: 0) == .noCandidates)
         #expect(make(.idle, nil, .open) == .locked)
+        // 待機中に drawn が届いた（回した人の名前を読んでいる間）は「まだ解禁されていません」を出さない（PR #67 の持ち越し）
+        #expect(make(.idle, nil, .drawn) == .spinning)
+        #expect(make(.idle, "はるか", .drawn) == .drawnByOther(name: "はるか"))
+        #expect(make(.idle, nil, .closed) == .spinning)
         #expect(make(.spinning) == .spinning)
         #expect(make(.spinning, "はるか", .drawn) == .drawnByOther(name: "はるか"))
         for phase in [GachaPhase.dropping, .dispensed, .opening, .opened] {

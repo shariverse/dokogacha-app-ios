@@ -45,7 +45,7 @@ nonisolated enum GachaCaption: Equatable, Sendable {
     case ready(isReroll: Bool)
     /// 待機だが候補が無い（「レバーを回してね」／「候補がありません」。02 の F-40）
     case noCandidates
-    /// 待機だが解禁していない（「レバーを回してね」／「まだガチャは解禁されていません」）
+    /// 待機だが解禁していない（`open`。「レバーを回してね」／「まだガチャは解禁されていません」）
     case locked
     /// 自分が回した回転中（「ガラガラ…」／「どこに決まるかな」）
     case spinning
@@ -64,6 +64,10 @@ nonisolated enum GachaCaption: Equatable, Sendable {
     static func make(phase: GachaPhase, drawnByName: String?, status: RoomStatus?, isReroll: Bool, capsuleCount: Int) -> Self {
         switch phase {
         case .idle:
+            if status == .drawn || status == .closed {
+                // ほかの人が回した直後（回した人の名前を読んでいる間）。03 の S-13 の表の「他の人が回した」（名前が分からなければ回転中）
+                return drawnByName.map(Self.drawnByOther(name:)) ?? .spinning
+            }
             if status != .unlocked {
                 return status == nil ? .ready(isReroll: isReroll) : .locked
             }
