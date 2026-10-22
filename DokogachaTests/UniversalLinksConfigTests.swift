@@ -8,7 +8,8 @@ import Foundation
 import Testing
 
 /// Universal Links の設定（xcconfig のドメイン・entitlements・Hosting の apple-app-site-association）が、
-/// アプリの招待リンクの定数（`DomainConstants.Web`）と食い違っていないことを確かめる（タスク 34）。
+/// アプリの招待リンクの定数（`DomainConstants.Web`）と食い違っていないこと、ランディングページの App Store のリンクが
+/// アプリの `DomainConstants.Web.appStoreURL` と同じであることを確かめる（タスク 34）。
 ///
 /// どれもリポジトリのファイルを `#filePath` から読む（テストのバンドルに複製しない。`DesignTokensTests` と同じ）。
 /// Simulator では Universal Links でアプリを開けないので、設定の食い違いはここで見つける
@@ -64,5 +65,14 @@ struct UniversalLinksConfigTests {
         #expect(detail["appIDs"] as? [String] == ["\(teamID).\(bundleID)"])
         let components = try #require(detail["components"] as? [[String: Any]])
         #expect(components.compactMap { $0["/"] as? String } == [DomainConstants.Web.inviteLinkPathPrefix + "*"])
+    }
+
+    /// ランディングページ（アプリが入っていない端末で開く招待リンク）の App Store のリンクは、アプリの行き先きっぷに入れる URL と同じ
+    @Test
+    func landingAppStoreURLMatchesApp() throws {
+        let url = Self.repositoryRoot.appending(path: "backend/hosting/public/assets/landing.js")
+        let script = try String(contentsOf: url, encoding: .utf8)
+        let match = try #require(script.firstMatch(of: /var APP_STORE_URL = "([^"]+)";/))
+        #expect(String(match.output.1) == DomainConstants.Web.appStoreURL)
     }
 }

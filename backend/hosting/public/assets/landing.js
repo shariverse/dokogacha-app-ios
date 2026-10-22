@@ -24,7 +24,10 @@
    * JavaScript の \s に U+0085 を足すと、空白の一覧と同じになる（文字はすべて \u のエスケープで書く）
    */
   var IGNORED_CHARACTERS = /[\s\u0085\u2010-\u2015\u2212\u30FC\u002D]/gu;
-  /** App Store のアプリのページ（仮の値。App Store Connect でアプリを登録したら、アプリの ID に差し替える） */
+  /**
+   * App Store のアプリのページ（仮の値。App Store Connect でアプリを登録したら、アプリの ID に差し替える）。
+   * アプリの DomainConstants.Web.appStoreURL と同じ値にする（DokogachaTests の UniversalLinksConfigTests で確かめる）
+   */
   var APP_STORE_URL = "https://apps.apple.com/jp/app/id0000000000";
 
   /**
