@@ -24,6 +24,7 @@ enum ScreenshotDemo {
         case settings
         case room
         case candidateDetail
+        case addCandidate
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
@@ -177,6 +178,41 @@ extension ScreenshotDemo {
         var body: some View {
             NavigationStack {
                 RoomView(model: model) { _ in }
+            }
+            .dgToast(toasts)
+        }
+    }
+
+    /// S-08 候補を追加を、デモのルーム（`DemoScenario.roomID`）と擬似の検索で開く（ルームから進まずに、S-08 を `NavigationStack` に入れて出す）。
+    ///
+    /// 起動引数 `-screenshot-query <語>` を付けると、その語で検索した結果を出した状態で開く（既定は「水族館」）
+    struct AddCandidateScene: View {
+        /// 検索しておく語の起動引数
+        static let queryArgument = "-screenshot-query"
+        /// 起動引数が無いときに検索しておく語
+        static let defaultQuery = "水族館"
+
+        @State private var toasts: DGToastCenter
+        private let model: AddCandidateModel
+
+        /// - Parameter services: データ層の窓口（撮影モードでは擬似のサーバーと擬似の検索）
+        init(services: DataServices) {
+            let toasts = DGToastCenter()
+            model = AddCandidateModel(
+                roomID: DemoScenario.roomID,
+                userID: services.auth.currentUserID ?? DemoScenario.myUserID,
+                repository: services.rooms,
+                functions: services.functions,
+                places: services.places,
+                toasts: toasts
+            )
+            model.search.searchNow(ScreenshotDemo.value(after: Self.queryArgument) ?? Self.defaultQuery)
+            _toasts = State(initialValue: toasts)
+        }
+
+        var body: some View {
+            NavigationStack {
+                AddCandidateView(model: model)
             }
             .dgToast(toasts)
         }

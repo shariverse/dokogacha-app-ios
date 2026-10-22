@@ -69,6 +69,26 @@ final class DokogachaUITests: XCTestCase {
     private static let candidateDetailScreen = "candidateDetail.screen"
     /// S-10 の「この候補を削除」（`CandidateDetailView.Identifier.delete`）
     private static let candidateDetailDelete = "candidateDetail.delete"
+    /// S-07 の見出し行の「候補を追加」（`RoomView.Identifier.addCandidate`）
+    private static let roomAddCandidate = "room.addCandidate"
+    /// S-08（`AddCandidateView.Identifier.screen`）
+    private static let addCandidateScreen = "addCandidate.screen"
+    /// S-08 のヘッダーの「n/上限」（`AddCandidateView.Identifier.postCount`）
+    private static let addCandidatePostCount = "addCandidate.postCount"
+    /// S-08 の検索欄（`AddCandidateView.Identifier.searchField`）
+    private static let addCandidateSearch = "addCandidate.search"
+    /// S-08 のすみだ水族館の「追加」（`AddCandidateView.Identifier.add(DemoPlaceSearchService.sumidaAquariumID)`）
+    private static let sumidaAquariumAdd = "addCandidate.place.demo-place-sumida-aquarium.add"
+    /// S-09（`PostCandidateView.Identifier.screen`）
+    private static let postCandidateScreen = "postCandidate.screen"
+    /// S-09 の場所名（`PostCandidateView.Identifier.placeName`）
+    private static let postCandidatePlaceName = "postCandidate.placeName"
+    /// S-09 のカテゴリ（`PostCandidateView.Identifier.category`）
+    private static let postCandidateCategory = "postCandidate.category"
+    /// S-09 のひとこと（`PostCandidateView.Identifier.note`）
+    private static let postCandidateNote = "postCandidate.note"
+    /// S-09 の「候補に追加」（`PostCandidateView.Identifier.submit`）
+    private static let postCandidateSubmit = "postCandidate.submit"
     /// 画面が出るのを待つ時間
     private static let timeout: TimeInterval = 10
 
@@ -293,6 +313,54 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(app.otherElements[Self.roomScreen].exists)
         XCTAssertTrue(mine.waitForNonExistence(timeout: Self.timeout))
         XCTAssertTrue(app.otherElements[Self.candidateCard(Self.shrineCandidateID)].exists)
+    }
+
+    /// ルーム（S-07）の「候補を追加」から S-08 を開き、検索して結果の「追加」を押すと S-09 が出て、
+    /// ひとことを入れて「候補に追加」を押すと S-07 に戻り、候補が増えている（F-10。擬似の検索と擬似のサーバー）
+    @MainActor
+    func testAddCandidateFromSearch() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "one-room"]
+        app.launch()
+
+        let card = app.buttons[Self.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        card.tap()
+        let addButton = app.buttons[Self.roomAddCandidate]
+        XCTAssertTrue(addButton.waitForExistence(timeout: Self.timeout))
+        addButton.tap()
+
+        // S-08: 検索欄に入れると、少し待って結果が出る。自分の投稿は 0/3
+        XCTAssertTrue(app.otherElements[Self.addCandidateScreen].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.staticTexts[Self.addCandidatePostCount].waitForExistence(timeout: Self.timeout))
+        XCTAssertEqual(app.staticTexts[Self.addCandidatePostCount].label, "あなたの投稿 0/3件")
+        let search = app.textFields[Self.addCandidateSearch]
+        XCTAssertTrue(search.waitForExistence(timeout: Self.timeout))
+        search.tap()
+        search.typeText("水族館")
+        let add = app.buttons[Self.sumidaAquariumAdd]
+        XCTAssertTrue(add.waitForExistence(timeout: Self.timeout))
+        XCTAssertEqual(add.label, "追加")
+        add.tap()
+
+        // S-09: 場所名と自動判定のカテゴリが出ている。ひとことを入れて投稿する
+        let sheet = app.otherElements[Self.postCandidateScreen]
+        XCTAssertTrue(sheet.waitForExistence(timeout: Self.timeout))
+        // 場所名は VoiceOver 用にエリアとまとめた要素にも同じ ID が付くので、最初のものを見る
+        XCTAssertTrue(sheet.staticTexts[Self.postCandidatePlaceName].firstMatch.label.contains("すみだ水族館"))
+        XCTAssertEqual(sheet.buttons[Self.postCandidateCategory].value as? String, "水族館")
+        let note = sheet.textFields[Self.postCandidateNote]
+        note.tap()
+        note.typeText("クラゲが見たい")
+        sheet.buttons[Self.postCandidateSubmit].tap()
+
+        // S-07 に戻り、投稿した候補が一覧に増えている
+        let room = app.otherElements[Self.roomScreen]
+        XCTAssertTrue(room.waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(room.staticTexts["すみだ水族館"].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(room.staticTexts["クラゲが見たい"].exists)
+        XCTAssertFalse(app.otherElements[Self.addCandidateScreen].exists)
+        XCTAssertFalse(app.otherElements[Self.postCandidateScreen].exists)
     }
 
     /// ナビゲーションバーを隠した画面でも、画面の左端からのスワイプで戻れる（`InteractivePopGesture`）

@@ -36,6 +36,8 @@ struct DokoGachaApp: App {
             ScreenshotDemo.RoomScene(services: appDelegate.serverSession.services)
         case .candidateDetail:
             ScreenshotDemo.CandidateDetailScene(services: appDelegate.serverSession.services)
+        case .addCandidate:
+            ScreenshotDemo.AddCandidateScene(services: appDelegate.serverSession.services)
         }
     }
 }

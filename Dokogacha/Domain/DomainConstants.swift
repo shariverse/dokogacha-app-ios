@@ -125,7 +125,7 @@ nonisolated enum DomainConstants {
 
     /// 場所検索の範囲（06 の §4 の仮決め「日本全国。`MKLocalSearch` の `region` は日本全体」）。
     ///
-    /// 沖縄から北海道まで（北緯 24〜45.6 度・東経 123〜146 度）が入る矩形。位置情報は使わない。
+    /// 沖縄から北海道まで（北緯 23.8〜45.8 度・東経 122.5〜146.5 度。中心 ± 幅の半分）が入る矩形。位置情報は使わない。
     nonisolated enum SearchRegion {
         /// 中心の緯度
         static let centerLatitude = 34.8
