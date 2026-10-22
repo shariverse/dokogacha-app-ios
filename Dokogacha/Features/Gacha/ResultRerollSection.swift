@@ -11,6 +11,7 @@ import SwiftUI
 /// - 投票中: 点線の「賛成を集めています…（N/M人）」（押せない）と、その下に賛成／反対のボタン。自分の票は濃いボタンにして選んだことを示し、
 ///   もう一方を押すと票を変えられる
 /// - 可決: 「過半数が賛成。もう一度引けます」と「ガチャを回す」（S-13 に進む。03 の §2「S-14 → 引き直し可決 → S-13」）
+/// - 可決の後にほかの人が回し直した: 「新しい行き先が決まりました」と「結果を見る」（S-13 に進み、新しい抽選の演出を見てから S-14 に進む）
 /// - 使用済み: 点線の「引き直しは使用済みです」（押せない）
 ///
 /// 送っている途中は押せない。文字を大きくして賛成／反対が横に収まらなければ縦に並べる。
@@ -29,6 +30,10 @@ struct ResultRerollSection: View {
         static let passed = "result.reroll.passed"
         /// 可決の後の「ガチャを回す」
         static let playAgain = "result.reroll.playAgain"
+        /// 可決の後にほかの人が回し直したときの「新しい行き先が決まりました」
+        static let redrawn = "result.reroll.redrawn"
+        /// 可決の後にほかの人が回し直したときの「結果を見る」
+        static let showNewResult = "result.reroll.showNewResult"
     }
 
     /// 欄に出すもの
@@ -39,7 +44,7 @@ struct ResultRerollSection: View {
     let onPropose: () -> Void
     /// 賛成（true）・反対（false）が押された
     let onVote: (Bool) -> Void
-    /// 可決の後の「ガチャを回す」が押された
+    /// 可決の後の「ガチャを回す」・ほかの人が回し直した後の「結果を見る」が押された（どちらも S-13 に進む）
     let onPlayAgain: () -> Void
 
     var body: some View {
@@ -67,6 +72,17 @@ struct ResultRerollSection: View {
                     .accessibilityIdentifier(Identifier.passed)
                 DGButton("ガチャを回す", action: onPlayAgain)
                     .accessibilityIdentifier(Identifier.playAgain)
+            }
+        case .redrawn:
+            VStack(spacing: DGSpacing.s10) {
+                Text("新しい行き先が決まりました")
+                    .font(.dg(.bodyTitle))
+                    .foregroundStyle(Color.dgInk)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier(Identifier.redrawn)
+                DGButton("結果を見る", action: onPlayAgain)
+                    .accessibilityIdentifier(Identifier.showNewResult)
             }
         case .used:
             DGButton("引き直しは使用済みです", kind: .dashed) {}
@@ -124,6 +140,7 @@ struct ResultRerollSection: View {
                 onPlayAgain: {}
             )
             ResultRerollSection(state: .passed, isSending: false, onPropose: {}, onVote: { _ in }, onPlayAgain: {})
+            ResultRerollSection(state: .redrawn, isSending: false, onPropose: {}, onVote: { _ in }, onPlayAgain: {})
             ResultRerollSection(state: .used, isSending: false, onPropose: {}, onVote: { _ in }, onPlayAgain: {})
         }
         .padding(DGSpacing.screenX)

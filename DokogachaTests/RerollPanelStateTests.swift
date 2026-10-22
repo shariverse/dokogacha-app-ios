@@ -57,11 +57,18 @@ struct RerollPanelStateTests {
         #expect(Self.make(Self.room(reroll: Self.voting(for: ["a", "left"]))) == .voting(approvals: 1, memberCount: 4, myVote: nil))
     }
 
-    /// 可決して unlocked に戻ったら「もう一度引けます」。ほかの人が回し直した後も、前の抽選を出していれば同じ
+    /// 可決して unlocked に戻ったら「もう一度引けます」
     @Test
     func passedUntilRedrawn() {
         #expect(Self.make(Self.room(status: .unlocked, reroll: Self.finished(.passed))) == .passed)
-        #expect(Self.make(Self.room(reroll: Self.finished(.passed), currentDrawId: "draw2")) == .passed)
+    }
+
+    /// 可決の後にほかの人が回し直し、前の抽選を出しているなら、もう回させず「新しい行き先が決まりました」（新しい結果を見る）
+    @Test
+    func redrawnByOthersAfterPassing() {
+        #expect(Self.make(Self.room(reroll: Self.finished(.passed), currentDrawId: "draw2")) == .redrawn)
+        // 新しい抽選を出していれば使用済み
+        #expect(Self.make(Self.room(reroll: Self.finished(.passed), currentDrawId: "draw2"), drawID: "draw2") == .used)
     }
 
     /// 可決の後に回し直した結果・否決の後は「引き直しは使用済みです」

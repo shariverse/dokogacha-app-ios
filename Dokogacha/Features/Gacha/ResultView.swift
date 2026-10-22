@@ -11,6 +11,7 @@ import SwiftUI
 /// 03 の S-14 には閉じる操作が無いが、S-13 と同じヘッダー（戻る矢印・ルーム名）を置き、ルーム（S-07）に戻れるようにする
 /// （「この行き先で決定」（F-44）はタスク 30 まで無いので、ほかに抜ける操作が無いため）。
 /// 引き直しが可決したら、欄の「ガチャを回す」で `onPlayAgain` を呼び、同じカバーの中で S-13 に戻る（`GachaFlowView`）。
+/// 可決の後にほかの人が先に回し直したら、欄の「結果を見る」で同じく S-13 に戻り、新しい抽選の演出を見てから S-14 に進む。
 /// 「この行き先で決定」（作成者のみ）はタスク 30 で足す。押しても何もしないボタンは置かない。
 /// `closed` のルームは閲覧のみで、引き直しの欄を出さない。
 ///
@@ -46,7 +47,7 @@ struct ResultView: View {
     @State private var toasts: DGToastCenter
     /// 表示したときにきっぷとハンコを動かすか
     private let animatesIn: Bool
-    /// 引き直しの可決の後に「ガチャを回す」が押された（S-13 に戻る）
+    /// 引き直しの可決の後に「ガチャを回す」・「結果を見る」が押された（S-13 に戻る）
     private let onPlayAgain: () -> Void
     /// きっぷを出し終えたか（ポップインの後の状態）
     @State private var hasPopped = false
@@ -60,7 +61,7 @@ struct ResultView: View {
     ///   - model: 画面の状態（最初の 1 回だけ使う）
     ///   - toasts: トーストの窓口（最初の 1 回だけ使う）
     ///   - animatesIn: 表示したときにきっぷとハンコを動かすか（撮影・UI テストでは false）
-    ///   - onPlayAgain: 引き直しの可決の後に「ガチャを回す」が押された（S-13 に戻る）
+    ///   - onPlayAgain: 引き直しの可決の後に「ガチャを回す」・「結果を見る」が押された（S-13 に戻る）
     init(model: ResultModel, toasts: DGToastCenter, animatesIn: Bool = true, onPlayAgain: @escaping () -> Void = {}) {
         _model = State(initialValue: model)
         _toasts = State(initialValue: toasts)
