@@ -31,6 +31,7 @@ import Observation
 /// 送っている途中は二重に送らず、画面の戻る操作を止める。失敗したら `AppError` の文言のトーストを出す。成功したら購読の
 /// `unlocked` で全員の画面が「ガチャ解禁！」になる（自分の画面も購読の値で変わる）。
 /// ほかの人がガチャを回した（F-41）ら、`DrawReplay` で決めた抽選を `drawToReplay` に入れ、画面が S-13 を開く。
+/// 開いたときにすでに `drawn`・`closed` なら `resultToOpen` に入れ、画面が S-14 を開く（03 の §2）。
 ///
 /// `lastSeenAt`（F-12 の NEW）は 02 の §3.3「ルーム画面を離れたときに更新する」のとおり、画面が消えたとき・アプリが裏に回ったときに書く。
 /// NEW の判定には、画面を開いて最初に届いた自分の `lastSeenAt` を使い続ける（画面を出している間は NEW を消さない）。
@@ -52,6 +53,8 @@ final class RoomModel {
         case ready
         /// 解禁していない（「準備OKが揃うと回せます」。押せない）
         case waiting
+        /// 行き先が決まった（`drawn`・`closed`。「行き先きっぷを見る」で S-14 を開く。抽選の ID）
+        case result(drawID: String)
     }
 
     /// 購読の種類（どれが失敗しているかを覚えて、トーストを 1 回にする）
@@ -92,6 +95,8 @@ final class RoomModel {
     private(set) var isForceUnlocking = false
     /// ほかの人が回したので、ガチャ（S-13）を開いて演出を再生する抽選の ID（開いたら `replayOpened()` で消す）
     private(set) var drawToReplay: String?
+    /// 開いたときに `drawn`・`closed` だったので、結果（S-14）を自動で出す抽選の ID（開いたら `resultOpened()` で消す）
+    private(set) var resultToOpen: String?
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let functions: any FunctionsClient
@@ -216,6 +221,7 @@ final class RoomModel {
             return
         }
         drawToReplay = DrawReplay.drawID(previous: room?.status, room: value.value, hasSeen: seenDraws.hasSeen(drawID:)) ?? drawToReplay
+        resultToOpen = DrawReplay.resultDrawID(previous: room?.status, room: value.value) ?? resultToOpen
         room = value.value
         loadState = .loaded
         if !RoomCandidateRow.likeableStatuses.contains(value.status) {
@@ -260,6 +266,11 @@ final class RoomModel {
     /// S-13 を開いた（`drawToReplay` を消す）
     func replayOpened() {
         drawToReplay = nil
+    }
+
+    /// S-14 を開いた（`resultToOpen` を消す）
+    func resultOpened() {
+        resultToOpen = nil
     }
 
     // MARK: - いいね

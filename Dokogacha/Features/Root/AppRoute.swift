@@ -10,7 +10,6 @@ import Foundation
 /// `NavigationStack` の行き先（`navigationDestination(for:)`）と、シート（`sheet(item:)`）・フルスクリーンカバー
 /// （`fullScreenCover(item:)`）の行き先を 1 つの enum にまとめ、
 /// どちらで出すかは `presentation` で決める（03 の §1 の「表示形式」）。
-/// まだ作っていない画面は仮の画面（`PendingScreenView`）を出し、後のタスクで `MainNavigationView` の行き先を差し替える。
 nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
     /// S-03 ルーム作成（プッシュ）
     case createRoom
@@ -30,8 +29,10 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
     case members(roomID: String)
     /// S-12 ルーム設定（ルームのヘッダーの設定から。作成者だけ。シート。タスク 25）
     case roomSettings(roomID: String)
-    /// S-13 ガチャ（ルームの「ガチャを回す」から。フルスクリーンカバー。タスク 27）
+    /// S-13 ガチャ（ルームの「ガチャを回す」から。フルスクリーンカバー。タスク 27）。カプセルを開け終えたら同じカバーの中で S-14 に替わる
     case gacha(roomID: String)
+    /// S-14 結果（`drawn`・`closed` のルームを開いたとき・ルームの「行き先きっぷを見る」から。フルスクリーンカバー。タスク 28）
+    case result(roomID: String, drawID: String)
 
     /// 出し方
     enum Presentation: Equatable, Sendable {
@@ -50,7 +51,7 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
             .push
         case .joinByCode, .candidateDetail, .members, .roomSettings:
             .sheet
-        case .gacha:
+        case .gacha, .result:
             .fullScreenCover
         }
     }

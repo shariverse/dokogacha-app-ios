@@ -111,6 +111,18 @@ enum UITestID {
     static let roomSettingsScreen = "roomSettings.screen"
     /// S-12 の「保存」（`RoomSettingsView.Identifier.save`）
     static let roomSettingsSave = "roomSettings.save"
+    /// S-07 の下部の「行き先きっぷを見る」（`RoomGachaBar.Identifier.result`）
+    static let roomResult = "room.result"
+    /// S-14 結果（`ResultView.Identifier.screen`）
+    static let resultScreen = "result.screen"
+    /// S-14 の「行き先が決まりました」（`ResultView.Identifier.title`）
+    static let resultTitle = "result.title"
+    /// S-14 の行き先きっぷ（`ResultView.Identifier.ticket`）
+    static let resultTicket = "result.ticket"
+    /// S-14 の「マップで開く」（`ResultView.Identifier.openInMaps`）
+    static let resultOpenInMaps = "result.openInMaps"
+    /// S-14 の「きっぷを共有」（`ResultView.Identifier.share`）
+    static let resultShare = "result.share"
     /// 画面が出るのを待つ時間
     static let timeout: TimeInterval = 10
 

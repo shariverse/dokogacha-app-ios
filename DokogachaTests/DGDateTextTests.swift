@@ -33,6 +33,7 @@ struct DGDateTextTests {
     func stampDatePadsDay() throws {
         #expect(DGDateText.stampDate(try Self.date(2026, 10, 21), timeZone: Self.tokyo) == "10.21")
         #expect(DGDateText.stampDate(try Self.date(2026, 8, 4), timeZone: Self.tokyo) == "8.04")
+        #expect(DGDateText.monthDayJapanese(try Self.date(2026, 8, 4), timeZone: Self.tokyo) == "8月4日")
     }
 
     /// 日付は渡したタイムゾーンの暦で読む（日本時間の 0 時台は、UTC ではまだ前の日）

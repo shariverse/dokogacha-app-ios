@@ -198,7 +198,8 @@ struct RoomModelTests {
         #expect(model.acceptsCandidates)
 
         server.rooms[DemoScenario.roomID]?.room.status = .drawn
-        #expect(await AsyncTestSupport.eventually { model.gachaButtonState == nil })
+        server.rooms[DemoScenario.roomID]?.room.currentDrawId = "d1"
+        #expect(await AsyncTestSupport.eventually { model.gachaButtonState == .result(drawID: "d1") })
         #expect(!model.acceptsCandidates)
     }
 

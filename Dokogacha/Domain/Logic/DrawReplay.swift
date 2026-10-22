@@ -22,4 +22,20 @@ nonisolated enum DrawReplay {
         }
         return drawID
     }
+
+    /// S-07 を開いたときに、結果の画面（S-14）を自動で出す抽選の ID（03 の §2「ルームが drawn の状態でルーム画面を開いたら、結果画面を自動で表示する」・
+    /// 02 の §6.2「アプリを開いていなかった人は、次に開いたときに結果画面を直接表示する」）。出さないなら nil。
+    ///
+    /// 画面を開いて最初に届いたルーム（`previous` が nil）が `drawn`・`closed`（閲覧のみ）のときだけ出す。
+    /// 画面を出している間に `drawn` になったときは `drawID(previous:room:hasSeen:)` で S-13 の演出を再生する（その後で S-14 に進む）
+    /// - Parameters:
+    ///   - previous: 出していたルームの状態（まだ届いていなければ nil）
+    ///   - room: 届いたルーム
+    static func resultDrawID(previous: RoomStatus?, room: Room) -> String? {
+        guard previous == nil, room.status == .drawn || room.status == .closed,
+              let drawID = room.currentDrawId, !drawID.isEmpty else {
+            return nil
+        }
+        return drawID
+    }
 }

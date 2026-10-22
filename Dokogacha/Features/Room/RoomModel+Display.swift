@@ -115,12 +115,13 @@ extension RoomModel {
     /// 準備OKを変えられるルームの状態（02 の §2.1）
     static let readyStatuses: Set<RoomStatus> = [.open, .unlocked]
 
-    /// 下部の「ガチャを回す」の状態。`drawn`・`closed` は結果の画面（タスク 28）を出すので、ボタンを出さない（nil）
+    /// 下部のボタンの状態。`drawn`・`closed` は「行き先きっぷを見る」（抽選の ID が無い壊れたルーム・読み込み中は出さない）
     var gachaButtonState: GachaButtonState? {
         switch room?.status {
         case .unlocked: .ready
         case .open: .waiting
-        case .drawn, .closed, nil: nil
+        case .drawn, .closed: room?.currentDrawId.flatMap { $0.isEmpty ? nil : .result(drawID: $0) }
+        case nil: nil
         }
     }
 }

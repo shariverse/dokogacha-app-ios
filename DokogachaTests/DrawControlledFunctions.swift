@@ -12,6 +12,10 @@ import Foundation
 final class DrawControlledFunctions: FunctionsClient {
     let server: InMemoryServer
     var drawBehavior: JoinCallBehavior = .pass
+    /// 擬似のサーバーで抽選を書き込んだ後に投げるエラー（タイムアウトで失敗したが、サーバーでは書き込み済みのとき）
+    var failureAfterWriting: AppError?
+    /// `failureAfterWriting` のとき、書き込んだ後で `finish()` を呼ぶまで止まるか（失敗が返る前に drawn を届けるため）
+    var holdsAfterWriting = false
     /// 送られた `drawGacha` の入力（送られた順）
     private(set) var drawRequests: [RoomRequest] = []
     private var pending: CheckedContinuation<Void, Never>?
@@ -86,7 +90,14 @@ final class DrawControlledFunctions: FunctionsClient {
     func drawGacha(_ request: RoomRequest) async throws -> DrawGachaResponse {
         drawRequests.append(request)
         try await perform(drawBehavior)
-        return try await server.drawGacha(request)
+        let response = try await server.drawGacha(request)
+        if let failureAfterWriting {
+            if holdsAfterWriting {
+                await withCheckedContinuation { pending = $0 }
+            }
+            throw failureAfterWriting
+        }
+        return response
     }
 
     func proposeReroll(_ request: RoomRequest) async throws {
