@@ -44,7 +44,7 @@ nonisolated enum AdDisplayPolicy {
     /// その画面にバナーを出すか。
     ///
     /// 1. 出してよい画面でなければ出さない（F-50）
-    /// 2. 自分が広告非表示を買っていれば出さない（`users.adFree`。F-51「購入者本人は全画面で広告が消える」）
+    /// 2. 自分が広告非表示を買っていれば出さない（`users.adFree` か端末の購入。F-51「購入者本人は全画面で広告が消える」）
     /// 3. 開いているルームに購入者がいれば出さない（`rooms.adFreeSponsor`。F-51「そのルームの全メンバーの広告が消える」）。
     ///    ホームはルームを渡さないので、自分が買ったかだけで決まる（F-51「ホーム画面の広告は自分が購入者かだけで決める」）
     /// 4. ルーム・候補を追加でルームがまだ届いていなければ出さない（購入者がいるかが分からないうちに枠を出すと、
@@ -52,7 +52,7 @@ nonisolated enum AdDisplayPolicy {
     ///
     /// - Parameters:
     ///   - screen: 出そうとしている画面
-    ///   - isAdFree: 自分が広告非表示を買ったか（いまは `users.adFree`。端末での購入の確認はタスク 37 で足す）
+    ///   - isAdFree: 自分が広告非表示を買ったか（`users.adFree` か端末の StoreKit の購入。`AdFreeStatus`）
     ///   - room: 開いているルーム（ルーム・候補を追加のとき。ホームでは nil。ルーム・候補を追加で nil なら、まだ届いていない）
     static func shouldShowAds(screen: AdScreen, isAdFree: Bool, room: Room?) -> Bool {
         guard screen.allowsAds else {

@@ -20,7 +20,7 @@ final class AdCoordinator {
 
     /// 起動のしかたごとの広告の扱い
     let mode: AdMode
-    /// 自分が広告非表示を買ったか（`users.adFree`。プロフィールが替わるたびに入れ直す）
+    /// 自分が広告非表示を買ったか（`users.adFree` か端末の購入。`RootView` がプロフィールと端末の購入が替わるたびに入れ直す）
     var isAdFree = false
     /// いまの ATT の状態（尋ねたら更新する）
     private(set) var trackingStatus: AdTrackingStatus
