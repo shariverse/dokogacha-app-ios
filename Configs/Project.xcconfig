@@ -30,6 +30,10 @@ OTHER_LDFLAGS = $(inherited) -ObjC -framework JavaScriptCore
 // （Discussion #5 の Q6「テスト用の値で実装し、本番の設定は公開前にまとめて用意する」）
 DG_GAD_APPLICATION_IDENTIFIER = ca-app-pub-3940256099942544~1458002511
 
+// バナー広告（F-50）の広告ユニット ID（Info.plist の DGBannerAdUnitID）。本番の値が決まるまでは Google のテスト用の
+// アダプティブバナーの ID を使う（Q6）。本番の ID は App ID と一緒に、公開前に人間が差し替える（コミットしない）
+DG_BANNER_AD_UNIT_ID = ca-app-pub-3940256099942544/2435281174
+
 // Web のドメイン（06 の §4 の仮決め dokogacha.app）。Universal Links の Associated Domains（Configs/Dokogacha.entitlements の
 // applinks:）に使う。Swift の DomainConstants.Web.domain・TypeScript の WEB_DOMAIN と同じ値にする（DomainConstantsTests で確かめる）
 DG_WEB_DOMAIN = dokogacha.app

@@ -38,6 +38,8 @@ final class PushNotificationCoordinator {
     @ObservationIgnored private var fcmToken: String?
     /// 書いている途中の処理（順に書くため、次の書き込みは前の書き込みの後に始める）
     @ObservationIgnored private var syncTask: Task<Void, Never>?
+    /// 最後に始めた、通知の許可を尋ねる処理（`waitForAuthorizationRequest` で待つ）
+    @ObservationIgnored private var authorizationRequest: Task<Void, Never>?
 
     /// 通知を使わない状態で作る（`enable` を呼ぶまでは、尋ねない・登録しない・書かない）
     /// - Parameter router: 通知を開いたときの行き先を渡す先
@@ -84,8 +86,24 @@ final class PushNotificationCoordinator {
 
     /// ルームを作成・参加したとき。まだ尋ねていなければ通知の許可を尋ね、許可されたら APNs に登録する
     func requestAuthorizationIfNeeded() async {
-        guard isEnabled,
-              PushNotificationPolicy.shouldRequestAuthorization(status: await authorization.authorizationStatus()) else {
+        guard isEnabled else {
+            return
+        }
+        let task: Task<Void, Never> = Task { [weak self] in
+            await self?.performAuthorizationRequest()
+        }
+        authorizationRequest = task
+        await task.value
+    }
+
+    /// 通知の許可を尋ねている途中なら、答えが出るまで待つ（ATT のダイアログを通知のダイアログと重ねて出さないため）
+    func waitForAuthorizationRequest() async {
+        await authorizationRequest?.value
+    }
+
+    /// まだ尋ねていなければ通知の許可を尋ね、許可されたら APNs に登録する
+    private func performAuthorizationRequest() async {
+        guard PushNotificationPolicy.shouldRequestAuthorization(status: await authorization.authorizationStatus()) else {
             return
         }
         do {

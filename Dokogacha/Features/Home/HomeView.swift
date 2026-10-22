@@ -9,7 +9,7 @@ import SwiftUI
 /// 思い出のきっぷを縦にスクロールで並べ、下に「＋ ルームを作る」「招待コードで参加」を固定する。
 ///
 /// 標準のナビゲーションバーは使わない（03 の §3）。画面の行き先は `navigate` で親（`MainNavigationView`）に渡す。
-/// バナー広告（03 の S-02 の 5）はタスク 36 で下部に足す。
+/// バナー広告（03 の S-02 の 5・F-50）はボタンの下に置く（`BannerAdSlot`。ボタンと重ならない）。
 struct HomeView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -70,7 +70,11 @@ struct HomeView: View {
             .padding(.bottom, DGSpacing.s16)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomButtons
+            VStack(spacing: 0) {
+                bottomButtons
+                // ホームの広告は、自分が買ったかだけで決める（F-51。ルームは渡さない）
+                BannerAdSlot(screen: .home)
+            }
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)

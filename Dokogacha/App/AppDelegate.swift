@@ -6,7 +6,7 @@
 import UIKit
 import UserNotifications
 
-/// アプリの起動時の処理（Firebase の初期化と、データ層の実装の選択）と、プッシュ通知（APNs・FCM・通知を開いたとき）の受け口
+/// アプリの起動時の処理（Firebase・広告の初期化と、データ層の実装の選択）と、プッシュ通知（APNs・FCM・通知を開いたとき）の受け口
 final class AppDelegate: NSObject, UIApplicationDelegate {
     /// サーバーへの接続とサインインの状態。`DokoGachaApp` が `@Environment` で画面に渡す
     let serverSession = ServerSession()
@@ -14,6 +14,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     let deepLinks = DeepLinkRouter()
     /// プッシュ通知のまとめ役（`DokoGachaApp` が `@Environment` で画面に渡す）。Firebase に繋いだときだけ通知を使う
     let push: PushNotificationCoordinator
+    /// 広告のまとめ役（`DokoGachaApp` が `@Environment` で画面に渡す）。テストでは広告を読み込まず、撮影モードでは固定の枠を出す
+    let ads: AdCoordinator
 
     /// `UNUserNotificationCenter`・`Messaging` の delegate（どちらも弱い参照なので、ここで持つ）
     private var notificationObserver: NotificationCenterObserver?
@@ -21,6 +23,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     override init() {
         push = PushNotificationCoordinator(router: deepLinks)
+        let adUnitID = Bundle.main.object(forInfoDictionaryKey: AdCoordinator.adUnitIDInfoKey) as? String
+        ads = AdCoordinator(mode: AdMode.make(launch: .current, adUnitID: adUnitID), service: GoogleMobileAdsService())
         super.init()
     }
 
@@ -32,6 +36,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         let connection = FirebaseBootstrap.configure(plan: FirebaseBootstrap.currentPlan())
         // Firebase を初期化したら Firebase の実装、テスト・撮影なら擬似のサーバー（`-demo-scenario` のデータ）を使う
         serverSession.start(connection: connection, services: DataServices.make(connection: connection, launch: launch))
+        // 本物の広告を読み込むときだけ Google Mobile Ads を初期化する（Unit テストのホスト・`-uiTesting`・撮影モードでは初期化しない）
+        ads.start()
         if PushNotificationPolicy.isEnabled(connection: connection) {
             startPushNotifications()
         }

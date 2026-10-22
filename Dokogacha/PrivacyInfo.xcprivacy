@@ -3,14 +3,45 @@
 <plist version="1.0">
 <dict>
 	<!-- App Store に提出するアプリのプライバシーマニフェスト。機能を足したら、この内容が実態と合っているか見直す -->
-	<!-- トラッキング（ATT の対象）をしないなら false のまま。広告 SDK などでトラッキングするなら true にし、ドメインを列挙する -->
+	<!-- トラッキング（ATT の対象）。バナー広告（F-50。Google Mobile Ads）は、ATT で許可した人には広告 ID（IDFA）でパーソナライズした広告を出すので true -->
 	<key>NSPrivacyTracking</key>
-	<false/>
+	<true/>
+	<!-- トラッキングのドメイン。ここに書いたドメインは、ATT で許可していない人の通信を OS が止める。
+	     Google Mobile Ads の SDK は自分のマニフェストにトラッキングのドメインを書いておらず、広告の配信のドメイン（非パーソナライズ広告も同じ）を
+	     ここに書くと、拒否した人に広告が出なくなるので書かない（アプリ自身のコードはトラッキングの通信をしない） -->
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
-	<!-- 収集するデータ。App Store Connect の「App のプライバシー」と揃える -->
+	<!-- 収集するデータ。App Store Connect の「App のプライバシー」と揃える。
+	     いまは広告（Google Mobile Ads）の分だけ。ユーザー ID・表示名・投稿内容・診断データ（06 の §5）は申請素材のタスクで足す -->
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<!-- 広告 ID（IDFA）。ATT で許可した人だけ、第三者の広告のトラッキングに使う -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+			</array>
+		</dict>
+		<!-- 広告データ（表示・タップした広告） -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeAdvertisingData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+			</array>
+		</dict>
+	</array>
 	<!-- 理由の申告が必要な API。@AppStorage / UserDefaults はほぼすべてのアプリが使うため、最初から申告しておく -->
 	<!-- ファイルのタイムスタンプ・空き容量・起動時刻などの API を使うときは、ここに理由を足す -->
 	<key>NSPrivacyAccessedAPITypes</key>
