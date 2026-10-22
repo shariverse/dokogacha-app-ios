@@ -118,6 +118,7 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $model.isEditingName) {
             DisplayNameEditor(model: model)
+                .offlineBanner()
                 .dgToast(toasts)
         }
         .sheet(item: $webPage) { page in

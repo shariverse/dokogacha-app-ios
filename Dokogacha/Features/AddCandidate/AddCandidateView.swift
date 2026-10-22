@@ -131,6 +131,7 @@ struct AddCandidateView: View {
         }
         .sheet(item: $model.draft, onDismiss: sheetDismissed) { _ in
             PostCandidateView(model: model)
+                .offlineBanner()
         }
         .alert(
             Text("すでに候補にあります。いいねしますか？"),

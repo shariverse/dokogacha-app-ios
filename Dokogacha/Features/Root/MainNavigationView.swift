@@ -66,6 +66,8 @@ struct MainNavigationView: View {
             onDismiss: { presentation.sheetDismissed() },
             content: { route in
                 destination(route)
+                    // シートは根元の画面の上に重なるので、オフラインのバナーもシートの中に出す
+                    .offlineBanner()
             }
         )
         // カバーを閉じ終えたら、その間に開こうとしたシート（招待リンクの S-05・S-06）を出す（`AppPresentation`）
@@ -74,6 +76,7 @@ struct MainNavigationView: View {
             onDismiss: { presentation.fullScreenDismissed() },
             content: { route in
                 destination(route)
+                    .offlineBanner()
                     // S-14 で作成者がルームを終了したら、カバーを閉じてホームに戻る（03 の §2「この行き先で決定 → S-02」）
                     .environment(\.roomClosed, RoomClosedAction {
                         presentation.fullScreen = nil
