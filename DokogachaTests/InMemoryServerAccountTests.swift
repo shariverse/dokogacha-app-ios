@@ -99,6 +99,31 @@ struct InMemoryServerAccountTests {
         #expect(!server.isLinkedWithApple)
     }
 
+    /// 削除した後は、サインインしたまま残った uid が消えていると分かる（Firebase の `reload` の userNotFound の代わり）。削除の前・ほかの人は消えていない
+    @Test
+    func reportsDeletedCurrentAccount() async throws {
+        let server = InMemoryServer.demo(.oneRoom)
+        #expect(await !server.isCurrentAccountDeleted())
+        try server.deleteAccount(by: Self.haruka)
+        #expect(await !server.isCurrentAccountDeleted())
+        try await server.deleteAccount()
+        #expect(await server.isCurrentAccountDeleted())
+        server.signOut()
+        #expect(await !server.isCurrentAccountDeleted())
+    }
+
+    /// Apple のトークンの取り消しは、渡された authorization code を記録する（サインインしていなければ unauthenticated）
+    @Test
+    func revokesAppleTokenWhenSignedIn() async throws {
+        let server = InMemoryServer.demo(.oneRoom)
+        try await server.revokeAppleToken(authorizationCode: "code-1")
+        #expect(server.revokedAppleAuthorizationCodes == ["code-1"])
+        server.signOut()
+        await #expect(throws: InMemoryServer.error(.unauthenticated)) {
+            try await server.revokeAppleToken(authorizationCode: "code-2")
+        }
+    }
+
     /// サインインしていなければ unauthenticated
     @Test
     func requiresSignIn() async {
