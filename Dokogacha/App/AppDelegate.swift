@@ -22,6 +22,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// `UNUserNotificationCenter`・`Messaging` の delegate（どちらも弱い参照なので、ここで持つ）
     private var notificationObserver: NotificationCenterObserver?
     private var messagingObserver: MessagingTokenObserver?
+    /// UI テストで、ほかのメンバーの操作を擬似のサーバーが自動で返す（`-uiTesting -ui-auto-members` のときだけ。ここで持って寿命を合わせる）
+    private var autoMembers: InMemoryAutoMembers?
 
     override init() {
         push = PushNotificationCoordinator(router: deepLinks)
@@ -38,7 +40,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         let connection = FirebaseBootstrap.configure(plan: FirebaseBootstrap.currentPlan())
         FirebaseTelemetry.start(connection: connection, launch: launch)
         // Firebase を初期化したら Firebase の実装、テスト・撮影なら擬似のサーバー（`-demo-scenario` のデータ）を使う
-        serverSession.start(connection: connection, services: DataServices.make(connection: connection, launch: launch))
+        let services = DataServices.make(connection: connection, launch: launch)
+        serverSession.start(connection: connection, services: services)
+        if launch.autoMembers, let server = services.inMemoryServer {
+            autoMembers = InMemoryAutoMembers(server: server)
+        }
         // 本物の広告を読み込むときだけ Google Mobile Ads を初期化する（Unit テストのホスト・`-uiTesting`・撮影モードでは初期化しない）
         ads.start()
         // 端末の購入を読み、`Transaction.updates` を購読する（起動の直後から聞いていないと、アプリの外での購入を取りこぼす）

@@ -8,7 +8,8 @@ import XCTest
 /// S-14 の引き直し（F-43）の UI テスト。メモリ上の擬似のサーバー（`-uiTesting -demo-scenario several-rooms`）で動かす。
 ///
 /// 解禁済みのルーム（週末のランチ。自分・はるか・そうたの 3 人）で回してから、S-14 で引き直しを提案する。
-/// ほかのメンバーの票は UI テストから入れられないので、可決は Unit テスト（`ResultModelRerollTests`・`InMemoryServerRerollTests`）で確かめる
+/// ここでは自分の票だけを確かめる。ほかのメンバーの賛成で可決して回し直すまでは、`-ui-auto-members` で
+/// ほかのメンバーの票を返す `ScenarioUITests` で確かめる
 final class RerollUITests: XCTestCase {
     /// ホームの解禁済みのルーム（週末のランチ）のカード（`HomeView.Identifier.room(DemoScenario.unlockedRoomID)`）
     private static let unlockedRoomCard = "home.room.demo-room-unlocked"
@@ -37,10 +38,10 @@ final class RerollUITests: XCTestCase {
         XCTAssertTrue(status.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(status.label, "賛成を集めています…（1/3人）")
         XCTAssertFalse(status.isEnabled)
-        XCTAssertFalse(propose.exists)
+        XCTAssertTrue(propose.waitForNonExistence(timeout: UITestID.timeout))
         let approve = app.buttons[UITestID.resultRerollApprove]
         let reject = app.buttons[UITestID.resultRerollReject]
-        XCTAssertTrue(approve.exists)
+        XCTAssertTrue(approve.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(approve.label, "引き直しに賛成")
         XCTAssertTrue(approve.isSelected)
         XCTAssertEqual(reject.label, "引き直しに反対")

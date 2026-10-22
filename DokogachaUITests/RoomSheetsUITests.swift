@@ -20,11 +20,11 @@ final class RoomSheetsUITests: XCTestCase {
         app.launchArguments += ["-uiTesting", "-demo-scenario", "several-rooms"]
         app.launch()
 
+        // ほかの人が作ったルームはいちばん古いので一覧の下にある。ホームが出てから、押せる位置に来るまでゆっくり送る
+        // （速く送ると、慣性で動いている間に押してしまい、スクロールが止まるだけでルームが開かない）
+        XCTAssertTrue(app.buttons[UITestID.demoRoomCard].waitForExistence(timeout: UITestID.timeout))
         let card = app.buttons[UITestID.othersRoomCard]
-        if !card.waitForExistence(timeout: UITestID.timeout) || !card.isHittable {
-            app.swipeUp()
-        }
-        XCTAssertTrue(card.isHittable)
+        XCTAssertTrue(card.scrollIntoView(in: app))
         card.tap()
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
 
@@ -47,7 +47,7 @@ final class RoomSheetsUITests: XCTestCase {
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(sheet.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(card.waitForNonExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.buttons[UITestID.demoRoomCard].exists)
+        XCTAssertTrue(app.buttons[UITestID.demoRoomCard].waitForExistence(timeout: UITestID.timeout))
     }
 
     /// 作成者がルーム（S-07）のヘッダーの設定から S-12 を開き、投稿数を 3 から 5 に上げて「保存」すると、

@@ -20,6 +20,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// 例: `{"roomId":"demo-room","target":"room"}`）。擬似のサーバーでは通知が届かないので、起動の直後に `DeepLinkRouter` へ渡す
     static let openNotificationArgument = "-open-notification"
 
+    /// UI テストで、ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが自動で返す起動引数（`InMemoryAutoMembers`）。
+    /// UI テストは 1 台の端末しか操作できないので、06 の §2 の通しのシナリオで使う。`-uiTesting` のときだけ効く
+    static let autoMembersArgument = "-ui-auto-members"
+
     /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
     /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
     static let unitTestHostEnvironmentKeys = ["XCTestConfigurationFilePath", "XCTestBundlePath", "XCTestSessionIdentifier"]
@@ -37,12 +41,15 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let openURL: URL?
     /// 起動の直後に開いたことにする通知のペイロード（`-open-notification <JSON>`）。`-uiTesting`・撮影モードのときだけ読み、ほかは nil
     let openNotification: [String: String]?
+    /// ほかのメンバーの操作を擬似のサーバーが自動で返すか（`-ui-auto-members`。`-uiTesting` のときだけ true になりうる）
+    let autoMembers: Bool
 
     /// 起動引数と環境変数から作る
     init(arguments: [String], environment: [String: String]) {
         isUnitTestHost = Self.unitTestHostEnvironmentKeys.contains { environment[$0] != nil }
         isUITesting = arguments.contains(Self.uiTestingArgument)
         isScreenshotDemo = arguments.contains(ScreenshotDemo.argument)
+        autoMembers = isUITesting && arguments.contains(Self.autoMembersArgument)
         // 撮影モード（App Store の画面）は、シナリオを指定しなければルームが並んだ状態で撮る
         demoScenario = DemoScenario.from(
             arguments: arguments,

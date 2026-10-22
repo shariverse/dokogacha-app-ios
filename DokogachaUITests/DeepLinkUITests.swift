@@ -27,7 +27,7 @@ final class DeepLinkUITests: XCTestCase {
         app.buttons[UITestID.joinConfirmJoin].tap()
 
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.otherElements[UITestID.joinConfirmScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.joinConfirmScreen].waitForNonExistence(timeout: UITestID.timeout))
         app.buttons["戻る"].tap()
         XCTAssertTrue(app.buttons["home.room.\(UITestID.joinableRoomID)"].waitForExistence(timeout: UITestID.timeout))
     }
@@ -42,7 +42,7 @@ final class DeepLinkUITests: XCTestCase {
 
         let nameField = app.textFields[UITestID.displayNameField]
         XCTAssertTrue(nameField.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.otherElements[UITestID.joinConfirmScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.joinConfirmScreen].waitForNonExistence(timeout: UITestID.timeout))
         nameField.tap()
         nameField.typeText("ゆい")
         app.buttons[UITestID.startButton].tap()
@@ -55,7 +55,7 @@ final class DeepLinkUITests: XCTestCase {
     private func assertJoinConfirmShowsJoinableRoom(in app: XCUIApplication) {
         let card = app.descendants(matching: .any)[UITestID.joinConfirmCard]
         XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.otherElements[UITestID.joinConfirmScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.joinConfirmScreen].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(card.label.contains("夏の花火大会"), card.label)
         XCTAssertTrue(card.label.contains("はるか"), card.label)
     }

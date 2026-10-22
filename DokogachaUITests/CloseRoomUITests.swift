@@ -47,7 +47,7 @@ final class CloseRoomUITests: XCTestCase {
         let decide = app.buttons[Self.decideButton]
         XCTAssertTrue(decide.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(decide.label, "この行き先で決定")
-        XCTAssertFalse(app.staticTexts[Self.ownerNote].exists)
+        XCTAssertTrue(app.staticTexts[Self.ownerNote].waitForNonExistence(timeout: UITestID.timeout))
 
         // 確認のダイアログの「決定する」でルームを終了してホームへ戻る
         decide.tap()
@@ -57,7 +57,7 @@ final class CloseRoomUITests: XCTestCase {
         confirm.tap()
         XCTAssertTrue(result.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.otherElements[UITestID.roomScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForNonExistence(timeout: UITestID.timeout))
 
         // 進行中のルームから消え、思い出のきっぷに「サンシャイン水族館 ゆき」・外れた候補 2 件で出る
         let ticket = app.buttons[Self.myMemoryTicket]
@@ -65,15 +65,15 @@ final class CloseRoomUITests: XCTestCase {
         XCTAssertTrue(ticket.label.contains("週末のランチ"), ticket.label)
         XCTAssertTrue(ticket.label.contains("サンシャイン水族館"), ticket.label)
         XCTAssertTrue(ticket.label.contains("外れた候補 2件は次のルームで使えます"), ticket.label)
-        XCTAssertFalse(app.buttons[Self.myDrawnRoomCard].exists)
-        XCTAssertFalse(app.staticTexts[Self.memoriesEmpty].exists)
+        XCTAssertTrue(app.buttons[Self.myDrawnRoomCard].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.staticTexts[Self.memoriesEmpty].waitForNonExistence(timeout: UITestID.timeout))
 
         // 思い出のきっぷから S-14 を閲覧のみで開く
         ticket.tap()
         XCTAssertTrue(result.waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.descendants(matching: .any)[UITestID.resultTicket].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.buttons[Self.decideButton].exists)
-        XCTAssertFalse(app.staticTexts[Self.ownerNote].exists)
+        XCTAssertTrue(app.buttons[Self.decideButton].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.staticTexts[Self.ownerNote].waitForNonExistence(timeout: UITestID.timeout))
         result.buttons["戻る"].firstMatch.tap()
         XCTAssertTrue(ticket.waitForExistence(timeout: UITestID.timeout))
     }
@@ -92,6 +92,6 @@ final class CloseRoomUITests: XCTestCase {
         let note = app.staticTexts[Self.ownerNote]
         XCTAssertTrue(note.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(note.label, "作成者が決定するとルームが終了します")
-        XCTAssertFalse(app.buttons[Self.decideButton].exists)
+        XCTAssertTrue(app.buttons[Self.decideButton].waitForNonExistence(timeout: UITestID.timeout))
     }
 }

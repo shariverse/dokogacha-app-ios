@@ -35,7 +35,7 @@ final class DokogachaUITests: XCTestCase {
         start.tap()
 
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(field.exists)
+        XCTAssertTrue(field.waitForNonExistence(timeout: UITestID.timeout))
     }
 
     /// 表示名を登録済み（2 回目の起動）では、S-01 を出さずにホームが開く
@@ -46,7 +46,7 @@ final class DokogachaUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.textFields[UITestID.displayNameField].exists)
+        XCTAssertTrue(app.textFields[UITestID.displayNameField].waitForNonExistence(timeout: UITestID.timeout))
         // ルームが無いので、進行中のルームは空の表示
         XCTAssertTrue(app.staticTexts[UITestID.roomsEmpty].waitForExistence(timeout: UITestID.timeout))
     }
@@ -61,7 +61,7 @@ final class DokogachaUITests: XCTestCase {
         let card = app.buttons[UITestID.demoRoomCard]
         XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(card.label.contains("年末の旅行"))
-        XCTAssertFalse(app.staticTexts[UITestID.roomsEmpty].exists)
+        XCTAssertTrue(app.staticTexts[UITestID.roomsEmpty].waitForNonExistence(timeout: UITestID.timeout))
 
         card.tap()
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
@@ -94,7 +94,7 @@ final class DokogachaUITests: XCTestCase {
         submit.tap()
 
         XCTAssertTrue(app.otherElements[UITestID.inviteScreen].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.staticTexts["年末の旅行"].exists)
+        XCTAssertTrue(app.staticTexts["年末の旅行"].waitForExistence(timeout: UITestID.timeout))
         let code = app.buttons[UITestID.inviteCode]
         XCTAssertTrue(code.waitForExistence(timeout: UITestID.timeout))
         // 招待コードは 3 文字ずつハイフンで区切って出す（`0 O 1 I` は使わない）
@@ -105,9 +105,9 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
         app.buttons["戻る"].tap()
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.otherElements[UITestID.createRoomScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.createRoomScreen].waitForNonExistence(timeout: UITestID.timeout))
         // 作ったルームがホームに並ぶ
-        XCTAssertFalse(app.staticTexts[UITestID.roomsEmpty].exists)
+        XCTAssertTrue(app.staticTexts[UITestID.roomsEmpty].waitForNonExistence(timeout: UITestID.timeout))
     }
 
     /// ホームから「招待コードで参加」→ 存在しないコードでは入力欄の下にエラー → 正しいコード（小文字・ハイフンなし）を入れて
@@ -131,29 +131,32 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertFalse(submit.isEnabled)
 
         field.tap()
-        field.typeText("zzzzzz")
-        XCTAssertEqual(field.value as? String, "ZZZ-ZZZ")
+        field.typeTextByCharacter("zzzzzz")
+        XCTAssertTrue(field.waitForValue("ZZZ-ZZZ"), field.value as? String ?? "")
+        XCTAssertTrue(submit.waitForEnabled())
         submit.tap()
         let error = app.staticTexts[UITestID.joinCodeError]
         XCTAssertTrue(error.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(error.label, "招待コードが見つかりません")
 
-        // 入れ直す（全部消してから、デモの参加できるルームのコードを小文字・ハイフンなしで打つ）
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 7))
-        field.typeText("qw58rt")
-        XCTAssertEqual(field.value as? String, "QW5-8RT")
-        XCTAssertFalse(error.exists)
+        // 入れ直す（全部消してから、デモの参加できるルームのコードを小文字・ハイフンなしで打つ）。
+        // 削除キーをまとめて打つと負荷が高いときに抜けるので、1 文字ずつ値が変わるのを確かめながら消して打つ
+        field.clearText()
+        field.typeTextByCharacter("qw58rt")
+        XCTAssertTrue(field.waitForValue("QW5-8RT"), field.value as? String ?? "")
+        XCTAssertTrue(error.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(submit.waitForEnabled())
         submit.tap()
 
         let card = app.descendants(matching: .any)[UITestID.joinConfirmCard]
         XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.otherElements[UITestID.joinConfirmScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.joinConfirmScreen].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(card.label.contains("夏の花火大会"), card.label)
         XCTAssertTrue(card.label.contains("はるか"), card.label)
         app.buttons[UITestID.joinConfirmJoin].tap()
 
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.otherElements[UITestID.joinConfirmScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.joinConfirmScreen].waitForNonExistence(timeout: UITestID.timeout))
         app.buttons["戻る"].tap()
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.buttons["home.room.\(UITestID.joinableRoomID)"].waitForExistence(timeout: UITestID.timeout))
@@ -173,7 +176,7 @@ final class DokogachaUITests: XCTestCase {
 
         swipeFromLeftEdge(app)
         XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.otherElements[UITestID.roomScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForNonExistence(timeout: UITestID.timeout))
     }
 
     /// 画面の左端から右へスワイプする（端からの戻る操作。`swipeRight()` は端から始まらないので座標で動かす）
@@ -213,8 +216,10 @@ final class DokogachaUITests: XCTestCase {
 
         // 入力欄は開いたときにキーボードの入力先になっている（カーソルは末尾）
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: UITestID.timeout))
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "ゆい")
-        XCTAssertTrue(save.isEnabled)
+        field.clearText()
+        field.typeText("ゆい")
+        XCTAssertTrue(field.waitForValue("ゆい"), field.value as? String ?? "")
+        XCTAssertTrue(save.waitForEnabled())
         save.tap()
 
         // 保存するとシートが閉じ、行の名前が変わる

@@ -30,14 +30,13 @@ final class ReportCandidateUITests: XCTestCase {
 
         // はるかの投稿（サンシャイン水族館）を開く。一覧の下の方にあるので、見えるまでスクロールする
         let others = app.otherElements[UITestID.candidateCard(UITestID.othersCandidateID)]
-        if !others.waitForExistence(timeout: UITestID.timeout) || !others.isHittable {
-            app.swipeUp()
-        }
+        XCTAssertTrue(app.otherElements[UITestID.candidateCard(UITestID.myCandidateID)].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(others.scrollIntoView(in: app, above: app.buttons[UITestID.roomGacha]))
         others.buttons.matching(NSPredicate(format: "label CONTAINS %@", "サンシャイン水族館")).firstMatch.tap()
         let detail = app.otherElements[UITestID.candidateDetailScreen]
         XCTAssertTrue(detail.waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(detail.staticTexts[Self.note].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.descendants(matching: .any)[UITestID.candidateDetailURL].exists)
+        XCTAssertTrue(app.descendants(matching: .any)[UITestID.candidateDetailURL].waitForExistence(timeout: UITestID.timeout))
 
         // 「…」→「この投稿を報告」→ 理由を選ぶ
         app.buttons[UITestID.candidateDetailMore].tap()
@@ -46,21 +45,21 @@ final class ReportCandidateUITests: XCTestCase {
         report.tap()
         let spam = app.buttons["スパム"]
         XCTAssertTrue(spam.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.buttons["不適切な内容"].exists)
-        XCTAssertTrue(app.buttons["その他"].exists)
+        XCTAssertTrue(app.buttons["不適切な内容"].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons["その他"].waitForExistence(timeout: UITestID.timeout))
         spam.tap()
 
         // トーストが出て、ひとことと参考 URL・「…」が消える（場所名は残る）
         XCTAssertTrue(app.staticTexts["報告しました"].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(detail.staticTexts[Self.note].waitForNonExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.descendants(matching: .any)[UITestID.candidateDetailURL].exists)
-        XCTAssertFalse(app.buttons[UITestID.candidateDetailMore].exists)
-        XCTAssertTrue(detail.staticTexts["サンシャイン水族館"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)[UITestID.candidateDetailURL].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.candidateDetailMore].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(detail.staticTexts["サンシャイン水族館"].waitForExistence(timeout: UITestID.timeout))
 
         // 閉じて S-07 に戻っても、その候補のひとことは出ない
         app.buttons[UITestID.candidateDetailClose].tap()
         XCTAssertTrue(detail.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(others.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.staticTexts[Self.note].exists)
+        XCTAssertTrue(app.staticTexts[Self.note].waitForNonExistence(timeout: UITestID.timeout))
     }
 }

@@ -34,6 +34,7 @@
 - 文字を最大にした画面は、起動引数 `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL` を付けて撮影モードで起動すれば撮れる（Simulator の設定を変えずに済む）（2026-10-22）
 - `TextField` を `@Observable` の Model のプロパティに直接つなぎ、Model の側で値を書き換えても（招待コードの正規化など）、iOS 26.5 の Simulator では入力欄の表示が変わらない。画面の `@State` を挟み、`onChange` で正規化した値を `@State` に入れ直すと表示も変わる（`JoinByCodeView`）（2026-10-22）
 - 名前の無い `MKMapItem`（`MKMapItem(placemark:)` で作って `name = nil`）の `name` は nil ではなく「場所: 不明」を返す。名前が無い結果の扱いは `MKMapItem` からではなく、写した値（`PlaceSearchHit`）で確かめる（`SearchedPlaceTests`）（2026-10-22）
+- UI テストで削除キー（`XCUIKeyboardKey.delete`）を `typeText` でまとめて打つと、Mac が混んでいる（load average 150 以上）とき、入力のたびに画面が値を直す入力欄（招待コードの `JoinByCodeView`）でキーが抜けて文字が残った（「ZQW-58R」など）。1 文字ずつ打って値が変わるのを待つ（`DokogachaUITests/UITestHelpers.swift` の `clearText`・`typeTextByCharacter`）。ほかのメンバーの参加・準備OK・引き直しの賛成が要る通しの UI テストは、起動引数 `-ui-auto-members` で擬似のサーバーに返させる（`InMemoryAutoMembers`）（2026-10-22）
 
 ## backend（Firebase）
 

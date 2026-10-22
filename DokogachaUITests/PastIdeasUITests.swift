@@ -71,7 +71,7 @@ final class PastIdeasUITests: XCTestCase {
         let room = app.otherElements[UITestID.roomScreen]
         XCTAssertTrue(room.waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(room.staticTexts["鎌倉大仏"].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.otherElements[UITestID.addCandidateScreen].exists)
-        XCTAssertFalse(app.otherElements[UITestID.postCandidateScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.addCandidateScreen].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.otherElements[UITestID.postCandidateScreen].waitForNonExistence(timeout: UITestID.timeout))
     }
 }

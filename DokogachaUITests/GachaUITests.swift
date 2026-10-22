@@ -46,11 +46,11 @@ final class GachaUITests: XCTestCase {
         let title = app.staticTexts[Self.gachaTitle]
         XCTAssertTrue(title.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(title.label, "レバーを回してね")
-        XCTAssertTrue(app.staticTexts["結果はメンバー全員の画面に同時に出ます"].exists)
+        XCTAssertTrue(app.staticTexts["結果はメンバー全員の画面に同時に出ます"].waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(app.staticTexts[Self.gachaCapsuleCount].label, "共感ブースト")
         let dome = screen.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "ガチャ。カプセル 3個")).firstMatch
-        XCTAssertTrue(dome.exists)
-        XCTAssertFalse(app.buttons["カプセルを開ける"].exists)
+        XCTAssertTrue(dome.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons["カプセルを開ける"].waitForNonExistence(timeout: UITestID.timeout))
 
         // レバーを回すと、取り出し口にカプセルが出る。レバーはもう押せない
         let lever = app.buttons["レバーを回す"]
@@ -59,19 +59,19 @@ final class GachaUITests: XCTestCase {
         let capsule = app.buttons["カプセルを開ける"]
         XCTAssertTrue(capsule.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(title.label, "カプセルをタップ！")
-        XCTAssertTrue(app.staticTexts["開けると行き先が決まります"].exists)
+        XCTAssertTrue(app.staticTexts["開けると行き先が決まります"].waitForExistence(timeout: UITestID.timeout))
         XCTAssertFalse(lever.isEnabled)
 
         // カプセルを開けると S-14 に替わる
         capsule.tap()
         assertResultShown(app)
-        XCTAssertFalse(screen.exists)
+        XCTAssertTrue(screen.waitForNonExistence(timeout: UITestID.timeout))
 
         // 戻ると S-07。行き先が決まっていて、「行き先きっぷを見る」でもう一度開ける
         app.otherElements[UITestID.resultScreen].buttons["戻る"].firstMatch.tap()
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.staticTexts["行き先決定"].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.buttons[UITestID.roomGacha].exists)
+        XCTAssertTrue(app.buttons[UITestID.roomGacha].waitForNonExistence(timeout: UITestID.timeout))
         let resultButton = app.buttons[UITestID.roomResult]
         XCTAssertTrue(resultButton.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(resultButton.label, "行き先きっぷを見る")
@@ -99,6 +99,6 @@ final class GachaUITests: XCTestCase {
         XCTAssertTrue(ticket.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
         XCTAssertTrue(ticket.label.hasPrefix("行き先きっぷ、週末のランチ。"), file: file, line: line)
         XCTAssertTrue(app.buttons[UITestID.resultOpenInMaps].isEnabled, file: file, line: line)
-        XCTAssertTrue(app.buttons[UITestID.resultShare].exists, file: file, line: line)
+        XCTAssertTrue(app.buttons[UITestID.resultShare].waitForExistence(timeout: UITestID.timeout), file: file, line: line)
     }
 }
