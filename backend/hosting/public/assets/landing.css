@@ -1,5 +1,6 @@
 /*
- * 招待リンクのランディングページ（/r/{招待コード}）の見た目。
+ * Hosting のページ（招待リンクのランディングページ /r/{招待コード}・利用規約 /terms・プライバシーポリシー /privacy）の見た目。
+ * 規約の 2 ページは、末尾の「利用規約・プライバシーポリシー」の節のクラス（.doc-*）を使う。
  * 色・フォント・寸法は docs/spec/design/tokens.json の値だけを使う（:root の変数に書き、ほかの場所に色の値を直接書かない）。
  * 変数の名前は tokens.json の鍵（--color-<鍵をハイフンでつないだもの>・--radius-<鍵>・--border-<鍵>）。
  * backend/hosting/test/hosting.test.ts で tokens.json の値と一致することを確かめる。
@@ -199,4 +200,128 @@ main {
   color: var(--color-text-secondary);
   font-size: 0.75rem;
   text-align: center;
+}
+
+/*
+ * 利用規約・プライバシーポリシー（terms.html・privacy.html）。
+ * 長い文章を読むページなので、ランディングより幅を広げ、条ごとに白いカードに入れる。
+ */
+.doc {
+  max-width: 640px;
+}
+
+.doc .brand {
+  font-size: 1.25rem;
+}
+
+.doc .capsules {
+  margin: 8px 0 18px;
+}
+
+.doc .capsules li {
+  width: 12px;
+  height: 12px;
+}
+
+.doc-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: normal;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.doc-date {
+  margin: 0 0 20px;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.doc-lead {
+  margin: 0 0 20px;
+  font-size: 0.9375rem;
+}
+
+.doc-section {
+  margin: 0 0 16px;
+  padding: var(--spacing-cardPadding);
+  background: var(--color-surface-card);
+  border: var(--border-regular) solid var(--color-ink);
+  border-radius: var(--radius-m);
+  font-size: 0.9375rem;
+}
+
+.doc-section h2 {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: var(--border-regular) dashed var(--color-line-dashed);
+  font-size: 1.0625rem;
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.doc-section h3 {
+  margin: 12px 0 4px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.doc-section p,
+.doc-section ul,
+.doc-section ol,
+.doc-section dl {
+  margin: 0 0 8px;
+}
+
+.doc-section > :last-child {
+  margin-bottom: 0;
+}
+
+.doc-section ul,
+.doc-section ol {
+  padding-left: 1.5em;
+}
+
+.doc-section li + li {
+  margin-top: 4px;
+}
+
+.doc-section dt {
+  font-weight: 700;
+}
+
+.doc-section dd {
+  margin: 0 0 8px;
+}
+
+.doc-section dd:last-child {
+  margin-bottom: 0;
+}
+
+.doc a {
+  color: var(--color-accent-text);
+  overflow-wrap: anywhere;
+}
+
+.doc a:focus-visible {
+  outline: var(--border-regular) solid var(--color-accent-secondary);
+  outline-offset: 2px;
+}
+
+.doc-note {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.doc-footer {
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  list-style: none;
+  font-size: 0.875rem;
 }
