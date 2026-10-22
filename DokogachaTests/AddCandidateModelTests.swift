@@ -127,7 +127,7 @@ struct AddCandidateModelTests {
 
         let aquarium = try Self.place("すみだ水族館")
         model.addTapped(aquarium)
-        #expect(model.draft == AddCandidateModel.Draft(place: aquarium, category: .aquarium))
+        #expect(model.draft == AddCandidateModel.Draft(place: aquarium, category: .aquarium, pastIdeaID: nil))
         #expect(model.request?.category == .aquarium)
         #expect(model.request?.note.isEmpty == true)
         #expect(model.request?.url == nil)

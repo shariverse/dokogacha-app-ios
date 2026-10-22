@@ -14,6 +14,9 @@ import Observation
 /// - 「候補に追加」で `addCandidate` を呼ぶ。追加できたらトースト「候補に追加しました」を出して S-07 に戻る（`finish`）。
 ///   サーバーが重複（`{ duplicateOf }`）を返したら、重複の確認を出す。上限・状態などのエラーはトースト
 /// - 重複の確認の「いいねする」で、その候補にいいねして S-07 に戻る（02 の F-10。自分の投稿・いいね済みなら、いいねせずに戻る）
+/// - 「過去のアイデア」のタブ（F-13）は、自分の過去のアイデアを購読して並べ、「持ち込む」で同じ S-09 を開く
+///   （上限・重複・状態の判定は「場所を探す」と同じ。`AddCandidateModel+PastIdeas.swift`）。`addCandidate` に持ち込み元を渡し、
+///   トーストは「過去のアイデアを持ち込みました」
 ///
 /// S-09 はシートなので、シートを出している間のトーストはシートの中の `sheetToasts` に出す（アプリの根元のトーストはシートの後ろに隠れるため）。
 /// 成功のトーストは S-07 に戻ってから見えるよう、アプリの根元の `toasts` に出す。
@@ -21,6 +24,8 @@ import Observation
 final class AddCandidateModel {
     /// 追加できたときのトースト（03 の S-09）
     static let addedMessage: LocalizedStringResource = "候補に追加しました"
+    /// 過去のアイデアを持ち込めたときのトースト（03 の S-09「持ち込み時は「過去のアイデアを持ち込みました」」）
+    static let broughtMessage: LocalizedStringResource = "過去のアイデアを持ち込みました"
     /// いいねの書き込みに失敗したときのトースト（S-07 のいいねと同じ）
     static let likeFailureMessage: LocalizedStringResource = "通信できませんでした"
     /// ひとことの文字数（02 の §3.1「最大40文字」）
@@ -40,6 +45,10 @@ final class AddCandidateModel {
     private(set) var candidates: [Identified<Candidate>] = []
     /// 候補の最初の値が届いたか（届くまでは「追加」を押させない。追加済み・上限が分からないため）
     private(set) var hasLoadedCandidates = false
+    /// 購読で届いた自分の過去のアイデア（F-13）
+    private(set) var pastIdeas: [Identified<PastIdea>] = []
+    /// 過去のアイデアの最初の値が届いたか（届くまでは読み込み中の形で出す）
+    private(set) var hasLoadedPastIdeas = false
     /// S-09 で確かめている投稿（nil なら S-09 を出さない）
     var draft: Draft?
     /// S-09 のひとこと
@@ -158,7 +167,7 @@ final class AddCandidateModel {
             category: draft.category,
             note: note,
             url: url,
-            fromPastIdeaId: nil
+            fromPastIdeaId: draft.pastIdeaID
         )
     }
 
@@ -174,11 +183,12 @@ final class AddCandidateModel {
 
     // MARK: - 購読
 
-    /// ルームと候補を購読し、呼んだ `Task` が cancel されるまで続ける（画面の `.task` で呼ぶ）
+    /// ルームと候補と自分の過去のアイデアを購読し、呼んだ `Task` が cancel されるまで続ける（画面の `.task` で呼ぶ）
     func observe() async {
         async let room: Void = followRoom()
         async let candidates: Void = followCandidates()
-        _ = await (room, candidates)
+        async let ideas: Void = followPastIdeas()
+        _ = await (room, candidates, ideas)
     }
 
     /// ルームを購読し続ける
@@ -189,6 +199,14 @@ final class AddCandidateModel {
     /// 候補を購読し続ける
     private func followCandidates() async {
         await follow(subscribe: { repository.candidates(roomID: roomID) }, apply: applyCandidates)
+    }
+
+    /// 自分の過去のアイデアを購読し続ける（失敗のトーストはルーム・候補と同じく 1 回）
+    private func followPastIdeas() async {
+        await follow(subscribe: { repository.pastIdeas(userID: userID) }, apply: { value in
+            pastIdeas = value
+            hasLoadedPastIdeas = true
+        })
     }
 
     /// 購読を続ける。失敗で終わったら、少し待って購読し直す。cancel されたら、流れ残りの値を映さずに終わる
@@ -248,7 +266,7 @@ final class AddCandidateModel {
         case .addable:
             note = ""
             url = ""
-            draft = Draft(place: place, category: place.category)
+            draft = Draft(place: place, category: place.category, pastIdeaID: nil)
         case let .duplicate(candidateID):
             duplicatePrompt = DuplicatePrompt(candidateID: candidateID)
         case .added, .limitReached, .unavailable:
@@ -305,7 +323,7 @@ final class AddCandidateModel {
             }
             switch result {
             case .added:
-                toasts.show(Self.addedMessage)
+                toasts.show(request.fromPastIdeaId == nil ? Self.addedMessage : Self.broughtMessage)
                 finishFlow()
             case let .duplicate(candidateID):
                 duplicatePrompt = DuplicatePrompt(candidateID: candidateID)
@@ -394,7 +412,7 @@ extension AddCandidateModel {
     enum Tab: Hashable {
         /// 場所を探す
         case search
-        /// 過去のアイデア（中身はタスク 31）
+        /// 過去のアイデア（F-13）
         case pastIdeas
     }
 
@@ -402,8 +420,10 @@ extension AddCandidateModel {
     struct Draft: Identifiable, Equatable {
         /// 選んだ場所
         let place: SearchedPlace
-        /// カテゴリ（自動判定の値から始め、選び直せる）
+        /// カテゴリ（自動判定の値・前回のカテゴリから始め、選び直せる）
         var category: PlaceCategory
+        /// 過去のアイデアから持ち込むときの元の ID（「場所を探す」からなら nil）
+        let pastIdeaID: String?
 
         var id: String {
             place.id

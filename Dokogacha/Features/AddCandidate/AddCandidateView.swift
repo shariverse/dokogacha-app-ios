@@ -11,7 +11,7 @@ import SwiftUI
 /// 「追加」で S-09 投稿の確認をシート（ハーフ。03 の §1）で出す。ほかの人が同じ場所を投稿していれば、
 /// S-09 を出さずに「すでに候補にあります。いいねしますか？」を出す（02 の F-10）。
 /// 追加できた・いいねしたら S-07 に戻る（S-09 から戻るときは、シートが閉じ終わってから S-08 を外す）。
-/// 「過去のアイデア」の中身はタスク 31 で作る（ここでは 0 件の表示だけ）。バナー広告（F-50）はタスク 36 で下部に足す。
+/// 「過去のアイデア」の中身は `PastIdeasSection`（F-13。「持ち込む」も同じ S-09 を出す）。バナー広告（F-50）はタスク 36 で下部に足す。
 struct AddCandidateView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -23,7 +23,7 @@ struct AddCandidateView: View {
         static let searchField = "addCandidate.search"
         /// 結果 0 件の表示
         static let noResults = "addCandidate.noResults"
-        /// 「過去のアイデア」の表示
+        /// 「過去のアイデア」の 0 件の表示
         static let pastIdeas = "addCandidate.pastIdeas"
 
         /// 検索結果の行
@@ -97,7 +97,7 @@ struct AddCandidateView: View {
                     case .search:
                         searchContent
                     case .pastIdeas:
-                        pastIdeasContent
+                        PastIdeasSection(model: model)
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
@@ -314,14 +314,6 @@ struct AddCandidateView: View {
         .redacted(reason: .placeholder)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("検索しています"))
-    }
-
-    // MARK: - 過去のアイデア
-
-    /// 「過去のアイデア」（タスク 31 で中身を作る。ここでは 03 の 0 件の文言）
-    private var pastIdeasContent: some View {
-        message("過去のアイデアはまだありません。ルームが終わると、外れた候補がここに貯まります")
-            .accessibilityIdentifier(Identifier.pastIdeas)
     }
 
     /// 中央に置く案内の文言
