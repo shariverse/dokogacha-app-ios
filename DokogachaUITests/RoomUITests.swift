@@ -33,18 +33,16 @@ final class RoomUITests: XCTestCase {
         // そうたの投稿（明治神宮）はまだいいねが無い
         let shrine = app.otherElements[UITestID.candidateCard(UITestID.shrineCandidateID)]
         XCTAssertTrue(shrine.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(shrine.staticTexts["まだいいねはありません"].exists)
+        XCTAssertTrue(shrine.staticTexts["まだいいねはありません"].waitForExistence(timeout: UITestID.timeout))
         let like = shrine.buttons["いいね"]
         // ルームパネルの下に準備OKのボタンがあるので、ボタンが下部の「ガチャを回す」の帯より上に来るまで少しずつ送る
         let gachaBar = app.buttons[UITestID.roomGacha]
-        for _ in 0..<5 where !like.isHittable || like.frame.maxY > gachaBar.frame.minY {
-            app.swipeUp(velocity: .slow)
-        }
+        XCTAssertTrue(like.scrollIntoView(in: app, above: gachaBar))
         like.tap()
 
         XCTAssertTrue(shrine.staticTexts["1人がいいね"].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(shrine.buttons["いいねを取り消す"].exists)
-        XCTAssertFalse(shrine.staticTexts["まだいいねはありません"].exists)
+        XCTAssertTrue(shrine.buttons["いいねを取り消す"].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(shrine.staticTexts["まだいいねはありません"].waitForNonExistence(timeout: UITestID.timeout))
     }
 
     /// ルーム（S-07）の自分の候補を押すと候補の詳細（S-10）がシートで開き、「この候補を削除」→ 確認の「削除する」で
@@ -69,10 +67,7 @@ final class RoomUITests: XCTestCase {
         XCTAssertTrue(detail.waitForExistence(timeout: UITestID.timeout))
 
         let delete = app.buttons[UITestID.candidateDetailDelete]
-        if !delete.waitForExistence(timeout: UITestID.timeout) || !delete.isHittable {
-            detail.swipeUp()
-        }
-        XCTAssertTrue(delete.isHittable)
+        XCTAssertTrue(delete.scrollIntoView(in: app))
         delete.tap()
 
         // 確認のダイアログで「削除する」を押す
@@ -82,9 +77,9 @@ final class RoomUITests: XCTestCase {
 
         // シートが閉じて S-07 に戻り、候補が消える
         XCTAssertTrue(detail.waitForNonExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.otherElements[UITestID.roomScreen].exists)
+        XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(mine.waitForNonExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.otherElements[UITestID.candidateCard(UITestID.shrineCandidateID)].exists)
+        XCTAssertTrue(app.otherElements[UITestID.candidateCard(UITestID.shrineCandidateID)].waitForExistence(timeout: UITestID.timeout))
     }
 
     /// ルーム（S-07）の「候補を追加」から S-08 を開き、検索して結果の「追加」を押すと S-09 が出て、
@@ -130,9 +125,9 @@ final class RoomUITests: XCTestCase {
         let room = app.otherElements[UITestID.roomScreen]
         XCTAssertTrue(room.waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(room.staticTexts["すみだ水族館"].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(room.staticTexts["クラゲが見たい"].exists)
-        XCTAssertFalse(app.otherElements[UITestID.addCandidateScreen].exists)
-        XCTAssertFalse(app.otherElements[UITestID.postCandidateScreen].exists)
+        XCTAssertTrue(room.staticTexts["クラゲが見たい"].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.otherElements[UITestID.addCandidateScreen].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.otherElements[UITestID.postCandidateScreen].waitForNonExistence(timeout: UITestID.timeout))
     }
 
     /// ルーム（S-07）で「準備OK」を押すと人数とヒントが変わり、ボタンが「準備OKを取り消す」になる（F-30）。
@@ -169,8 +164,8 @@ final class RoomUITests: XCTestCase {
         XCTAssertTrue(confirm.waitForExistence(timeout: UITestID.timeout))
         confirm.tap()
         XCTAssertTrue(app.staticTexts["作成者が解禁しました。いつでも回せます"].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.staticTexts["ガチャ解禁！"].exists)
-        XCTAssertFalse(app.buttons[UITestID.roomForceUnlock].exists)
+        XCTAssertTrue(app.staticTexts["ガチャ解禁！"].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.roomForceUnlock].waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.buttons[UITestID.roomGacha].isEnabled)
         XCTAssertEqual(app.buttons[UITestID.roomGacha].label, "ガチャを回す")
     }

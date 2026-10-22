@@ -37,10 +37,10 @@ final class RerollUITests: XCTestCase {
         XCTAssertTrue(status.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(status.label, "賛成を集めています…（1/3人）")
         XCTAssertFalse(status.isEnabled)
-        XCTAssertFalse(propose.exists)
+        XCTAssertTrue(propose.waitForNonExistence(timeout: UITestID.timeout))
         let approve = app.buttons[UITestID.resultRerollApprove]
         let reject = app.buttons[UITestID.resultRerollReject]
-        XCTAssertTrue(approve.exists)
+        XCTAssertTrue(approve.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(approve.label, "引き直しに賛成")
         XCTAssertTrue(approve.isSelected)
         XCTAssertEqual(reject.label, "引き直しに反対")

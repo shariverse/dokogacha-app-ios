@@ -147,8 +147,13 @@ enum UITestID {
     static let resultRerollApprove = "result.reroll.approve"
     /// S-14 の引き直しの「反対」（`ResultRerollSection.Identifier.reject`）
     static let resultRerollReject = "result.reroll.reject"
-    /// 画面が出るのを待つ時間
-    static let timeout: TimeInterval = 10
+    /// 画面が出るのを待つ時間。
+    ///
+    /// Mac が混んでいる（load average が 100 を超える）と、画面の切り替えに 10 秒を超えることがある。
+    /// `waitForExistence` は出た時点で返るので、長くしても通るときの時間は変わらない
+    static let timeout: TimeInterval = 30
+    /// 1 回のキー入力で入力欄の値が変わるのを待つ時間（変わらなければ打ち直す。`clearText`・`typeTextByCharacter`）
+    static let keystrokeTimeout: TimeInterval = 5
 
     /// S-11 のメンバーの行（`MembersView.Identifier.row(_:)`）
     static func membersRow(_ memberID: String) -> String {
