@@ -51,8 +51,15 @@ struct FirestorePushTokenWriter: PushTokenWriter {
     /// Firestore の窓口
     let gateway: any FirestoreGateway
 
+    /// トークンを一覧の末尾（いちばん新しい位置）に置く。
+    ///
+    /// `arrayUnion` は一覧に既にある値を動かさないので、足し直すだけでは、使っている端末のトークンが先頭（古い側）に残り、
+    /// トークンが増えたときにトリガー（`onUserProfileUpdate`）が古い順に外す対象になる（PR #104 の持ち越し）。
+    /// 先に外してから足し、末尾に動かす（同じ端末からの書き込みは送った順にサーバーに届く）
     func add(token: String, userID: String) {
-        gateway.update(path: FirestorePath.user(userID), fields: ["fcmTokens": .arrayUnion([token])])
+        let path = FirestorePath.user(userID)
+        gateway.update(path: path, fields: ["fcmTokens": .arrayRemove([token])])
+        gateway.update(path: path, fields: ["fcmTokens": .arrayUnion([token])])
     }
 
     func remove(token: String, userID: String) {

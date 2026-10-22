@@ -262,4 +262,13 @@ struct FirestoreRoomRepositoryTests {
             ["lastSeenAt": .serverTimestamp]
         ])
     }
+
+    /// 通知のトークンを足すときは、外してから足して一覧の末尾（新しい側）に動かす（PR #104 の持ち越し）
+    @Test
+    func pushTokenWriterMovesTokenToEnd() {
+        let gateway = FakeGateway()
+        FirestorePushTokenWriter(gateway: gateway).add(token: "t1", userID: "me")
+        #expect(gateway.updates.map(\.path) == ["users/me", "users/me"])
+        #expect(gateway.updates.map(\.fields) == [["fcmTokens": .arrayRemove(["t1"])], ["fcmTokens": .arrayUnion(["t1"])]])
+    }
 }
