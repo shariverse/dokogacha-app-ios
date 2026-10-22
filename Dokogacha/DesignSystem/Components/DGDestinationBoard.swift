@@ -46,6 +46,8 @@ struct DGDestinationBoard: View {
     private static let countSize: CGFloat = 15
     /// 行き先が決まっていないときの表示（03 の表記）
     private static let undecided = "？？？"
+    /// 「？？？」を 1 行に収めるときに縮める下限
+    private static let undecidedMinimumScale: CGFloat = 0.6
 
     /// ルームにあるカプセル（候補）の数
     let capsuleCount: Int
@@ -93,6 +95,8 @@ struct DGDestinationBoard: View {
                 .tracking(DGTracking.points(DGTracking.destination, fontSize: DGTypeScale.displayM.size))
                 .foregroundStyle(Color.dgAccentSecondary)
                 .lineLimit(1)
+                // 幅の狭い機種で文字を最大にしても「…」で切らない
+                .minimumScaleFactor(Self.undecidedMinimumScale)
                 .accessibilityLabel(Text("未定"))
         }
     }
