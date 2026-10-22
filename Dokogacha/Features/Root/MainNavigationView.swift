@@ -5,9 +5,9 @@
 
 import SwiftUI
 
-/// 表示名を登録した後の画面の根元。ホーム（S-02）を根元にした `NavigationStack` と、シートの行き先を持つ（03 の §2）。
+/// 表示名を登録した後の画面の根元。ホーム（S-02）を根元にした `NavigationStack` と、シート・フルスクリーンカバーの行き先を持つ（03 の §2）。
 ///
-/// 行き先は `AppRoute` で受け取り、`presentation` に合わせて積むかシートで出す。まだ無い画面は `PendingScreenView`。
+/// 行き先は `AppRoute` で受け取り、`presentation` に合わせて積むかシート・フルスクリーンカバーで出す。まだ無い画面は `PendingScreenView`。
 /// 標準のナビゲーションバーは各画面で隠し、画面ごとのヘッダー（`DGHeader`）を使う（03 の §3）。
 ///
 /// ルームを作ったら、S-03 を積みから外して作ったルーム（S-07）とその上に S-04 を積む（`AppRoute.pathAfterCreating`）。
@@ -17,6 +17,8 @@ struct MainNavigationView: View {
     @State private var path: [AppRoute] = []
     /// シートで出している行き先
     @State private var sheet: AppRoute?
+    /// フルスクリーンカバーで出している行き先
+    @State private var fullScreen: AppRoute?
     @State private var homeModel: HomeModel
     /// 自分の uid
     private let userID: String
@@ -50,15 +52,20 @@ struct MainNavigationView: View {
         .sheet(item: $sheet) { route in
             destination(route)
         }
+        .fullScreenCover(item: $fullScreen) { route in
+            destination(route)
+        }
     }
 
-    /// 行き先を開く（積む・シートで出す）
+    /// 行き先を開く（積む・シート・フルスクリーンカバーで出す）
     private func open(_ route: AppRoute) {
         switch route.presentation {
         case .push:
             path.append(route)
         case .sheet:
             sheet = route
+        case .fullScreenCover:
+            fullScreen = route
         }
     }
 
@@ -79,10 +86,10 @@ struct MainNavigationView: View {
                 sheet = nil
                 path.append(.room(id: roomID))
             }
-        case .room:
-            PendingScreenView(route: route)
         case .settings:
             SettingsView(model: SettingsModel(userID: userID, auth: services.auth, toasts: toasts), toasts: toasts)
+        case .room, .addCandidate, .candidateDetail, .members, .roomSettings, .gacha:
+            PendingScreenView(route: route)
         }
     }
 }

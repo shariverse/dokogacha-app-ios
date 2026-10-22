@@ -306,5 +306,10 @@ struct AppRouteTests {
         #expect(AppRoute.room(id: "r1").presentation == .push)
         #expect(AppRoute.settings.presentation == .push)
         #expect(AppRoute.joinByCode.presentation == .sheet)
+        #expect(AppRoute.addCandidate(roomID: "r1").presentation == .push)
+        #expect(AppRoute.candidateDetail(roomID: "r1", candidateID: "c1").presentation == .sheet)
+        #expect(AppRoute.members(roomID: "r1").presentation == .sheet)
+        #expect(AppRoute.roomSettings(roomID: "r1").presentation == .sheet)
+        #expect(AppRoute.gacha(roomID: "r1").presentation == .fullScreenCover)
     }
 }
