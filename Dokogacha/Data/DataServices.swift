@@ -29,6 +29,8 @@ struct DataServices {
     let functions: any FunctionsClient
     /// 擬似のサーバー（擬似のときだけ。UI テストのシナリオやプレビューで状態を足すのに使う）
     let inMemoryServer: InMemoryServer?
+    /// 場所検索（F-10）。既定は MapKit、擬似のサーバーのときは決まった結果を返す擬似の検索
+    var places: any PlaceSearchService = MapKitPlaceSearchService()
 
     /// サインインしてよいか（接続できないときは、サインインを試みない）
     var allowsSignIn: Bool {
@@ -41,9 +43,16 @@ struct DataServices {
         return Self(backend: .unavailable, auth: server, rooms: server, functions: server, inMemoryServer: nil)
     }
 
-    /// 擬似のサーバーの窓口
+    /// 擬似のサーバーの窓口。場所検索も擬似にする（Unit テストのホスト・`-uiTesting`・撮影モードでネットワークに出ないように）
     static func inMemory(_ server: InMemoryServer, scenario: DemoScenario) -> Self {
-        Self(backend: .inMemory(scenario), auth: server, rooms: server, functions: server, inMemoryServer: server)
+        Self(
+            backend: .inMemory(scenario),
+            auth: server,
+            rooms: server,
+            functions: server,
+            inMemoryServer: server,
+            places: DemoPlaceSearchService()
+        )
     }
 
     /// Firebase の窓口。`FirebaseApp.configure` の後でだけ作る
