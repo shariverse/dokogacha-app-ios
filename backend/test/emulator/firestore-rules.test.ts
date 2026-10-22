@@ -347,7 +347,8 @@ describe("firestore.rules", () => {
     it("他人の候補にいいねを付けて、取り消せる（open・unlocked）", async () => {
       for (const status of ["open", "unlocked"]) {
         await retryWhileLocked(() => testEnv.clearFirestore(), isLockTimeout);
-        await seed(status);
+        // unlocked は強制解禁で作る（準備OKが 0 人の全員OK条件の unlocked は、トリガーが open に戻す）
+        await seed(status, status === "unlocked");
         await assertSucceeds(updateDoc(candidate("dave", "c1"), { likedBy: arrayUnion("dave") }));
         expect(await likedBy("c1")).toEqual(["bob", "dave"]);
         await assertSucceeds(updateDoc(candidate("bob", "c1"), { likedBy: arrayRemove("bob") }));
