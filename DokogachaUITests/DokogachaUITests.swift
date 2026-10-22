@@ -65,6 +65,10 @@ final class DokogachaUITests: XCTestCase {
     private static let myCandidateID = "demo-candidate-3"
     /// デモのそうたの候補（`room-with-candidates` の明治神宮。いいね 0）
     private static let shrineCandidateID = "demo-candidate-2"
+    /// S-10 候補の詳細（`CandidateDetailView.Identifier.screen`）
+    private static let candidateDetailScreen = "candidateDetail.screen"
+    /// S-10 の「この候補を削除」（`CandidateDetailView.Identifier.delete`）
+    private static let candidateDetailDelete = "candidateDetail.delete"
     /// 画面が出るのを待つ時間
     private static let timeout: TimeInterval = 10
 
@@ -249,6 +253,46 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(shrine.staticTexts["1人がいいね"].waitForExistence(timeout: Self.timeout))
         XCTAssertTrue(shrine.buttons["いいねを取り消す"].exists)
         XCTAssertFalse(shrine.staticTexts["まだいいねはありません"].exists)
+    }
+
+    /// ルーム（S-07）の自分の候補を押すと候補の詳細（S-10）がシートで開き、「この候補を削除」→ 確認の「削除する」で
+    /// シートが閉じて S-07 に戻り、一覧からその候補が消える（F-11 の AC）
+    @MainActor
+    func testDeleteOwnCandidateFromDetail() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "room-with-candidates"]
+        app.launch()
+
+        let card = app.buttons[Self.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        card.tap()
+        XCTAssertTrue(app.otherElements[Self.roomScreen].waitForExistence(timeout: Self.timeout))
+
+        // 自分の投稿（江の島）を開く
+        let mine = app.otherElements[Self.candidateCard(Self.myCandidateID)]
+        XCTAssertTrue(mine.waitForExistence(timeout: Self.timeout))
+        // 候補の情報の列は VoiceOver で 1 つのボタンとして読む（`DGCandidateCard` の `OpenableDetails`）
+        mine.buttons.matching(NSPredicate(format: "label CONTAINS %@", "江の島")).firstMatch.tap()
+        let detail = app.otherElements[Self.candidateDetailScreen]
+        XCTAssertTrue(detail.waitForExistence(timeout: Self.timeout))
+
+        let delete = app.buttons[Self.candidateDetailDelete]
+        if !delete.waitForExistence(timeout: Self.timeout) || !delete.isHittable {
+            detail.swipeUp()
+        }
+        XCTAssertTrue(delete.isHittable)
+        delete.tap()
+
+        // 確認のダイアログで「削除する」を押す
+        let confirm = app.buttons["削除する"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: Self.timeout))
+        confirm.tap()
+
+        // シートが閉じて S-07 に戻り、候補が消える
+        XCTAssertTrue(detail.waitForNonExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.otherElements[Self.roomScreen].exists)
+        XCTAssertTrue(mine.waitForNonExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.otherElements[Self.candidateCard(Self.shrineCandidateID)].exists)
     }
 
     /// ナビゲーションバーを隠した画面でも、画面の左端からのスワイプで戻れる（`InteractivePopGesture`）
