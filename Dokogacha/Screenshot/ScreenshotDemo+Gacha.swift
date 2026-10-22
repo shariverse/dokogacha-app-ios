@@ -83,7 +83,7 @@ extension ScreenshotDemo {
         private var flow: some View {
             GachaFlowView { onOpened in
                 GachaView(model: model, toasts: toasts, onOpened: onOpened)
-            } result: { drawID in
+            } result: { drawID, _ in
                 ResultView(
                     model: ResultModel(
                         roomID: DemoScenario.unlockedRoomID,
