@@ -89,6 +89,16 @@ final class DokogachaUITests: XCTestCase {
     private static let postCandidateNote = "postCandidate.note"
     /// S-09 の「候補に追加」（`PostCandidateView.Identifier.submit`）
     private static let postCandidateSubmit = "postCandidate.submit"
+    /// S-07 の「準備OK n/m」（`RoomView.Identifier.readyCount`）
+    private static let roomReadyCount = "room.readyCount"
+    /// S-07 のヒント文言（`RoomView.Identifier.readyHint`）
+    private static let roomReadyHint = "room.readyHint"
+    /// S-07 の「準備OK」「準備OKを取り消す」（`RoomView.Identifier.ready`）
+    private static let roomReady = "room.ready"
+    /// S-07 の「強制解禁（作成者）」（`RoomView.Identifier.forceUnlock`）
+    private static let roomForceUnlock = "room.forceUnlock"
+    /// S-07 の下部の「ガチャを回す」（`RoomView.Identifier.gacha`）
+    private static let roomGacha = "room.gacha"
     /// 画面が出るのを待つ時間
     private static let timeout: TimeInterval = 10
 
@@ -361,6 +371,46 @@ final class DokogachaUITests: XCTestCase {
         XCTAssertTrue(room.staticTexts["クラゲが見たい"].exists)
         XCTAssertFalse(app.otherElements[Self.addCandidateScreen].exists)
         XCTAssertFalse(app.otherElements[Self.postCandidateScreen].exists)
+    }
+
+    /// ルーム（S-07）で「準備OK」を押すと人数とヒントが変わり、ボタンが「準備OKを取り消す」になる（F-30）。
+    /// 作成者が「強制解禁（作成者）」→ 確認の「解禁する」を押すと「作成者が解禁しました」になり、ガチャを回せる（F-32）
+    @MainActor
+    func testReadyAndForceUnlockInRoom() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "room-with-candidates"]
+        app.launch()
+
+        let card = app.buttons[Self.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: Self.timeout))
+        card.tap()
+        XCTAssertTrue(app.otherElements[Self.roomScreen].waitForExistence(timeout: Self.timeout))
+
+        let readyCount = app.staticTexts[Self.roomReadyCount]
+        XCTAssertTrue(readyCount.waitForExistence(timeout: Self.timeout))
+        XCTAssertEqual(readyCount.label, "準備OK 0/4人")
+        let hint = app.staticTexts[Self.roomReadyHint]
+        XCTAssertEqual(hint.label, "全員OKで解禁 · あと 4人")
+        XCTAssertFalse(app.buttons[Self.roomGacha].isEnabled)
+
+        // 準備OK
+        let ready = app.buttons[Self.roomReady]
+        XCTAssertEqual(ready.label, "準備OK")
+        ready.tap()
+        XCTAssertTrue(app.staticTexts["準備OK 1/4人"].waitForExistence(timeout: Self.timeout))
+        XCTAssertEqual(hint.label, "全員OKで解禁 · あと 3人")
+        XCTAssertEqual(ready.label, "準備OKを取り消す")
+
+        // 強制解禁
+        app.buttons[Self.roomForceUnlock].tap()
+        let confirm = app.buttons["解禁する"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: Self.timeout))
+        confirm.tap()
+        XCTAssertTrue(app.staticTexts["作成者が解禁しました。いつでも回せます"].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.staticTexts["ガチャ解禁！"].exists)
+        XCTAssertFalse(app.buttons[Self.roomForceUnlock].exists)
+        XCTAssertTrue(app.buttons[Self.roomGacha].isEnabled)
+        XCTAssertEqual(app.buttons[Self.roomGacha].label, "ガチャを回す")
     }
 
     /// ナビゲーションバーを隠した画面でも、画面の左端からのスワイプで戻れる（`InteractivePopGesture`）
