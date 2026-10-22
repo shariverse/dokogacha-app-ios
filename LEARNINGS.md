@@ -21,6 +21,7 @@
 - Crashlytics の `upload-symbols`（universal binary）と `run` は、SPM が取ってきた `SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/` にある。CI の Archive は `-derivedDataPath` を付けないので `~/Library/Developer/Xcode/DerivedData` の下を探し、Archive の後に `--google-service-plist <plist> --platform ios <xcarchive>/dSYMs` で上げている（`_archive.yml`。Run Script のビルドフェーズは pbxproj を変えるので使わない）（2026-10-22）
 - Sign in with Apple は、SwiftUI の `@Environment(\.authorizationController)`（iOS 16.4 から。`AuthorizationController.performRequest` の async）で要求すると、`ASAuthorizationControllerDelegate`・`PresentationContextProviding` を自分で持たずに済み、Swift 6 の既定の分離（MainActor）のまま書ける（`SystemAppleAuthorizer`）。やめたときは `ASAuthorizationError.canceled` が投げられる（2026-10-22）
 - Firebase Auth で匿名のユーザーに Apple を `link(with:)` して、その Apple ID が既に別のユーザーに使われていると `credentialAlreadyInUse`（17025）になる。Apple の ID トークンは 1 回しか使えないので、サインインし直すときはエラーの `userInfo[AuthErrors.userInfoUpdatedCredentialKey]` の資格情報を使う（`FirebaseAuthService.pendingAppleCredential`）（2026-10-22）
+- Sign in with Apple に連携したアカウントを削除するときは、Apple の認証をし直して `authorizationCode` を受け取り、サーバーで消す**前に** `Auth.auth().revokeToken(withAuthorizationCode:)` を呼ぶ（審査 5.1.1(v)。消した後は ID トークンが取れない）。SDK 13 の `revokeToken` は `currentUser` が nil だと完了を呼ばない（`_currentUser?.` で何もしない）ので、先に確かめる。サーバーで消された Auth のユーザーは `currentUser.reload()` が `userNotFound`（17011）で失敗するので、削除の応答が届かなかったときの確かめに使える（2026-10-23）
 - SPM の checkouts（`SourcePackages/checkouts/…`）のファイルは読み取り専用（`r--r--r--`）なので、ライセンスの全文などを `cp` で `Dokogacha/` に持ってくると、そのままでは書き換えられない（`chmod 644` してから直す）（2026-10-22）
 
 ## テスト
