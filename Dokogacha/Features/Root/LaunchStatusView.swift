@@ -18,6 +18,8 @@ struct LaunchStatusView: View {
         case serverUnavailable
         /// サインイン・読み込みに失敗した（値は文言）
         case failed(message: String)
+        /// オフラインで、サインインできない・プロフィールがキャッシュに無い（繋がったら自動で続く）
+        case offline
     }
 
     /// UI テストが探す ID
@@ -56,6 +58,14 @@ struct LaunchStatusView: View {
                 .accessibilityLabel(Text("読み込み中"))
         case .serverUnavailable:
             message(Text("サーバーに接続できません"))
+        case .offline:
+            VStack(alignment: .leading, spacing: DGSpacing.s8) {
+                message(Text("オフラインです"))
+                Text("インターネットに接続すると、自動で続きます")
+                    .font(.dg(.bodyRegular))
+                    .foregroundStyle(Color.dgTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         case let .failed(text):
             VStack(alignment: .leading, spacing: DGSpacing.s16) {
                 message(Text(verbatim: text))
@@ -83,6 +93,10 @@ struct LaunchStatusView: View {
 
 #Preview("失敗") {
     LaunchStatusView(status: .failed(message: AppError(.network).message)) {}
+}
+
+#Preview("オフライン") {
+    LaunchStatusView(status: .offline)
 }
 
 #Preview("接続できない") {

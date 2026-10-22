@@ -9,6 +9,7 @@ import SwiftUI
 ///
 /// トーストの窓口（`DGToastCenter`）をここで 1 つ持ち、画面の根元に重ねる（どの画面のトーストも同じ位置に出す）。
 /// 後の画面は `@Environment(DGToastCenter.self)` で受け取れる。
+/// オフラインの間は、画面の上端に「オフラインです」のバナーを出し（02 の §9）、回線が戻ったら失敗した起動の流れをやり直す。
 struct RootView: View {
     @State private var model: RootModel
     @State private var toasts: DGToastCenter
@@ -19,15 +20,19 @@ struct RootView: View {
     @Environment(PurchaseCoordinator.self) private var purchases: PurchaseCoordinator?
     /// 招待リンクで開かれたときの行き先（表示名を登録するまでは覚えておくだけで、ホームが出たら S-06 を開く）
     private let deepLinks: DeepLinkRouter
+    /// 端末の回線の状態（`AppDelegate` が持つもの。プレビューでは無い）
+    private let network: NetworkStatus?
 
     /// - Parameters:
     ///   - session: サーバーへの接続とサインインの状態（`AppDelegate` で `start` 済みのもの）
     ///   - deepLinks: 招待リンクで開かれたときの行き先
-    init(session: ServerSession, deepLinks: DeepLinkRouter) {
+    ///   - network: 端末の回線の状態
+    init(session: ServerSession, deepLinks: DeepLinkRouter, network: NetworkStatus? = nil) {
         self.deepLinks = deepLinks
+        self.network = network
         let toasts = DGToastCenter()
         _toasts = State(initialValue: toasts)
-        _model = State(initialValue: RootModel(session: session, toasts: toasts))
+        _model = State(initialValue: RootModel(session: session, toasts: toasts, network: network))
     }
 
     var body: some View {
@@ -42,6 +47,12 @@ struct RootView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
+                    model.retryIfFailed()
+                }
+            }
+            // 回線が戻ったら、オフラインで失敗したサインイン・プロフィールの読み込みをやり直す（PR #17・#40 の持ち越し）
+            .onChange(of: network?.reachability) { _, reachability in
+                if reachability == .online {
                     model.retryIfFailed()
                 }
             }
@@ -89,6 +100,8 @@ struct RootView: View {
             LaunchStatusView(status: .failed(message: error.message)) {
                 model.retry()
             }
+        case .offline:
+            LaunchStatusView(status: .offline)
         case .onboarding:
             OnboardingView(model: OnboardingModel(auth: model.auth, toasts: toasts))
         case .home:
