@@ -6,11 +6,12 @@
 import Foundation
 import Observation
 
-/// S-08「場所を探す」の検索欄と結果の状態（03 の S-08 の 1〜3・5）。
+/// S-08「場所を探す」の検索欄・エリアと結果の状態（03 の S-08 の 1〜3・5・6）。
 ///
 /// - 入力のたびには検索しない。入力から 0.3 秒待ち（03 の S-08「入力から0.3秒後に MKLocalSearch を実行」）、待つ間に入力が変わったら前の検索は捨てる
 /// - クイックカテゴリ・キーボードの検索は、待たずにその語で検索する
-/// - 結果が届いたときに語が変わっていれば、その結果は映さない（遅れて届いた古い結果で上書きしない）
+/// - エリアを選び直すと、語があれば待たずにそのエリアで検索し直す（初めは全国。Issue #131）
+/// - 結果が届いたときに語かエリアが変わっていれば、その結果は映さない（遅れて届いた古い結果で上書きしない）
 /// - 通信できなければトーストを出す（結果は出さない）
 ///
 /// 待ち方（`sleep`）を差し替えられるので、テストは固定の時間を待たずにデバウンスを確かめられる。
@@ -42,6 +43,8 @@ final class PlaceSearchModel {
     private(set) var query = ""
     /// 検索の状態
     private(set) var phase = Phase.idle
+    /// 検索するエリア（`selectArea(_:)` で変える）
+    private(set) var area = DomainConstants.SearchRegion.initialArea
 
     @ObservationIgnored private let places: any PlaceSearchService
     @ObservationIgnored private let toasts: DGToastCenter
@@ -100,6 +103,15 @@ final class PlaceSearchModel {
         }
     }
 
+    /// エリアのチップ・「全国で探す」が押された。語があれば待たずにそのエリアで検索し直す（同じエリアなら何もしない）
+    func selectArea(_ newArea: SearchArea) {
+        guard newArea != area else {
+            return
+        }
+        area = newArea
+        searchNow(query)
+    }
+
     /// 語を入れ替えて前の検索を止める。空なら結果を消して nil
     private func begin(_ text: String) -> String? {
         query = text
@@ -113,18 +125,19 @@ final class PlaceSearchModel {
         return word
     }
 
-    /// 検索して結果を映す（同じ ID の結果は 1 件にする）。cancel された・語が変わったときは映さない
+    /// いまのエリアで検索して結果を映す（同じ ID の結果は 1 件にする）。cancel された・語かエリアが変わったときは映さない
     func run(_ word: String) async {
+        let area = area
         phase = .searching
         do {
-            let results = SearchedPlace.uniqued(try await places.search(word))
-            guard !Task.isCancelled, trimmedQuery == word else {
+            let results = SearchedPlace.uniqued(try await places.search(word, in: area))
+            guard !Task.isCancelled, trimmedQuery == word, self.area == area else {
                 return
             }
             phase = results.isEmpty ? .noResults : .results(results)
         } catch {
             let appError = AppError.wrapping(error)
-            guard !Task.isCancelled, !appError.isCancellation, trimmedQuery == word else {
+            guard !Task.isCancelled, !appError.isCancellation, trimmedQuery == word, self.area == area else {
                 return
             }
             phase = .failed

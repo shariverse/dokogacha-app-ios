@@ -65,15 +65,13 @@ struct DomainConstantsTests {
         #expect(DomainConstants.Odds.rareWinRatio == 0.85)
     }
 
-    /// 場所検索の範囲に、日本の端（与那国島・宗谷岬・根室）と主な都市が入る
+    /// 全国の検索の範囲に、日本の端（与那国島・宗谷岬・根室）と主な都市が入る
     @Test
     func searchRegionCoversJapan() {
-        typealias Region = DomainConstants.SearchRegion
-        let latitudes = (Region.centerLatitude - Region.latitudeDelta / 2)...(Region.centerLatitude + Region.latitudeDelta / 2)
-        let longitudes = (Region.centerLongitude - Region.longitudeDelta / 2)...(Region.centerLongitude + Region.longitudeDelta / 2)
+        let bounds = DomainConstants.SearchRegion.nationwide
         let places: [(Double, Double)] = [(24.47, 122.99), (45.52, 141.94), (43.33, 145.58), (35.68, 139.77), (26.21, 127.68)]
         for (latitude, longitude) in places {
-            #expect(latitudes.contains(latitude) && longitudes.contains(longitude), "(\(latitude), \(longitude)) が範囲の外")
+            #expect(bounds.contains(latitude: latitude, longitude: longitude), "(\(latitude), \(longitude)) が範囲の外")
         }
     }
 }

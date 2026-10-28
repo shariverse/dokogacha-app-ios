@@ -179,13 +179,13 @@ struct SearchedPlaceTests {
         #expect(place.category == .town)
     }
 
-    /// MapKit の検索の範囲は日本全体の定数（`DomainConstants.SearchRegion`）
-    @Test
-    func mapKitRegionIsJapan() {
-        let region = MapKitPlaceSearchService.region
-        #expect(region.center.latitude == DomainConstants.SearchRegion.centerLatitude)
-        #expect(region.center.longitude == DomainConstants.SearchRegion.centerLongitude)
-        #expect(region.span.latitudeDelta == DomainConstants.SearchRegion.latitudeDelta)
-        #expect(region.span.longitudeDelta == DomainConstants.SearchRegion.longitudeDelta)
+    /// MapKit の検索の範囲は、エリアの矩形（`DomainConstants.SearchRegion`）の中心と幅
+    @Test(arguments: SearchArea.allCases)
+    func mapKitRegionMatchesArea(area: SearchArea) {
+        let region = MapKitPlaceSearchService.region(for: area)
+        #expect(region.center.latitude == area.bounds.centerLatitude)
+        #expect(region.center.longitude == area.bounds.centerLongitude)
+        #expect(region.span.latitudeDelta == area.bounds.latitudeDelta)
+        #expect(region.span.longitudeDelta == area.bounds.longitudeDelta)
     }
 }
