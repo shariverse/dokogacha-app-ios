@@ -161,7 +161,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
   | --- | --- | --- |
   | `rooms` | `memberIds`（配列）・`status`・`createdAt`（降順） | ホームの進行中のルーム |
   | `rooms` | `status`・`settings.deadlineAt` | `checkDeadlines` |
-  | `rooms` | `reroll.status`・`reroll.proposedAt` | `expireRerolls` |
+  | `rooms` | `reroll.status`・`reroll.proposedAt` | `checkDeadlines`（引き直しの投票の期限） |
   | `rooms` | `status`・`drawnAt` | `autoCloseRooms` |
   | `rooms` | `memberIds`（配列）・`status`・`closedAt`（降順） | ホームの思い出のきっぷ・`autoCloseRooms` |
 
@@ -170,8 +170,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
   | 関数 | 間隔（タイムゾーン `Asia/Tokyo`） |
   | --- | --- |
-  | `checkDeadlines`（締切の解禁） | 5 分ごと |
-  | `expireRerolls`（引き直しの投票の期限） | 60 分ごと |
+  | `checkDeadlines`（締切の解禁と、引き直しの投票の期限） | 5 分ごと |
   | `autoCloseRooms`（抽選から 7 日で終了） | 毎日 4:00 |
   | `notifyNewCandidates`（新しい候補のまとめ通知） | 毎日 20:00 |
 
