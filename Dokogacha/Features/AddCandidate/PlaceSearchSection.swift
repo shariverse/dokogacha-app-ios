@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// S-08 の「場所を探す」のタブの中身（03 の S-08 の「場所を探す」・02 の §3.1 F-10）。検索欄・クイックカテゴリ・検索結果（`DGPlaceRow`）を並べる。
+/// S-08 の「場所を探す」のタブの中身（03 の S-08 の「場所を探す」・02 の §3.1 F-10）。検索欄・エリア・クイックカテゴリ・検索結果（`DGPlaceRow`）を並べる。
 ///
 /// 検索欄の文字と入力しているかは、S-08（`AddCandidateView`）が持つ（入力している間はバナーを出さないため）
 struct PlaceSearchSection: View {
@@ -25,6 +25,8 @@ struct PlaceSearchSection: View {
     private static let chipRadius: CGFloat = 10
     /// クイックカテゴリの文字の大きさ（プロトタイプの 12）
     private static let chipTextSize: CGFloat = 12
+    /// エリアの見出しのピンの大きさ（チップの文字に合わせる。プロトタイプに無い）
+    private static let areaIconSize: CGFloat = 13
     /// 結果 0 件などの文言の大きさ（プロトタイプの 13）
     private static let messageSize: CGFloat = 13
     /// 読み込み中に出す行の数
@@ -37,10 +39,12 @@ struct PlaceSearchSection: View {
     var isSearchFocused: FocusState<Bool>.Binding
 
     @ScaledMetric(relativeTo: .body) private var searchIconSize = PlaceSearchSection.searchIconSize
+    @ScaledMetric(relativeTo: .caption) private var areaIconSize = PlaceSearchSection.areaIconSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: DGSpacing.s10) {
             searchField
+            areaChips
             quickCategories
             results
         }
@@ -94,13 +98,76 @@ struct PlaceSearchSection: View {
 
     /// クイックカテゴリのチップ 1 つ。押すとその語を検索欄に入れて検索する。いまの語と同じなら塗る
     private func quickCategoryChip(_ word: String, index: Int) -> some View {
-        let isSelected = model.search.trimmedQuery == word
-        let shape = RoundedRectangle(cornerRadius: Self.chipRadius)
-        return Button {
+        chip(
+            word,
+            isSelected: model.search.trimmedQuery == word,
+            hint: Text("この語で検索します"),
+            identifier: Identifier.quickCategory(index)
+        ) {
             model.search.searchNow(word)
             queryText = word
-        } label: {
-            Text(verbatim: word)
+        }
+    }
+
+    /// 検索するエリアのチップ（03 の S-08 の 6）。選んでいるエリアを塗る。クイックカテゴリと分かるよう、前に「エリア」の見出しを置く。
+    /// 文字を大きくしても切れないよう、見出しごと横にスクロールする
+    private var areaChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DGSpacing.s6) {
+                HStack(spacing: DGSpacing.s4) {
+                    Image("ui-pin")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: areaIconSize, height: areaIconSize)
+                    Text("エリア")
+                        .font(.dgBody(Self.chipTextSize, weight: .black, relativeTo: .caption))
+                }
+                .foregroundStyle(Color.dgTextSecondary)
+                .accessibilityHidden(true)
+                ForEach(SearchArea.allCases) { area in
+                    chip(
+                        Self.areaLabel(area),
+                        isSelected: model.search.area == area,
+                        hint: Text("このエリアで検索します"),
+                        identifier: Identifier.area(area)
+                    ) {
+                        model.search.selectArea(area)
+                    }
+                }
+            }
+        }
+        .scrollClipDisabled()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("検索するエリア"))
+    }
+
+    /// エリアの表示名（03 の S-08 の 6）
+    static func areaLabel(_ area: SearchArea) -> String {
+        switch area {
+        case .nationwide: String(localized: "全国")
+        case .hokkaido: String(localized: "北海道")
+        case .tohoku: String(localized: "東北")
+        case .kanto: String(localized: "関東")
+        case .chubu: String(localized: "中部")
+        case .kansai: String(localized: "関西")
+        case .chugokuShikoku: String(localized: "中国・四国")
+        case .kyushu: String(localized: "九州")
+        case .okinawa: String(localized: "沖縄")
+        }
+    }
+
+    /// クイックカテゴリ・エリアのチップ 1 つ（選んでいるものは塗る）
+    private func chip(
+        _ title: String,
+        isSelected: Bool,
+        hint: Text,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Self.chipRadius)
+        return Button(action: action) {
+            Text(verbatim: title)
                 .font(.dgBody(Self.chipTextSize, weight: .black, relativeTo: .caption))
                 .foregroundStyle(isSelected ? Color.dgTextOnAccent : Color.dgInk)
                 .padding(.horizontal, DGSpacing.s12)
@@ -113,8 +180,8 @@ struct PlaceSearchSection: View {
         }
         .buttonStyle(.dgBare)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityHint(Text("この語で検索します"))
-        .accessibilityIdentifier(Identifier.quickCategory(index))
+        .accessibilityHint(hint)
+        .accessibilityIdentifier(identifier)
     }
 
     /// 検索の状態ごとの結果
@@ -125,8 +192,7 @@ struct PlaceSearchSection: View {
         case .searching:
             searchingPlaceholder
         case .noResults:
-            message("見つかりませんでした")
-                .accessibilityIdentifier(Identifier.noResults)
+            noResults
         case let .results(places):
             VStack(spacing: DGSpacing.s10) {
                 ForEach(places) { place in
@@ -185,14 +251,40 @@ struct PlaceSearchSection: View {
         .accessibilityLabel(Text("検索しています"))
     }
 
+    /// 結果 0 件の表示（03 の S-08 の 5）。地方で探したときは、地方の名前を添え、全国で探し直すボタンも出す
+    /// （地方の外の場所は、地方では見つからないため）
+    @ViewBuilder private var noResults: some View {
+        let area = model.search.area
+        if area == .nationwide {
+            message("見つかりませんでした")
+                .accessibilityIdentifier(Identifier.noResults)
+        } else {
+            VStack(spacing: DGSpacing.s12) {
+                messageText("\(Self.areaLabel(area))では見つかりませんでした")
+                    .accessibilityIdentifier(Identifier.noResults)
+                DGButton("全国で探す", kind: .secondary, fillsWidth: false) {
+                    model.search.selectArea(.nationwide)
+                }
+                .accessibilityIdentifier(Identifier.searchNationwide)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DGSpacing.s24)
+        }
+    }
+
     /// 中央に置く案内の文言
     private func message(_ text: LocalizedStringKey) -> some View {
+        messageText(text)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DGSpacing.s24)
+    }
+
+    /// 案内の文言の文字
+    private func messageText(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.dgBody(Self.messageSize, relativeTo: .subheadline))
             .foregroundStyle(Color.dgTextSecondary)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, DGSpacing.s24)
     }
 }

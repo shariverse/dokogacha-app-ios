@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// S-08 候補を追加（プッシュ。F-10）。03 の S-08 のとおり、ヘッダー（戻る＋「行きたい場所を追加」＋右端に「n/上限」）、
-/// タブ（「場所を探す」「過去のアイデア」）とタブの中身を並べる（検索欄・クイックカテゴリ・検索結果は `PlaceSearchSection`）。
+/// タブ（「場所を探す」「過去のアイデア」）とタブの中身を並べる（検索欄・エリア・クイックカテゴリ・検索結果は `PlaceSearchSection`）。
 ///
 /// 「追加」で S-09 投稿の確認をシート（ハーフ。03 の §1）で出す。ほかの人が同じ場所を投稿していれば、
 /// S-09 を出さずに「すでに候補にあります。いいねしますか？」を出す（02 の F-10）。
@@ -25,6 +25,8 @@ struct AddCandidateView: View {
         static let searchField = "addCandidate.search"
         /// 結果 0 件の表示
         static let noResults = "addCandidate.noResults"
+        /// 地方で結果が 0 件のときの「全国で探す」
+        static let searchNationwide = "addCandidate.searchNationwide"
         /// 「過去のアイデア」の 0 件の表示
         static let pastIdeas = "addCandidate.pastIdeas"
 
@@ -41,6 +43,11 @@ struct AddCandidateView: View {
         /// クイックカテゴリ（並びの位置）
         static func quickCategory(_ index: Int) -> String {
             "addCandidate.quick.\(index)"
+        }
+
+        /// エリアのチップ
+        static func area(_ area: SearchArea) -> String {
+            "addCandidate.area.\(area.rawValue)"
         }
     }
 

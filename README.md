@@ -177,6 +177,7 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-like <候補の ID>`・`-screenshot-ready <uid,…>`・`-screenshot-force-unlocked`・`-screenshot-confirm-force-unlock` | `room` | いいね・準備OK・強制解禁・その確認のダイアログ |
 | `-screenshot-candidate <ID>`・`-screenshot-not-owner`・`-screenshot-confirm-delete`・`-screenshot-report-reasons`・`-screenshot-reported` | `candidateDetail` | 開く候補・他人のルーム・削除の確認・報告の理由・報告した後 |
 | `-screenshot-query <語>` | `addCandidate` | 検索しておく語（既定は「水族館」） |
+| `-screenshot-search-area <エリア>` | `addCandidate` | 選んでおくエリア（`SearchArea` の rawValue。`kanto`・`hokkaido` など。既定は全国） |
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
 | `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態 |
 | `-screenshot-gacha <状態>` | `gacha` | `ready`（既定）・`dispensed`・`others`・`others-live`・`play` |
