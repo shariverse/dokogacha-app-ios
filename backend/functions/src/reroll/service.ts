@@ -106,7 +106,7 @@ async function expireRoom(deps: Pick<ServiceDeps, "db" | "nowMs">, roomId: strin
 }
 
 /**
- * 提案から 24 時間を過ぎた投票を否決にする（`expireRerolls` の中身。1 時間ごと。06 の §4 の仮決め）。
+ * 提案から 24 時間を過ぎた投票を否決にする（スケジュールの `checkDeadlines` が 5 分ごとに呼ぶ。06 の §4 の仮決め）。
  *
  * クエリは `reroll.status == voting` かつ `reroll.proposedAt <= 今 - 24 時間`（`firestore.indexes.json` の複合インデックス）。
  * 1 つのルームで失敗しても、残りのルームを最後まで処理してから投げる（次の実行でもう一度拾われる）。

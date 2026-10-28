@@ -81,11 +81,9 @@ export const OGP_TITLE = "ドコガチャに招待されました";
 
 /** 引き直しの投票の期限（06 の §4 の仮決め 24 時間。ミリ秒） */
 export const REROLL_VOTING_DURATION_MS = 24 * HOUR_MS;
-/** 引き直しの投票の期限を判定する間隔（05 の §5「expireRerolls：スケジュール（1時間ごと）」。期限の後、最大でこの分だけ遅れて否決になる） */
-export const REROLL_EXPIRY_CHECK_INTERVAL_MINUTES = 60;
 /** 抽選から自動で終了するまで（06 の §4 の仮決め 7 日。ミリ秒） */
 export const AUTO_CLOSE_AFTER_DRAW_MS = 7 * DAY_MS;
-/** 締切日時の解禁を判定する間隔（06 の §4 の仮決め 5 分） */
+/** 締切日時の解禁と引き直しの投票の期限を判定する間隔（06 の §4 の仮決め 5 分。期限の後、最大でこの分だけ遅れて解禁・否決になる） */
 export const DEADLINE_CHECK_INTERVAL_MINUTES = 5;
 /** 新しい候補のまとめ通知の時刻（06 の §4 の仮決め「1日1回 20:00 JST」） */
 export const NEW_CANDIDATES_DIGEST_TIME = { hour: 20, minute: 0 } as const;

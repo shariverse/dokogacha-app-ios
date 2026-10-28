@@ -10,11 +10,12 @@ import { onDocumentUpdated, onDocumentWritten } from "firebase-functions/v2/fire
 import { onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
+import { settleInGroups } from "./batch";
 import { runCallable } from "./callable";
 import * as candidates from "./candidates/service";
 import { FUNCTIONS_REGION } from "./config";
 import { defaultDeps } from "./deps";
-import { DEADLINE_CHECK_INTERVAL_MINUTES, REROLL_EXPIRY_CHECK_INTERVAL_MINUTES, SCHEDULE_TIME_ZONE } from "./domain/constants";
+import { DEADLINE_CHECK_INTERVAL_MINUTES, SCHEDULE_TIME_ZONE } from "./domain/constants";
 import type { MemberDoc, RoomDoc } from "./domain/models";
 import { drawnEventOf } from "./draw/logic";
 import { notifyRoomDrawn } from "./draw/notify";
@@ -149,16 +150,31 @@ export const forceUnlock = onCall((request) =>
 );
 
 /**
- * 締切日時を過ぎた open のルームを unlocked にする（02 の §5.2・05 の §5。5 分ごと。06 の §4 の仮決め）。
- * 一部のルームで失敗しても残りを処理してから投げる（次の実行でもう一度拾う）
+ * 期限で動く判定を 5 分ごとにまとめて行う（05 の §5。06 の §4 の仮決め）。
+ * - 締切日時を過ぎた open のルームを unlocked にする（02 の §5.2）
+ * - 提案から 24 時間を過ぎた引き直しの投票を否決にする（02 の §6.4。`reroll.expireRerolls`）
+ *
+ * Cloud Scheduler の無料枠（請求先アカウントごとに 3 ジョブ）に収めるため、引き直しの期限を別のスケジュールにしない（#123）。
+ * 片方が失敗してももう片方は最後まで動かし、一部のルームで失敗しても残りを処理してから投げる（次の実行でもう一度拾う）
  */
 export const checkDeadlines = onSchedule(
   { schedule: `every ${String(DEADLINE_CHECK_INTERVAL_MINUTES)} minutes`, timeZone: SCHEDULE_TIME_ZONE },
   async () => {
-    const result = await unlock.unlockPassedDeadlines(deps());
-    if (result.rooms > 0) {
-      logger.info("締切日時を過ぎたルームを判定した", result);
-    }
+    const checks = [
+      async () => {
+        const result = await unlock.unlockPassedDeadlines(deps());
+        if (result.rooms > 0) {
+          logger.info("締切日時を過ぎたルームを判定した", result);
+        }
+      },
+      async () => {
+        const result = await reroll.expireRerolls(deps());
+        if (result.rooms > 0) {
+          logger.info("期限を過ぎた引き直しの投票を判定した", result);
+        }
+      },
+    ];
+    await settleInGroups(checks, checks.length, (check) => check());
   },
 );
 
@@ -193,18 +209,4 @@ export const proposeReroll = onCall((request) =>
 /** 引き直しに投票する（02 の F-43。賛成が過半数になったら、直前の当選を除外してルームを unlocked に戻す） */
 export const voteReroll = onCall((request) =>
   runCallable("voteReroll", request, (uid, data) => reroll.voteReroll(deps(), uid, data)),
-);
-
-/**
- * 提案から 24 時間を過ぎた引き直しの投票を否決にする（02 の §6.4・05 の §5。1 時間ごと。06 の §4 の仮決め）。
- * 一部のルームで失敗しても残りを処理してから投げる（次の実行でもう一度拾う）
- */
-export const expireRerolls = onSchedule(
-  { schedule: `every ${String(REROLL_EXPIRY_CHECK_INTERVAL_MINUTES)} minutes`, timeZone: SCHEDULE_TIME_ZONE },
-  async () => {
-    const result = await reroll.expireRerolls(deps());
-    if (result.rooms > 0) {
-      logger.info("期限を過ぎた引き直しの投票を判定した", result);
-    }
-  },
 );

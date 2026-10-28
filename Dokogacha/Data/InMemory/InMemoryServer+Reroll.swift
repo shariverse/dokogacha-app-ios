@@ -69,7 +69,7 @@ extension InMemoryServer {
         rooms[roomID] = record
     }
 
-    /// 提案から 24 時間を過ぎた投票を否決にする（backend の `expireRerolls`。1 時間ごとのスケジュール）。
+    /// 提案から 24 時間を過ぎた投票を否決にする（backend の `expireRerolls`。`checkDeadlines` の 5 分ごとのスケジュールで動く）。
     ///
     /// 擬似のサーバーには時刻で動く仕組みが無いので、テスト・デモで時刻（`clock`）を進めた後に呼ぶ。
     /// 期限の時点で過半数（取りこぼした判定）なら可決にする（backend の `planExpiry` と同じ）

@@ -226,10 +226,9 @@ service cloud.firestore {
 | `deleteCandidate` | callable | 投稿者または作成者のみ |
 | `onMemberWrite` | Firestore トリガー | `readyCount` を更新し、解禁条件（F-31）を判定して `status` を `open`⇄`unlocked` に更新。`unlocked` になったら通知 |
 | `forceUnlock` | callable | 作成者のみ。`forcedUnlock = true`, `status = unlocked`、通知 |
-| `checkDeadlines` | スケジュール（5分ごと） | 締切を過ぎた `open` ルームを `unlocked` に |
+| `checkDeadlines` | スケジュール（5分ごと） | 締切を過ぎた `open` ルームを `unlocked` に。24時間を過ぎた引き直しの投票も否決にする（`expireRerolls` の処理。Cloud Scheduler の無料枠の 3 ジョブに収めるため同じスケジュールで動かす） |
 | `drawGacha` | callable | 下記 |
 | `proposeReroll` / `voteReroll` | callable | F-43。可決で除外リストに追加し `unlocked` に戻す |
-| `expireRerolls` | スケジュール（1時間ごと） | 24時間を過ぎた投票を否決 |
 | `closeRoom` | callable | 作成者のみ。`closed` にし、各メンバーの `pastIdeas` を作成 |
 | `autoCloseRooms` | スケジュール（1日1回） | 抽選から7日経過した `drawn` を `closed` に（`closeRoom` と同じ処理） |
 | `inviteLastMembers` | callable | 前回ルームのメンバーに招待通知 |
