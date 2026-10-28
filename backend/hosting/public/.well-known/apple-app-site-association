@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["XU74X3434S.jp.shilokuma.Dokogacha"],
+        "components": [
+          {
+            "/": "/r/*",
+            "comment": "招待リンク（https://dokogacha.app/r/{招待コード}）。アプリが入っていれば S-06 参加確認を開く"
+          }
+        ]
+      }
+    ]
+  }
+}

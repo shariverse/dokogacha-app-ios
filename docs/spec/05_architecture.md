@@ -226,10 +226,9 @@ service cloud.firestore {
 | `deleteCandidate` | callable | 投稿者または作成者のみ |
 | `onMemberWrite` | Firestore トリガー | `readyCount` を更新し、解禁条件（F-31）を判定して `status` を `open`⇄`unlocked` に更新。`unlocked` になったら通知 |
 | `forceUnlock` | callable | 作成者のみ。`forcedUnlock = true`, `status = unlocked`、通知 |
-| `checkDeadlines` | スケジュール（5分ごと） | 締切を過ぎた `open` ルームを `unlocked` に |
+| `checkDeadlines` | スケジュール（5分ごと） | 締切を過ぎた `open` ルームを `unlocked` に。24時間を過ぎた引き直しの投票も否決にする（`expireRerolls` の処理。Cloud Scheduler の無料枠の 3 ジョブに収めるため同じスケジュールで動かす） |
 | `drawGacha` | callable | 下記 |
 | `proposeReroll` / `voteReroll` | callable | F-43。可決で除外リストに追加し `unlocked` に戻す |
-| `expireRerolls` | スケジュール（1時間ごと） | 24時間を過ぎた投票を否決 |
 | `closeRoom` | callable | 作成者のみ。`closed` にし、各メンバーの `pastIdeas` を作成 |
 | `autoCloseRooms` | スケジュール（1日1回） | 抽選から7日経過した `drawn` を `closed` に（`closeRoom` と同じ処理） |
 | `inviteLastMembers` | callable | 前回ルームのメンバーに招待通知 |
@@ -237,7 +236,7 @@ service cloud.firestore {
 | `verifyPurchase` | callable | StoreKit 2 の署名付きトランザクション（JWS）を App Store Server Library で検証し、`users.adFree = true`。参加中ルームの `adFreeSponsor` を更新 |
 | `onUserProfileUpdate` | Firestore トリガー | 参加中ルームの member の表示名を更新 |
 | `deleteAccount` | callable | F-06。参加中ルームからの退出、作成者のルームの終了、ユーザーデータと Auth ユーザーの削除 |
-| `reportCandidate` | callable | F-14。`reports/{id}`（`roomId` `candidateId` `reporterId` `reason` `createdAt`）を作成し、運営にメール通知 |
+| `reportCandidate` | callable | F-14。`reports/{id}`（`roomId` `candidateId` `reporterId` `reason` `createdAt` `candidate`（報告した時点の候補の内容））を作成し、運営にメール通知 |
 
 ### `drawGacha` の擬似コード
 

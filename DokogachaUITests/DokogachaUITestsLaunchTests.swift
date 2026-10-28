@@ -19,6 +19,8 @@ final class DokogachaUITestsLaunchTests: XCTestCase {
     @MainActor
     func testLaunch() throws {
         let app = XCUIApplication()
+        // Firebase を初期化せず、メモリ上の擬似のサーバーで動かす（LaunchContext.uiTestingArgument）
+        app.launchArguments.append("-uiTesting")
         app.launch()
 
         // 起動直後のスクリーンショットをテスト結果に添付する

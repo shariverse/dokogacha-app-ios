@@ -4,6 +4,10 @@
 `AppStore/metadata/<言語>.json` と `AppStore/metadata/shared.json` を読み、
 対象バージョンの言語ごとに書き込む。
 
+名前（name）・サブタイトル（subtitle）・プライバシーポリシーの URL（privacyPolicyUrl）は、
+バージョンではなく「App 情報」の項目なので書き込まない。JSON に書いておけば --check で文字数と形だけ確かめる
+（App Store Connect には人が同じ値を入れる）。
+
     python3 Tools/upload_metadata.py            # 反映する
     python3 Tools/upload_metadata.py --dry-run  # 現在値との差分だけ出す
     python3 Tools/upload_metadata.py --check    # App Store Connect につながず、手元のファイルだけ検査する
@@ -46,6 +50,23 @@ LIMITS = {
     "whatsNew": 4000,
 }
 
+#: App 情報の項目（書き込まずに --check で確かめるだけ）の上限
+APP_INFO_LIMITS = {
+    "name": 30,
+    "subtitle": 30,
+}
+
+#: shared.json の App 情報の URL（書き込まずに --check で確かめるだけ）
+APP_INFO_URL_KEYS = ("privacyPolicyUrl",)
+
+
+def check_url(path: Path, key: str, value: str) -> list[str]:
+    """https:// で始まりホスト名のある URL か。テンプレートの仮の値（TODO:）は形を問わない"""
+    parsed = urllib.parse.urlparse(value)
+    if "TODO:" not in value and not (parsed.scheme == "https" and parsed.hostname):
+        return [f"{path}: {key} は https:// で始まる URL にしてください（ホスト名も要る）"]
+    return []
+
 
 def load_shared(directory: Path) -> tuple[dict[str, str], list[str]]:
     path = directory / SHARED_FILE
@@ -59,12 +80,18 @@ def load_shared(directory: Path) -> tuple[dict[str, str], list[str]]:
         value = raw.get(key)
         if isinstance(value, str) and value.strip():
             # テンプレートの仮の値（TODO:）は形を問わず、反映の前の TODO: の検査で止める
-            parsed = urllib.parse.urlparse(value)
-            if "TODO:" not in value and not (parsed.scheme == "https" and parsed.hostname):
-                problems.append(f"{path}: {key} は https:// で始まる URL にしてください（ホスト名も要る）")
+            problems.extend(check_url(path, key, value))
             attributes[key] = value
         elif required:
             problems.append(f"{path}: {key} がありません")
+    # App 情報の URL は書き込まないので attributes に入れない
+    for key in APP_INFO_URL_KEYS:
+        if key in raw:
+            value = raw[key]
+            if isinstance(value, str) and value.strip():
+                problems.extend(check_url(path, key, value))
+            else:
+                problems.append(f"{path}: {key} が空です（使わないなら項目ごと消す）")
     return attributes, problems
 
 
@@ -121,6 +148,16 @@ def load(directory: Path, target: Language, shared: dict[str, str]) -> tuple[dic
     for field, limit in LIMITS.items():
         value = attributes.get(field, "")
         if len(value) > limit:
+            problems.append(f"{path}: {field} が {len(value)} 字あります（上限 {limit} 字）")
+
+    # App 情報の項目は書き込まないので attributes に入れず、形と文字数だけ見る
+    for field, limit in APP_INFO_LIMITS.items():
+        if field not in raw:
+            continue
+        value = raw[field]
+        if not (isinstance(value, str) and value.strip()):
+            problems.append(f"{path}: {field} が空です（使わないなら項目ごと消す）")
+        elif len(value) > limit:
             problems.append(f"{path}: {field} が {len(value)} 字あります（上限 {limit} 字）")
 
     if problems:

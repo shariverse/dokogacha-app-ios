@@ -6,3 +6,16 @@
 //
 
 #include "Project.xcconfig"
+
+// Firebase の接続先（Info.plist の DGFirebaseEnvironment。値は FirebaseEnvironment の rawValue）。
+// Debug は Emulator の demo プロジェクト（demo-dokogacha）に、コードで作った FirebaseOptions で接続するので plist を読まない
+DG_FIREBASE_ENVIRONMENT = emulator
+// 読む GoogleService-Info の名前（拡張子なし。Info.plist の DGFirebaseOptionsFileName）。Debug は使わないので空
+DG_FIREBASE_OPTIONS_FILE_NAME =
+// Dokogacha/Resources/Firebase/ に置いた plist は、どれもこの構成のアプリに入れない
+EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info-Dev.plist GoogleService-Info-Prod.plist
+// APNs の環境（Configs/Dokogacha.entitlements の aps-environment）。Xcode から実機に入れる開発用の署名は development
+DG_APS_ENVIRONMENT = development
+// Analytics・Crashlytics の収集の既定（Info.plist の FIREBASE_ANALYTICS_COLLECTION_ENABLED・FirebaseCrashlyticsCollectionEnabled）。
+// Debug は Emulator に繋ぐ開発用なので送らない（起動ごとの判定は FirebaseCollectionPolicy）
+DG_FIREBASE_COLLECTION_ENABLED = NO
