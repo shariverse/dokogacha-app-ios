@@ -130,6 +130,56 @@ final class RoomUITests: XCTestCase {
         XCTAssertTrue(app.otherElements[UITestID.postCandidateScreen].waitForNonExistence(timeout: UITestID.timeout))
     }
 
+    /// S-08 でエリアを北海道にすると、関東の場所は見つからず「北海道では見つかりませんでした」と「全国で探す」が出る。
+    /// S-08 を開き直しても北海道のまま（選んだエリアを覚える）で、「全国で探す」で全国に戻して検索し直す（Issue #131）
+    @MainActor
+    func testSearchAreaNarrowsAndFallsBackToNationwide() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "one-room"]
+        app.launch()
+
+        let card = app.buttons[UITestID.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
+        card.tap()
+        let addButton = app.buttons[UITestID.roomAddCandidate]
+        XCTAssertTrue(addButton.waitForExistence(timeout: UITestID.timeout))
+        addButton.tap()
+
+        // 初めは全国。検索すると関東の水族館が出る
+        let nationwide = app.buttons[UITestID.addCandidateArea("nationwide")]
+        let hokkaido = app.buttons[UITestID.addCandidateArea("hokkaido")]
+        XCTAssertTrue(nationwide.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(nationwide.isSelected)
+        let search = app.textFields[UITestID.addCandidateSearch]
+        search.tap()
+        search.typeText("水族館")
+        XCTAssertTrue(app.buttons[UITestID.sumidaAquariumAdd].waitForExistence(timeout: UITestID.timeout))
+
+        // 北海道にすると、待たずに検索し直して 0 件になる
+        hokkaido.tap()
+        let noResults = app.staticTexts[UITestID.addCandidateNoResults]
+        XCTAssertTrue(noResults.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertEqual(noResults.label, "北海道では見つかりませんでした")
+        XCTAssertTrue(app.buttons[UITestID.sumidaAquariumAdd].waitForNonExistence(timeout: UITestID.timeout))
+
+        // 開き直しても北海道のまま
+        app.buttons["戻る"].firstMatch.tap()
+        XCTAssertTrue(addButton.waitForExistence(timeout: UITestID.timeout))
+        addButton.tap()
+        XCTAssertTrue(hokkaido.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(hokkaido.isSelected)
+        XCTAssertFalse(nationwide.isSelected)
+        search.tap()
+        search.typeText("水族館")
+        XCTAssertTrue(noResults.waitForExistence(timeout: UITestID.timeout))
+
+        // 「全国で探す」で全国に戻して検索し直す
+        app.buttons[UITestID.addCandidateSearchNationwide].tap()
+        XCTAssertTrue(app.buttons[UITestID.sumidaAquariumAdd].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(nationwide.isSelected)
+        XCTAssertFalse(hokkaido.isSelected)
+    }
+
     /// ルーム（S-07）で「準備OK」を押すと人数とヒントが変わり、ボタンが「準備OKを取り消す」になる（F-30）。
     /// 作成者が「強制解禁（作成者）」→ 確認の「解禁する」を押すと「作成者が解禁しました」になり、ガチャを回せる（F-32）
     @MainActor

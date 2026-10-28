@@ -93,6 +93,15 @@ enum UITestID {
     static let addCandidateSearch = "addCandidate.search"
     /// S-08 のすみだ水族館の「追加」（`AddCandidateView.Identifier.add(DemoPlaceSearchService.sumidaAquariumID)`）
     static let sumidaAquariumAdd = "addCandidate.place.demo-place-sumida-aquarium.add"
+    /// S-08 の結果 0 件の表示（`AddCandidateView.Identifier.noResults`）
+    static let addCandidateNoResults = "addCandidate.noResults"
+    /// S-08 の地方で 0 件のときの「全国で探す」（`AddCandidateView.Identifier.searchNationwide`）
+    static let addCandidateSearchNationwide = "addCandidate.searchNationwide"
+
+    /// S-08 のエリアのチップ（`AddCandidateView.Identifier.area(_:)`。`SearchArea` の rawValue）
+    static func addCandidateArea(_ rawValue: String) -> String {
+        "addCandidate.area.\(rawValue)"
+    }
     /// S-09（`PostCandidateView.Identifier.screen`）
     static let postCandidateScreen = "postCandidate.screen"
     /// S-09 の場所名（`PostCandidateView.Identifier.placeName`）
