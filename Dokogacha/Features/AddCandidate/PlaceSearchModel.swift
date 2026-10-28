@@ -10,7 +10,7 @@ import Observation
 ///
 /// - 入力のたびには検索しない。入力から 0.3 秒待ち（03 の S-08「入力から0.3秒後に MKLocalSearch を実行」）、待つ間に入力が変わったら前の検索は捨てる
 /// - クイックカテゴリ・キーボードの検索は、待たずにその語で検索する
-/// - エリアを選び直すと、語があれば待たずにそのエリアで検索し直す（初めは全国。Issue #131）
+/// - エリアを選び直すと、端末に覚えて、語があれば待たずにそのエリアで検索し直す（初めは覚えているエリア。Issue #131）
 /// - 結果が届いたときに語かエリアが変わっていれば、その結果は映さない（遅れて届いた古い結果で上書きしない）
 /// - 通信できなければトーストを出す（結果は出さない）
 ///
@@ -44,9 +44,10 @@ final class PlaceSearchModel {
     /// 検索の状態
     private(set) var phase = Phase.idle
     /// 検索するエリア（`selectArea(_:)` で変える）
-    private(set) var area = DomainConstants.SearchRegion.initialArea
+    private(set) var area: SearchArea
 
     @ObservationIgnored private let places: any PlaceSearchService
+    @ObservationIgnored private let areaStore: any SearchAreaStore
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let sleep: Sleep
     /// 待っている・動いている検索（新しい語で検索するとき・画面が消えたときに止める）
@@ -54,16 +55,20 @@ final class PlaceSearchModel {
 
     /// - Parameters:
     ///   - places: 場所検索の窓口（MapKit か擬似の検索）
+    ///   - areaStore: 選んだエリアを覚える先（既定はメモリだけ）
     ///   - toasts: 通信エラーを出すトーストの窓口
     ///   - sleep: 検索まで待つ処理（テストでは手で進めるものを渡す）
     init(
         places: any PlaceSearchService,
+        areaStore: any SearchAreaStore = InMemorySearchAreaStore(),
         toasts: DGToastCenter,
         sleep: @escaping Sleep = { try await Task.sleep(for: $0) }
     ) {
         self.places = places
+        self.areaStore = areaStore
         self.toasts = toasts
         self.sleep = sleep
+        area = areaStore.area
     }
 
     /// いま検索している語（前後の空白を取り除いたもの）
@@ -103,12 +108,13 @@ final class PlaceSearchModel {
         }
     }
 
-    /// エリアのチップ・「全国で探す」が押された。語があれば待たずにそのエリアで検索し直す（同じエリアなら何もしない）
+    /// エリアのチップ・「全国で探す」が押された。覚えて、語があれば待たずにそのエリアで検索し直す（同じエリアなら何もしない）
     func selectArea(_ newArea: SearchArea) {
         guard newArea != area else {
             return
         }
         area = newArea
+        areaStore.save(newArea)
         searchNow(query)
     }
 

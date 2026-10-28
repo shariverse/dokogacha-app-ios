@@ -167,7 +167,7 @@
 			</array>
 		</dict>
 	</array>
-	<!-- 理由の申告が必要な API。アプリのコードが使うのは UserDefaults だけ（見終えた抽選・報告した候補・通知のトークンの登録の記録。SeenDrawStore など）。
+	<!-- 理由の申告が必要な API。アプリのコードが使うのは UserDefaults だけ（見終えた抽選・報告した候補・通知のトークンの登録の記録・場所検索のエリア。SeenDrawStore など）。
 	     SDK が使う API は SDK のマニフェストが申告する -->
 	<!-- ファイルのタイムスタンプ・空き容量・起動時刻などの API を使うときは、ここに理由を足す -->
 	<key>NSPrivacyAccessedAPITypes</key>

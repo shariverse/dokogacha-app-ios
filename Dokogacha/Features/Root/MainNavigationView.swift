@@ -172,6 +172,7 @@ struct MainNavigationView: View {
                     repository: services.rooms,
                     functions: services.functions,
                     places: services.places,
+                    searchArea: services.searchArea,
                     toasts: toasts,
                     analytics: services.analytics
                 )

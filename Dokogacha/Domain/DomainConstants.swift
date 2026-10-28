@@ -148,7 +148,7 @@ nonisolated enum DomainConstants {
     /// - 地方: 地方の都道府県の本土と主な島を囲む。矩形なので隣の地方の一部も入る（結果は都道府県で取り除く。`SearchArea.keeps`）。
     ///   矩形の外の離島（伊豆諸島・小笠原諸島・奄美群島など）は「全国」で探す
     nonisolated enum SearchRegion {
-        /// 初めて S-08 を開いたときのエリア
+        /// 初めて S-08 を開いたときのエリア（選んだ後は端末に覚えたエリア。`SearchAreaStore`）
         static let initialArea = SearchArea.nationwide
         /// 全国
         static let nationwide = SearchBounds(minLatitude: 23.8, maxLatitude: 45.8, minLongitude: 122.5, maxLongitude: 146.5)
