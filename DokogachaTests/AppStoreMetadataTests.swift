@@ -40,6 +40,16 @@ struct AppStoreMetadataTests {
         #expect(name.count <= 30 && subtitle.count <= 30)
     }
 
+    /// App Store の日本語のアプリ名は、ホーム画面の日本語の名前（`Dokogacha/InfoPlist.xcstrings` の `ja`）と同じ（Discussion #147 の Q2）。
+    ///
+    /// 片方だけ変えると、App Store とホーム画面で名前が食い違うので、ビルドしたアプリの `ja.lproj` の値と突き合わせる
+    @Test
+    func nameMatchesJapaneseHomeScreenName() throws {
+        let name = try #require(try Self.json("metadata/ja.json")["name"] as? String)
+        #expect(name == (try AppDisplayNameTests.displayName(forLocalization: "ja")))
+        #expect(name == AppDisplayNameTests.Expected.japanese)
+    }
+
     /// 掲載する言語は日本語だけ（02 の §10 で多言語は対象外）。載せる言語ごとに説明文のファイルがある
     @Test
     func listsJapaneseOnly() throws {
