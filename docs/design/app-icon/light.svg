@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- 案 1 ピンの頭がカプセル: ライト（背景あり・アルファなしで書き出す） -->
+  <!-- アプリアイコン（ピンの頭がカプセル）: ライト（背景あり・アルファなしで書き出す） -->
   <rect width="1024" height="1024" fill="#D93A1F"/>
   <g transform="translate(0 32)"><path d="M262 400 A250 250 0 0 1 762 400 C762 636 512 872 512 872 C512 872 262 636 262 400 Z" fill="#2B2118" stroke="#2B2118" stroke-width="40" stroke-linejoin="round"/></g>
   <path d="M262 400 A250 250 0 0 1 762 400 C762 636 512 872 512 872 C512 872 262 636 262 400 Z" fill="#FFFFFF"/>
