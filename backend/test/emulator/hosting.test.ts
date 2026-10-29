@@ -1,6 +1,6 @@
 /**
  * Hosting の Emulator で、Universal Links の apple-app-site-association とランディングページ（タスク 34）、
- * 利用規約・プライバシーポリシー（タスク 35）・サポート（タスク 45）が、firebase.json の設定（cleanUrls・rewrites・ヘッダー）どおりに配信されることを確かめる。
+ * 利用規約・プライバシーポリシー（タスク 35）・サポート（タスク 45）・favicon と apple-touch-icon（Discussion #128 の Q6）が、firebase.json の設定（cleanUrls・rewrites・ヘッダー）どおりに配信されることを確かめる。
  */
 import { requireEnv } from "./env";
 
@@ -52,6 +52,14 @@ describe("Hosting", () => {
   it.each(["/assets/landing.js", "/assets/landing.css", "/assets/ogp.png"])("%s を配信する", async (path) => {
     const response = await fetch(`${origin}${path}`);
     expect(response.status).toBe(200);
+  });
+
+  // ページの <link> が指すアイコン。ブラウザと iOS は <link> が無くても直下のこの名前を読みに来る
+  it.each(["/favicon.ico", "/apple-touch-icon.png"])("%s を画像として配信する", async (path) => {
+    const response = await fetch(`${origin}${path}`, { redirect: "manual" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toMatch(/^image\//);
+    expect(securityHeaders(response)).toEqual(SECURITY_HEADERS);
   });
 
   it.each([
