@@ -45,6 +45,8 @@ final class ManualSleeper {
 final class RecordingPlaceSearch: PlaceSearchService {
     /// 呼ばれた語（呼ばれた順）
     private(set) var queries: [String] = []
+    /// 呼ばれたエリア（呼ばれた順。`queries` と同じ並び）
+    private(set) var areas: [SearchArea] = []
     /// 投げるエラー（nil なら擬似の検索の結果を返す）
     var error: (any Error)?
     /// true なら `release()` を呼ぶまで返さない
@@ -57,15 +59,16 @@ final class RecordingPlaceSearch: PlaceSearchService {
         held.count
     }
 
-    func search(_ query: String) async throws -> [SearchedPlace] {
+    func search(_ query: String, in area: SearchArea) async throws -> [SearchedPlace] {
         queries.append(query)
+        areas.append(area)
         if holds {
             await withCheckedContinuation { held.append($0) }
         }
         if let error {
             throw error
         }
-        return DemoPlaceSearchService.results(for: query)
+        return DemoPlaceSearchService.results(for: query, in: area)
     }
 
     /// 止めている呼び出しを古い順に 1 つ進める

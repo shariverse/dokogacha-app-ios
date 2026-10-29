@@ -8,14 +8,15 @@ import Foundation
 import Testing
 
 /// S-08 の検索欄（`PlaceSearchModel`）を確かめる: 入力から 0.3 秒のデバウンス（待ちは手で進める）・クイックカテゴリは待たない・
-/// 遅れて届いた古い結果で上書きしない・0 件・通信エラーのトースト
+/// 遅れて届いた古い結果で上書きしない・0 件・通信エラーのトースト・エリアの選び直し（Issue #131）
 struct PlaceSearchModelTests {
     static func makeModel(
         places: RecordingPlaceSearch = RecordingPlaceSearch(),
+        areaStore: InMemorySearchAreaStore = InMemorySearchAreaStore(),
         sleeper: ManualSleeper = ManualSleeper(),
         toasts: DGToastCenter = DGToastCenter(visibleFor: .seconds(3_600))
     ) -> PlaceSearchModel {
-        PlaceSearchModel(places: places, toasts: toasts, sleep: sleeper.sleep)
+        PlaceSearchModel(places: places, areaStore: areaStore, toasts: toasts, sleep: sleeper.sleep)
     }
 
     /// 結果の場所名
@@ -169,5 +170,97 @@ struct PlaceSearchModelTests {
         }
         #expect(places.queries.isEmpty)
         #expect(model.phase == .idle)
+    }
+
+    // MARK: - エリア（Issue #131）
+
+    /// 初めは覚えているエリアで検索する。擬似の検索の場所は関東・中部だけなので、関西では見つからない
+    @Test
+    func searchesInRememberedArea() async {
+        let places = RecordingPlaceSearch()
+        let model = Self.makeModel(places: places, areaStore: InMemorySearchAreaStore(area: .kansai))
+        #expect(model.area == .kansai)
+
+        model.searchNow("水族館")
+        #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
+        #expect(places.areas == [.kansai])
+    }
+
+    /// エリアを選び直すと、覚えて、いまの語を待たずにそのエリアで検索し直す
+    @Test
+    func selectingAreaSavesAndSearchesAgainNow() async {
+        let places = RecordingPlaceSearch()
+        let areaStore = InMemorySearchAreaStore()
+        let sleeper = ManualSleeper()
+        let model = Self.makeModel(places: places, areaStore: areaStore, sleeper: sleeper)
+
+        model.searchNow("テーマパーク")
+        #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["富士急ハイランド"] })
+        model.selectArea(.kanto)
+        #expect(model.area == .kanto)
+        #expect(areaStore.area == .kanto)
+        #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
+        model.selectArea(.chubu)
+        #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["富士急ハイランド"] })
+        #expect(places.queries == ["テーマパーク", "テーマパーク", "テーマパーク"])
+        #expect(places.areas == [.nationwide, .kanto, .chubu])
+        #expect(sleeper.requested.isEmpty)
+    }
+
+    /// 語が空のときにエリアを選び直しても、覚えるだけで検索しない。同じエリアを選んでも検索し直さない
+    @Test
+    func selectingAreaWithoutQueryOnlySaves() async {
+        let places = RecordingPlaceSearch()
+        let areaStore = InMemorySearchAreaStore()
+        let model = Self.makeModel(places: places, areaStore: areaStore)
+
+        model.selectArea(.okinawa)
+        #expect(areaStore.area == .okinawa)
+        #expect(model.phase == .idle)
+
+        model.searchNow("海")
+        #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
+        model.selectArea(.okinawa)
+        for _ in 0..<100 {
+            await Task.yield()
+        }
+        #expect(places.queries == ["海"])
+    }
+
+    /// 前のエリアの結果が遅れて届いても映さない（選び直したエリアの結果だけを映す）
+    @Test
+    func staleResultsFromPreviousAreaAreIgnored() async {
+        let places = RecordingPlaceSearch()
+        places.holds = true
+        let model = Self.makeModel(places: places)
+
+        model.searchNow("水族館")
+        #expect(await AsyncTestSupport.eventually { places.heldCount == 1 })
+        model.selectArea(.hokkaido)
+        #expect(await AsyncTestSupport.eventually { places.heldCount == 2 })
+
+        // 全国の結果（4 件）が先に届いても映さない
+        places.releaseFirst()
+        for _ in 0..<100 {
+            await Task.yield()
+        }
+        #expect(model.phase == .searching)
+        places.releaseFirst()
+        #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
+        #expect(places.areas == [.nationwide, .hokkaido])
+    }
+
+    /// 地方で見つからなかった後の「全国で探す」は、全国にして検索し直す
+    @Test
+    func searchingNationwideAfterNoResults() async {
+        let places = RecordingPlaceSearch()
+        let areaStore = InMemorySearchAreaStore(area: .kyushu)
+        let model = Self.makeModel(places: places, areaStore: areaStore)
+
+        model.searchNow("高尾山")
+        #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
+        model.selectArea(.nationwide)
+        #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["高尾山"] })
+        #expect(areaStore.area == .nationwide)
     }
 }

@@ -143,6 +143,15 @@ struct SearchedPlaceTests {
         #expect(DemoPlaceSearchService.results(for: "存在しない場所").isEmpty)
     }
 
+    /// 擬似の検索も、MapKit の実装と同じ判定（`SearchArea.keeps`）でエリアの外の都道府県を取り除く
+    @Test
+    func demoSearchFiltersByArea() {
+        #expect(DemoPlaceSearchService.results(for: "自然", in: .kanto).map(\.place.name) == ["高尾山", "箱根 大涌谷"])
+        #expect(DemoPlaceSearchService.results(for: "テーマパーク", in: .kanto).isEmpty)
+        #expect(DemoPlaceSearchService.results(for: "テーマパーク", in: .chubu).map(\.place.name) == ["富士急ハイランド"])
+        #expect(DemoPlaceSearchService.results(for: "水族館", in: .kansai).isEmpty)
+    }
+
     // MARK: - MapKit の結果の写し
 
     /// MapKit の結果（`MKMapItem`）の名前・住所・座標・カテゴリを写して、検索結果にする
@@ -179,13 +188,13 @@ struct SearchedPlaceTests {
         #expect(place.category == .town)
     }
 
-    /// MapKit の検索の範囲は日本全体の定数（`DomainConstants.SearchRegion`）
-    @Test
-    func mapKitRegionIsJapan() {
-        let region = MapKitPlaceSearchService.region
-        #expect(region.center.latitude == DomainConstants.SearchRegion.centerLatitude)
-        #expect(region.center.longitude == DomainConstants.SearchRegion.centerLongitude)
-        #expect(region.span.latitudeDelta == DomainConstants.SearchRegion.latitudeDelta)
-        #expect(region.span.longitudeDelta == DomainConstants.SearchRegion.longitudeDelta)
+    /// MapKit の検索の範囲は、エリアの矩形（`DomainConstants.SearchRegion`）の中心と幅
+    @Test(arguments: SearchArea.allCases)
+    func mapKitRegionMatchesArea(area: SearchArea) {
+        let region = MapKitPlaceSearchService.region(for: area)
+        #expect(region.center.latitude == area.bounds.centerLatitude)
+        #expect(region.center.longitude == area.bounds.centerLongitude)
+        #expect(region.span.latitudeDelta == area.bounds.latitudeDelta)
+        #expect(region.span.longitudeDelta == area.bounds.longitudeDelta)
     }
 }

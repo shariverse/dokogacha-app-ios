@@ -262,10 +262,13 @@ extension ScreenshotDemo {
 
     /// S-08 候補を追加を、デモのルーム（`DemoScenario.roomID`）と擬似の検索で開く（ルームから進まずに、S-08 を `NavigationStack` に入れて出す）。
     ///
-    /// 起動引数 `-screenshot-query <語>` を付けると、その語で検索した結果を出した状態で開く（既定は「水族館」）
+    /// 起動引数 `-screenshot-query <語>` を付けると、その語で検索した結果を出した状態で開く（既定は「水族館」）。
+    /// `-screenshot-search-area <エリア>`（`SearchArea` の rawValue。`kanto` など）を付けると、そのエリアを選んだ状態で開く（既定は全国）
     struct AddCandidateScene: View {
         /// 検索しておく語の起動引数
         static let queryArgument = "-screenshot-query"
+        /// 選んでおくエリアの起動引数
+        static let searchAreaArgument = "-screenshot-search-area"
         /// 起動引数が無いときに検索しておく語
         static let defaultQuery = "水族館"
 
@@ -275,12 +278,16 @@ extension ScreenshotDemo {
         /// - Parameter services: データ層の窓口（撮影モードでは擬似のサーバーと擬似の検索）
         init(services: DataServices) {
             let toasts = DGToastCenter()
+            if let area = ScreenshotDemo.value(after: Self.searchAreaArgument).flatMap(SearchArea.init(rawValue:)) {
+                services.searchArea.save(area)
+            }
             model = AddCandidateModel(
                 roomID: DemoScenario.roomID,
                 userID: services.auth.currentUserID ?? DemoScenario.myUserID,
                 repository: services.rooms,
                 functions: services.functions,
                 places: services.places,
+                searchArea: services.searchArea,
                 toasts: toasts
             )
             model.search.searchNow(ScreenshotDemo.value(after: Self.queryArgument) ?? Self.defaultQuery)

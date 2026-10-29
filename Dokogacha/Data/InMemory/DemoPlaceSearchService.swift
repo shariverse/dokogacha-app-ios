@@ -10,6 +10,7 @@ import MapKit
 /// ネットワークに出ず、同じ語なら必ず同じ結果を返す（UI テストと撮影を揺らさないため）。
 /// 結果は MapKit の実装と同じ `SearchedPlace.make` で作るので、カテゴリの判定（MapKit のカテゴリ・場所名）も同じ道を通る。
 /// 語は、場所名・都道府県・市区町村・場所ごとの語（クイックカテゴリの「水族館」「自然」「グルメ」「テーマパーク」「街歩き」など）に含まれれば当たる。
+/// エリアは MapKit の実装と同じ `SearchArea.keeps` で絞る（場所は関東・中部のものだけなので、ほかの地方では見つからない）。
 ///
 /// デモのルーム（`room-with-candidates`）の候補と同じ場所（サンシャイン水族館・明治神宮・江の島）を含めてあり、
 /// 「追加済み」・重複の確認を確かめられる。
@@ -199,12 +200,15 @@ nonisolated struct DemoPlaceSearchService: PlaceSearchService {
         )
     ]
 
-    func search(_ query: String) async throws -> [SearchedPlace] {
-        Self.results(for: query)
+    func search(_ query: String, in area: SearchArea) async throws -> [SearchedPlace] {
+        Self.results(for: query, in: area)
     }
 
-    /// 語に当たるデモの場所（一覧の順）。空の語では何も返さない
-    static func results(for query: String) -> [SearchedPlace] {
+    /// 語に当たる、エリアの中のデモの場所（一覧の順）。空の語では何も返さない
+    /// - Parameters:
+    ///   - query: 検索する語
+    ///   - area: 探すエリア（既定は全国）
+    static func results(for query: String, in area: SearchArea = .nationwide) -> [SearchedPlace] {
         let query = NameValidation.trimWhitespace(query)
         guard !query.isEmpty else {
             return []
@@ -212,7 +216,7 @@ nonisolated struct DemoPlaceSearchService: PlaceSearchService {
         return entries
             .filter { entry in
                 let words = [entry.hit.name, entry.hit.administrativeArea, entry.hit.locality].compactMap(\.self) + entry.keywords
-                return words.contains { $0.contains(query) }
+                return words.contains { $0.contains(query) } && area.keeps(entry.hit)
             }
             .compactMap { SearchedPlace.make($0.hit) }
     }

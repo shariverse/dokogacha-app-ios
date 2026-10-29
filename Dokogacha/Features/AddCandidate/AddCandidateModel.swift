@@ -98,6 +98,7 @@ final class AddCandidateModel {
     ///   - repository: ルーム・候補の購読と、いいねの書き込みの窓口
     ///   - functions: `addCandidate` を呼ぶ窓口
     ///   - places: 場所検索の窓口（MapKit か擬似の検索）
+    ///   - searchArea: S-08 で選んだ検索のエリアを覚える先（既定はメモリだけ）
     ///   - toasts: アプリの根元のトースト（成功と、S-08 での通信エラー）
     ///   - sheetToasts: S-09 のシートの中のトースト（既定は新しく作る）
     ///   - sleep: 検索まで待つ処理（テストでは手で進めるものを渡す）
@@ -109,6 +110,7 @@ final class AddCandidateModel {
         repository: any RoomRepository,
         functions: any FunctionsClient,
         places: any PlaceSearchService,
+        searchArea: any SearchAreaStore = InMemorySearchAreaStore(),
         toasts: DGToastCenter,
         sheetToasts: DGToastCenter = DGToastCenter(),
         sleep: @escaping PlaceSearchModel.Sleep = { try await Task.sleep(for: $0) },
@@ -123,7 +125,7 @@ final class AddCandidateModel {
         self.sheetToasts = sheetToasts
         self.resubscribeDelay = resubscribeDelay
         self.analytics = analytics
-        search = PlaceSearchModel(places: places, toasts: toasts, sleep: sleep)
+        search = PlaceSearchModel(places: places, areaStore: searchArea, toasts: toasts, sleep: sleep)
     }
 
     // MARK: - 表示の値

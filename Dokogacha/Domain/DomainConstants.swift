@@ -140,20 +140,35 @@ nonisolated enum DomainConstants {
         static let allLikedMinOtherMembers = 2
     }
 
-    /// 場所検索の範囲（06 の §4 の仮決め「日本全国。`MKLocalSearch` の `region` は日本全体」）。
+    /// 場所検索の範囲（06 の §4 の仮決め「全国か地方を選ぶ。初めは全国」。Issue #131）。
     ///
-    /// 沖縄から北海道まで（北緯 23.8〜45.8 度・東経 122.5〜146.5 度。中心 ± 幅の半分）が入る矩形。位置情報は使わない。
-    /// 矩形なので、日本の外（韓国・中国・台湾の一部と周りの海）も含む。範囲の外の結果は出さないが、
-    /// この矩形の中の日本の外の場所は結果に出うる（国で絞る API は無い。実機での確かめは #59）
+    /// エリア（`SearchArea`）ごとの、`MKLocalSearch` の `region` にする矩形。位置情報は使わない。
+    /// - 全国: 沖縄から北海道まで（北緯 23.8〜45.8 度・東経 122.5〜146.5 度）。矩形なので、日本の外（韓国・中国・台湾の一部と周りの海）も含む。
+    ///   範囲の外の結果は出さないが、この矩形の中の日本の外の場所は結果に出うる（国で絞る API は無い。実機での確かめは #59）
+    /// - 地方: 地方の都道府県の本土と主な島を囲む。矩形なので隣の地方の一部も入る（結果は都道府県で取り除く。`SearchArea.keeps`）。
+    ///   矩形の外の離島（伊豆諸島・小笠原諸島・奄美群島など）は「全国」で探す
     nonisolated enum SearchRegion {
-        /// 中心の緯度
-        static let centerLatitude = 34.8
-        /// 中心の経度
-        static let centerLongitude = 134.5
-        /// 緯度の幅（度）
-        static let latitudeDelta = 22.0
-        /// 経度の幅（度）
-        static let longitudeDelta = 24.0
+        /// 初めて S-08 を開いたときのエリア（選んだ後は端末に覚えたエリア。`SearchAreaStore`）
+        static let initialArea = SearchArea.nationwide
+        /// 全国
+        static let nationwide = SearchBounds(minLatitude: 23.8, maxLatitude: 45.8, minLongitude: 122.5, maxLongitude: 146.5)
+        /// 北海道（松前・奥尻島から宗谷岬・納沙布岬まで）
+        static let hokkaido = SearchBounds(minLatitude: 41.3, maxLatitude: 45.6, minLongitude: 139.3, maxLongitude: 145.9)
+        /// 東北（福島県の南端から大間崎まで、飛島から魹ヶ崎まで）
+        static let tohoku = SearchBounds(minLatitude: 36.7, maxLatitude: 41.6, minLongitude: 139.1, maxLongitude: 142.1)
+        /// 関東（房総半島の南端から栃木県の北端まで、群馬県の西端から犬吠埼まで）
+        static let kanto = SearchBounds(minLatitude: 34.8, maxLatitude: 37.2, minLongitude: 138.4, maxLongitude: 140.9)
+        /// 中部（渥美半島から新潟県の北端まで、敦賀から新潟市・熱海まで）。東西を県の端まで広げると、東京・埼玉・群馬と京都・大阪が入り、
+        /// 結果がそちらで埋まる（「グルメ」で中部の県が 25 件中 4 件だった）ので狭めた。新潟県の北東の端（村上など）は「全国」で探す
+        static let chubu = SearchBounds(minLatitude: 34.5, maxLatitude: 38.6, minLongitude: 136.0, maxLongitude: 139.2)
+        /// 関西（潮岬から丹後半島まで、兵庫県の西端から志摩半島まで）
+        static let kansai = SearchBounds(minLatitude: 33.4, maxLatitude: 35.8, minLongitude: 134.2, maxLongitude: 136.9)
+        /// 中国・四国（足摺岬から隠岐まで、下関から蒲生田岬まで）
+        static let chugokuShikoku = SearchBounds(minLatitude: 32.7, maxLatitude: 36.4, minLongitude: 130.8, maxLongitude: 134.9)
+        /// 九州（屋久島から対馬まで、五島列島から大分県の東端まで）
+        static let kyushu = SearchBounds(minLatitude: 29.9, maxLatitude: 34.8, minLongitude: 128.5, maxLongitude: 132.1)
+        /// 沖縄（波照間島から伊平屋島まで、与那国島から大東諸島まで）
+        static let okinawa = SearchBounds(minLatitude: 24.0, maxLatitude: 27.1, minLongitude: 122.9, maxLongitude: 131.4)
     }
 
     // アバターの色（06 の §4 の仮決め「ユーザー作成時にランダム。ルーム内の重複は許容」）は、

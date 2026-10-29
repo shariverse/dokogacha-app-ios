@@ -31,6 +31,8 @@ struct DataServices {
     let inMemoryServer: InMemoryServer?
     /// 場所検索（F-10）。既定は MapKit、擬似のサーバーのときは決まった結果を返す擬似の検索
     var places: any PlaceSearchService = MapKitPlaceSearchService()
+    /// S-08 で選んだ検索のエリア。既定は端末に残す。擬似のサーバーのときはメモリだけ（起動ごとに初めのエリアから始める）
+    var searchArea: any SearchAreaStore = UserDefaultsSearchAreaStore()
     /// ガチャの演出を見終えた抽選（F-41）。既定は端末に残す。擬似のサーバーのときはメモリだけ（起動ごとに空から始める）
     var seenDraws: any SeenDrawStore = UserDefaultsSeenDrawStore()
     /// 報告した候補（F-14。ひとこととURLを隠す）。既定は端末に残す。擬似のサーバーのときはメモリだけ（起動ごとに空から始める）
@@ -58,6 +60,7 @@ struct DataServices {
             functions: server,
             inMemoryServer: server,
             places: DemoPlaceSearchService(),
+            searchArea: InMemorySearchAreaStore(),
             seenDraws: InMemorySeenDrawStore(),
             reportedCandidates: InMemoryReportedCandidateStore()
         )
