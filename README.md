@@ -266,6 +266,10 @@ body=$(gh pr view <番号> --json body -q .body) &&
 - **レア当選**: プロトタイプは丸めた % で比べるが、02 の §6.3 どおり丸める前の確率で比べる
 - **フォルダ**: 05 の §2 の `Features/Room/` の下に置くとした候補の詳細・メンバー・ルーム設定は、`Features/CandidateDetail/`・`Members/`・`RoomSettings/` に分けた
 - **経過時間**: 06 の §2 は Swift と TypeScript の両方に載せているが、サーバーで使わないので Swift だけ
+- **ホーム画面のアプリ名**（Discussion #147）: `Dokogacha/InfoPlist.xcstrings` で `CFBundleDisplayName` を日本語「ドコガチャ」・英語「Dokogacha」にした（`PRODUCT_NAME`・Bundle ID は変えていない）。
+  開発言語が日本語なので、足したローカライズは `en`。pbxproj を編集しないため、`knownRegions` は `ja`・`Base` のまま（足さなくても `en.lproj` はアプリに入る）。
+  `en` が入ったので、英語の端末ではアプリの言語が英語として扱われ、システムが出す部品（日時の選択・地図の表記・共有シートなど）と締切の曜日が英語になる。アプリの文言は日本語のまま。
+  日本語・英語のどちらでもない端末（フランス語など）も `en` が選ばれ、ホーム画面は「Dokogacha」になる。`Info.plist` には `CFBundleDisplayName` を書いていない（無くても言語ごとの値が出る。どの言語の値も無いときは `PRODUCT_NAME`）
 
 ## License
 
