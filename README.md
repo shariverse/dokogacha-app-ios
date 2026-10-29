@@ -74,10 +74,10 @@ backend/
 ├── functions/                 # Cloud Functions（TypeScript・Node 22・2nd gen・asia-northeast1）
 │   └── src/                   # index.ts で包み、処理は rooms/・candidates/・unlock/・draw/・reroll/・close/ などの service.ts・logic.ts・input.ts
 ├── extensions/                # Trigger Email 拡張の共通の設定（プロジェクトごとの値は git 管理外）
-├── hosting/public/            # 招待リンクのランディングページ（/r/{code}）・AASA・利用規約・プライバシーポリシー・サポート
+├── hosting/public/            # 招待リンクのランディングページ（/r/{code}）・AASA・利用規約・プライバシーポリシー・サポート・favicon・apple-touch-icon
 ├── hosting/test/              # Hosting のページの Jest
 ├── test/emulator/             # ルールと Functions の Emulator のテスト
-└── scripts/                   # Emulator のポートをずらす設定の書き出し（emulator-config.cjs）とテストの起動（test-emulator.sh）
+└── scripts/                   # Emulator のポートをずらす設定の書き出し（emulator-config.cjs）とテストの起動（test-emulator.sh）・OGP 画像と favicon の書き出し
 ```
 
 - `backend/` は npm workspaces（`functions/` を含む）で、`package-lock.json` は 1 つだけです。`firebase-tools` は devDependencies にあり、`npx firebase` で使います（グローバルに入れない）
@@ -229,6 +229,7 @@ Tools/render_app_icon.sh candidates  # 案を作り直すとき: docs/design/app
 - 書き出しは macOS の NSImage（`Tools/render_svg.swift`）なので、SVG は図形だけで描きます（`<text>`・フィルター・CSS は描けないことがある）。色は `docs/spec/design/tokens.json` の値だけを使います
 - `AppStore/app.json` の `appIcon` が `AppIcon.png` を指しているので、App Store のクリエイティブアセットも同じ絵になります
 - 書き出しの作業ファイル・候補を `Dokogacha/` に置かないでください（フォルダ同期でアプリに入ります）
+- Hosting の favicon（`backend/hosting/public/favicon.ico`。16・32・48px の PNG を入れた ICO）と apple-touch-icon（`apple-touch-icon.png`。180px・透過なし）も、同じ `light.svg` から `backend/` で `bash scripts/render-favicons.sh` で書き出します（ICO は `scripts/ico.cjs` で作る）。アイコンを変えたら書き出し直してください
 
 ## PR 本文のスクリーンショット
 
