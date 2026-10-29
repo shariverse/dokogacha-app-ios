@@ -67,3 +67,10 @@
 - `@apple/app-store-server-library` の `SignedDataVerifier` は、環境が Xcode・LocalTesting のときは署名を確かめずに中身を返す（Bundle ID と環境だけを見る）。Xcode の StoreKit のテスト（`.storekit`）の購入は環境が `Xcode` なので、Emulator だけで Xcode の検証を足して通している（本番で受け付けると誰でも作れる）。Production の検証は `appAppleId` が無いとコンストラクタが投げるので、アプリを登録するまでは Sandbox だけにしている（`purchase/logic.ts` の `verificationEnvironments`）（2026-10-22）
 - App Store の署名の根の証明書（Apple Root CA - G3）は `purchase/appleRootCertificates.ts` に PEM で置いてある（公開の証明書）。差し替えるときは `security find-certificate -c "Apple Root CA - G3" -Z /System/Library/Keychains/SystemRootCertificates.keychain` の SHA-256 と突き合わせる（Jest でも指紋を確かめる）（2026-10-22）
 - `users/{uid}` の更新で動く `onUserProfileUpdate` は、`fcmTokens` が 9 個を超えると古いものから外して 9 個にする（ルールの上限 10 で新しい端末のトークンが拒否されないように）。Emulator のテストで 10 個のトークンを書いてから読み戻して比べると、トリガーに書き換えられて揺らぐ。トークンを数で確かめるテストは、作成（`set`。更新のトリガーは動かない）で置くか、トリガーの後の値を待つ（`test/emulator/fcm-tokens.test.ts`）（2026-10-22）
+
+## アプリアイコン・画像の書き出し
+
+- SVG を NSImage で `CGImageAlphaInfo.noneSkipLast`（アルファなし）の描画先に直接描くと、塗られていない（透けた）ところが黒い面になり、エラーにならない。アルファ付きの描画先に描いてアルファがすべて 255 か確かめてから、アルファなしに描き直す（`Tools/render_svg.swift` の `--opaque`）（2026-10-29）
+- Read ツールなどの画像の表示は、透過したところを白で見せる。ダーク・ティントの透過の PNG は、白い背景のように見えても `sips -g hasAlpha` が `yes` なら透過のまま（2026-10-29）
+- アセットカタログのアイコンセットにダーク・ティントを入れるには、`Contents.json` の画像に `"appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ]`（ティントは `"tinted"`）を付ける。ビルドした `Assets.car` に Appearance ごと（`None`・`UIAppearanceDark`・`ISAppearanceTintable`）に入ったかは `xcrun assetutil --info` で確かめる（2026-10-29）
+- Simulator のホーム画面のアイコンは、`simctl install` の後に `simctl launch <UDID> com.apple.springboard` でホームに戻してから `simctl io <UDID> screenshot` で撮れる（空きのある最初のページに並ぶ）。iOS 26.5 の Simulator では `simctl ui <UDID> appearance dark` で壁紙は暗くなるが、ホーム画面のアイコンはライトのまま（アイコンの外観はホーム画面の「カスタマイズ」の設定で、システムの外観に付いてこない）。ダーク・ティントは角丸のマスクをかけた合成画像で見せる（2026-10-29）

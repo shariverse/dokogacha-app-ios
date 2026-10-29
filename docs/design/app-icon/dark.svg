@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- アプリアイコン（ピンの頭がカプセル）: ダーク（背景は透過。OS が暗い背景を敷く） -->
+  <path d="M262 400 A250 250 0 0 1 762 400 C762 636 512 872 512 872 C512 872 262 636 262 400 Z" fill="#F1E4D6"/>
+  <clipPath id="c1-head"><path d="M262 400 A250 250 0 1 1 762 400 A250 250 0 1 1 262 400 Z"/></clipPath>
+  <g clip-path="url(#c1-head)"><rect x="0" y="-200" width="1024" height="600" fill="#FFC93C"/></g>
+  <path d="M262 400 H762" stroke="#2B2118" stroke-width="28" stroke-linecap="round"/>
+  <path d="M352.3 341.9 A170 170 0 0 1 453.9 240.3" fill="none" stroke="#F1E4D6" stroke-width="34" stroke-linecap="round"/>
+  <path d="M262 400 A250 250 0 0 1 762 400 C762 636 512 872 512 872 C512 872 262 636 262 400 Z" fill="none" stroke="#2B2118" stroke-width="40" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

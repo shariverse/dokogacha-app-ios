@@ -215,6 +215,21 @@ xcrun simctl io <UDID> screenshot room.png
 - プロダクトページのヘッダーと検索結果: `AppStore/creative/src/creative.html` から `Tools/render_creative_assets.sh` で書き出し、`Creative assets/App Store` で反映します（`TODO:` が残っていると止まる）
 - 「App のプライバシー」の申告は Xcode の Privacy Report を正にします（[docs/setup-human.md](docs/setup-human.md) の 12）
 
+## アプリアイコン
+
+元データは `docs/design/app-icon/` の SVG（外観ごとに `light.svg`・`dark.svg`・`tinted.svg`）で、`Tools/render_app_icon.sh` で `Dokogacha/Assets.xcassets/AppIcon.appiconset/` の 3 枚（1024×1024）と `Contents.json` に書き出します。
+
+```bash
+Tools/render_app_icon.sh             # 採用した案からアイコンセットを書き出す
+Tools/render_app_icon.sh candidates  # 案を作り直すとき: docs/design/app-icon/candidates/<案>/ の SVG を PNG に書き出す
+```
+
+- ライト（`AppIcon.png`）は背景あり・アルファなし・角丸なし（角丸は OS が付ける）。アルファが残る・塗られていない画素があると書き出しが止まります
+- ダーク（`AppIcon-Dark.png`）は背景を透過にし（OS が暗い背景を敷く）、ティント（`AppIcon-Tinted.png`）は背景を透過にしたグレースケールです（OS が明るさに応じて色を乗せる）
+- 書き出しは macOS の NSImage（`Tools/render_svg.swift`）なので、SVG は図形だけで描きます（`<text>`・フィルター・CSS は描けないことがある）。色は `docs/spec/design/tokens.json` の値だけを使います
+- `AppStore/app.json` の `appIcon` が `AppIcon.png` を指しているので、App Store のクリエイティブアセットも同じ絵になります
+- 書き出しの作業ファイル・候補を `Dokogacha/` に置かないでください（フォルダ同期でアプリに入ります）
+
 ## PR 本文のスクリーンショット
 
 UI の見た目が変わる変更では、Before / After を Markdown の表で並べ、`gh pr create` / `gh pr edit` の `--attach` で添付します（gh v2.99.0 以上。リポジトリ・ブランチに画像を置かない）。
