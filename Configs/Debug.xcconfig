@@ -19,3 +19,5 @@ DG_APS_ENVIRONMENT = development
 // Analytics・Crashlytics の収集の既定（Info.plist の FIREBASE_ANALYTICS_COLLECTION_ENABLED・FirebaseCrashlyticsCollectionEnabled）。
 // Debug は Emulator に繋ぐ開発用なので送らない（起動ごとの判定は FirebaseCollectionPolicy）
 DG_FIREBASE_COLLECTION_ENABLED = NO
+// アプリアイコン（Dokogacha/Assets.xcassets の <名前>.appiconset）。Debug は下端に「DEV」の帯を付けたもの（Tools/render_app_icon.sh）
+DG_APP_ICON_NAME = AppIcon-Debug
