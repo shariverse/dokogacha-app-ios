@@ -42,3 +42,11 @@ DG_WEB_DOMAIN = dokogacha.app
 // （PRODUCT_TYPE が com.apple.product-type.application）だけに付け、Unit・UI テストのターゲットには付けない
 DG_CODE_SIGN_ENTITLEMENTS_com_apple_product_type_application = Configs/Dokogacha.entitlements
 CODE_SIGN_ENTITLEMENTS = $(DG_CODE_SIGN_ENTITLEMENTS_$(PRODUCT_TYPE:identifier))
+
+// アプリアイコンのアイコンセットの名前（Dokogacha/Assets.xcassets の <名前>.appiconset）。構成ごとに変えるときは、
+// その構成の xcconfig で DG_APP_ICON_NAME を上書きする（Discussion #128 の Q5）。
+// pbxproj のターゲット側に書くと xcconfig より優先されて切り替えられないので、ここだけに書く。
+// entitlements と同じく、アプリのターゲットだけに付け、Unit・UI テストのターゲットには付けない
+DG_APP_ICON_NAME = AppIcon
+DG_ASSETCATALOG_COMPILER_APPICON_NAME_com_apple_product_type_application = $(DG_APP_ICON_NAME)
+ASSETCATALOG_COMPILER_APPICON_NAME = $(DG_ASSETCATALOG_COMPILER_APPICON_NAME_$(PRODUCT_TYPE:identifier))
