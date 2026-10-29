@@ -74,3 +74,9 @@
 - Read ツールなどの画像の表示は、透過したところを白で見せる。ダーク・ティントの透過の PNG は、白い背景のように見えても `sips -g hasAlpha` が `yes` なら透過のまま（2026-10-29）
 - アセットカタログのアイコンセットにダーク・ティントを入れるには、`Contents.json` の画像に `"appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ]`（ティントは `"tinted"`）を付ける。ビルドした `Assets.car` に Appearance ごと（`None`・`UIAppearanceDark`・`ISAppearanceTintable`）に入ったかは `xcrun assetutil --info` で確かめる（2026-10-29）
 - Simulator のホーム画面のアイコンは、`simctl install` の後に `simctl launch <UDID> com.apple.springboard` でホームに戻してから `simctl io <UDID> screenshot` で撮れる（空きのある最初のページに並ぶ）。iOS 26.5 の Simulator では `simctl ui <UDID> appearance dark` で壁紙は暗くなるが、ホーム画面のアイコンはライトのまま（アイコンの外観はホーム画面の「カスタマイズ」の設定で、システムの外観に付いてこない）。ダーク・ティントは角丸のマスクをかけた合成画像で見せる（2026-10-29）
+
+## ローカライズ・表示名
+
+- ホーム画面の名前（`CFBundleDisplayName`）は `Dokogacha/InfoPlist.xcstrings` に言語ごとに書けば、pbxproj の `knownRegions` に言語を足さなくても `<言語>.lproj/InfoPlist.strings` がアプリに入り、Info.plist に鍵が無くても言語ごとの値が出る（Xcode 26.6・iOS 26.5 の Simulator）。開発言語が `ja` なので、`en` を足すと日本語・英語のどちらでもない端末（フランス語など）でも `en` が選ばれる（2026-10-30）
+- `en` のローカライズがあると、英語の端末ではアプリの言語が英語になり、文言が日本語のキーのままでも見た目が少し変わる: `DatePicker` は「Nov 2, 2026 9:00 PM」（`ja` しか無いときは「11/2/26 午後9:00」と混ざる）、地図の表記は「Maps / Legal」、和文と数字の間の自動の空き（「4 分前」）が無くなる（2026-10-30）
+- ホーム画面を UI テストで撮るとき、アプリを `launch()` しないテストだけを流すと、`xcodebuild test` はアプリを Simulator に入れない（アイコンが無い）。先に `xcrun simctl install` で入れる。アイコンは `XCUIApplication(bundleIdentifier: "com.apple.springboard").icons["<表示名>"]` で探せる。言語は `simctl spawn <UDID> defaults write -g AppleLanguages -array <言語>` の後に shutdown → boot し直すと効く（2026-10-30）
