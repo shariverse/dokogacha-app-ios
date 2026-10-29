@@ -2,6 +2,7 @@
   "_comment": [
     "App Store の日本語（ja）の掲載情報。上限: name 30 字 / subtitle 30 字 / description 4000 字 / keywords 合計 100 字（カンマ込み）/ promotionalText 170 字 / whatsNew 4000 字。",
     "name と subtitle は App 情報（App Store Connect の「App 情報」のローカリゼーション）の項目なので、Tools/upload_metadata.py は書き込まない（--check で文字数だけ確かめる）。App Store Connect で同じ値を入れる。",
+    "name はホーム画面のアイコンの下の日本語の名前（Dokogacha/InfoPlist.xcstrings の ja）とそろえる。片方を変えたら両方を変える（AppStoreMetadataTests が突き合わせる）。",
     "アプリ名とカテゴリ名はもともと検索対象なので keywords に入れなくてよい。",
     "promotionalText は省略できる（省略すると App Store Connect 側の値をそのまま残す）。",
     "whatsNew は「このバージョンの最新情報」。{\"version\": \"1.1.0\", \"text\": \"…\"} の形で書き、version が反映先のバージョンと一致するときだけ書き込む。",

@@ -2,7 +2,7 @@
   "sourceLanguage" : "ja",
   "strings" : {
     "CFBundleDisplayName" : {
-      "comment" : "ホーム画面のアイコンの下に出るアプリ名。App Store の日本語のアプリ名（AppStore/metadata/ja.json の name）とそろえる",
+      "comment" : "ホーム画面のアイコンの下に出るアプリ名。日本語は App Store の日本語のアプリ名（AppStore/metadata/ja.json の name）とそろえる。英語は PRODUCT_NAME と同じ Dokogacha のまま（Discussion #147 の Q1）",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
