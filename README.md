@@ -74,10 +74,10 @@ backend/
 ├── functions/                 # Cloud Functions（TypeScript・Node 22・2nd gen・asia-northeast1）
 │   └── src/                   # index.ts で包み、処理は rooms/・candidates/・unlock/・draw/・reroll/・close/ などの service.ts・logic.ts・input.ts
 ├── extensions/                # Trigger Email 拡張の共通の設定（プロジェクトごとの値は git 管理外）
-├── hosting/public/            # 招待リンクのランディングページ（/r/{code}）・AASA・利用規約・プライバシーポリシー・サポート
+├── hosting/public/            # 招待リンクのランディングページ（/r/{code}）・AASA・利用規約・プライバシーポリシー・サポート・favicon・apple-touch-icon
 ├── hosting/test/              # Hosting のページの Jest
 ├── test/emulator/             # ルールと Functions の Emulator のテスト
-└── scripts/                   # Emulator のポートをずらす設定の書き出し（emulator-config.cjs）とテストの起動（test-emulator.sh）
+└── scripts/                   # Emulator のポートをずらす設定の書き出し（emulator-config.cjs）とテストの起動（test-emulator.sh）・OGP 画像と favicon の書き出し
 ```
 
 - `backend/` は npm workspaces（`functions/` を含む）で、`package-lock.json` は 1 つだけです。`firebase-tools` は devDependencies にあり、`npx firebase` で使います（グローバルに入れない）
@@ -95,11 +95,11 @@ backend/
 
 ビルド構成は 3 つで、構成ごとの値は `Configs/<構成>.xcconfig` にあります。
 
-| 構成 | 使いどころ | Firebase の接続先（`DG_FIREBASE_ENVIRONMENT`） | 読む設定 |
-| --- | --- | --- | --- |
-| Debug | 開発・テスト | `emulator`（`demo-dokogacha`） | plist を読まず、コードで作った `FirebaseOptions`。接続先は `Dokogacha/Data/Firebase/FirebaseEmulator.swift`（`localhost`・auth 9099・firestore 8080・functions 5001） |
-| Stg | TestFlight（`develop` の Upload） | `dev` | `Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist` |
-| Release | App Store（`release/**` の Upload・`main` の Archive） | `prod` | `Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist` |
+| 構成 | 使いどころ | Firebase の接続先（`DG_FIREBASE_ENVIRONMENT`） | 読む設定 | アプリアイコン（`DG_APP_ICON_NAME`） |
+| --- | --- | --- | --- | --- |
+| Debug | 開発・テスト | `emulator`（`demo-dokogacha`） | plist を読まず、コードで作った `FirebaseOptions`。接続先は `Dokogacha/Data/Firebase/FirebaseEmulator.swift`（`localhost`・auth 9099・firestore 8080・functions 5001） | `AppIcon-Debug`（下端に墨色の帯の「DEV」） |
+| Stg | TestFlight（`develop` の Upload） | `dev` | `Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist` | `AppIcon-Stg`（下端に黄色の帯の「STG」） |
+| Release | App Store（`release/**` の Upload・`main` の Archive） | `prod` | `Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist` | `AppIcon`（目印なし。App Store に出すもの） |
 
 - plist はコミットしません（public リポジトリ）。CI が Secrets から書き出し、手元では各自 Firebase のコンソールから落として上の名前で置きます（手順は [docs/setup-human.md](docs/setup-human.md) の 3・4）
 - plist が無い・読めないときも落ちずに起動し、「サーバーに接続できません」の状態になります。構成に合わない plist は `EXCLUDED_SOURCE_FILE_NAMES` でアプリに入りません
@@ -215,6 +215,24 @@ xcrun simctl io <UDID> screenshot room.png
 - 説明文など: `AppStore/metadata/ja.json`・`shared.json`（URL は `DomainConstants.Web` と同じ。`AppStoreMetadataTests` が突き合わせる）を `Metadata/App Store` で反映します（既定は dry-run）
 - プロダクトページのヘッダーと検索結果: `AppStore/creative/src/creative.html` から `Tools/render_creative_assets.sh` で書き出し、`Creative assets/App Store` で反映します（`TODO:` が残っていると止まる）
 - 「App のプライバシー」の申告は Xcode の Privacy Report を正にします（[docs/setup-human.md](docs/setup-human.md) の 12）
+
+## アプリアイコン
+
+元データは `docs/design/app-icon/` の SVG（外観ごとに `light.svg`・`dark.svg`・`tinted.svg`）で、`Tools/render_app_icon.sh` で `Dokogacha/Assets.xcassets/AppIcon.appiconset/` の 3 枚（1024×1024）と `Contents.json` に書き出します。
+同じ実行で、下端に構成の目印の帯（「DEV」「STG」。書体は Mochiy Pop One）を重ねた `AppIcon-Debug`・`AppIcon-Stg` のアイコンセットも書き出します（帯は `Tools/render_icon_badge.swift` で描く）。
+どの構成でどのアイコンセットを使うかは `Configs/<構成>.xcconfig` の `DG_APP_ICON_NAME` で、`AppIconConfigurationTests` が xcconfig・アイコンセット・`AppStore/app.json` を突き合わせます。
+
+```bash
+Tools/render_app_icon.sh             # 採用した案からアイコンセットを書き出す
+Tools/render_app_icon.sh candidates  # 案を作り直すとき: docs/design/app-icon/candidates/<案>/ の SVG を PNG に書き出す
+```
+
+- ライト（`AppIcon.png`）は背景あり・アルファなし・角丸なし（角丸は OS が付ける）。アルファが残る・塗られていない画素があると書き出しが止まります
+- ダーク（`AppIcon-Dark.png`）は背景を透過にし（OS が暗い背景を敷く）、ティント（`AppIcon-Tinted.png`）は背景を透過にしたグレースケールです（OS が明るさに応じて色を乗せる）
+- 書き出しは macOS の NSImage（`Tools/render_svg.swift`）なので、SVG は図形だけで描きます（`<text>`・フィルター・CSS は描けないことがある）。色は `docs/spec/design/tokens.json` の値だけを使います（ティントだけは、トークンの色をその明るさの灰色に置き換えた `#FFFFFF`・`#CACACA`（`accent.secondary`）・`#222222`（`ink`）を使う）
+- `AppStore/app.json` の `appIcon` が `AppIcon.png` を指しているので、App Store のクリエイティブアセットも同じ絵になります
+- 書き出しの作業ファイル・候補を `Dokogacha/` に置かないでください（フォルダ同期でアプリに入ります）
+- Hosting の favicon（`backend/hosting/public/favicon.ico`。16・32・48px の PNG を入れた ICO）と apple-touch-icon（`apple-touch-icon.png`。180px・透過なし）も、同じ `light.svg` から `backend/` で `bash scripts/render-favicons.sh` で書き出します（ICO は `scripts/ico.cjs` で作る）。アイコンを変えたら書き出し直してください
 
 ## PR 本文のスクリーンショット
 

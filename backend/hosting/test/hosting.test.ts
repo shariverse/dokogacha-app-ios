@@ -21,6 +21,15 @@ const REPOSITORY_DIR = join(BACKEND_DIR, "..");
 /** Hosting で配信するディレクトリ */
 const PUBLIC_DIR = join(BACKEND_DIR, "hosting", "public");
 
+/** Hosting で配信するページ（どれも favicon と apple-touch-icon の <link> を持つ） */
+const PAGES = ["index.html", "invite.html", "privacy.html", "support.html", "terms.html"];
+
+/** ページの <head> に置くアイコンの <link>（scripts/render-favicons.sh が書き出すファイルを指す） */
+const ICON_LINKS = [
+  { rel: "icon", href: "/favicon.ico", tag: '<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">' },
+  { rel: "apple-touch-icon", href: "/apple-touch-icon.png", tag: '<link rel="apple-touch-icon" href="/apple-touch-icon.png">' },
+];
+
 /** ファイルを文字列で読む */
 function read(path: string): string {
   return readFileSync(path, "utf8");
@@ -263,6 +272,22 @@ describe("ランディングページの HTML", () => {
     expect(existsSync(join(PUBLIC_DIR, "assets", "ogp.png"))).toBe(true);
   });
 
+  it("OGP 画像の元（hosting/ogp/ogp.html）は、アプリアイコンの元データの絵を読み、1200×630 で書き出している", () => {
+    const ogpDir = join(BACKEND_DIR, "hosting", "ogp");
+    const source = read(join(ogpDir, "ogp.html"));
+    const images = [...source.matchAll(/<img [^>]*src="([^"]+)"/g)].map((match) => match[1] ?? "");
+    expect(images).toEqual(["../../../docs/design/app-icon/light.svg"]);
+    expect(images.map((image) => existsSync(join(ogpDir, image)))).toEqual([true]);
+    // 書き出した PNG の IHDR の幅と高さ（og:image:width・height と同じ）
+    const png = readFileSync(join(PUBLIC_DIR, "assets", "ogp.png"));
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([
+      Number(meta("og:image:width")),
+      Number(meta("og:image:height")),
+    ]);
+    expect(meta("og:image:width")).toBe("1200");
+    expect(meta("og:image:height")).toBe("630");
+  });
+
   it("App Store のボタンのリンク先は、landing.js の定数と同じ（JS が動かなくても開ける）", () => {
     expect(html).toContain(`<a id="app-store-link" class="app-store" href="${landing.APP_STORE_URL}">`);
   });
@@ -325,7 +350,8 @@ describe("利用規約・プライバシーポリシーの HTML", () => {
   it.each(pageEntries)("%s はランディングと同じ CSS だけを読み、スクリプトを読まない", (_, html) => {
     const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
       .map((match) => match[1] ?? "")
-      .filter((source) => !source.startsWith("https://") && !source.startsWith("/terms") && !source.startsWith("/privacy"));
+      .filter((source) => !source.startsWith("https://") && !source.startsWith("/terms") && !source.startsWith("/privacy"))
+      .filter((source) => !ICON_LINKS.some((icon) => icon.href === source));
     expect(assets).toEqual(["/assets/landing.css"]);
     expect(html).not.toContain("<script");
   });
@@ -474,5 +500,53 @@ describe("ページの色", () => {
 
   it.each(["terms.html", "privacy.html"])("%s は色の値を直接書かない（landing.css の変数を使う）", (page) => {
     expect(read(join(PUBLIC_DIR, page))).not.toMatch(/#[0-9A-Fa-f]{3,8}\b|rgba?\(/);
+  });
+});
+
+describe("favicon と apple-touch-icon", () => {
+  it.each(PAGES)("%s の <head> に favicon と apple-touch-icon の <link> がある", (page) => {
+    const html = read(join(PUBLIC_DIR, page));
+    const head = html.slice(html.indexOf("<head>"), html.indexOf("</head>"));
+    for (const link of ICON_LINKS) {
+      expect(head).toContain(link.tag);
+    }
+  });
+
+  it.each(ICON_LINKS)("$href は配信するディレクトリにある", ({ href }) => {
+    expect(existsSync(join(PUBLIC_DIR, href))).toBe(true);
+  });
+
+  it("favicon.ico は 16・32・48px の PNG を入れた ICO", () => {
+    const ico = readFileSync(join(PUBLIC_DIR, "favicon.ico"));
+    expect([ico.readUInt16LE(0), ico.readUInt16LE(2)]).toEqual([0, 1]);
+    const count = ico.readUInt16LE(4);
+    const sizes = Array.from({ length: count }, (_, index) => {
+      const at = 6 + 16 * index;
+      const offset = ico.readUInt32LE(at + 12);
+      // 本体が PNG（署名で始まる）で、ディレクトリの幅と PNG の幅が同じ
+      expect(ico.subarray(offset, offset + 4).toString("latin1")).toBe("\x89PNG");
+      expect(ico.readUInt32BE(offset + 16)).toBe(ico.readUInt8(at));
+      return ico.readUInt8(at);
+    });
+    expect(sizes).toEqual([16, 32, 48]);
+  });
+
+  it("apple-touch-icon は 180×180 で透過なしの PNG（iOS は透けたところを黒にする）", () => {
+    const png = readFileSync(join(PUBLIC_DIR, "apple-touch-icon.png"));
+    expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([180, 180]);
+    // IHDR の色の種類: 2 = RGB（アルファなし）。4・6 はアルファ付き
+    expect(png.readUInt8(25)).toBe(2);
+  });
+
+  it("CSP（default-src 'self'）は同じオリジンの画像を拒まない", () => {
+    const hosting = (JSON.parse(read(join(BACKEND_DIR, "firebase.json"))) as {
+      hosting: { headers: { source: string; headers: { key: string; value: string }[] }[] };
+    }).hosting;
+    const csp = hosting.headers
+      .flatMap((entry) => entry.headers)
+      .find((header) => header.key === "Content-Security-Policy")?.value;
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).not.toMatch(/img-src/);
   });
 });
