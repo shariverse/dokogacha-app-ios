@@ -272,6 +272,22 @@ describe("ランディングページの HTML", () => {
     expect(existsSync(join(PUBLIC_DIR, "assets", "ogp.png"))).toBe(true);
   });
 
+  it("OGP 画像の元（hosting/ogp/ogp.html）は、アプリアイコンの元データの絵を読み、1200×630 で書き出している", () => {
+    const ogpDir = join(BACKEND_DIR, "hosting", "ogp");
+    const source = read(join(ogpDir, "ogp.html"));
+    const images = [...source.matchAll(/<img [^>]*src="([^"]+)"/g)].map((match) => match[1] ?? "");
+    expect(images).toEqual(["../../../docs/design/app-icon/light.svg"]);
+    expect(images.map((image) => existsSync(join(ogpDir, image)))).toEqual([true]);
+    // 書き出した PNG の IHDR の幅と高さ（og:image:width・height と同じ）
+    const png = readFileSync(join(PUBLIC_DIR, "assets", "ogp.png"));
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([
+      Number(meta("og:image:width")),
+      Number(meta("og:image:height")),
+    ]);
+    expect(meta("og:image:width")).toBe("1200");
+    expect(meta("og:image:height")).toBe("630");
+  });
+
   it("App Store のボタンのリンク先は、landing.js の定数と同じ（JS が動かなくても開ける）", () => {
     expect(html).toContain(`<a id="app-store-link" class="app-store" href="${landing.APP_STORE_URL}">`);
   });
