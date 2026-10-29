@@ -17,7 +17,9 @@ on:
 jobs:
   build:
     runs-on: macos-latest
-    timeout-minutes: 30
+    # UI テスト込み（develop・main・release/** への push と PR）では 20〜30 分かかり、30 分では時間切れで止められて
+    # 「キャンセル」になっていた（Issue #140）。実行時間の 2 倍ほどにする
+    timeout-minutes: 60
 
     steps:
       - name: Select Xcode
