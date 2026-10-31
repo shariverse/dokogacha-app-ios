@@ -41,7 +41,7 @@ struct GachaModelReplayTests {
         #expect(model.winnerCandidateID == response.candidateId)
         #expect(fixture.seenDraws.hasSeen(drawID: response.drawId))
         let ticks = Array(repeating: GachaCue.spinTick, count: GachaTimeline.tickCount)
-        #expect(fixture.cues.cues == ticks + [.capsuleLanded, .capsuleOpened])
+        #expect(fixture.cues.cues == ticks + [.capsuleReleased, .capsuleLanded, .capsuleOpened])
         #expect(fixture.functions.drawRequests.isEmpty)
     }
 

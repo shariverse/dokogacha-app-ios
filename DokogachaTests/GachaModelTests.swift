@@ -142,7 +142,8 @@ struct GachaModelTests {
         fixture.clock.advance()
         #expect(await AsyncTestSupport.eventually { model.phase == .dropping && fixture.clock.isWaiting })
         #expect(model.caption == .landed)
-        #expect(fixture.cues.cues.last == .spinTick)
+        // 当選のカプセルがドームから抜けた合図（Issue #178）
+        #expect(fixture.cues.cues.last == .capsuleReleased)
 
         // 底に当たったら合図を出し、見終えた抽選として覚える
         fixture.clock.advance()
@@ -164,8 +165,8 @@ struct GachaModelTests {
         #expect(model.canClose)
 
         let ticks = Array(repeating: GachaCue.spinTick, count: GachaTimeline.tickCount)
-        #expect(fixture.cues.cues == [.leverPulled] + ticks + [.capsuleLanded, .capsuleOpened])
-        let expectedSeconds = Array(repeating: 0.2, count: GachaTimeline.tickCount + 1) + [0.385, 0.715, 0.5]
+        #expect(fixture.cues.cues == [.leverPulled] + ticks + [.capsuleReleased, .capsuleLanded, .capsuleOpened])
+        let expectedSeconds = Array(repeating: 0.2, count: GachaTimeline.tickCount + 1) + [0.735, 0.715, 0.5]
         #expect(fixture.clock.requestedSeconds.count == expectedSeconds.count)
         for (actual, expected) in zip(fixture.clock.requestedSeconds, expectedSeconds) {
             #expect(abs(actual - expected) < 1e-9)

@@ -45,17 +45,21 @@ struct GachaStageTests {
     func cueFeedbackFollowsScreenSpec() {
         #expect(GachaCue.leverPulled.feedback == .impact(weight: .heavy))
         #expect(GachaCue.spinTick.feedback == .impact(weight: .light))
+        #expect(GachaCue.capsuleReleased.feedback == .impact(flexibility: .rigid, intensity: 0.6))
         #expect(GachaCue.capsuleLanded.feedback == .impact(weight: .medium))
         #expect(GachaCue.capsuleOpened.feedback == .impact(flexibility: .soft))
     }
 
-    /// 演出の時間（回転 1.6 秒・0.2 秒ごとの刻み 7 回・底に当たるのは落下 0.7 秒の 55%・跳ね終えて 0.4 秒見せてから開ける・開くのは 0.5 秒）
+    /// 演出の時間（回転 1.6 秒・0.2 秒ごとの刻み 7 回・ドームから抜けるのに 0.35 秒・底に当たるのは落下 0.7 秒の 55%・
+    /// 跳ね終えて 0.4 秒見せてから開ける・開くのは 0.5 秒）
     @Test
     func timelineFollowsMotionTokens() {
         #expect(GachaTimeline.spinDuration == 1.6)
         #expect(DGMotion.shake.duration * Double(DGMotion.shake.repeatCount ?? 0) == GachaTimeline.spinDuration)
         #expect(GachaTimeline.tickCount == 7)
-        #expect(abs(GachaTimeline.landingDelay - 0.385) < 1e-9)
+        #expect(GachaTimeline.exitDuration == 0.35)
+        #expect(abs(GachaTimeline.dropLandingDelay - 0.385) < 1e-9)
+        #expect(abs(GachaTimeline.landingDelay - 0.735) < 1e-9)
         #expect(GachaTimeline.landedHold == 0.4)
         // 底に当たってから開け始めるまで: 落下の残り（0.7 − 0.385）＋ 0.4
         #expect(abs(GachaTimeline.openDelay - 0.715) < 1e-9)
