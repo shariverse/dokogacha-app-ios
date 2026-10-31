@@ -9,6 +9,7 @@ import SwiftUI
 ///
 /// 解禁時「ガチャを回す」／未解禁時「準備OKが揃うと回せます」（無効）。行き先が決まった（`drawn`・`closed`）ルームでは、
 /// 結果（S-14）を閉じた後にもう一度見られるよう「行き先きっぷを見る」を出す（03 の S-07 には無い。S-14 から戻った後の入口として足した）。
+/// 作成者が抽選の前に途中で終了したルームでは、押せない「このルームは終了しています」を出す（Discussion #155）。
 /// 読み込み中は出さない
 struct RoomGachaBar: View {
     /// UI テストが探す ID
@@ -17,6 +18,8 @@ struct RoomGachaBar: View {
         static let gacha = "room.gacha"
         /// 「行き先きっぷを見る」
         static let result = "room.result"
+        /// 「このルームは終了しています」（行き先が決まらないまま終了したルーム）
+        static let ended = "room.ended"
     }
 
     /// ボタンの状態（nil なら出さない）
@@ -57,6 +60,10 @@ struct RoomGachaBar: View {
                 onResult(drawID)
             }
             .accessibilityIdentifier(Identifier.result)
+        case .ended:
+            // 押せるものが無いので、ボタンではない状態の表示にする（VoiceOver で「淡色表示、ボタン」と読ませない）
+            DGButtonShapedStatus(title: "このルームは終了しています")
+                .accessibilityIdentifier(Identifier.ended)
         }
     }
 }

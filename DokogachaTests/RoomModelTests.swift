@@ -203,6 +203,27 @@ struct RoomModelTests {
         #expect(!model.acceptsCandidates)
     }
 
+    /// 開いている間に作成者が抽選の前に途中で終了すると、「このルームは終了しています」になり、準備OK・候補の追加・
+    /// 強制解禁を出さず、結果（S-14）も開かない（Discussion #155）
+    @Test
+    func endedEarlyRoomBecomesReadOnly() async throws {
+        let server = Self.makeServer()
+        server.rooms[DemoScenario.roomID]?.room.ownerId = "demo-haruka"
+        let model = Self.makeModel(server)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+        #expect(model.showsReadyButton && model.acceptsCandidates)
+
+        try server.closeRoom(CloseRoomRequest(roomId: DemoScenario.roomID, reason: .endEarly), by: "demo-haruka")
+        #expect(await AsyncTestSupport.eventually { model.gachaButtonState == .ended })
+        #expect(!model.showsReadyButton)
+        #expect(!model.acceptsCandidates)
+        #expect(!model.canForceUnlock)
+        #expect(model.readyHint == nil)
+        #expect(model.resultToOpen == nil)
+    }
+
     // MARK: - いいね
 
     /// 押したらすぐに表示を変え（人数・アバター・自分の %・ほかの候補の %）、送り終えたら購読の値で確定する。

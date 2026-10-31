@@ -121,7 +121,7 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 ```
 
 - `-skipPackagePluginValidation -skipMacroValidation` を付けないと、Xcode の画面で信頼していない DerivedData では SwiftLint のプラグインで止まります
-- UI テストは擬似のサーバーで動き、デモのデータを `-uiTesting -demo-scenario <名前>` で選びます（`DemoScenario`）。ほかのメンバーの参加・準備OKが要る通しのシナリオは `-ui-auto-members` を足します
+- UI テストは擬似のサーバーで動き、デモのデータを `-uiTesting -demo-scenario <名前>` で選びます（`DemoScenario`）。ほかのメンバーの参加・準備OKが要る通しのシナリオは `-ui-auto-members` を、ほかの人がルームを途中で終了したときの画面は `-ui-owner-ends-room`（ほかの人が作ったルームで自分が準備OKになっていたら、その作成者が終了する）を足します
 
 backend（`backend/` で実行）:
 

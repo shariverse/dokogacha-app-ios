@@ -38,6 +38,9 @@ nonisolated enum DemoScenario: String, CaseIterable, Sendable {
     /// `room-with-candidates` の、ほかのメンバー（はるか）が広告非表示を買っていて、ルームが広告なしのもの
     /// （S-07 の「◯◯さんのおかげで、このルームは広告なし」の UI テスト・撮影用。F-51。`DemoScenario+AdFree.swift`）
     case adFreeRoom = "ad-free-room"
+    /// `several-rooms` の、はるかが作ったルーム（春のお花見）を、はるかが抽選の前に途中で終了したもの
+    /// （終了したルームを通知から開いたときの S-07 の UI テスト・撮影用。Discussion #155）
+    case endedRoom = "ended-room"
 
     /// 表示名をまだ登録していないシナリオか（自分とほかのメンバーのプロフィールを入れない）
     var isFirstLaunch: Bool {
@@ -110,16 +113,16 @@ extension InMemoryServer {
                 )
             }
         }
-        if [.oneRoom, .roomWithCandidates, .severalRooms, .pastIdeas, .adFreeRoom].contains(scenario) {
+        if [.oneRoom, .roomWithCandidates, .severalRooms, .pastIdeas, .adFreeRoom, .endedRoom].contains(scenario) {
             server.rooms[DemoScenario.roomID] = demoRoom(now: now)
             let codeEntry = InviteCodeEntry(roomId: DemoScenario.roomID, createdAt: now.addingTimeInterval(-7_200))
             server.inviteCodes[DemoScenario.inviteCode] = codeEntry
         }
-        if [.roomWithCandidates, .severalRooms, .pastIdeas, .adFreeRoom].contains(scenario) {
+        if [.roomWithCandidates, .severalRooms, .pastIdeas, .adFreeRoom, .endedRoom].contains(scenario) {
             server.rooms[DemoScenario.roomID]?.candidates = demoCandidates(now: now)
             server.rooms[DemoScenario.roomID]?.room.candidateCount = 3
         }
-        if scenario == .severalRooms {
+        if scenario == .severalRooms || scenario == .endedRoom {
             server.rooms[DemoScenario.unlockedRoomID] = unlockedRoom(now: now)
             server.rooms[DemoScenario.othersRoomID] = othersRoom(now: now)
             server.inviteCodes["HN48PX"] = InviteCodeEntry(
@@ -140,6 +143,11 @@ extension InMemoryServer {
         }
         if scenario == .adFreeRoom {
             addAdFreeDemo(to: server)
+        }
+        if scenario == .endedRoom {
+            // はるかが 1 時間前に途中で終了した（抽選していないので、抽選の ID・当選は無い）
+            server.rooms[DemoScenario.othersRoomID]?.room.status = .closed
+            server.rooms[DemoScenario.othersRoomID]?.room.closedAt = now.addingTimeInterval(-3_600)
         }
         return server
     }

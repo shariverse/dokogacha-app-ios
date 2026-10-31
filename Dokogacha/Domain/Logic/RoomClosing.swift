@@ -101,6 +101,12 @@ nonisolated enum RoomClosing {
         return !room.excludedCandidateIds.contains(winner)
     }
 
+    /// 行き先が決まらないまま終了したルームか（`closed` で `hasDecidedWinner` が false。抽選の前に途中で終了した・
+    /// 引き直しが可決して `unlocked` に戻ったまま終了した）。S-07 は結果（S-14）を開かずに「このルームは終了しています」を出す
+    static func endedWithoutResult(_ room: Room) -> Bool {
+        room.status == .closed && !hasDecidedWinner(room)
+    }
+
     /// 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデアにする（backend の `planPastIdeas`）。
     /// 行き先が決まらないまま終了したルーム（`hasDecidedWinner` が false）は、何も登録しない。
     ///

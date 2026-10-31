@@ -67,9 +67,10 @@ nonisolated extension MemoryTicket {
 
     /// 「すべて見る」を出すか（押す前で、終了したルームが 5 つより多いとき）。
     ///
-    /// きっぷの数ではなくルームの数で決める（6 つ目のルームは当選した候補を購読しないので、きっぷにならない）
+    /// きっぷの数ではなくルームの数で決める（6 つ目のルームは当選した候補を購読しないので、きっぷにならない）。
+    /// 行き先が決まらないまま終了したルームは数えない（呼ぶ側が `canBecomeTicket` のルームの数を渡す）
     /// - Parameters:
-    ///   - roomCount: 読んだ終了したルームの数（押す前は `queryLimit` まで）
+    ///   - roomCount: 読んだ、きっぷになりうる終了したルームの数（押す前は `queryLimit` まで）
     ///   - showsAll: 「すべて見る」を押したか
     static func hasMore(roomCount: Int, showsAll: Bool) -> Bool {
         !showsAll && roomCount > visibleLimit
@@ -80,7 +81,20 @@ nonisolated extension MemoryTicket {
     ///   - rooms: 終了したルーム（終了の新しい順）
     ///   - showsAll: 「すべて見る」を押したか
     static func watchedRooms(_ rooms: [Identified<Room>], showsAll: Bool) -> [Identified<Room>] {
-        showsAll ? rooms : Array(rooms.prefix(visibleLimit))
+        // きっぷにならないルーム（行き先が決まらないまま終了した）は枠を使わない
+        let ticketRooms = rooms.filter { canBecomeTicket($0.value) }
+        return showsAll ? ticketRooms : Array(ticketRooms.prefix(visibleLimit))
+    }
+
+    /// 「すべて見る」を押す前でも、終了したルームを上限なしで読み直すか（Discussion #155）。
+    ///
+    /// 読んだ `queryLimit` 件に、きっぷにならないルーム（行き先が決まらないまま終了した）が混ざっていると、
+    /// その先にきっぷになるルームがあるか（「すべて見る」を出すか）が分からないので、すべてを読んで数え直す
+    /// - Parameters:
+    ///   - roomCount: 読んだ終了したルームの数
+    ///   - ticketRoomCount: そのうち、きっぷになりうるルームの数（`canBecomeTicket`）
+    static func needsAllRooms(roomCount: Int, ticketRoomCount: Int) -> Bool {
+        roomCount >= queryLimit && ticketRoomCount < roomCount
     }
 
     /// 当選した候補をまだ待っているルームがあるか（きっぷが 1 枚も無いときに、読み込み中の形を出し続けるか）。

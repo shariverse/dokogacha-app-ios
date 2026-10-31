@@ -68,9 +68,9 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - plist が無い・読めないときは落とさずに起動し、`ServerSession.connection` が `.unavailable` になる（サーバーに接続できない状態）
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化しない（`.disabled`）
   - そのときはメモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動く。UI テストはデモのデータを `-uiTesting -demo-scenario <名前>` で選ぶ
-    （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`・`several-rooms`（撮影モードの既定）・`joinable`・`first-launch-invited`・`drawn-rooms`・`memories`・`past-ideas`・`ad-free-room`。`DemoScenario`。要るシナリオを足す）
+    （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`・`several-rooms`（撮影モードの既定）・`joinable`・`first-launch-invited`・`drawn-rooms`・`memories`・`past-ideas`・`ad-free-room`・`ended-room`。`DemoScenario`。要るシナリオを足す）
   - 起動引数は `LaunchContext` にまとめる: `-open-url <URL>`・`-open-notification <JSON>`（招待リンク・通知から開いたことにする）・`-network-offline`（オフラインのことにする）は `-uiTesting`・撮影モードで、
-    `-ui-auto-members`（ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが返す）は `-uiTesting` だけで効く
+    `-ui-auto-members`（ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが返す）・`-ui-owner-ends-room`（ほかの人が作ったルームで自分が準備OKになっていたら、その作成者がルームを途中で終了する）は `-uiTesting` だけで効く
   - データ層は `AuthService`・`RoomRepository`・`FunctionsClient` の protocol の後ろにあり、起動時に `DataServices.make` が実装を選んで
     `ServerSession.services` で渡す。画面の Model は protocol だけを受け取る。backend に Callable を足したら、擬似のサーバーにも同じ検証を足す
   - Firestore のトリガー（`onUserProfileUpdate`・`onMemberWrite`）に当たる処理は `InMemoryServer+Triggers.swift` に置き、元の書き込みをした Callable・直接の書き込みの中で続けて呼ぶ
