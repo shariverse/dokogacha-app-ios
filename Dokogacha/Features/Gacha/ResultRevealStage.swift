@@ -210,7 +210,8 @@ struct ResultRevealStage: View {
 
 /// 演出の中で描くきっぷ。値（きっぷ・ハンコの押し具合）が変わらなければ描き直さない（`equatable()`）。
 ///
-/// 演出は毎フレーム時刻から形を求めて描き直すので、きっぷの中身まで毎回組み直さないようにする
+/// 演出は毎フレーム時刻から形を求めて描き直すので、きっぷの中身まで毎回組み直さないようにする。
+/// UI テストが探す ID（`ResultView.Identifier.ticket`）は、重ねた飾りではなくきっぷそのものに付ける
 nonisolated struct RevealTicket: View, Equatable {
     /// きっぷの値
     let ticket: ResultTicket
@@ -219,6 +220,7 @@ nonisolated struct RevealTicket: View, Equatable {
 
     var body: some View {
         ResultTicketView(ticket: ticket, stampProgress: stampProgress)
+            .accessibilityIdentifier(ResultView.Identifier.ticket)
     }
 }
 

@@ -177,7 +177,6 @@ struct ResultView: View {
                         isTitleFocused = true
                     }
                 }
-                .accessibilityIdentifier(Identifier.ticket)
             } else {
                 ResultTicketView(ticket: ticket, stampAnimatesIn: animatesIn)
                     .scaleEffect(hasPopped || reduceMotion ? 1 : Self.popStartScale)
