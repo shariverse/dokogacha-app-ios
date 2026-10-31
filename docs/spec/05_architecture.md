@@ -4,7 +4,7 @@
 
 | 領域 | 採用 | 備考 |
 |---|---|---|
-| クライアント | Swift 6（言語モード 6 / Strict Concurrency）/ SwiftUI / iOS 17+ | 状態管理は `@Observable`。並行処理は async/await。テストは Swift Testing（Unit）と XCTest（UI） |
+| クライアント | Swift 6（言語モード 6 / Strict Concurrency）/ SwiftUI / iOS 17+（iPhone・iPad） | 状態管理は `@Observable`。並行処理は async/await。テストは Swift Testing（Unit）と XCTest（UI）。iPad の画面の分け方は `horizontalSizeClass` と使える幅で決める（03 の §3「iPad」） |
 | 地図・場所検索 | MapKit（`MKLocalSearch`、`Map`、`MKMapItem.openInMaps`） | 位置情報の許可は取らない |
 | 演出 | SwiftUI のアニメーション＋`PhaseAnimator`/`KeyframeAnimator`、Core Haptics（`sensoryFeedback`） | 物理演算が必要になったら SpriteKit を検討（MVP では不要） |
 | バックエンド | Firebase（Auth / Cloud Firestore / Cloud Functions 2nd gen（TypeScript）/ Cloud Messaging / Hosting / Analytics / Crashlytics） | Swift Package Manager で `firebase-ios-sdk` を導入 |

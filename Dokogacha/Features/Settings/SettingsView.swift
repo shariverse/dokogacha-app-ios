@@ -94,6 +94,7 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             DGHeader(Text("設定"), onBack: { dismiss() })
+                .dgContentColumn()
                 // 購入・復元・連携・削除を行っている途中は戻らせない
                 .disabled(model.activeAction != nil)
             ScrollView {
@@ -114,6 +115,7 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.top, DGSpacing.s8)
                 .padding(.bottom, DGSpacing.s24)
             }

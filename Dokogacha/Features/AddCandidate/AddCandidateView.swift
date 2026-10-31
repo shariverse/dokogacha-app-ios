@@ -88,6 +88,7 @@ struct AddCandidateView: View {
             DGHeader(Text("行きたい場所を追加"), onBack: { dismiss() }, trailing: {
                 postCount
             })
+            .dgContentColumn()
             .disabled(model.locksNavigation)
             DGTabSwitch(
                 selection: $model.tab,
@@ -97,6 +98,7 @@ struct AddCandidateView: View {
                 ]
             )
             .padding(.horizontal, DGSpacing.screenX)
+            .dgContentColumn()
             .padding(.top, DGSpacing.s4)
             .padding(.bottom, DGSpacing.s12)
             ScrollView {
@@ -109,6 +111,7 @@ struct AddCandidateView: View {
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.bottom, DGSpacing.s16)
             }
             .scrollDismissesKeyboard(.interactively)

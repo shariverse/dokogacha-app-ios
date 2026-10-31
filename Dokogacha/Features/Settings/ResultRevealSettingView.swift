@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// 上に選んでいる演出の見本（`ResultRevealStage` を見本のきっぷで流す。「もう一度見る」で流し直す）、下に演出の選択肢を並べる。
 /// 選ぶとすぐに端末に覚え（`ResultRevealSetting`）、見本をその演出で流し直す。次にガチャを回したときから、S-14 でその演出を流す。
-/// 「視差効果を減らす」がオンのときは、見本も動きを控えた流れになることを書き添える。
+/// 「視差効果を減らす」がオンのときは、見本も動きを控えた流れになることを書き添える。iPad では設定と同じく最大幅の列に収める（03 の §3）。
 /// VoiceOver では見本は読まず（動きを見せるためのもの）、選択肢を「名前、説明」と選択中かどうかで読む。
 struct ResultRevealSettingView: View {
     /// UI テストが探す ID
@@ -52,6 +52,7 @@ struct ResultRevealSettingView: View {
     var body: some View {
         VStack(spacing: 0) {
             DGHeader(Text("結果の演出"), onBack: { dismiss() })
+                .dgContentColumn()
             ScrollView {
                 VStack(alignment: .leading, spacing: DGSpacing.s16) {
                     Text("ガチャを回した後に、この演出で行き先きっぷが出ます")
@@ -68,6 +69,7 @@ struct ResultRevealSettingView: View {
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.top, DGSpacing.s8)
                 .padding(.bottom, DGSpacing.s24)
             }

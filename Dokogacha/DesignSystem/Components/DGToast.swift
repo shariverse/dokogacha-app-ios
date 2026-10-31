@@ -201,6 +201,8 @@ private struct DGToastPresenter: ViewModifier {
                         .onTapGesture { center.dismiss() }
                 }
             }
+            // iPad の広い画面でも、長い文言を本文の幅で折り返す（03 の §3「iPad」）
+            .frame(maxWidth: DGLayout.contentMaxWidth)
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.bottom, DGToast.bottomOffset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)

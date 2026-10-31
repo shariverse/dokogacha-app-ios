@@ -56,15 +56,18 @@ struct GachaView: View {
         VStack(spacing: 0) {
             DGHeader(Text(verbatim: model.room?.name ?? ""), onBack: { dismiss() })
                 .padding(.leading, DGSpacing.s4)
+                .dgContentColumn()
                 // 演出の途中は閉じない（結果を見ないまま戻らないように）
                 .disabled(!model.canClose)
             ScrollView {
                 content
                     .padding(.horizontal, DGSpacing.screenX)
+                    .dgContentColumn()
                     .padding(.top, DGSpacing.s8)
                     .padding(.bottom, DGSpacing.s24)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .dgCentersContentOnTallScreen()
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .accessibilityElement(children: .contain)

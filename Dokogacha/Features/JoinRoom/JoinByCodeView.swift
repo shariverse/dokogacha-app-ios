@@ -64,9 +64,11 @@ struct JoinByCodeView: View {
                 JoinSheetCloseButton(action: onClose)
             }
             .padding(.leading, DGSpacing.s12)
+            .dgContentColumn()
             ScrollView {
                 codeSection
                     .padding(.horizontal, DGSpacing.screenX)
+                    .dgContentColumn()
                     .padding(.top, DGSpacing.s8)
                     .padding(.bottom, DGSpacing.s16)
             }
@@ -82,6 +84,7 @@ struct JoinByCodeView: View {
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.top, DGSpacing.s12)
             .padding(.bottom, DGSpacing.s14)
+            .dgContentColumn()
             .background(Color.dgBgBase)
         }
         .background(Color.dgBgBase.ignoresSafeArea())

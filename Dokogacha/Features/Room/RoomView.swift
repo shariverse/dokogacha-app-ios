@@ -81,25 +81,17 @@ struct RoomView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        // iPad の広い画面では、左にルームパネルとガチャのボタン、右に候補の一覧を並べる（`RoomLayout`）
+        RoomLayout(allowsSplit: model.loadState != .missing) {
             header
-            ScrollView {
-                content
-                    .padding(.horizontal, DGSpacing.screenX)
-                    .padding(.top, DGSpacing.s4)
-                    .padding(.bottom, DGSpacing.s16)
-            }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                RoomGachaBar(state: model.gachaButtonState) {
-                    navigate(.gacha(roomID: model.roomID))
-                } onResult: { drawID in
-                    navigate(.result(roomID: model.roomID, drawID: drawID))
-                }
-                BannerAdSlot(screen: .room, room: model.room)
-                AdFreeNoticeSlot(screen: .room, room: model.room)
-            }
+        } content: {
+            content
+        } sidePane: {
+            sidePaneContent
+        } mainPane: {
+            candidatesPaneContent
+        } bottomBar: {
+            bottomBar
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
@@ -148,6 +140,21 @@ struct RoomView: View {
             if phase == .background {
                 model.leftRoom()
             }
+        }
+    }
+
+    // MARK: - 下部
+
+    /// 下部に固定する「ガチャを回す」とバナー広告（または広告なしの案内）
+    private var bottomBar: some View {
+        VStack(spacing: 0) {
+            RoomGachaBar(state: model.gachaButtonState) {
+                navigate(.gacha(roomID: model.roomID))
+            } onResult: { drawID in
+                navigate(.result(roomID: model.roomID, drawID: drawID))
+            }
+            BannerAdSlot(screen: .room, room: model.room)
+            AdFreeNoticeSlot(screen: .room, room: model.room)
         }
     }
 
@@ -200,11 +207,11 @@ struct RoomView: View {
 
     // MARK: - 中身
 
-    /// 読み込みの状態ごとの中身
+    /// 読み込みの状態ごとの中身（1 列のとき）
     @ViewBuilder private var content: some View {
         switch model.loadState {
         case .loading:
-            loadingContent
+            RoomLoadingPlaceholder.content
         case .missing:
             missingContent
         case .loaded:
@@ -212,42 +219,78 @@ struct RoomView: View {
                 if dynamicTypeSize.isAccessibilitySize {
                     statusChip
                 }
-                RoomPanel(
-                    capsuleCount: model.capsuleCount,
-                    readyCount: model.readyCount,
-                    memberCount: model.memberCount,
-                    members: model.displayedMembers,
-                    myPostCount: model.myPostCount,
-                    postLimit: model.room?.settings.postLimit ?? 0,
-                    likeMode: model.room?.settings.likeMode ?? .boost,
-                    readiness: RoomPanel.Readiness(
-                        hint: model.readyHint,
-                        isReady: model.isReady,
-                        showsButton: model.showsReadyButton,
-                        canForceUnlock: model.canForceUnlock,
-                        isForceUnlocking: model.isSendingForceUnlock,
-                        onToggleReady: { model.readyTapped() },
-                        onForceUnlock: { model.forceUnlockTapped() }
-                    ),
-                    invite: memberInvite
-                ) {
-                    navigate(.members(roomID: model.roomID))
-                }
+                roomPanel
                 candidatesHeader
                     .padding(.top, DGSpacing.s6)
-                if model.newCount > 0 {
-                    Text("前回見たあとに \(model.newCount)件の候補が増えました")
-                        .font(.dgBody(Self.newNoticeSize, weight: .bold, relativeTo: .caption))
-                        .foregroundStyle(Color.dgAccentText)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier(Identifier.newNotice)
-                }
-                if model.isEmpty {
-                    emptyState
-                } else {
-                    candidateList
-                }
+                candidatesBody
             }
+        }
+    }
+
+    /// 2 列のときの左の列（ルームパネル）。読み込み中はパネルの形を保つ
+    @ViewBuilder private var sidePaneContent: some View {
+        if model.loadState == .loaded {
+            VStack(alignment: .leading, spacing: DGSpacing.s14) {
+                if dynamicTypeSize.isAccessibilitySize {
+                    statusChip
+                }
+                roomPanel
+            }
+        } else {
+            RoomLoadingPlaceholder.sidePane
+        }
+    }
+
+    /// 2 列のときの右の列（候補の見出し行・NEW の案内・候補）。読み込み中は候補カードの形を保つ
+    @ViewBuilder private var candidatesPaneContent: some View {
+        if model.loadState == .loaded {
+            VStack(alignment: .leading, spacing: DGSpacing.s14) {
+                candidatesHeader
+                candidatesBody
+            }
+        } else {
+            RoomLoadingPlaceholder.mainPane
+        }
+    }
+
+    /// ルームパネル（行き先の黒帯・準備OKの人数とメンバー・あなたの投稿）。メンバーを押すとメンバー一覧（S-11）
+    private var roomPanel: some View {
+        RoomPanel(
+            capsuleCount: model.capsuleCount,
+            readyCount: model.readyCount,
+            memberCount: model.memberCount,
+            members: model.displayedMembers,
+            myPostCount: model.myPostCount,
+            postLimit: model.room?.settings.postLimit ?? 0,
+            likeMode: model.room?.settings.likeMode ?? .boost,
+            readiness: RoomPanel.Readiness(
+                hint: model.readyHint,
+                isReady: model.isReady,
+                showsButton: model.showsReadyButton,
+                canForceUnlock: model.canForceUnlock,
+                isForceUnlocking: model.isSendingForceUnlock,
+                onToggleReady: { model.readyTapped() },
+                onForceUnlock: { model.forceUnlockTapped() }
+            ),
+            invite: memberInvite
+        ) {
+            navigate(.members(roomID: model.roomID))
+        }
+    }
+
+    /// 見出し行の下の、NEW の案内と候補カード（0 件なら空の表示）
+    @ViewBuilder private var candidatesBody: some View {
+        if model.newCount > 0 {
+            Text("前回見たあとに \(model.newCount)件の候補が増えました")
+                .font(.dgBody(Self.newNoticeSize, weight: .bold, relativeTo: .caption))
+                .foregroundStyle(Color.dgAccentText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier(Identifier.newNotice)
+        }
+        if model.isEmpty {
+            emptyState
+        } else {
+            candidateList
         }
     }
 
@@ -274,37 +317,6 @@ struct RoomView: View {
         .padding(.top, DGSpacing.s16)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.missing)
-    }
-
-    /// 最初のルームが届くまでの、部品の形を保った読み込み中の表示（03 の §3）
-    private var loadingContent: some View {
-        VStack(alignment: .leading, spacing: DGSpacing.s14) {
-            RoomPanel(
-                capsuleCount: 0,
-                readyCount: 0,
-                memberCount: 0,
-                members: [],
-                myPostCount: 0,
-                postLimit: 0,
-                likeMode: .boost
-            ) {}
-            DGCandidateCard(
-                name: String(localized: "読み込み中"),
-                meta: String(localized: "読み込み中"),
-                category: .town,
-                author: .departed,
-                elapsed: "",
-                likeStatus: .locked,
-                likers: [],
-                level: .flat,
-                percent: 0,
-                maxPercent: 0
-            ) {}
-        }
-        .redacted(reason: .placeholder)
-        .disabled(true)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("読み込み中"))
     }
 }
 

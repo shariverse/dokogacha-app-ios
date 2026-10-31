@@ -33,7 +33,8 @@ struct BannerAdSlot: View {
                 content(ads)
                     .padding(.horizontal, DGSpacing.screenX)
                     .padding(.bottom, DGSpacing.s14)
-                    .frame(maxWidth: .infinity)
+                    // iPad の広い画面では本文と同じ幅にそろえる（アダプティブバナーの高さも、この幅で決まる）
+                    .dgContentColumn()
                     .background(Color.dgBgBase)
                     .accessibilityIdentifier(Self.identifier)
             }
