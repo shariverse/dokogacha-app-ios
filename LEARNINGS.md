@@ -43,6 +43,7 @@
 - 根元のビューに `.safeAreaInset(edge: .top)` でバナーを付けても、`NavigationStack` に積んだ画面（ヘッダーを自前で置く S-07 など）は上を空けず、ヘッダーがバナーの下に隠れた（iOS 26.5 の Simulator）。画面の上に帯を出すときは `VStack` で縦に並べる（`OfflineBannerModifier`）（2026-10-23）
 - 撮影モードで画面を続けて撮るとき、Mac が混んでいる（load average 400 以上）と起動に 10 秒以上かかり、起動画面だけが写る（どの scene でも同じ大きさの PNG になる）。撮ったファイルの大きさがそろっていたら、待ち時間を延ばして撮り直す（2026-10-23）
 - VoiceOver で読ませたくない「押せない状態」を、無効の `DGButton` で描くと「淡色表示、ボタン」と読まれる。ボタンの形の状態の表示は `DGButtonShapedStatus`（`Button` ではない）を使う。UI テストでは `app.staticTexts[...]` で探す（2026-10-23）
+- iOS 26.5 の Simulator では、`confirmationDialog` の `role: .cancel` のボタンが UI テストの要素に出ない（ダイアログは外を押すと閉じる）。UI テストで `app.buttons["キャンセル"]` を押そうとすると見つからずに落ちるので、確認のボタン（「終了する」など）だけを押す（2026-10-31）
 
 ## backend（Firebase）
 

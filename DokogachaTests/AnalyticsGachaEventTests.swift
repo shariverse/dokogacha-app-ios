@@ -167,8 +167,8 @@ struct AnalyticsGachaEventTests {
         )
 
         #expect(await model.close())
-        #expect(analytics.events == [.roomClose(auto: false)])
-        #expect(analytics.events.first?.parameters == ["auto": .int(0)])
+        #expect(analytics.events == [.roomClose(auto: false, early: false)])
+        #expect(analytics.events.first?.parameters == ["auto": .int(0), "early": .int(0)])
     }
 
     /// 終了に失敗したら送らない
@@ -202,6 +202,6 @@ struct AnalyticsGachaEventTests {
             analytics: analytics
         )
         #expect(await model.closing.close())
-        #expect(analytics.events == [.roomClose(auto: false)])
+        #expect(analytics.events == [.roomClose(auto: false, early: false)])
     }
 }

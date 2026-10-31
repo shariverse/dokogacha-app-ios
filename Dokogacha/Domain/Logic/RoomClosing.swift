@@ -32,6 +32,17 @@ nonisolated enum RoomClosing {
         return room.ownerId == userID ? .decide : .waitingForOwner
     }
 
+    /// 作成者が抽選の前に途中で終了できる状態（S-12 の「ルームを終了する」を出す状態。Discussion #155 の Q3）
+    static let endableStatuses: Set<RoomStatus> = [.open, .unlocked]
+
+    /// S-12 に「ルームを終了する」を出すか（作成者で、候補募集中・ガチャ解禁！のとき。backend の `decideClose` の `endEarly` と同じ条件）
+    /// - Parameters:
+    ///   - room: ルーム
+    ///   - userID: 自分の uid
+    static func canEndEarly(_ room: Room, userID: String) -> Bool {
+        room.ownerId == userID && endableStatuses.contains(room.status)
+    }
+
     /// `closeRoom` の状態の判定の結果（backend の `CloseDecision` と、失敗の理由）
     enum Decision: Equatable, Sendable {
         /// 終了する

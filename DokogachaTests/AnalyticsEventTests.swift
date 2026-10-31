@@ -69,8 +69,9 @@ struct AnalyticsEventTests {
         #expect(AnalyticsEvent.rerollPropose.parameters.isEmpty)
         #expect(AnalyticsEvent.rerollResult(passed: true).name == "reroll_result")
         #expect(AnalyticsEvent.rerollResult(passed: false).parameters == ["passed": .int(0)])
-        #expect(AnalyticsEvent.roomClose(auto: false).name == "room_close")
-        #expect(AnalyticsEvent.roomClose(auto: false).parameters == ["auto": .int(0)])
+        #expect(AnalyticsEvent.roomClose(auto: false, early: false).name == "room_close")
+        #expect(AnalyticsEvent.roomClose(auto: false, early: false).parameters == ["auto": .int(0), "early": .int(0)])
+        #expect(AnalyticsEvent.roomClose(auto: false, early: true).parameters == ["auto": .int(0), "early": .int(1)])
     }
 
     /// パラメータの無いイベント

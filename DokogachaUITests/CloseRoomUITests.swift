@@ -7,7 +7,8 @@ import XCTest
 
 /// ルームの終了（F-44）と思い出のきっぷ（S-02）の UI テスト。メモリ上の擬似のサーバー（`-uiTesting -demo-scenario drawn-rooms`）で動かす。
 ///
-/// `drawn-rooms` は、自分が作った「週末のランチ」とはるかが作った「春のお花見」がどちらも行き先が決まった（`drawn`）状態で、終了したルームは無い
+/// `drawn-rooms` は、自分が作った「週末のランチ」とはるかが作った「春のお花見」がどちらも行き先が決まった（`drawn`）状態で、終了したルームは無い。
+/// S-12 からの途中の終了（Discussion #155）は、自分が作った候補募集中のルームがある `room-with-candidates` で動かす
 final class CloseRoomUITests: XCTestCase {
     /// 自分が作った行き先が決まったルーム（週末のランチ）のカード（`HomeView.Identifier.room(DemoScenario.drawnRoomID)`）
     private static let myDrawnRoomCard = "home.room.demo-room-drawn-mine"
@@ -15,6 +16,8 @@ final class CloseRoomUITests: XCTestCase {
     private static let othersDrawnRoomCard = "home.room.demo-room-drawn-others"
     /// 週末のランチの思い出のきっぷ（`HomeMemoryTickets.Identifier.ticket(DemoScenario.drawnRoomID)`）
     private static let myMemoryTicket = "home.memory.demo-room-drawn-mine"
+    /// 候補募集中のルーム（年末の旅行）の思い出のきっぷ（`HomeMemoryTickets.Identifier.ticket(DemoScenario.roomID)`）
+    private static let demoRoomMemoryTicket = "home.memory.demo-room"
     /// 思い出のきっぷの空の表示（`HomeView.Identifier.memoriesEmpty`）
     private static let memoriesEmpty = "home.memories.empty"
     /// S-14 の「この行き先で決定」（`ResultCloseSection.Identifier.decide`）
@@ -93,5 +96,45 @@ final class CloseRoomUITests: XCTestCase {
         XCTAssertTrue(note.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(note.label, "作成者が決定するとルームが終了します")
         XCTAssertTrue(app.buttons[Self.decideButton].waitForNonExistence(timeout: UITestID.timeout))
+    }
+
+    /// 作成者が候補募集中のルーム（S-07）のヘッダーの設定から S-12 を開き、「ルームを終了する」→ 確認の「終了する」で、
+    /// シートが閉じてホームに戻り、そのルームが進行中のルームから消える。抽選していないので思い出のきっぷにも出ない（Discussion #155）
+    @MainActor
+    func testOwnerEndsRoomEarlyFromRoomSettings() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "room-with-candidates"]
+        app.launch()
+
+        let card = app.buttons[UITestID.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.staticTexts[Self.memoriesEmpty].waitForExistence(timeout: UITestID.timeout))
+        card.tap()
+        XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForExistence(timeout: UITestID.timeout))
+
+        app.buttons[UITestID.roomSettings].tap()
+        let sheet = app.otherElements[UITestID.roomSettingsScreen]
+        XCTAssertTrue(sheet.waitForExistence(timeout: UITestID.timeout))
+
+        // 項目の下の「ルームを終了する」（保存のボタンに隠れない位置まで送る）
+        let endRoom = app.buttons[UITestID.roomSettingsEndRoom]
+        XCTAssertTrue(endRoom.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(endRoom.scrollIntoView(in: app, above: app.buttons[UITestID.roomSettingsSave]))
+        endRoom.tap()
+
+        // 確認のダイアログ（03 の S-12 の文言）。iOS 26 では「キャンセル」のボタンを出さない（外を押すと閉じる）ので、「終了する」だけを押す
+        XCTAssertTrue(app.staticTexts["ルームを終了しますか？"].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.staticTexts["ルームを終了すると、候補の投稿やガチャができなくなります"].exists)
+        let confirm = app.buttons["終了する"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: UITestID.timeout))
+        confirm.tap()
+
+        // シートが閉じてホームに戻り、終了したルームが進行中のルームから消える。抽選していないので思い出のきっぷにも出ない
+        // （思い出のきっぷの空の表示を出すかは、行き先の決まらないルームを数えないようにするタスク 5 で確かめる）
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(card.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertFalse(app.buttons[Self.demoRoomMemoryTicket].exists)
     }
 }

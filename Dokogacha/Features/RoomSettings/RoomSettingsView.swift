@@ -10,10 +10,12 @@ import SwiftUI
 ///
 /// 入力の部品と文言は S-03 と同じ（`DGTextField`・`DGStepper`・`DGSegmentedChoice`・`DeadlinePickerField`）。
 /// 状態で変えられない項目は今の設定のまま無効にし、理由を補足に出す。作成者以外・終了したルームでは、すべて無効にして理由を上に出す。
-/// 「ルームを終了する」（03 の S-12）は `closeRoom`（F-44）のタスクで足す。
+/// 作成者で候補募集中・ガチャ解禁！のときは、項目の下に赤文字のテキストボタン「ルームを終了する」（03 の S-12）を置く。
+/// 押すと確認のダイアログ（「ルームを終了すると、候補の投稿やガチャができなくなります」）を出し、「終了する」で `closeRoom` の
+/// `endEarly` を送る。終了できたら `onEnded` で親に知らせる（親がシートを閉じてホームに戻る）。抽選の後（`drawn`）は出さない。
 ///
 /// 標準のナビゲーションバーは使わず、ヘッダー（タイトルと右端の閉じる）を置く（03 の §3）。トーストはシートの中に重ねる。
-/// 保存を送っている間は、閉じるボタンと下スワイプで閉じられないようにする。保存できたら `onSaved` で親に知らせる（親がシートを閉じる）。
+/// 保存・終了を送っている間は、閉じるボタンと下スワイプで閉じられないようにする。保存できたら `onSaved` で親に知らせる（親がシートを閉じる）。
 struct RoomSettingsView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -29,15 +31,21 @@ struct RoomSettingsView: View {
         static let save = "roomSettings.save"
         /// 閉じるボタン
         static let close = "roomSettings.close"
+        /// 「ルームを終了する」
+        static let endRoom = "roomSettings.endRoom"
     }
 
     /// 項目の見出しの文字の大きさ（本文 Bold 14。S-03 と同じ）
     private static let labelSize: CGFloat = 14
+    /// 「ルームを終了する」の文字の大きさ（本文 Bold 15。S-11 の「ルームから退出」と同じ）
+    private static let endRoomSize: CGFloat = 15
 
     @State private var model: RoomSettingsModel
     @State private var toasts: DGToastCenter
     /// 保存できたときの処理（シートを閉じる）
     private let onSaved: () -> Void
+    /// ルームを終了できたときの処理（シートを閉じてホームに戻る）
+    private let onEnded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -45,10 +53,12 @@ struct RoomSettingsView: View {
     /// - Parameters:
     ///   - model: 画面の状態（最初の 1 回だけ使う）
     ///   - toasts: 失敗を出すトーストの窓口（`model` に渡したもの。シートの根元に重ねる）
+    ///   - onEnded: ルームを終了できたときの処理
     ///   - onSaved: 保存できたときの処理
-    init(model: RoomSettingsModel, toasts: DGToastCenter, onSaved: @escaping () -> Void) {
+    init(model: RoomSettingsModel, toasts: DGToastCenter, onEnded: @escaping () -> Void = {}, onSaved: @escaping () -> Void) {
         _model = State(initialValue: model)
         _toasts = State(initialValue: toasts)
+        self.onEnded = onEnded
         self.onSaved = onSaved
     }
 
@@ -139,6 +149,9 @@ struct RoomSettingsView: View {
             postLimitSection
             unlockRuleSection
             likeModeSection
+            if model.showsEndRoom {
+                endRoomButton
+            }
         }
         .redacted(reason: model.isLoaded ? [] : .placeholder)
         .disabled(!model.isLoaded)
@@ -203,6 +216,41 @@ struct RoomSettingsView: View {
                 ]
             )
             .disabled(!model.isLikeModeEditable)
+        }
+    }
+
+    /// テキストボタン「ルームを終了する」（赤文字。押すと確認のダイアログ。S-11 の「ルームから退出」と同じ見た目）
+    private var endRoomButton: some View {
+        @Bindable var ending = model.ending
+        return Button {
+            ending.endTapped()
+        } label: {
+            Text("ルームを終了する")
+                .font(.dgBody(Self.endRoomSize, weight: .bold, relativeTo: .body))
+                .foregroundStyle(Color.dgAccentText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, minHeight: DGMetrics.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.dgBare)
+        .disabled(!model.canEndRoom)
+        .accessibilityIdentifier(Identifier.endRoom)
+        .confirmationDialog(
+            Text("ルームを終了しますか？"),
+            isPresented: $ending.isConfirming,
+            titleVisibility: .visible
+        ) {
+            Button(role: .destructive) {
+                ending.confirmTapped(onEnded: onEnded)
+            } label: {
+                Text("終了する")
+            }
+            Button(role: .cancel) {} label: {
+                Text("キャンセル")
+            }
+        } message: {
+            Text("ルームを終了すると、候補の投稿やガチャができなくなります")
         }
     }
 

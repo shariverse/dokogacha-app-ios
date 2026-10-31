@@ -23,6 +23,8 @@ import Observation
 /// 締切日時の範囲は S-03 と同じく `DeadlineSelection` で持ち、送る直前と前面に戻ったとき（`refreshDeadlineRange()`）に計算し直す。
 /// まだ触っていない今の締切日時は範囲の外でも変えない（送らないので断られない）。
 ///
+/// 作成者で `open`・`unlocked` のときは、下に「ルームを終了する」を出す（`ending`。確認の後に `closeRoom` の `endEarly` を送る）。
+///
 /// 保存は二重に送らず、送っている途中はシートを閉じさせない。失敗したら `AppError` の文言のトーストを出し、入力を残す。
 /// 成功したら `didSave` を立て、画面は親に知らせてシートを閉じる。ルームが無くなったら `shouldClose` を立てる。
 @Observable
@@ -65,9 +67,13 @@ final class RoomSettingsModel {
     /// 保存できたか（入ったら画面はシートを閉じる）
     private(set) var didSave = false
 
-    /// 送っている途中で、シートを閉じさせないか（「保存」を押してから送り終えるまで。Task が動き出す前も含める。PR #55 の持ち越し）
+    /// 「ルームを終了する」（03 の S-12）の状態と操作
+    let ending: RoomEndModel
+
+    /// 送っている途中で、シートを閉じさせないか（「保存」・「ルームを終了する」を押してから送り終えるまで。
+    /// Task が動き出す前も含める。PR #55 の持ち越し）
     var locksNavigation: Bool {
-        isSaving || saveTask != nil
+        isSaving || saveTask != nil || ending.isBusy
     }
 
     @ObservationIgnored private let functions: any FunctionsClient
@@ -86,6 +92,7 @@ final class RoomSettingsModel {
     ///   - clock: 今の時刻（締切の範囲と、条件を「締切日時」に変えたときの初期値を決める。テストで進める）
     ///   - calendar: 暦（締切の初期値「3日後の21:00」を端末のタイムゾーンで決める）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方（テストでは待たないものを渡す）
+    ///   - analytics: Analytics のイベント（05 の §9。ルームを終了したときの `room_close`）を送る窓口
     init(
         roomID: String,
         userID: String,
@@ -94,7 +101,8 @@ final class RoomSettingsModel {
         toasts: DGToastCenter,
         clock: @escaping () -> Date = { Date() },
         calendar: Calendar = .current,
-        resubscribeDelay: ResubscribeDelay = .standard
+        resubscribeDelay: ResubscribeDelay = .standard,
+        analytics: any AnalyticsService = DisabledAnalyticsService()
     ) {
         room = RoomModel(
             roomID: roomID,
@@ -104,6 +112,7 @@ final class RoomSettingsModel {
             toasts: toasts,
             resubscribeDelay: resubscribeDelay
         )
+        ending = RoomEndModel(roomID: roomID, functions: functions, toasts: toasts, analytics: analytics)
         self.functions = functions
         self.toasts = toasts
         self.clock = clock
@@ -337,7 +346,21 @@ final class RoomSettingsModel {
 
     /// 「保存」を押せるか（変えた項目がある・入力が正しい・送っている途中でない・保存済みでない）
     var canSave: Bool {
-        request != nil && !isSaving && !didSave
+        request != nil && !isSaving && !didSave && !ending.isBusy
+    }
+
+    /// 「ルームを終了する」を出すか（作成者で、候補募集中・ガチャ解禁！のとき。`RoomClosing.canEndEarly`）。
+    /// 抽選の後（`drawn`）は S-14 の「この行き先で決定」と抽選から 7 日の自動の終了に任せる（Discussion #155 の Q3）
+    var showsEndRoom: Bool {
+        guard let current else {
+            return false
+        }
+        return RoomClosing.canEndEarly(current, userID: room.userID)
+    }
+
+    /// 「ルームを終了する」を押せるか（保存・終了を送っている途中でない）
+    var canEndRoom: Bool {
+        showsEndRoom && !isSaving && saveTask == nil && !ending.isBusy
     }
 
     /// シートを閉じるか（ルームが無くなった・自分が外された）
