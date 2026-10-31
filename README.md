@@ -215,7 +215,7 @@ xcrun simctl io <UDID> screenshot room.png
 `AppStore/` の JSON を元にして、手動実行のワークフローで App Store Connect に反映します。反映先は「編集できる状態のバージョン」だけです。
 
 - 言語は日本語だけ（`AppStore/languages.json`。02 の §10 で多言語は対象外）
-- スクリーンショット: `AppStore/screenshots.json` の 5 つ（ルーム・ガチャ・行き先きっぷ・過去のアイデア・招待）を、`release/**` ブランチで `Screenshots/App Store` を手動実行して撮ります。6.9 inch を撮り、6.3 inch は縮めて作り、iPhone Duo は Xcode 27.1 のランナーで撮ります。手元では `Tools/capture_screenshots.sh APP_IPHONE_67 ja`（出力は `build/screenshots/`）
+- スクリーンショット: `AppStore/screenshots.json` の 5 つ（ルーム・ガチャ・行き先きっぷ・過去のアイデア・招待）を、`release/**` ブランチで `Screenshots/App Store` を手動実行して撮ります。6.9 inch を撮り、6.3 inch は縮めて作り、iPhone Duo は Xcode 27.1 のランナーで、iPad 13 inch は iPad Pro 13-inch の Simulator で撮ります。手元では `Tools/capture_screenshots.sh APP_IPHONE_67 ja`（iPad は `APP_IPAD_PRO_3GEN_129`。出力は `build/screenshots/`）
 - 説明文など: `AppStore/metadata/ja.json`・`shared.json`（URL は `DomainConstants.Web` と同じ。`AppStoreMetadataTests` が突き合わせる）を `Metadata/App Store` で反映します（既定は dry-run）
 - プロダクトページのヘッダーと検索結果: `AppStore/creative/src/creative.html` から `Tools/render_creative_assets.sh` で書き出し、`Creative assets/App Store` で反映します（`TODO:` が残っていると止まる）
 - 「App のプライバシー」の申告は Xcode の Privacy Report を正にします（[docs/setup-human.md](docs/setup-human.md) の 12）

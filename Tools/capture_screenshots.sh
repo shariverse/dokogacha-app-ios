@@ -150,40 +150,52 @@ BUNDLE_ID="$(printf '%s\n' "$SETTINGS" | awk -F' = ' '/ PRODUCT_BUNDLE_IDENTIFIE
 # Simulator を起動したままビルドすると、非力なランナー（iPhone Duo を撮る xcode-27）が固まったので、ビルドしてから起動する
 xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b >/dev/null
-
-# App Store のスクリーンショットらしく、上端を整える
-xcrun simctl status_bar "$UDID" override \
-    --time "9:41" \
-    --dataNetwork wifi \
-    --wifiMode active \
-    --wifiBars 3 \
-    --cellularMode active \
-    --cellularBars 4 \
-    --batteryState charged \
-    --batteryLevel 100 \
-    --operatorName ""
-
-# iPhone Duo のように画面が 2 つある機種では、どちらの画面を撮るかが起動のたびに変わる（内側は真っ黒に写る）。
-# screenshots.json の sizes の先頭と同じ寸法の画面を選んで撮る。見つからなければ simctl の既定の画面を撮る
-EXPECTED_SIZE="$($CONFIG sizes "$DISPLAY_TYPE" | head -n 1)"
-DISPLAY_ID="$(xcrun simctl io "$UDID" enumerate 2>/dev/null | awk -v size="$EXPECTED_SIZE" '
-    /^ *UUID:/ { uuid = $2 }
-    /^ *Default width:/ { width = $3 }
-    /^ *Default height:/ { if (width "x" $3 == size) { print uuid; exit } }
-')" || DISPLAY_ID=""
-DISPLAY_OPTION=()
-if [ -n "$DISPLAY_ID" ]; then
-    DISPLAY_OPTION=(--display="$DISPLAY_ID")
-fi
-echo "撮る画面: ${DISPLAY_ID:-既定}（${EXPECTED_SIZE}）"
-
 xcrun simctl install "$UDID" "$BUILT_DIR/$APP_NAME"
 
-# インストール直後の初回起動は遅く、アプリが出る前のホーム画面を「落ち着いた」と誤って撮ってしまう。
-# 撮影の前に 1 回だけ起動しておく
-xcrun simctl launch "$UDID" "$BUNDLE_ID" -screenshot-demo >/dev/null
-sleep "$WARMUP_SECONDS"
-xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+EXPECTED_SIZE="$($CONFIG sizes "$DISPLAY_TYPE" | head -n 1)"
+DISPLAY_OPTION=()
+
+# 撮る言語に Simulator の言語を変えて起動し直し、撮る準備をする。
+# iPad のステータスバーは時刻の横に日付も出し、その書き方（「9:41 AM Sat Oct 31」「10月31日(土)」）は Simulator の言語で決まる。
+# アプリに渡す -AppleLanguages / -AppleLocale はステータスバーに効かず、Simulator の言語は起動し直さないと効かない
+boot_in_language() {
+    xcrun simctl spawn "$UDID" defaults write -g AppleLanguages -array "$1"
+    xcrun simctl spawn "$UDID" defaults write -g AppleLocale -string "$2"
+    xcrun simctl shutdown "$UDID"
+    xcrun simctl boot "$UDID"
+    xcrun simctl bootstatus "$UDID" -b >/dev/null
+
+    # App Store のスクリーンショットらしく、上端を整える
+    xcrun simctl status_bar "$UDID" override \
+        --time "9:41" \
+        --dataNetwork wifi \
+        --wifiMode active \
+        --wifiBars 3 \
+        --cellularMode active \
+        --cellularBars 4 \
+        --batteryState charged \
+        --batteryLevel 100 \
+        --operatorName ""
+
+    # iPhone Duo のように画面が 2 つある機種では、どちらの画面を撮るかが起動のたびに変わる（内側は真っ黒に写る）。
+    # screenshots.json の sizes の先頭と同じ寸法の画面を選んで撮る。見つからなければ simctl の既定の画面を撮る
+    DISPLAY_ID="$(xcrun simctl io "$UDID" enumerate 2>/dev/null | awk -v size="$EXPECTED_SIZE" '
+        /^ *UUID:/ { uuid = $2 }
+        /^ *Default width:/ { width = $3 }
+        /^ *Default height:/ { if (width "x" $3 == size) { print uuid; exit } }
+    ')" || DISPLAY_ID=""
+    DISPLAY_OPTION=()
+    if [ -n "$DISPLAY_ID" ]; then
+        DISPLAY_OPTION=(--display="$DISPLAY_ID")
+    fi
+    echo "撮る画面: ${DISPLAY_ID:-既定}（${EXPECTED_SIZE}）"
+
+    # インストールや起動し直しの直後の初回起動は遅く、アプリが出る前のホーム画面を「落ち着いた」と誤って撮ってしまう。
+    # 撮影の前に 1 回だけ起動しておく
+    xcrun simctl launch "$UDID" "$BUNDLE_ID" -screenshot-demo >/dev/null
+    sleep "$WARMUP_SECONDS"
+    xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+}
 
 # MARK: - 撮影
 
@@ -227,6 +239,7 @@ while IFS=$'\t' read -r -u 3 language apple_language apple_locale store_locale; 
     rm -rf "$destination"
     mkdir -p "$destination"
     echo "::group::${DISPLAY_TYPE} / ${language}（${store_locale}）"
+    boot_in_language "$apple_language" "$apple_locale"
     while IFS=$'\t' read -r -u 4 file scene; do
         xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
         xcrun simctl launch "$UDID" "$BUNDLE_ID" \
