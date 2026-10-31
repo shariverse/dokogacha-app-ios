@@ -65,6 +65,7 @@ private struct ActivityShareSheetModifier: ViewModifier {
 ///
 /// SwiftUI の `popover` の中に `UIActivityViewController` を入れると大きさが決まらないので、UIKit の
 /// `popoverPresentationController` に置いた場所の View を渡して出す。閉じたら（共有した・外を押した）`item` を nil に戻す
+/// （`completionWithItemsHandler` は、共有したときも何もせずに閉じたときも呼ばれる）
 private struct ActivitySharePopover: UIViewControllerRepresentable {
     @Binding var item: SharedImage?
 
@@ -106,8 +107,10 @@ private struct ActivitySharePopover: UIViewControllerRepresentable {
             shownID = item.id
             let controller = UIActivityViewController(activityItems: [item.image], applicationActivities: nil)
             controller.modalPresentationStyle = .popover
-            controller.popoverPresentationController?.sourceView = view
-            controller.popoverPresentationController?.sourceRect = view.bounds
+            // 置いた View を指す（回転などでボタンの大きさが変わっても付いていく）。
+            // 確認のダイアログと同じくボタンの上か下に出す（横に出すと隣のボタンを隠す）
+            controller.popoverPresentationController?.sourceItem = view
+            controller.popoverPresentationController?.permittedArrowDirections = [.up, .down]
             controller.completionWithItemsHandler = { [weak self] _, _, _, _ in
                 self?.shownID = nil
                 self?.onDismiss()
