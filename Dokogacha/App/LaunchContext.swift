@@ -24,7 +24,7 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// UI テストは 1 台の端末しか操作できないので、06 の §2 の通しのシナリオで使う。`-uiTesting` のときだけ効く
     static let autoMembersArgument = "-ui-auto-members"
 
-    /// UI テストで、ほかの人が作ったルームで準備OKにしたら、その作成者がルームを途中で終了したことにする起動引数（`InMemoryOwnerEndsRoom`）。
+    /// UI テストで、ほかの人が作ったルームで自分が準備OKになっていたら、その作成者がルームを途中で終了したことにする起動引数（`InMemoryOwnerEndsRoom`）。
     /// 開いている間に終了したときの画面を確かめる。`-uiTesting` のときだけ効く
     static let ownerEndsRoomArgument = "-ui-owner-ends-room"
 
