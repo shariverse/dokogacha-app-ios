@@ -167,7 +167,7 @@ xcrun simctl io <UDID> screenshot room.png
 | 起動引数 | 効く画面（scene） | 中身 |
 | --- | --- | --- |
 | `-screenshot-demo` | すべて | 撮影モードにする |
-| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`licenses`）。無ければホーム |
+| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`licenses`）。無ければホーム |
 | `-demo-scenario <名前>` | すべて | デモのデータ（`DemoScenario`）。撮影モードの既定は `several-rooms` |
 | `-screenshot-ad-placeholder` | 広告のある画面 | バナー広告の場所に固定の枠を出す（App Store の撮影では付けない） |
 | `-network-offline` | すべて | オフラインのことにする（「オフラインです」の帯） |
@@ -181,7 +181,7 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-search-prefecture <コード>`・`-screenshot-search-municipality <団体コード>` | `addCandidate` | 選んでおく都道府県（都道府県コード。`13` など）・市区町村（6 桁の団体コード。`131075`（墨田区）など）。いくつか付けたら市区町村・都道府県・地方の順に見る |
 | `-screenshot-municipality-picker`・`-screenshot-municipality-filter <語>` | `addCandidate` | 市区町村を選ぶシートを開いておく（都道府県を選んでいるときだけ）・シートの絞り込みの語 |
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
-| `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態 |
+| `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings`・`roomInvite` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態（`roomInvite` は S-07 の上に招待のシートを出す） |
 | `-screenshot-gacha <状態>` | `gacha` | `ready`（既定）・`dispensed`・`others`・`others-live`・`play` |
 | `-screenshot-result <状態>`・`-screenshot-reroll <状態>`・`-screenshot-result-animate` | `result` | 当選（`normal`・`rare`）・引き直し（`voting`・`passed`・`used`）・きっぷを動かす |
 | `-screenshot-result-closed` | `resultMember` | 終了したルームの閲覧のみ |

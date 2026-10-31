@@ -155,6 +155,14 @@ enum UITestID {
     static let othersRoomCard = "home.room.demo-room-others"
     /// S-07 のルームパネルのメンバー（`RoomView.Identifier.members`）
     static let roomMembers = "room.members"
+    /// S-07 のアバターの並びの招待の「＋」（`RoomView.Identifier.invite`）
+    static let roomInvite = "room.invite"
+    /// S-04 の「招待リンクを送る」（`InviteView.Identifier.share`）
+    static let inviteShare = "invite.share"
+    /// シートで開いた S-04 の閉じる（`InviteView.Identifier.close`）
+    static let inviteClose = "invite.close"
+    /// S-11 の「招待する」（`MembersView.Identifier.invite`）
+    static let membersInvite = "members.invite"
     /// S-07 のヘッダーの設定（`RoomView.Identifier.settings`）
     static let roomSettings = "room.settings"
     /// S-11 メンバー一覧（`MembersView.Identifier.screen`）

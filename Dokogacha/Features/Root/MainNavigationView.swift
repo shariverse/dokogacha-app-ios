@@ -143,19 +143,8 @@ struct MainNavigationView: View {
                 presentation.path = AppRoute.pathAfterCreating(created, from: presentation.path)
                 requestNotificationPermission()
             }
-        case let .invite(created):
-            InviteView(
-                model: InviteModel(destination: created, toasts: toasts),
-                lastMembers: LastMembersInviteModel(
-                    roomID: created.roomID,
-                    userID: userID,
-                    repository: services.rooms,
-                    functions: services.functions,
-                    toasts: toasts
-                )
-            ) {
-                presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
-            }
+        case .invite, .inviteMembers:
+            invite(route)
         case .joinByCode, .joinByInviteLink:
             joinRoomFlow(initialCode: route.inviteLinkCode, via: route.joinVia ?? .code)
         case let .room(roomID):
@@ -256,6 +245,41 @@ struct MainNavigationView: View {
             presentation.path = []
             toasts.show("ルームから退出しました")
         }
+    }
+
+    /// S-04 招待。ルームを作った直後（`invite`。プッシュ）は「ルームへ進む」で下のルームに出る。
+    /// ルームの招待の「＋」から（`inviteMembers`。シート）は、トーストをシートの中に重ねるので、シート用の窓口を作って渡す
+    @ViewBuilder private func invite(_ route: AppRoute) -> some View {
+        switch route {
+        case let .invite(created):
+            InviteView(
+                model: InviteModel(destination: created, toasts: toasts),
+                lastMembers: lastMembersInvite(created, toasts: toasts)
+            ) {
+                presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
+            }
+        case let .inviteMembers(room):
+            let sheetToasts = DGToastCenter()
+            InviteView(
+                model: InviteModel(destination: room, toasts: sheetToasts),
+                lastMembers: lastMembersInvite(room, toasts: sheetToasts),
+                context: .sheet(toasts: sheetToasts)
+            )
+        default:
+            // S-04 で出す行き先は `invite`・`inviteMembers` だけ
+            EmptyView()
+        }
+    }
+
+    /// S-04 の「前回のメンバー（{前回ルーム名}・N人）を招待」
+    private func lastMembersInvite(_ room: InviteDestination, toasts: DGToastCenter) -> LastMembersInviteModel {
+        LastMembersInviteModel(
+            roomID: room.roomID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: toasts
+        )
     }
 
     /// S-12 ルーム設定（シート）。保存できたら、シートを閉じてトーストで知らせる

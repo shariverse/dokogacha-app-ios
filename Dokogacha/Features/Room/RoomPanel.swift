@@ -9,8 +9,7 @@ import SwiftUI
 /// 行き先の黒帯（`DGDestinationBoard`）・「準備OK n/m」・メンバーのアバター・ヒント文言（F-31）・
 /// 「準備OK」「準備OKを取り消す」（F-30）と「強制解禁（作成者）」（F-32）・「あなたの投稿 n/上限件 · いいねの効き方」を並べる。
 ///
-/// メンバーのアバターは 44＋名前 11 で、準備OKの人にはチェックのバッジを付ける。7 人以上は 6 人＋「+N」（`DGAvatarOverflow`）。
-/// 押すとメンバー一覧（S-11）を開く。横には並べきれないので、幅に合わせて折り返す（横スクロールにしない。端からのスワイプで戻る操作とぶつけないため）。
+/// メンバーのアバターの並び（押すとメンバー一覧）と末尾の招待の「＋」は `RoomMemberAvatars`。
 ///
 /// 「準備OK」はオフのとき黄色（`accent.secondary`）、オンのとき白の「準備OKを取り消す」（03 の S-07）。
 /// 「強制解禁（作成者）」は下線付きの文字だけのボタンで、準備OKのボタンの横に置く。文字を大きくして横に入らなければ縦に並べる。
@@ -33,18 +32,6 @@ struct RoomPanel: View {
         var onForceUnlock: () -> Void = {}
     }
 
-    /// 並べるアバターの上限（03 の S-07「7人以上は6人＋「+N」」）
-    private static let maxVisibleAvatars = 6
-    /// メンバーの列の幅（プロトタイプの 56。アバター 44 と名前）
-    private static let memberColumnWidth: CGFloat = 56
-    /// メンバーの名前の大きさ（03 の S-07「名前11pt」）
-    private static let memberNameSize: CGFloat = 11
-    /// メンバーの名前を列の幅に収めるときに縮める下限
-    private static let memberNameMinimumScale: CGFloat = 0.7
-    /// 「+N」の文字の大きさ
-    private static let overflowTextSize: CGFloat = 15
-    /// 「+N」を大きくする上限（円の大きさは変えないので、2〜3 文字が円に収まる大きさで止める）
-    private static let overflowMaxTypeSize = DynamicTypeSize.xxxLarge
     /// 「準備OK」の文字の大きさ（プロトタイプの 14 の太字）
     private static let readyTitleSize: CGFloat = 14
     /// 「/m」の文字の大きさ
@@ -70,10 +57,11 @@ struct RoomPanel: View {
     let likeMode: LikeMode
     /// 準備OKまわり（ヒント・準備OK・強制解禁）
     var readiness = Readiness()
+    /// アバターの並びの末尾の招待の「＋」（nil なら出さない）
+    var invite: RoomMemberAvatars.Invite?
     /// メンバーを押したときの処理（メンバー一覧を開く）
     let onOpenMembers: () -> Void
 
-    @ScaledMetric(relativeTo: .caption) private var memberColumnWidth = RoomPanel.memberColumnWidth
     @Environment(\.timeZone) private var timeZone
     @Environment(\.locale) private var locale
 
@@ -83,7 +71,9 @@ struct RoomPanel: View {
             DGDestinationBoard(capsuleCount: capsuleCount, placement: .cardTop)
             VStack(alignment: .leading, spacing: DGSpacing.s12) {
                 readyHeader
-                memberAvatars
+                RoomMemberAvatars(members: members, memberCount: memberCount, invite: invite, onOpenMembers: onOpenMembers)
+                    // 文字を最大にしても列が 1 つの縦の並びにならないよう、名前と列の幅は xxxLarge で止める（`RoomMemberAvatars`）
+                    .dynamicTypeSize(...RoomMemberAvatars.maxTypeSize)
                 if let hint = readiness.hint {
                     hintText(hint)
                 }
@@ -121,58 +111,6 @@ struct RoomPanel: View {
                 .accessibilityLabel(Text("準備OK \(readyCount)/\(memberCount)人"))
                 .accessibilityIdentifier(RoomView.Identifier.readyCount)
         }
-    }
-
-    /// メンバーのアバター。押すとメンバー一覧（S-11）
-    private var memberAvatars: some View {
-        let overflow = DGAvatarOverflow(total: members.count, limit: Self.maxVisibleAvatars)
-        return Button(action: onOpenMembers) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: memberColumnWidth), spacing: DGSpacing.s8, alignment: .top)],
-                alignment: .leading,
-                spacing: DGSpacing.s8
-            ) {
-                ForEach(members.prefix(overflow.visible)) { member in
-                    memberColumn(member)
-                }
-                if overflow.hidden > 0 {
-                    Text(verbatim: "+\(overflow.hidden)")
-                        .font(.dgBody(Self.overflowTextSize, weight: .black, relativeTo: .caption))
-                        .lineLimit(1)
-                        .dynamicTypeSize(...Self.overflowMaxTypeSize)
-                        .foregroundStyle(Color.dgInk)
-                        .frame(width: DGAvatar.Size.large.diameter, height: DGAvatar.Size.large.diameter)
-                        .background(Color.dgSurfaceMuted, in: Circle())
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.dgBare)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("メンバー"))
-        .accessibilityValue(Text("\(memberCount)人"))
-        .accessibilityHint(Text("メンバー一覧を開きます"))
-        .accessibilityAddTraits(.isButton)
-        .accessibilityIdentifier(RoomView.Identifier.members)
-    }
-
-    /// メンバー 1 人分（アバターと名前）
-    private func memberColumn(_ member: Identified<Member>) -> some View {
-        VStack(spacing: DGSpacing.s4) {
-            DGAvatar(
-                name: member.displayName,
-                color: AvatarPalette.index(of: member.avatarColor).map(Color.dgAvatar(at:)) ?? Color.dgAvatarNotReadyBg,
-                size: .large,
-                readiness: member.ready ? .ready : .notReady
-            )
-            Text(verbatim: member.displayName)
-                .font(.dgBody(Self.memberNameSize, relativeTo: .caption2))
-                .foregroundStyle(Color.dgTextSecondary)
-                .lineLimit(1)
-                // 文字を大きくしても、列の幅で名前が「…」で切れにくいように少しだけ縮める
-                .minimumScaleFactor(Self.memberNameMinimumScale)
-        }
-        .frame(width: memberColumnWidth)
     }
 
     /// ヒント文言（02 の §5.2）

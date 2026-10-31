@@ -33,6 +33,7 @@ enum ScreenshotDemo {
         case homeMemories
         case pastIdeas
         case inviteLastMembers
+        case roomInvite
         case roomAdFree
         case settingsAppleLinked
         case settingsAdFree
