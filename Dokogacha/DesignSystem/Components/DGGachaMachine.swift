@@ -41,6 +41,8 @@ struct DGGachaMachine: View {
         var leverRotationDegrees: Double = 0
         /// ドームのカプセルのずれ（カプセルの番号ごと。無い番号は置き場所のまま）
         var capsuleTransforms: [Int: CapsuleTransform] = [:]
+        /// ほかのカプセルより手前に描くカプセルの番号（底から抜ける当選のカプセル。無ければ nil）
+        var frontCapsuleIndex: Int?
         /// 取り出し口のカプセルの縦のずれ（pt。`drop` で上から落とす）
         var dispensedOffsetY: CGFloat = 0
         /// 取り出し口のカプセルの大きさの倍率（`open` で変える）
@@ -172,12 +174,15 @@ struct DGGachaMachine: View {
                         x: placement.center.x + transform.offset.width,
                         y: placement.center.y + transform.offset.height
                     )
+                    .zIndex(pose.frontCapsuleIndex == placement.index ? 1 : 0)
             }
             Capsule()
                 .fill(Color.dgSurfaceCard.opacity(Self.highlightOpacity))
                 .frame(width: Self.highlightSize.width, height: Self.highlightSize.height)
                 .rotationEffect(.degrees(Self.highlightRotationDegrees))
                 .position(Self.highlightCenter)
+                // ドームのガラスの映り込みなので、手前に描くカプセルよりもさらに手前にする
+                .zIndex(2)
         }
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
