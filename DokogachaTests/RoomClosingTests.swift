@@ -125,10 +125,10 @@ struct RoomClosingTests {
         #expect(RoomClosing.pastIdeas(roomID: "room1", room: empty, candidates: two, closedAt: Self.closedAt).isEmpty)
     }
 
-    /// 当選が無ければ、当選の名前は空のまま、すべての候補を登録する。終了の日時が無ければ引数の日時を使う
+    /// 当選の候補が見つからなければ、当選の名前は空のまま、すべての候補を登録する。終了の日時が無ければ引数の日時を使う
     @Test
-    func pastIdeasWithoutWinner() {
-        var room = Self.room(.closed, members: ["alice"], winner: nil)
+    func pastIdeasWithMissingWinnerCandidate() {
+        var room = Self.room(.closed, members: ["alice"], winner: "c9")
         room.closedAt = nil
         let later = Self.closedAt.addingTimeInterval(60)
         let writes = RoomClosing.pastIdeas(
@@ -139,6 +139,28 @@ struct RoomClosingTests {
         )
         #expect(writes.map(\.ideaID) == ["room1_c1", "room1_c2"])
         #expect(writes.allSatisfy { $0.idea.sourceWinnerName.isEmpty && $0.idea.sourceClosedAt == later })
+    }
+
+    /// 行き先が決まらないまま終了したルームは登録しない（backend の `hasDecidedWinner`・`planPastIdeas` と同じケース。Discussion #155 の Q4）
+    @Test
+    func pastIdeasSkipRoomsClosedWithoutDecidedWinner() {
+        let two = ["c1": Self.candidate("城ヶ島"), "c2": Self.candidate("江の島")]
+        // 抽選の前に途中で終了した（当選が無い）
+        let early = Self.room(.closed, winner: nil)
+        #expect(!RoomClosing.hasDecidedWinner(early))
+        #expect(RoomClosing.pastIdeas(roomID: "room1", room: early, candidates: two, closedAt: Self.closedAt).isEmpty)
+        #expect(!RoomClosing.hasDecidedWinner(Self.room(.closed, winner: "")))
+        // 引き直しが可決して unlocked に戻ったまま終了した（前の当選 c1 は外した候補）
+        var rerolled = Self.room(.closed)
+        rerolled.excludedCandidateIds = ["c1"]
+        #expect(!RoomClosing.hasDecidedWinner(rerolled))
+        #expect(RoomClosing.pastIdeas(roomID: "room1", room: rerolled, candidates: two, closedAt: Self.closedAt).isEmpty)
+        // 引き直した後の当選（前の当選だけを外した）は行き先がある
+        var redrawn = Self.room(.closed, members: ["alice"], winner: "c2")
+        redrawn.excludedCandidateIds = ["c1"]
+        #expect(RoomClosing.hasDecidedWinner(redrawn))
+        let redrawnWrites = RoomClosing.pastIdeas(roomID: "room1", room: redrawn, candidates: two, closedAt: Self.closedAt)
+        #expect(redrawnWrites.map(\.ideaID) == ["room1_c1"])
     }
 
     /// 過去のアイデアの ID は元のルームと候補から決まる（backend の `pastIdeaId`）
