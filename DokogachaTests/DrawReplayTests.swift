@@ -14,6 +14,7 @@ struct DrawReplayTests {
         var room = try #require(InMemoryServer.demo(.roomWithCandidates).rooms[DemoScenario.roomID]?.room)
         room.status = .drawn
         room.currentDrawId = drawID
+        room.winnerCandidateId = drawID == nil ? nil : "demo-candidate-1"
         return room
     }
 
@@ -82,6 +83,18 @@ struct DrawReplayTests {
         var unlocked = room
         unlocked.status = .unlocked
         #expect(DrawReplay.resultDrawID(previous: nil, room: unlocked) == nil)
+    }
+
+    /// 引き直しが可決して unlocked に戻ったまま途中で終了したルームは、前の当選の抽選の ID が残っていても S-14 を出さない（Discussion #155）
+    @Test
+    func resultDoesNotOpenForRoomEndedWithoutResult() throws {
+        var rerolled = try Self.drawnRoom()
+        rerolled.status = .closed
+        rerolled.excludedCandidateIds = ["demo-candidate-1"]
+        #expect(DrawReplay.resultDrawID(previous: nil, room: rerolled) == nil)
+        var early = try Self.drawnRoom(drawID: nil)
+        early.status = .closed
+        #expect(DrawReplay.resultDrawID(previous: nil, room: early) == nil)
     }
 
     /// アプリを閉じていた人がすでに drawn のルームを開くと、S-14 を出す抽選が入る（F-40〜44 の AC「後から開くと、結果画面が表示される」）

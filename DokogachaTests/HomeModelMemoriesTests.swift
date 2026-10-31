@@ -23,6 +23,22 @@ struct HomeModelMemoriesTests {
         #expect(model.memoryTickets.isEmpty)
     }
 
+    /// 行き先が決まらないまま終了したルーム（抽選の前に途中で終了した）しか無ければ、空の表示にする（見出しだけのセクションにしない）。
+    /// その当選した候補は読まない（PR #166 のレビュー）
+    @Test
+    func emptyWhenOnlyRoomsEndedWithoutResult() async {
+        let repository = MemoriesRecordingRepository(server: InMemoryServer.demo(.endedRoom) { RoomModelTests.now })
+        let model = HomeModelTests.makeModel(repository)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+
+        #expect(await AsyncTestSupport.eventually { model.isMemoriesEmpty })
+        #expect(!model.isMemoriesLoading)
+        #expect(model.memoryTickets.isEmpty)
+        #expect(!model.hasMoreMemories)
+        #expect(repository.candidateRoomIDs.isEmpty)
+    }
+
     /// 終了したルームを新しい順に 5 枚まで出し、「すべて見る」で 6 枚目も出す。当選した場所と外れた候補の数を出す。
     /// 押す前は終了したルームを 6 件だけ読み、当選した候補は出す 5 枚の分だけ購読する（PR #78 のレビュー）
     @Test

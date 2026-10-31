@@ -73,6 +73,18 @@ struct RoomClosingTests {
         }
     }
 
+    /// 行き先が決まらないまま終了したルームか（抽選の前に終了した・引き直しの可決の後に終了した）。drawn・決定して終了したルームは false
+    @Test
+    func endedWithoutResultOnlyForClosedWithoutDecidedWinner() {
+        #expect(RoomClosing.endedWithoutResult(Self.room(.closed, winner: nil)))
+        var rerolled = Self.room(.closed)
+        rerolled.excludedCandidateIds = ["c1"]
+        #expect(RoomClosing.endedWithoutResult(rerolled))
+        #expect(!RoomClosing.endedWithoutResult(Self.room(.closed)))
+        #expect(!RoomClosing.endedWithoutResult(Self.room(.drawn)))
+        #expect(!RoomClosing.endedWithoutResult(Self.room(.open, winner: nil)))
+    }
+
     /// closeRoom の状態と意図の突き合わせ（backend の `close/logic.test.ts` の `decideClose` と同じケース）
     @Test
     func decisionMatchesStatusAndReason() {
