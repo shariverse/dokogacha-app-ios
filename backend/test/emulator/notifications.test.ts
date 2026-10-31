@@ -4,6 +4,7 @@
  * - 解禁: Functions の Emulator の `onMemberWrite` が解禁したら全メンバーに送る。`open`⇄`unlocked` を繰り返しても 1 回だけ
  * - 抽選結果: `drawGacha` で `drawn` になると、Functions の Emulator の `onRoomDrawn` が回した人以外に送る（PR #62 の持ち越し）
  * - 引き直しの提案: `proposeReroll` が提案者以外に送る
+ * - 途中の終了: `closeRoom` の `endEarly` が作成者以外に送る（「この行き先で決定」では送らない）
  * - 「登録されていない」トークンを `users.fcmTokens` から外す。送る処理が失敗しても投げない
  *
  * トリガーは非同期に動くので、条件を満たすまで短い間隔で読み直し、上限の時間で打ち切る。
@@ -15,6 +16,8 @@ import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import { AVATAR_COLORS } from "../../functions/src/domain/avatarPalette";
 import type { RandomInt } from "../../functions/src/domain/random";
 import type { ServiceDeps } from "../../functions/src/deps";
+import { closeRoom } from "../../functions/src/close/service";
+import { notifyRoomEnded } from "../../functions/src/close/notify";
 import { drawGacha } from "../../functions/src/draw/service";
 import { notifyRoomDrawn } from "../../functions/src/draw/notify";
 import { EMULATOR_OUTBOX_COLLECTION, EMULATOR_UNREGISTERED_TOKEN_PREFIX, type PushMessage } from "../../functions/src/notifications/sender";
@@ -243,6 +246,44 @@ describe("プッシュ通知（F-60）", () => {
       body: "ぼぶさんが引き直しを提案しています",
       data: { type: "rerollProposed", roomId, target: "result", drawId: result.drawId },
     });
+  });
+
+  it("作成者が途中で終了すると、作成者以外に「{作成者}さんが「{ルーム名}」を終了しました」を 1 回だけ送る", async () => {
+    const roomId = "notify-ended";
+    await addRoom(roomId, { status: "open", ready: [] });
+    await closeRoom(deps(), "alice", { roomId, reason: "endEarly" });
+
+    const sent = await outbox(roomId, "roomEnded");
+    // alice（終了した作成者）を外し、carol はトークンが無い。bob の無効なトークンは失敗して外れる
+    expect(tokensOf(sent)).toEqual(["bob-token"]);
+    expect(sent[0]).toMatchObject({
+      body: "ありすさんが「年末の旅行」を終了しました",
+      data: { type: "roomEnded", roomId, target: "room" },
+    });
+
+    // 二度押し（もう終了している）では送らない。呼び出し口をもう一度呼んでも、印があるので送らない
+    await closeRoom(deps(), "alice", { roomId, reason: "endEarly" });
+    await notifyRoomEnded(deps(), roomId, "alice");
+    expect(await outbox(roomId, "roomEnded")).toHaveLength(1);
+  });
+
+  it("「この行き先で決定」（decide）で終了したときは、途中の終了の通知を送らない", async () => {
+    const roomId = "notify-decided";
+    await addRoom(roomId, { status: "unlocked", ready: MEMBERS });
+    await drawGacha(deps(), "carol", { roomId });
+    await closeRoom(deps(), "alice", { roomId, reason: "decide" });
+
+    expect(await roomStatus(roomId)).toBe("closed");
+    expect(await outbox(roomId, "roomEnded")).toEqual([]);
+  });
+
+  it("途中の終了の通知が送れなくても、closeRoom は成功してルームを終了する", async () => {
+    const roomId = "notify-ended-failure";
+    await addRoom(roomId, { status: "open", ready: [] });
+    const failing = { db, sender: () => Promise.reject(new Error("FCM に繋がらない")) };
+
+    await expect(closeRoom(failing, "alice", { roomId, reason: "endEarly" })).resolves.toEqual({});
+    expect(await roomStatus(roomId)).toBe("closed");
   });
 
   it("送る処理が失敗しても、呼び出し口は投げない（元の Callable・トリガーを失敗させない）", async () => {
