@@ -70,6 +70,7 @@ struct CandidateDetailView: View {
             ScrollView {
                 content
                     .padding(.horizontal, DGSpacing.screenX)
+                    .dgContentColumn()
                     .padding(.top, DGSpacing.s4)
                     .padding(.bottom, DGSpacing.s24)
             }
@@ -129,6 +130,7 @@ struct CandidateDetailView: View {
             }
         }
         .padding(.leading, DGSpacing.s12)
+        .dgContentColumn()
     }
 
     /// 右上の「…」のメニュー（「この投稿を報告」）

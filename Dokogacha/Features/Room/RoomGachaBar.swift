@@ -31,7 +31,7 @@ struct RoomGachaBar: View {
             button(state)
                 .padding(.horizontal, DGSpacing.screenX)
                 .padding(.vertical, DGSpacing.s10)
-                .frame(maxWidth: .infinity)
+                .dgContentColumn()
                 .background(Color.dgBgBase)
                 .overlay(alignment: .top) {
                     Rectangle()

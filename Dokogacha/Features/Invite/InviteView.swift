@@ -66,6 +66,7 @@ struct InviteView: View {
                 }
             }
             .padding(.horizontal, DGSpacing.screenX)
+            .dgContentColumn()
             // ヘッダーのある画面と、内容の始まりの高さをそろえる（プロトタイプの上の余白 56）
             .padding(.top, DGHeader<EmptyView>.height)
             .padding(.bottom, DGSpacing.s16)
@@ -77,6 +78,7 @@ struct InviteView: View {
                 .padding(.horizontal, DGSpacing.screenX)
                 .padding(.top, DGSpacing.s12)
                 .padding(.bottom, DGSpacing.s14)
+                .dgContentColumn()
                 .background(Color.dgBgBase)
         }
         .background(Color.dgBgBase.ignoresSafeArea())

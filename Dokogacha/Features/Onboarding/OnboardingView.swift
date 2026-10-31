@@ -54,6 +54,7 @@ struct OnboardingView: View {
                 .disabled(model.isSubmitting || model.didRegister)
             }
             .padding(.horizontal, DGSpacing.screenX)
+            .dgContentColumn()
             .padding(.top, DGSpacing.s24)
             .padding(.bottom, DGSpacing.s16)
         }
@@ -67,6 +68,7 @@ struct OnboardingView: View {
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.top, DGSpacing.s12)
             .padding(.bottom, DGSpacing.s14)
+            .dgContentColumn()
             .background(Color.dgBgBase)
         }
         .background(Color.dgBgBase.ignoresSafeArea())

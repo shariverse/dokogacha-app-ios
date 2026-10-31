@@ -43,7 +43,7 @@ struct LaunchStatusView: View {
             }
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.vertical, DGSpacing.s24)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .dgContentColumn(alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
         .background(Color.dgBgBase.ignoresSafeArea())

@@ -54,6 +54,7 @@ struct ResultCloseSection: View {
         .padding(.horizontal, DGSpacing.screenX)
         .padding(.top, DGSpacing.s10)
         .padding(.bottom, DGSpacing.s16)
+        .dgContentColumn()
         .background(Color.dgBgBase)
         .confirmationDialog(
             Text("この行き先で決定しますか？"),
@@ -80,6 +81,7 @@ struct ResultCloseSection: View {
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.top, DGSpacing.s10)
             .padding(.bottom, DGSpacing.s16)
+            .dgContentColumn()
             .background(Color.dgBgBase)
             .accessibilityIdentifier(Identifier.ownerNote)
     }

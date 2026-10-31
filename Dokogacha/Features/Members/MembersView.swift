@@ -133,6 +133,7 @@ struct MembersView: View {
                 .accessibilityIdentifier(Identifier.close)
         }
         .padding(.leading, DGSpacing.s12)
+        .dgContentColumn()
     }
 
     // MARK: - 一覧
@@ -166,6 +167,7 @@ struct MembersView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .dgContentColumn()
             .disabled(model.isSending)
         }
     }
@@ -275,6 +277,7 @@ struct MembersView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, DGSpacing.screenX)
+        .dgContentColumn()
         .redacted(reason: .placeholder)
         .disabled(true)
         .accessibilityElement(children: .ignore)
@@ -294,6 +297,7 @@ struct MembersView: View {
         .padding(.horizontal, DGSpacing.screenX)
         .padding(.top, DGSpacing.s12)
         .padding(.bottom, DGSpacing.s14)
+        .dgContentColumn()
         .background(Color.dgBgBase)
         .disabled(model.isSending)
     }
