@@ -111,10 +111,39 @@ struct RoomLayout<Header: View, Content: View, SidePane: View, MainPane: View, B
     }
 }
 
-/// S-07 の最初のルームが届くまでの、部品の形を保った読み込み中の表示（03 の §3）の部品。`redacted` は置く側で付ける
+/// S-07 の最初のルームが届くまでの、部品の形を保った読み込み中の表示（03 の §3）
 enum RoomLoadingPlaceholder {
+    /// 1 列のとき（ルームパネルと候補カード）
+    static var content: some View {
+        VStack(alignment: .leading, spacing: DGSpacing.s14) {
+            panel
+            card
+        }
+        .redacted(reason: .placeholder)
+        .disabled(true)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("読み込み中"))
+    }
+
+    /// 2 列のときの左の列（ルームパネル）
+    static var sidePane: some View {
+        panel
+            .redacted(reason: .placeholder)
+            .disabled(true)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text("読み込み中"))
+    }
+
+    /// 2 列のときの右の列（候補カード。「読み込み中」は左の列で 1 回だけ読む）
+    static var mainPane: some View {
+        card
+            .redacted(reason: .placeholder)
+            .disabled(true)
+            .accessibilityHidden(true)
+    }
+
     /// 読み込み中のルームパネル（中身は空）
-    static var panel: some View {
+    private static var panel: some View {
         RoomPanel(
             capsuleCount: 0,
             readyCount: 0,
@@ -127,7 +156,7 @@ enum RoomLoadingPlaceholder {
     }
 
     /// 読み込み中の候補カード（中身は空）
-    static var card: some View {
+    private static var card: some View {
         DGCandidateCard(
             name: String(localized: "読み込み中"),
             meta: String(localized: "読み込み中"),

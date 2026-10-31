@@ -72,6 +72,9 @@ extension View {
 /// 中身が画面より高いときは、ふつうどおり上から並べてスクロールする（`ScrollAnchorRole.alignment` は初めのスクロールの位置を変えない）。
 /// iPhone（横が compact）では何もしない。iOS 17 には寄せ方の指定（`for: .alignment`）が無いので、上に寄せたままにする
 private struct DGTallScreenCentering: ViewModifier {
+    /// 寄せるか（シートでも開く画面で、シートのときは寄せない）
+    let isEnabled: Bool
+
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
@@ -85,13 +88,14 @@ private struct DGTallScreenCentering: ViewModifier {
 
     /// 縦の中央に寄せるか
     private var centers: Bool {
-        horizontalSizeClass == .regular && verticalSizeClass == .regular
+        isEnabled && horizontalSizeClass == .regular && verticalSizeClass == .regular
     }
 }
 
 extension View {
     /// `ScrollView` に付ける。iPad の大きな画面で、中身が画面より低いときに縦の中央に寄せる（03 の §3「iPad」）
-    func dgCentersContentOnTallScreen() -> some View {
-        modifier(DGTallScreenCentering())
+    /// - Parameter isEnabled: 寄せるか（false なら何もしない）
+    func dgCentersContentOnTallScreen(isEnabled: Bool = true) -> some View {
+        modifier(DGTallScreenCentering(isEnabled: isEnabled))
     }
 }
