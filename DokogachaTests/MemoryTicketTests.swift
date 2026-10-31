@@ -61,6 +61,23 @@ struct MemoryTicketTests {
         #expect(tickets.first?.leftoverCount == 0)
     }
 
+    /// 行き先が決まらないまま終了したルーム（引き直しの可決の後に途中で終了した・抽選の前に終了した）は、
+    /// 当選した候補が届いてもきっぷに出さず、待たない（過去のアイデアも登録しないため。Discussion #155 の Q4）
+    @Test
+    func skipsRoomsClosedWithoutDecidedWinner() {
+        var rerolled = Self.closedRoom("rerolled", daysAgo: 1)
+        rerolled.value.excludedCandidateIds = [rerolled.value.winnerCandidateId ?? ""]
+        var early = Self.closedRoom("early", daysAgo: 2, drawID: nil)
+        early.value.winnerCandidateId = nil
+        let rooms = [rerolled, early, Self.closedRoom("decided", daysAgo: 3)]
+
+        let tickets = MemoryTicket.tickets(rooms: rooms, winners: Self.winners(["rerolled", "early", "decided"]))
+        #expect(tickets.map(\.id) == ["decided"])
+        #expect(!MemoryTicket.canBecomeTicket(rerolled.value))
+        #expect(!MemoryTicket.canBecomeTicket(early.value))
+        #expect(!MemoryTicket.isWaitingForWinners(watched: [rerolled, early], settledRoomIDs: []))
+    }
+
     /// 当選した候補を待つのは、きっぷになりうるルームで、購読がまだ値も失敗も受け取っていないものがある間だけ（PR #78 の持ち越し）
     @Test
     func waitsOnlyForUnsettledWinners() {
