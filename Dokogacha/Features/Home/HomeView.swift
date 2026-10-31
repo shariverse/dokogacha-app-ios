@@ -48,6 +48,7 @@ struct HomeView: View {
     private let navigate: (AppRoute) -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ScaledMetric(relativeTo: .title3) private var settingsIconSize = HomeView.settingsIconSize
 
     /// - Parameters:
@@ -59,21 +60,35 @@ struct HomeView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DGSpacing.s24) {
-                logoArea
-                roomsSection
-                memoriesSection
+        // iPad の広い画面では、進行中のルームと思い出のきっぷを左右の 2 列に分け、どちらもスクロールせずに見えるようにする（03 の §3「iPad」）
+        GeometryReader { proxy in
+            let splits = DGLayout.splitsHome(width: proxy.size.width, sizeClass: horizontalSizeClass)
+            ScrollView {
+                VStack(alignment: .leading, spacing: DGSpacing.s24) {
+                    logoArea
+                    if splits {
+                        HStack(alignment: .top, spacing: DGLayout.columnSpacing) {
+                            roomsSection
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                            memoriesSection
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                    } else {
+                        roomsSection
+                        memoriesSection
+                    }
+                }
+                .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn(maxWidth: splits ? DGLayout.wideContentMaxWidth : DGLayout.contentMaxWidth)
+                .padding(.top, DGSpacing.s24)
+                .padding(.bottom, DGSpacing.s16)
             }
-            .padding(.horizontal, DGSpacing.screenX)
-            .padding(.top, DGSpacing.s24)
-            .padding(.bottom, DGSpacing.s16)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                bottomButtons
-                // ホームの広告は、自分が買ったかだけで決める（F-51。ルームは渡さない）
-                BannerAdSlot(screen: .home)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 0) {
+                    bottomButtons
+                    // ホームの広告は、自分が買ったかだけで決める（F-51。ルームは渡さない）
+                    BannerAdSlot(screen: .home)
+                }
             }
         }
         .background(Color.dgBgBase.ignoresSafeArea())
@@ -242,6 +257,7 @@ struct HomeView: View {
         }
         .padding(.horizontal, DGSpacing.screenX)
         .padding(.vertical, DGSpacing.s12)
+        .dgContentColumn()
         .background(Color.dgBgBase)
     }
 }
