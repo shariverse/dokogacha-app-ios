@@ -140,6 +140,8 @@ enum UITestID {
     static let roomSettingsScreen = "roomSettings.screen"
     /// S-12 の「保存」（`RoomSettingsView.Identifier.save`）
     static let roomSettingsSave = "roomSettings.save"
+    /// S-12 の「ルームを終了する」（`RoomSettingsView.Identifier.endRoom`）
+    static let roomSettingsEndRoom = "roomSettings.endRoom"
     /// S-07 の下部の「行き先きっぷを見る」（`RoomGachaBar.Identifier.result`）
     static let roomResult = "room.result"
     /// S-14 結果（`ResultView.Identifier.screen`）
