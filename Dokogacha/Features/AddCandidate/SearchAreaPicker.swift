@@ -32,6 +32,7 @@ struct SearchAreaPicker: View {
     @State private var isPickingMunicipality = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .caption) private var pinSize = SearchAreaPicker.pinSize
 
     var body: some View {
@@ -65,10 +66,14 @@ struct SearchAreaPicker: View {
 
     // MARK: - 見出し
 
-    /// 「エリア」と、今どこで絞っているかの道筋。VoiceOver では「検索するエリア」と道筋をまとめて読む
+    /// 「エリア」と、今どこで絞っているかの道筋。VoiceOver では「検索するエリア」と道筋をまとめて読む。
+    /// 道筋は名前の途中では折り返さず「›」のところで折り返す。文字が大きいときは、道筋を「エリア」の下の行に回して幅を取る
     private func header(_ scope: SearchScope) -> some View {
         let path = Self.path(of: scope)
-        return HStack(alignment: .firstTextBaseline, spacing: DGSpacing.s8) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: DGSpacing.s4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: DGSpacing.s8))
+        return layout {
             HStack(spacing: DGSpacing.s4) {
                 Image("ui-pin")
                     .renderingMode(.template)
@@ -78,7 +83,7 @@ struct SearchAreaPicker: View {
                 Text("エリア")
             }
             .foregroundStyle(Color.dgTextSecondary)
-            Text(verbatim: path.joined(separator: " › "))
+            Text(verbatim: path.map(Self.unbreakable).joined(separator: " › "))
                 .foregroundStyle(Color.dgInk)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -209,6 +214,11 @@ struct SearchAreaPicker: View {
     static func path(of scope: SearchScope) -> [String] {
         let prefecturePath = scope.prefecture.map(path(to:)) ?? [areaLabel(scope.area)]
         return prefecturePath + [scope.municipality?.name].compactMap(\.self)
+    }
+
+    /// 名前の途中で折り返さない文字列（字の間に WORD JOINER を挟む。「東京 / 都」のように名前が割れないように）
+    private static func unbreakable(_ name: String) -> String {
+        name.map(String.init).joined(separator: "\u{2060}")
     }
 
     /// 都道府県までの道筋（「関東」「東京都」。北海道・沖縄は「北海道」だけ）
