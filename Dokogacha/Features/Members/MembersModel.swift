@@ -14,7 +14,7 @@ import Observation
 /// - 行はメンバーの参加の早い順。アバター・名前・準備OK・投稿数・「作成者」の印を出す
 /// - 作成者は、自分以外のメンバーを削除できる（行のスワイプ → 確認 → Callable の `removeMember`）。作成者は削除できない
 /// - 作成者以外は「ルームから退出」できる（確認 → Callable の `leaveRoom` → 成功したらホームへ）。作成者には出さない（F-05「作成者は退出できない」）
-/// - 「招待する」は S-04 と同じ文面を共有シートで送る。参加できる状態（`open`・`unlocked`）のときだけ押せる
+/// - 「招待する」は S-04 と同じ文面を共有シートで送る。参加できる状態（`open`・`unlocked`）で満員でないときだけ押せる
 ///
 /// 退出・削除は二重に送らず、送っている途中はシートを閉じさせない。失敗したら `AppError` の文言のトーストを出す（シートは閉じない）。
 /// ルームが無くなった・自分が外されたとき（購読が `.missing`）は `shouldClose` を立て、画面はシートを閉じる。
@@ -139,17 +139,11 @@ final class MembersModel {
         return current.ownerId != room.userID
     }
 
-    /// 「招待する」で送る文面（S-04 と同じ）。参加できない状態（`drawn`・`closed`）・ルームが届くまでは nil
+    /// 「招待する」で送る文面（S-04 と同じ）。参加できない状態（`drawn`・`closed`）・満員（20 人）・ルームが届くまでは nil
+    /// （S-07 の招待の「＋」と同じ判定。`RoomModel.inviteAvailability`）
     var shareMessage: String? {
-        guard let current = room.room, Self.invitableStatuses.contains(current.status),
-              let code = InviteCode(current.inviteCode) else {
-            return nil
-        }
-        return InviteModel.shareMessage(roomName: current.name, inviteCode: code)
+        room.inviteDestination.map { InviteModel.shareMessage(roomName: $0.roomName, inviteCode: $0.inviteCode) }
     }
-
-    /// 招待できるルームの状態（02 の F-04「参加条件：ルームが open または unlocked」）
-    static let invitableStatuses: Set<RoomStatus> = [.open, .unlocked]
 
     /// シートを閉じるか（ルームが無くなった・自分が外された）。
     ///
