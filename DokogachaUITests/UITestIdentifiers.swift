@@ -148,6 +148,8 @@ enum UITestID {
     static let roomResult = "room.result"
     /// S-07 の下部の「このルームは終了しています」（`RoomGachaBar.Identifier.ended`）
     static let roomEnded = "room.ended"
+    /// S-07 の候補が 0 件のときの案内（`RoomView.Identifier.empty`）
+    static let roomEmpty = "room.empty"
     /// S-14 結果（`ResultView.Identifier.screen`）
     static let resultScreen = "result.screen"
     /// S-14 の「行き先が決まりました」（`ResultView.Identifier.title`）

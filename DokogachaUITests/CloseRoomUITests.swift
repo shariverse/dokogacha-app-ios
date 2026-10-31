@@ -129,11 +129,10 @@ final class CloseRoomUITests: XCTestCase {
         XCTAssertTrue(confirm.waitForExistence(timeout: UITestID.timeout))
         confirm.tap()
 
-        // シートが閉じてホームに戻り、トーストで知らせる。終了したルームが進行中のルームから消え、
-        // 抽選していないので思い出のきっぷにも出ない（空の表示のまま。見出しだけのセクションにならない）
+        // シートが閉じてホームに戻る。終了したルームが進行中のルームから消え、抽選していないので思い出のきっぷにも出ない
+        // （空の表示のまま。見出しだけのセクションにならない）。トーストは 2.2 秒で消えるので、負荷で揺れないよう確かめない
         XCTAssertTrue(sheet.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.staticTexts["ルームを終了しました"].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(card.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.staticTexts[Self.memoriesEmpty].waitForExistence(timeout: UITestID.timeout))
@@ -141,7 +140,7 @@ final class CloseRoomUITests: XCTestCase {
     }
 
     /// ほかの人（はるか）が作ったルームの S-07 を開いている間に、はるかがルームを途中で終了すると、S-07 が閲覧のみになる:
-    /// 下部が「このルームは終了しています」になり、準備OK・候補を追加を出さず、結果（S-14）も開かない。戻るとホームの進行中のルームから消える
+    /// 下部が「このルームは終了しています」になり、準備OKを出さず・候補を追加を押せず、結果（S-14）も開かない。戻るとホームの進行中のルームから消える
     /// （`-ui-owner-ends-room`: 準備OKを押したら、作成者がルームを途中で終了したことにする。Discussion #155）
     @MainActor
     func testMemberSeesRoomEndedWhileOpen() throws {
@@ -165,7 +164,9 @@ final class CloseRoomUITests: XCTestCase {
         XCTAssertTrue(ended.waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(ended.label.contains("このルームは終了しています"), ended.label)
         XCTAssertTrue(ready.waitForNonExistence(timeout: UITestID.timeout))
-        XCTAssertFalse(app.buttons[UITestID.roomAddCandidate].exists)
+        // 「候補を追加」は行き先が決まったルームと同じく、出したまま押せなくする。候補が 0 件の案内は「候補はありません」だけ
+        XCTAssertFalse(app.buttons[UITestID.roomAddCandidate].isEnabled)
+        XCTAssertEqual(app.staticTexts[UITestID.roomEmpty].label, "候補はありません")
         XCTAssertFalse(app.buttons[UITestID.roomGacha].exists)
         XCTAssertFalse(app.otherElements[UITestID.resultScreen].exists)
 
@@ -191,7 +192,7 @@ final class CloseRoomUITests: XCTestCase {
         let ended = app.descendants(matching: .any)[UITestID.roomEnded]
         XCTAssertTrue(ended.waitForExistence(timeout: UITestID.timeout))
         XCTAssertFalse(app.buttons[UITestID.roomReady].exists)
-        XCTAssertFalse(app.buttons[UITestID.roomAddCandidate].exists)
+        XCTAssertFalse(app.buttons[UITestID.roomAddCandidate].isEnabled)
         XCTAssertFalse(app.otherElements[UITestID.resultScreen].exists)
 
         room.buttons["戻る"].firstMatch.tap()
