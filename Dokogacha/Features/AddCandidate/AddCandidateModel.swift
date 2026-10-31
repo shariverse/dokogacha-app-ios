@@ -190,9 +190,10 @@ final class AddCandidateModel {
         )
     }
 
-    /// 「候補に追加」を押せるか（入力が正しく、送っている途中でない）
+    /// 「候補に追加」を押せるか（入力が正しく、送っている途中でなく、ルームが投稿を受け付ける状態）。
+    /// S-09 を開いている間に、ほかの人がガチャを回した・作成者が途中で終了したら押せなくする（送っても断られるため。Discussion #155）
     var canSubmit: Bool {
-        request != nil && !isSubmitting && !isLiking && finish == nil
+        request != nil && !isSubmitting && !isLiking && finish == nil && acceptsCandidates
     }
 
     /// いまの画面に合わせたトースト（S-09 を出していればシートの中）
