@@ -51,6 +51,8 @@
 - 撮影モードの `result` は、Mac が混んでいる（load average 300 前後）と、白い画面 → きっぷの形の読み込み中 → 結果の順に 1 分ほどかかる。続けて撮った 2 枚が同じになるまで待つだけでは白い画面や読み込み中の形を撮るので、初めに長めに待つか、白い画面（PNG が小さい）なら撮り直す（2026-10-31）
 - iOS 26.5 の Simulator では、iPhone でも `confirmationDialog` が付けた View を指す吹き出しで出る（画面全体に付けると画面の中央に出て、ボタンを指さない）。iOS 18 までの iPhone の下からのアクションシートとは違う。押したボタンに付けると、iPad のポップオーバーも iOS 26 の iPhone もそのボタンを指す。`ViewThatFits` の 2 つの並べ方の両方に同じダイアログを付けても、出るのは表示している側の 1 つだけだった（二重に出す警告も出ない）（2026-11-01）
 - 押す操作が要る画面（共有シートなど）の Before を撮るときは、今のブランチで `build-for-testing` した xctestrun の写しを作り、`UITargetAppPath`・`DependentProductPaths` の `Dokogacha.app` を変更前のビルドの .app のパスに書き換えて `test-without-building -xctestrun` に渡すと、同じ一時的な UI テストで変更前のアプリを動かせる。UI テストの `XCUIScreen.main.screenshot()` は、Simulator からホストの絶対パスに書き出せる（2026-11-01）
+- `List` の `swipeActions` のボタンを `role: .destructive` にすると、押した時点で行を消す動きが入り、その行に付けた `confirmationDialog` が出ない（iOS 26.5 の iPhone・iPad の Simulator）。確認してから消すときは role を付けず、色だけ `.tint` で付ける。iOS 26 の `confirmationDialog` は押したところを指して出て「キャンセル」のボタンが無いので、UI テストではダイアログの外を押して取り消す（画面の上端はステータスバーに取られて閉じない）（2026-11-01）
+- develop を取り込んだ後、取り込む前と同じ DerivedData に差分でビルドしたアプリでは `DeleteAccountUITests` が毎回落ちた（アカウントを削除した後のサインインで止まる）。同じコードを新しい DerivedData でビルドすると通った。取り込みの後に関係の無い UI テストが落ちたら、まず DerivedData を作り直して確かめる（2026-11-01）
 
 ## 場所検索（MapKit）
 
