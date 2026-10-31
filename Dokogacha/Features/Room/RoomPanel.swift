@@ -9,7 +9,7 @@ import SwiftUI
 /// 行き先の黒帯（`DGDestinationBoard`）・「準備OK n/m」・メンバーのアバター・ヒント文言（F-31）・
 /// 「準備OK」「準備OKを取り消す」（F-30）と「強制解禁（作成者）」（F-32）・「あなたの投稿 n/上限件 · いいねの効き方」を並べる。
 ///
-/// メンバーのアバターの並び（押すとメンバー一覧）は `RoomMemberAvatars`。
+/// メンバーのアバターの並び（押すとメンバー一覧）と末尾の招待の「＋」は `RoomMemberAvatars`。
 ///
 /// 「準備OK」はオフのとき黄色（`accent.secondary`）、オンのとき白の「準備OKを取り消す」（03 の S-07）。
 /// 「強制解禁（作成者）」は下線付きの文字だけのボタンで、準備OKのボタンの横に置く。文字を大きくして横に入らなければ縦に並べる。
@@ -57,6 +57,8 @@ struct RoomPanel: View {
     let likeMode: LikeMode
     /// 準備OKまわり（ヒント・準備OK・強制解禁）
     var readiness = Readiness()
+    /// アバターの並びの末尾の招待の「＋」（nil なら出さない）
+    var invite: RoomMemberAvatars.Invite?
     /// メンバーを押したときの処理（メンバー一覧を開く）
     let onOpenMembers: () -> Void
 
@@ -69,7 +71,7 @@ struct RoomPanel: View {
             DGDestinationBoard(capsuleCount: capsuleCount, placement: .cardTop)
             VStack(alignment: .leading, spacing: DGSpacing.s12) {
                 readyHeader
-                RoomMemberAvatars(members: members, memberCount: memberCount, onOpenMembers: onOpenMembers)
+                RoomMemberAvatars(members: members, memberCount: memberCount, invite: invite, onOpenMembers: onOpenMembers)
                 if let hint = readiness.hint {
                     hintText(hint)
                 }
