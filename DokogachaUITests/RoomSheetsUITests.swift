@@ -86,4 +86,65 @@ final class RoomSheetsUITests: XCTestCase {
         XCTAssertTrue(sheet.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.staticTexts["あなたの投稿 1/5件 · 共感ブースト"].waitForExistence(timeout: UITestID.timeout))
     }
+
+    /// 作成者が S-11 でメンバーの行をスワイプして「削除」を押すと、確認のダイアログが出る（行に付けたダイアログ）。
+    /// 取り消すと行は残り、「削除する」で一覧から消える（F-05）
+    @MainActor
+    func testOwnerRemovesMemberBySwipe() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "room-with-candidates"]
+        app.launch()
+
+        let card = app.buttons[UITestID.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
+        card.tap()
+        let members = app.buttons[UITestID.roomMembers]
+        XCTAssertTrue(members.waitForExistence(timeout: UITestID.timeout))
+        members.tap()
+        XCTAssertTrue(app.otherElements[UITestID.membersScreen].waitForExistence(timeout: UITestID.timeout))
+        let row = app.descendants(matching: .any)[UITestID.membersRow("demo-sota")]
+        XCTAssertTrue(row.waitForExistence(timeout: UITestID.timeout))
+
+        // 取り消すと、そうたは一覧に残る
+        let confirm = swipeToRemove(row, in: app)
+        dismissDialog(in: app)
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(row.exists)
+
+        // 「削除する」で一覧から消える
+        swipeToRemove(row, in: app).tap()
+        XCTAssertTrue(row.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.descendants(matching: .any)[UITestID.membersRow("demo-mio")].exists)
+    }
+
+    /// 行をスワイプして「削除」を押し、確認のダイアログが出るのを待つ。ダイアログの「削除する」を返す
+    @MainActor
+    @discardableResult
+    private func swipeToRemove(
+        _ row: XCUIElement,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> XCUIElement {
+        row.swipeLeft()
+        let remove = app.buttons["削除"]
+        XCTAssertTrue(remove.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
+        remove.tap()
+        XCTAssertTrue(app.staticTexts["そうたさんをルームから削除しますか？"].waitForExistence(timeout: UITestID.timeout), file: file, line: line)
+        let confirm = app.buttons["削除する"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
+        return confirm
+    }
+
+    /// 確認のダイアログを取り消す（下からのダイアログは「キャンセル」。ボタンを指して出るダイアログは「キャンセル」が無いので、外を押す）
+    @MainActor
+    private func dismissDialog(in app: XCUIApplication) {
+        let cancel = app.buttons["キャンセル"]
+        if cancel.exists, cancel.isHittable {
+            cancel.tap()
+        } else {
+            // ダイアログ（上の方の行を指して出る）の外の、画面の下の方を押す。上端はステータスバーに取られる
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)).tap()
+        }
+    }
 }
