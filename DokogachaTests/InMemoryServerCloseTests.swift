@@ -94,16 +94,35 @@ struct InMemoryServerCloseTests {
         #expect(server.pastIdeas.isEmpty)
     }
 
-    /// endEarly（S-12 の「ルームを終了する」）: 作成者は抽選の前の open・unlocked のルームを closed にできる
+    /// endEarly（S-12 の「ルームを終了する」）: 作成者は抽選の前の open・unlocked のルームを closed にできる。
+    /// 行き先が決まっていないので、過去のアイデアは誰にも登録しない（Discussion #155 の Q4）
     @Test(arguments: [RoomStatus.open, .unlocked])
     func ownerEndsRoomEarlyBeforeDraw(status: RoomStatus) throws {
         let server = Self.makeServer()
         server.rooms[Self.roomID]?.room.status = status
+        server.rooms[Self.roomID]?.room.currentDrawId = nil
+        server.rooms[Self.roomID]?.room.winnerCandidateId = nil
         try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: DemoScenario.myUserID)
 
         let room = try #require(server.rooms[Self.roomID]?.room)
         #expect(room.status == .closed)
         #expect(room.closedAt == RoomModelTests.now)
+        #expect(server.pastIdeas.isEmpty)
+    }
+
+    /// 引き直しが可決して unlocked に戻ったまま途中で終了したルーム（前の当選は外した候補）も、過去のアイデアを登録しない
+    @Test
+    func endingRerolledRoomEarlyRegistersNoPastIdeas() throws {
+        let server = Self.makeServer()
+        try server.proposeReroll(RoomRequest(roomId: Self.roomID), by: Self.haruka)
+        try server.voteReroll(VoteRerollRequest(roomId: Self.roomID, approve: true), by: DemoScenario.myUserID)
+        let rerolled = try #require(server.rooms[Self.roomID]?.room)
+        #expect(rerolled.status == .unlocked)
+        #expect(rerolled.excludedCandidateIds.contains(rerolled.winnerCandidateId ?? ""))
+
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: DemoScenario.myUserID)
+        #expect(server.rooms[Self.roomID]?.room.status == .closed)
+        #expect(server.pastIdeas.isEmpty)
     }
 
     /// endEarly で drawn（確認の間にほかの人がガチャを回した）は room-already-decided。drawn のまま・過去のアイデアも登録しない

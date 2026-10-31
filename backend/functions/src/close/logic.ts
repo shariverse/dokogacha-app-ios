@@ -146,6 +146,8 @@ export interface ClosedRoomSource {
   name: string;
   /** 当選した候補の ID（無ければ null） */
   winnerCandidateId: string | null;
+  /** 引き直しで外した候補の ID（前の当選。`hasDecidedWinner` で使う） */
+  excludedCandidateIds: readonly string[];
   /** 終了したときのメンバーの uid */
   memberIds: readonly string[];
   /** 終了の日時（並び替え用。`sourceClosedAt`） */
@@ -174,7 +176,27 @@ function placeOf(place: unknown): Place | null {
 }
 
 /**
+ * 終了したルームに、行き先（今の当選）があるか（過去のアイデアを登録するか。Discussion #155 の Q4）。
+ *
+ * 当選の ID があり、引き直しで外した候補（`excludedCandidateIds`）に入っていなければ true。
+ * - 「この行き先で決定」・抽選から 7 日の自動の終了（`drawn` から終了）: true
+ * - 抽選の前に途中で終了した（S-12 の「ルームを終了する」）・アカウントの削除で終了した `open`・`unlocked` のルーム: 当選が無いので false
+ * - 引き直しが可決して `unlocked` に戻ったまま終了したルーム: 前の当選は外した候補に入っている（`excludedAfterPass`）ので false
+ *   （まだ引き直していない＝行き先が決まっていない。途中でやめたルームと同じく登録しない）
+ * @param room 終了したルームの当選と、引き直しで外した候補
+ */
+export function hasDecidedWinner(room: Pick<ClosedRoomSource, "winnerCandidateId" | "excludedCandidateIds">): boolean {
+  return (
+    typeof room.winnerCandidateId === "string" &&
+    room.winnerCandidateId !== "" &&
+    !room.excludedCandidateIds.includes(room.winnerCandidateId)
+  );
+}
+
+/**
  * 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデアにする（02 の §6.5・§3.4 F-13）。
+ *
+ * 行き先が決まらないまま終了したルーム（`hasDecidedWinner` が false。抽選の前に途中で終了したなど）は、何も登録しない（Discussion #155 の Q4）。
  *
  * - 対象は当選した候補（`winnerCandidateId`）以外のすべて。引き直しで除外された前の当選も入れる（02 の §3.4）。
  *   自分以外の投稿も入れる（02 の §3.4「自分以外の投稿も含む」）
@@ -190,6 +212,9 @@ export function planPastIdeas(
   room: ClosedRoomSource,
   candidates: readonly { id: string; data: Partial<CandidateDoc> }[],
 ): PastIdeaWrite[] {
+  if (!hasDecidedWinner(room)) {
+    return [];
+  }
   const winner = candidates.find((candidate) => candidate.id === room.winnerCandidateId);
   const winnerName = placeOf(winner?.data.place)?.name ?? "";
   const ideas = [...candidates]

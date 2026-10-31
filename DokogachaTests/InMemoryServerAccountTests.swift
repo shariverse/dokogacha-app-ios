@@ -67,6 +67,22 @@ struct InMemoryServerAccountTests {
         #expect(server.signedInUserID == nil)
     }
 
+    /// 抽選の前の作成者のルーム（当選が無い）は、アカウントの削除で終了しても過去のアイデアを登録しない
+    /// （backend の account の Emulator のテストと同じ。Discussion #155 の Q4）
+    @Test
+    func closingOwnRoomBeforeDrawRegistersNoPastIdeas() throws {
+        let server = InMemoryServer.demo(.drawnRooms) { RoomModelTests.now }
+        server.rooms[DemoScenario.drawnRoomID]?.room.status = .unlocked
+        server.rooms[DemoScenario.drawnRoomID]?.room.currentDrawId = nil
+        server.rooms[DemoScenario.drawnRoomID]?.room.winnerCandidateId = nil
+
+        try server.deleteAccount(by: DemoScenario.myUserID)
+
+        #expect(server.rooms[DemoScenario.drawnRoomID]?.room.status == .closed)
+        #expect(server.pastIdeas[Self.haruka]?["\(DemoScenario.drawnRoomID)_drawn-mine-2"] == nil)
+        #expect(server.pastIdeas.values.allSatisfy { ideas in ideas.values.allSatisfy { $0.sourceRoomId != DemoScenario.drawnRoomID } })
+    }
+
     /// 作成者のルームで引き直しの投票中なら、終了と同時に否決にする（`expireRerolls` が終了したルームを後から書き換えない）
     @Test
     func closingOwnRoomRejectsVotingReroll() throws {
