@@ -56,6 +56,8 @@ final class RoomModel {
         case waiting
         /// 行き先が決まった（`drawn`・`closed`。「行き先きっぷを見る」で S-14 を開く。抽選の ID）
         case result(drawID: String)
+        /// 行き先が決まらないまま終了した（作成者が途中で終了した。「このルームは終了しています」。押せない）
+        case ended
     }
 
     /// 購読の種類（どれが失敗しているかを覚えて、トーストを 1 回にする）
