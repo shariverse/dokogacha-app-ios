@@ -50,6 +50,13 @@
 - `simctl` には向きを変える命令が無い。iPad の横向きは、一時的な UI テストで `XCUIDevice.shared.orientation = .landscapeLeft` にしてから `simctl launch` で撮影モードを起動すると撮れる（テストの後も横向きのまま残る）。`test-without-building` の途中で同じ DerivedData にビルドし直すと、テストが進まなくなる（2026-10-31）
 - 撮影モードの `result` は、Mac が混んでいる（load average 300 前後）と、白い画面 → きっぷの形の読み込み中 → 結果の順に 1 分ほどかかる。続けて撮った 2 枚が同じになるまで待つだけでは白い画面や読み込み中の形を撮るので、初めに長めに待つか、白い画面（PNG が小さい）なら撮り直す（2026-10-31）
 
+## 場所検索（MapKit）
+
+- `MKPlacemark.locality` は、同じ市区町村でも形がそろわない（Mac の MapKit で確かめた形）。政令指定都市は「中区, 横浜市」「横浜市」（区は `subLocality`）「札幌市中央区」、郡の町村は「足柄下郡箱根町」「箱根町」「足柄下郡」（町は `subLocality`）。
+  英語の端末では同じ検索の結果に「Kanagawa」「Hakone, Ashigarashimo-Gun」のような英語の値が混ざる（全部ではない）。市区町村で絞るときは `PlaceLocality` で吸収し、日本語でなければ座標で決める（2026-10-31）
+- `MKLocalSearch` の住所の検索（`resultTypes = .address`、語は「東京都豊島区」）の `response.boundingRegion` は、市区町村のおおよその広さになる（豊島区で 0.03×0.08 度、浜松市で 0.66×0.57 度）。都道府県の語では本土の外まで広がる（鹿児島県は奄美群島の南の北緯 26.9 度から、島根県は北緯 37.3 度まで、東京都は東経 140.4 度まで）ので、都道府県の範囲には使わず `Prefecture.all` に本土を囲む矩形を持っている（2026-10-31）
+- Mac のコマンドラインの Swift で `MKLocalSearch` を試すとき、`DispatchSemaphore` でメインスレッドを待たせると結果が返らず止まる。`Task { @MainActor in … ; exit(0) }` の後に `RunLoop.main.run()` で回す（2026-10-31）
+
 ## backend（Firebase）
 
 - Node 22 で使える版: `@firebase/rules-unit-testing` 6 は Node 24.12 以上が要るので 5 系（peer の `firebase` は 12 系）を使う。TypeScript は 6.0 系に留める（`typescript-eslint` は 6.1 未満、`ts-jest` は 7 未満まで）（2026-10-22）
