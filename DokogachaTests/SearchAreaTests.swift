@@ -7,7 +7,7 @@
 import Foundation
 import Testing
 
-/// S-08 の検索のエリア（`SearchArea`）を確かめる: 地方の矩形に主な都市が入る・都道府県の分け方・結果を残すかの判定（Issue #131）
+/// S-08 の検索のエリアの地方（`SearchArea`）を確かめる: 地方の矩形に主な都市が入る・都道府県の分け方（Issue #131・#160）
 struct SearchAreaTests {
     /// 地方の主な都市・端の町
     nonisolated struct City: Sendable, CustomTestStringConvertible {
@@ -64,19 +64,6 @@ struct SearchAreaTests {
         City(.okinawa, "宮古島", 24.80, 125.28)
     ]
 
-    /// 地方の名前（都道府県）で作った MapKit の結果の写し
-    static func hit(_ administrativeArea: String?, latitude: Double = 35.68, longitude: Double = 139.77) -> PlaceSearchHit {
-        PlaceSearchHit(
-            name: "場所",
-            administrativeArea: administrativeArea,
-            locality: nil,
-            latitude: latitude,
-            longitude: longitude,
-            mapItemID: nil,
-            pointOfInterestCategory: nil
-        )
-    }
-
     /// 地方の矩形に、その地方の主な都市と端の町が入る
     @Test(arguments: Self.cities)
     func areaBoundsContainCities(city: City) {
@@ -92,66 +79,36 @@ struct SearchAreaTests {
         #expect(nationwide.contains(latitude: bounds.maxLatitude, longitude: bounds.maxLongitude))
     }
 
-    /// 地方の都道府県は、47 の都道府県を重ならずに 1 回ずつ持つ。全国は都道府県で絞らない
+    /// 地方の都道府県は、47 の都道府県を重ならずに 1 回ずつ持つ（#131 の地方の分け方のまま）。全国は都道府県で絞らない
     @Test
     func prefecturesCoverJapanOnce() {
-        let prefectures = SearchArea.allPrefectures
+        let prefectures = SearchArea.allCases.flatMap(\.prefectures)
         #expect(prefectures.count == 47)
-        #expect(Set(prefectures).count == 47)
-        #expect(SearchArea.nationwide.prefectures == nil)
-        #expect(SearchArea.allCases.filter { $0 != .nationwide }.allSatisfy { !($0.prefectures ?? []).isEmpty })
+        #expect(Set(prefectures.map(\.code)).count == 47)
+        #expect(SearchArea.nationwide.prefectures.isEmpty)
+        #expect(SearchArea.allCases.filter { $0 != .nationwide }.allSatisfy { !$0.prefectures.isEmpty })
+        #expect(SearchArea.kanto.prefectures.map(\.name) == ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"])
+        #expect(SearchArea.chugokuShikoku.prefectures.map(\.name) == [
+            "鳥取県", "島根県", "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県"
+        ])
     }
 
-    /// 都道府県の名前は「都」「府」「県」が無くても当て、都道府県でないものは nil
+    /// 都道府県が 1 つだけの地方（北海道・沖縄）は、地方を選べば都道府県も決まる
     @Test
-    func prefectureNames() {
-        #expect(SearchArea.prefecture(named: "東京都") == "東京都")
-        #expect(SearchArea.prefecture(named: "東京") == "東京都")
-        #expect(SearchArea.prefecture(named: "京都") == "京都府")
-        #expect(SearchArea.prefecture(named: " 大阪府 ") == "大阪府")
-        #expect(SearchArea.prefecture(named: "北海道") == "北海道")
-        #expect(SearchArea.prefecture(named: "京") == nil)
-        #expect(SearchArea.prefecture(named: "Tokyo") == nil)
-        #expect(SearchArea.prefecture(named: "") == nil)
-        #expect(SearchArea.prefecture(named: nil) == nil)
-    }
-
-    /// 全国はすべての結果を残す
-    @Test
-    func nationwideKeepsEverything() {
-        #expect(SearchArea.nationwide.keeps(Self.hit("大阪府")))
-        #expect(SearchArea.nationwide.keeps(Self.hit(nil, latitude: 37.5, longitude: 127.0)))
-    }
-
-    /// 地方は、都道府県が分かれば地方の都道府県だけを残す（矩形に入る隣の地方の結果も取り除く）
-    @Test
-    func areaKeepsOnlyItsPrefectures() {
-        #expect(SearchArea.kanto.keeps(Self.hit("東京都")))
-        #expect(SearchArea.kanto.keeps(Self.hit("東京")))
-        // 中部の矩形に入る埼玉県・群馬県の結果は、中部では取り除く
-        #expect(!SearchArea.chubu.keeps(Self.hit("埼玉県", latitude: 36.0, longitude: 139.4)))
-        #expect(!SearchArea.chubu.keeps(Self.hit("群馬県", latitude: 36.4, longitude: 139.0)))
-        #expect(!SearchArea.kanto.keeps(Self.hit("大阪府", latitude: 34.69, longitude: 135.50)))
-        #expect(SearchArea.kansai.keeps(Self.hit("大阪府", latitude: 34.69, longitude: 135.50)))
-    }
-
-    /// 都道府県が無い・知らない形のときは、座標が地方の矩形に入るかで決める
-    @Test
-    func areaFallsBackToBoundsWithoutPrefecture() {
-        #expect(SearchArea.kanto.keeps(Self.hit(nil, latitude: 35.68, longitude: 139.77)))
-        #expect(SearchArea.kanto.keeps(Self.hit("Tokyo", latitude: 35.68, longitude: 139.77)))
-        #expect(!SearchArea.kanto.keeps(Self.hit(nil, latitude: 34.69, longitude: 135.50)))
-        #expect(!SearchArea.kanto.keeps(Self.hit("Osaka", latitude: 34.69, longitude: 135.50)))
+    func soloPrefectureOnlyForHokkaidoAndOkinawa() {
+        #expect(SearchArea.hokkaido.soloPrefecture?.name == "北海道")
+        #expect(SearchArea.okinawa.soloPrefecture?.name == "沖縄県")
+        #expect(SearchArea.allCases.filter { $0.soloPrefecture != nil } == [.hokkaido, .okinawa])
     }
 
     /// 初めのエリアは全国（06 の §4 の仮決め）
     @Test
-    func initialAreaIsNationwide() {
-        #expect(DomainConstants.SearchRegion.initialArea == .nationwide)
+    func initialScopeIsNationwide() {
+        #expect(DomainConstants.SearchRegion.initialScope == .nationwide)
     }
 }
 
-/// S-08 で選んだ検索のエリアを端末に覚える（Issue #131）
+/// S-08 で選んだ検索のエリアを端末に覚える（Issue #131・#160）
 struct SearchAreaStoreTests {
     /// テストだけで使う `UserDefaults`（ほかのテスト・アプリの値と混ぜない）
     static func makeDefaults() throws -> UserDefaults {
@@ -165,19 +122,49 @@ struct SearchAreaStoreTests {
     @Test
     func remembersAcrossInstances() throws {
         let defaults = try Self.makeDefaults()
-        #expect(UserDefaultsSearchAreaStore(defaults: defaults).area == DomainConstants.SearchRegion.initialArea)
+        #expect(UserDefaultsSearchAreaStore(defaults: defaults).scope == DomainConstants.SearchRegion.initialScope)
 
-        UserDefaultsSearchAreaStore(defaults: defaults).save(.kansai)
-        #expect(UserDefaultsSearchAreaStore(defaults: defaults).area == .kansai)
+        UserDefaultsSearchAreaStore(defaults: defaults).save(SearchScope(area: .kansai))
+        #expect(UserDefaultsSearchAreaStore(defaults: defaults).scope == SearchScope(area: .kansai))
         #expect(defaults.string(forKey: UserDefaultsSearchAreaStore.key) == "kansai")
+        #expect(defaults.object(forKey: UserDefaultsSearchAreaStore.prefectureKey) == nil)
+    }
+
+    /// 都道府県・市区町村まで覚え、一段上に戻したら下の段は忘れる
+    @Test
+    func remembersPrefectureAndMunicipality() throws {
+        let defaults = try Self.makeDefaults()
+        let store = UserDefaultsSearchAreaStore(defaults: defaults)
+        let sumida = try #require(MunicipalityCatalog.bundled.municipality(code: "131075"))
+        let sumidaScope = try #require(SearchScope(municipality: sumida))
+
+        store.save(sumidaScope)
+        #expect(UserDefaultsSearchAreaStore(defaults: defaults).scope == sumidaScope)
+        #expect(defaults.string(forKey: UserDefaultsSearchAreaStore.key) == "kanto")
+        #expect(defaults.integer(forKey: UserDefaultsSearchAreaStore.prefectureKey) == 13)
+        #expect(defaults.string(forKey: UserDefaultsSearchAreaStore.municipalityKey) == "131075")
+
+        let tokyo = try #require(Prefecture.code(13))
+        store.save(SearchScope(prefecture: tokyo))
+        #expect(UserDefaultsSearchAreaStore(defaults: defaults).scope == SearchScope(prefecture: tokyo))
+        #expect(defaults.object(forKey: UserDefaultsSearchAreaStore.municipalityKey) == nil)
+    }
+
+    /// #131 の版で地方だけを覚えた端末は、同じ地方全体を選んだ状態で開く
+    @Test(arguments: SearchArea.allCases)
+    func migratesAreaOnlyValue(area: SearchArea) throws {
+        let defaults = try Self.makeDefaults()
+        defaults.set(area.rawValue, forKey: UserDefaultsSearchAreaStore.key)
+        #expect(UserDefaultsSearchAreaStore(defaults: defaults).scope == SearchScope(area: area))
     }
 
     /// 覚えた値が知らないエリア（新しい版で消したエリアなど）なら、初めのエリアにする
     @Test
-    func unknownValueFallsBackToInitialArea() throws {
+    func unknownValueFallsBackToInitialScope() throws {
         let defaults = try Self.makeDefaults()
         defaults.set("tokai", forKey: UserDefaultsSearchAreaStore.key)
-        #expect(UserDefaultsSearchAreaStore(defaults: defaults).area == DomainConstants.SearchRegion.initialArea)
+        defaults.set(13, forKey: UserDefaultsSearchAreaStore.prefectureKey)
+        #expect(UserDefaultsSearchAreaStore(defaults: defaults).scope == DomainConstants.SearchRegion.initialScope)
     }
 
     /// 擬似のサーバーの窓口は、メモリにだけ覚える（端末に残さない）
@@ -185,7 +172,7 @@ struct SearchAreaStoreTests {
     func inMemoryServicesDoNotUseUserDefaults() {
         let services = DataServices.inMemory(InMemoryServer.demo(.empty), scenario: .empty)
         #expect(services.searchArea is InMemorySearchAreaStore)
-        services.searchArea.save(.okinawa)
-        #expect(services.searchArea.area == .okinawa)
+        services.searchArea.save(SearchScope(area: .okinawa))
+        #expect(services.searchArea.scope == SearchScope(area: .okinawa))
     }
 }
