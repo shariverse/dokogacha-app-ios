@@ -30,6 +30,7 @@ struct LicensesView: View {
     var body: some View {
         VStack(spacing: 0) {
             DGHeader(Text("ライセンス"), onBack: { dismiss() })
+                .dgContentColumn()
             ScrollView {
                 VStack(alignment: .leading, spacing: DGSpacing.s16) {
                     section(Text("フォント"), entries: LicenseCatalog.fonts)
@@ -37,6 +38,7 @@ struct LicensesView: View {
                     section(Text("データ"), entries: LicenseCatalog.data)
                 }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.top, DGSpacing.s8)
                 .padding(.bottom, DGSpacing.s24)
             }
@@ -99,6 +101,7 @@ struct LicenseDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             DGHeader(Text(verbatim: entry.name), onBack: { dismiss() })
+                .dgContentColumn()
             ScrollView {
                 VStack(alignment: .leading, spacing: DGSpacing.s12) {
                     Text(verbatim: entry.notice)
@@ -127,6 +130,7 @@ struct LicenseDetailView: View {
                 .background(Color.dgSurfaceCard, in: RoundedRectangle(cornerRadius: DGRadius.lg))
                 .overlay { RoundedRectangle(cornerRadius: DGRadius.lg).strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.top, DGSpacing.s8)
                 .padding(.bottom, DGSpacing.s24)
             }

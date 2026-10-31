@@ -1,8 +1,8 @@
 # ドコガチャ（Dokogacha）
 
-友人グループ（最大 20 人）が「行きたい場所」をルームに持ち寄り、いいねで出やすさを少しだけ動かし、準備OKがそろったらガチャ（サーバー側の抽選）で行き先を 1 つに決める iPhone アプリです。
+友人グループ（最大 20 人）が「行きたい場所」をルームに持ち寄り、いいねで出やすさを少しだけ動かし、準備OKがそろったらガチャ（サーバー側の抽選）で行き先を 1 つに決める iPhone・iPad アプリです。
 
-- Bundle ID `jp.shilokuma.Dokogacha`・iOS 17.0 以上・iPhone のみ・縦向き・ライトモード
+- Bundle ID `jp.shilokuma.Dokogacha`・iOS 17.0 以上・iPhone（縦向き）と iPad（すべての向き・ウィンドウの大きさの変更）・ライトモード
 - 企画・仕様・デザインは [docs/spec/](docs/spec/README.md)（優先順位は `02_requirements.md` ＞ `03_screens.md` ＞ `design/prototype/`）
 - 公開までに人間が用意するもの（Firebase・Apple・AdMob・ドメイン・規約・申請）は [docs/setup-human.md](docs/setup-human.md)
 

@@ -6,7 +6,7 @@
 - アプリ名：**ドコガチャ**
 - App Store サブタイトル：**友達旅行・おでかけの行き先ガチャ**
 - キャッチコピー（仮）：みんなの「行きたい」で回すガチャ
-- 対象：iOS（iPhone）のみ。Android は将来検討
+- 対象：iOS（iPhone・iPad）。Android は将来検討
 - Bundle ID：`jp.shilokuma.Dokogacha`
 
 ## 読む順番

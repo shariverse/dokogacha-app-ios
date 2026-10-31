@@ -12,7 +12,8 @@
     "              deriveFrom を書いた表示サイズは撮らずに、その表示サイズを縮めて作る（ubuntu で動くので macOS の枠を使わない）。",
     "              6.3 inch（1206x2622）は 6.9 inch（1320x2868）と縦横比がほぼ同じなので縮めて作る。",
     "App Store Connect で必須なのは iPhone 6.1 / 6.3 inch（APP_IPHONE_61）と iPhone Duo（APP_IPHONE_DUO）。",
-    "このアプリは iPhone だけ（TARGETED_DEVICE_FAMILY = 1）なので iPad 13 inch は撮らない。大型ディスプレイ（6.5 / 6.7 / 6.9 inch、APP_IPHONE_67）は任意だが、",
+    "iPad にも対応した（TARGETED_DEVICE_FAMILY = 1,2。Issue #156）ので App Store Connect は iPad 13 inch も求めるが、撮影の仕組みにはまだ足していない（docs/setup-human.md の 12 の 6）。",
+    "大型ディスプレイ（6.5 / 6.7 / 6.9 inch、APP_IPHONE_67）は任意だが、",
     "6.3 inch の元になるので必ず撮る（反映するかは任意。display_types で外せる）。",
     "撮る画面は 06 の §5 の 5 つ（ルーム・ガチャ・行き先きっぷ・過去のアイデア・招待）。",
     "撮影モードはバナー広告の枠を出さない（AdMode.make。PR 用の撮影で枠を見せるときは起動引数 -screenshot-ad-placeholder を足す）。"

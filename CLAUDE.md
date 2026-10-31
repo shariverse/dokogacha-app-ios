@@ -17,7 +17,8 @@
 
 ## 環境
 
-- Xcode 26.6 / iOS 17.0 以上 / iPhone のみ・縦向き固定・ライトモード固定
+- Xcode 26.6 / iOS 17.0 以上 / iPhone と iPad（iPhone は縦向き固定。iPad はすべての向きとウィンドウの大きさの変更に対応）/ ライトモード固定
+  - iPad の広い画面では本文を最大幅の列に収めて中央に寄せ、ホーム・ルームは 2 列に分ける（03 の §3「iPad」・04 の §3 の `layout`）。分けるのは `horizontalSizeClass` が `.regular` のときだけなので、iPhone の見た目は変わらない
 - Swift 6（言語モード 6・Strict Concurrency complete・既定の分離は MainActor。UI テストのターゲットだけ nonisolated）
 - SwiftUI・`@Observable` / Swift Testing（Unit）/ XCTest（UI テスト）/ SwiftLint 0.65.1（Build Tool Plugin と CI の `--strict`）
 - SPM で導入済み（アプリのターゲットにリンク済み）: firebase-ios-sdk 13（`FirebaseAuth` `FirebaseFirestore` `FirebaseFunctions` `FirebaseMessaging` `FirebaseAnalytics` `FirebaseCrashlytics`）、Google Mobile Ads 13
