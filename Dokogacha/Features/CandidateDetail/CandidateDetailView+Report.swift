@@ -20,7 +20,8 @@ extension ReportReason {
 }
 
 extension View {
-    /// S-10 の「この投稿を報告」で出す、理由を選ぶダイアログ（F-14）。理由を選ぶと報告を送る（選ぶことを確認とし、取り消しは「キャンセル」）
+    /// S-10 の「この投稿を報告」で出す、理由を選ぶダイアログ（F-14）。理由を選ぶと報告を送る（選ぶことを確認とし、取り消しは「キャンセル」）。
+    /// 「…」のメニューに付ける（iPad と iOS 26 以降の iPhone では、「…」を指して出る）
     func candidateReportDialog(_ model: CandidateDetailModel) -> some View {
         modifier(CandidateReportDialog(model: model))
     }
