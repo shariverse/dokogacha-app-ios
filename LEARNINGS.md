@@ -24,6 +24,7 @@
 - Sign in with Apple に連携したアカウントを削除するときは、Apple の認証をし直して `authorizationCode` を受け取り、サーバーで消す**前に** `Auth.auth().revokeToken(withAuthorizationCode:)` を呼ぶ（審査 5.1.1(v)。消した後は ID トークンが取れない）。SDK 13 の `revokeToken` は `currentUser` が nil だと完了を呼ばない（`_currentUser?.` で何もしない）ので、先に確かめる。サーバーで消された Auth のユーザーは `currentUser.reload()` が `userNotFound`（17011）で失敗するので、削除の応答が届かなかったときの確かめに使える（2026-10-23）
 - SPM の checkouts（`SourcePackages/checkouts/…`）のファイルは読み取り専用（`r--r--r--`）なので、ライセンスの全文などを `cp` で `Dokogacha/` に持ってくると、そのままでは書き換えられない（`chmod 644` してから直す）（2026-10-22）
 - `Localizable.xcstrings` に文字列を足すのは Xcode の画面のビルドだけで、`xcodebuild` は足さない。コマンドで足すときは、`xcodebuild build` の後に `xcrun xcstringstool sync Dokogacha/Resources/Localizable.xcstrings --stringsdata "$DD"/Build/Intermediates.noindex/Dokogacha.build/Debug-iphonesimulator/Dokogacha.build/Objects-normal/arm64/*.stringsdata` を流す（`--stringsdata` は 1 回だけ書いて後ろにファイルを並べる）。カタログに無い文字列もキーの日本語がそのまま出るので、足し忘れても表示は変わらない（2026-10-23）
+- Xcode 27.1 では `DGDashedLine` の `DashedLineShape`（`Shape` への準拠）が「crosses into main actor-isolated code」（#ConformanceIsolation）のエラーになり、ビルドできない。既定の Xcode（`xcode-select -p`）が 27 の Mac では、`xcode-select` を変えずに `DEVELOPER_DIR` に Xcode 26.6 の `Contents/Developer` を渡して `xcodebuild` を流す（2026-10-31）
 
 ## テスト
 
