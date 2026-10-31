@@ -74,6 +74,8 @@ struct ResultTicketView: View {
     let ticket: ResultTicket
     /// 表示したときにハンコを押す動きをするか
     var stampAnimatesIn = false
+    /// ハンコの押し具合（0〜1。演出の時刻に合わせて外から決めるとき。`ResultRevealStage`）
+    var stampProgress: Double?
 
     var body: some View {
         let style = DGCategoryStyle.of(ticket.category)
@@ -87,7 +89,8 @@ struct ResultTicketView: View {
             likeCount: ticket.likeCount,
             percent: ticket.percent,
             drawnAt: ticket.drawnAt,
-            stampAnimatesIn: stampAnimatesIn
+            stampAnimatesIn: stampAnimatesIn,
+            stampProgress: stampProgress
         )
     }
 }
