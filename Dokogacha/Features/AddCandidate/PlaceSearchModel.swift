@@ -10,7 +10,8 @@ import Observation
 ///
 /// - 入力のたびには検索しない。入力から 0.3 秒待ち（03 の S-08「入力から0.3秒後に MKLocalSearch を実行」）、待つ間に入力が変わったら前の検索は捨てる
 /// - クイックカテゴリ・キーボードの検索は、待たずにその語で検索する
-/// - エリアを選び直すと、端末に覚えて、語があれば待たずにそのエリアで検索し直す（初めは覚えているエリア。Issue #131）
+/// - エリア（全国・地方・都道府県・市区町村）を選び直すと、端末に覚えて、語があれば待たずにそのエリアで検索し直す
+///   （初めは覚えているエリア。Issue #131・#160）
 /// - 結果が届いたときに語かエリアが変わっていれば、その結果は映さない（遅れて届いた古い結果で上書きしない）
 /// - 通信できなければトーストを出す（結果は出さない）
 ///
@@ -43,8 +44,8 @@ final class PlaceSearchModel {
     private(set) var query = ""
     /// 検索の状態
     private(set) var phase = Phase.idle
-    /// 検索するエリア（`selectArea(_:)` で変える）
-    private(set) var area: SearchArea
+    /// 検索するエリア（`select(_:)` で変える）
+    private(set) var scope: SearchScope
 
     @ObservationIgnored private let places: any PlaceSearchService
     @ObservationIgnored private let areaStore: any SearchAreaStore
@@ -68,7 +69,7 @@ final class PlaceSearchModel {
         self.areaStore = areaStore
         self.toasts = toasts
         self.sleep = sleep
-        area = areaStore.area
+        scope = areaStore.scope
     }
 
     /// いま検索している語（前後の空白を取り除いたもの）
@@ -108,13 +109,13 @@ final class PlaceSearchModel {
         }
     }
 
-    /// エリアのチップ・「全国で探す」が押された。覚えて、語があれば待たずにそのエリアで検索し直す（同じエリアなら何もしない）
-    func selectArea(_ newArea: SearchArea) {
-        guard newArea != area else {
+    /// エリアのチップ・市区町村のシート・「〇〇で探す」が押された。覚えて、語があれば待たずにそのエリアで検索し直す（同じエリアなら何もしない）
+    func select(_ newScope: SearchScope) {
+        guard newScope != scope else {
             return
         }
-        area = newArea
-        areaStore.save(newArea)
+        scope = newScope
+        areaStore.save(newScope)
         searchNow(query)
     }
 
@@ -133,17 +134,17 @@ final class PlaceSearchModel {
 
     /// いまのエリアで検索して結果を映す（同じ ID の結果は 1 件にする）。cancel された・語かエリアが変わったときは映さない
     func run(_ word: String) async {
-        let area = area
+        let scope = scope
         phase = .searching
         do {
-            let results = SearchedPlace.uniqued(try await places.search(word, in: area))
-            guard !Task.isCancelled, trimmedQuery == word, self.area == area else {
+            let results = SearchedPlace.uniqued(try await places.search(word, in: scope))
+            guard !Task.isCancelled, trimmedQuery == word, self.scope == scope else {
                 return
             }
             phase = results.isEmpty ? .noResults : .results(results)
         } catch {
             let appError = AppError.wrapping(error)
-            guard !Task.isCancelled, !appError.isCancellation, trimmedQuery == word, self.area == area else {
+            guard !Task.isCancelled, !appError.isCancellation, trimmedQuery == word, self.scope == scope else {
                 return
             }
             phase = .failed

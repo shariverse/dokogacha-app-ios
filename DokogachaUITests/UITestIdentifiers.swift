@@ -98,9 +98,34 @@ enum UITestID {
     /// S-08 の地方で 0 件のときの「全国で探す」（`AddCandidateView.Identifier.searchNationwide`）
     static let addCandidateSearchNationwide = "addCandidate.searchNationwide"
 
+    /// S-08 の都道府県・市区町村で 0 件のときの「{一段上}で探す」（`AddCandidateView.Identifier.searchParent`）
+    static let addCandidateSearchParent = "addCandidate.searchParent"
+    /// S-08 のエリアの見出しの道筋（`AddCandidateView.Identifier.areaPath`）
+    static let addCandidateAreaPath = "addCandidate.areaPath"
+    /// S-08 の都道府県の行の「{地方}全体」（`AddCandidateView.Identifier.prefectureWhole`）
+    static let addCandidatePrefectureWhole = "addCandidate.prefecture.all"
+    /// S-08 の市区町村の行の「{都道府県}全体」（`AddCandidateView.Identifier.municipalityWhole`）
+    static let addCandidateMunicipalityWhole = "addCandidate.municipality.all"
+    /// S-08 の市区町村の行の「選ぶ」（`AddCandidateView.Identifier.municipalityPick`）
+    static let addCandidateMunicipalityPick = "addCandidate.municipality.pick"
+    /// 市区町村を選ぶシート（`MunicipalityPicker.Identifier.screen`）
+    static let municipalityPicker = "municipalityPicker.screen"
+    /// 市区町村を選ぶシートの絞り込みの入力欄（`MunicipalityPicker.Identifier.filter`）
+    static let municipalityPickerFilter = "municipalityPicker.filter"
+
     /// S-08 のエリアのチップ（`AddCandidateView.Identifier.area(_:)`。`SearchArea` の rawValue）
     static func addCandidateArea(_ rawValue: String) -> String {
         "addCandidate.area.\(rawValue)"
+    }
+
+    /// S-08 の都道府県のチップ（`AddCandidateView.Identifier.prefecture(_:)`。都道府県コード）
+    static func addCandidatePrefecture(_ code: Int) -> String {
+        "addCandidate.prefecture.\(code)"
+    }
+
+    /// 市区町村を選ぶシートの行（`MunicipalityPicker.Identifier.row(_:)`。団体コード）
+    static func municipalityPickerRow(_ code: String) -> String {
+        "municipalityPicker.row.\(code)"
     }
     /// S-09（`PostCandidateView.Identifier.screen`）
     static let postCandidateScreen = "postCandidate.screen"
@@ -130,6 +155,14 @@ enum UITestID {
     static let othersRoomCard = "home.room.demo-room-others"
     /// S-07 のルームパネルのメンバー（`RoomView.Identifier.members`）
     static let roomMembers = "room.members"
+    /// S-07 のアバターの並びの招待の「＋」（`RoomView.Identifier.invite`）
+    static let roomInvite = "room.invite"
+    /// S-04 の「招待リンクを送る」（`InviteView.Identifier.share`）
+    static let inviteShare = "invite.share"
+    /// シートで開いた S-04 の閉じる（`InviteView.Identifier.close`）
+    static let inviteClose = "invite.close"
+    /// S-11 の「招待する」（`MembersView.Identifier.invite`）
+    static let membersInvite = "members.invite"
     /// S-07 のヘッダーの設定（`RoomView.Identifier.settings`）
     static let roomSettings = "room.settings"
     /// S-11 メンバー一覧（`MembersView.Identifier.screen`）

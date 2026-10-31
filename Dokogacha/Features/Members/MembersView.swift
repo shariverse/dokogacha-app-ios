@@ -298,7 +298,7 @@ struct MembersView: View {
         .disabled(model.isSending)
     }
 
-    /// 「招待する」（S-04 と同じ文面を共有シートで送る）。参加できない状態・ルームが届くまでは押せない
+    /// 「招待する」（S-04 と同じ文面を共有シートで送る）。参加できない状態・満員・ルームが届くまでは押せない（満員は上の「20人 · 最大20人」で分かる）
     @ViewBuilder private var inviteButton: some View {
         if let message = model.shareMessage {
             ShareLink(item: message) {

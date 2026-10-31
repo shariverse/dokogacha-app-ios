@@ -180,6 +180,112 @@ final class RoomUITests: XCTestCase {
         XCTAssertFalse(hokkaido.isSelected)
     }
 
+    /// S-08 で関東 → 東京 → 市区町村（シートで「すみだ」と絞り込んで墨田区）と一段ずつ絞ると、そのエリアの場所だけが出て、
+    /// 見出しの道筋が今の絞り込みを示す。墨田区で 0 件のときの「東京都で探す」で一段上に戻れ、開き直しても東京都のまま（Issue #160）
+    @MainActor
+    func testSearchAreaNarrowsToPrefectureAndMunicipality() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "one-room"]
+        app.launch()
+        let addButton = openAddCandidate(in: app)
+
+        let search = app.textFields[UITestID.addCandidateSearch]
+        XCTAssertTrue(search.waitForExistence(timeout: UITestID.timeout))
+        search.tap()
+        search.typeText("水族館")
+        XCTAssertTrue(app.buttons[Self.kamogawaAdd].waitForExistence(timeout: UITestID.timeout))
+        let path = app.descendants(matching: .any)[UITestID.addCandidateAreaPath]
+        XCTAssertTrue(path.waitForValue("全国"))
+
+        narrowToTokyo(in: app, path: path)
+        pickSumida(in: app, path: path)
+
+        // 墨田区に寺社は無い。「東京都で探す」で一段上に戻すと明治神宮が出る
+        search.tap()
+        search.clearText()
+        search.typeText("寺社")
+        let noResults = app.staticTexts[UITestID.addCandidateNoResults]
+        XCTAssertTrue(noResults.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertEqual(noResults.label, "墨田区では見つかりませんでした")
+        let parent = app.buttons[UITestID.addCandidateSearchParent]
+        XCTAssertEqual(parent.label, "東京都で探す")
+        XCTAssertTrue(app.buttons[UITestID.addCandidateSearchNationwide].exists)
+        parent.tap()
+        XCTAssertTrue(app.buttons["addCandidate.place.demo-place-meiji.add"].waitForExistence(timeout: UITestID.timeout))
+        let wholeTokyo = app.buttons[UITestID.addCandidateMunicipalityWhole]
+        XCTAssertTrue(wholeTokyo.isSelected)
+        XCTAssertTrue(path.waitForValue("関東、東京都"))
+
+        // 開き直しても東京都のまま
+        app.buttons["戻る"].firstMatch.tap()
+        XCTAssertTrue(addButton.waitForExistence(timeout: UITestID.timeout))
+        addButton.tap()
+        let tokyo = app.buttons[UITestID.addCandidatePrefecture(13)]
+        XCTAssertTrue(tokyo.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(tokyo.isSelected)
+        XCTAssertTrue(wholeTokyo.isSelected)
+    }
+
+    /// 鴨川シーワールド（千葉県）の「追加」
+    private static let kamogawaAdd = "addCandidate.place.demo-place-kamogawa.add"
+
+    /// デモのルーム（S-07）から S-08 を開く。開き直すときに押す S-07 の「候補を追加」を返す
+    @MainActor
+    private func openAddCandidate(in app: XCUIApplication) -> XCUIElement {
+        let card = app.buttons[UITestID.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
+        card.tap()
+        let addButton = app.buttons[UITestID.roomAddCandidate]
+        XCTAssertTrue(addButton.waitForExistence(timeout: UITestID.timeout))
+        addButton.tap()
+        return addButton
+    }
+
+    /// 関東 → 東京と絞る。関東で都道府県の行が出て「関東全体」を選んでいる。東京にすると千葉の場所が消え、市区町村の行が出る
+    @MainActor
+    private func narrowToTokyo(in app: XCUIApplication, path: XCUIElement) {
+        app.buttons[UITestID.addCandidateArea("kanto")].tap()
+        let tokyo = app.buttons[UITestID.addCandidatePrefecture(13)]
+        XCTAssertTrue(tokyo.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.addCandidatePrefectureWhole].isSelected)
+        XCTAssertTrue(path.waitForValue("関東"))
+
+        if !tokyo.isHittable {
+            app.buttons[UITestID.addCandidatePrefecture(9)].swipeLeft()
+        }
+        tokyo.tap()
+        XCTAssertTrue(app.buttons[Self.kamogawaAdd].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.sumidaAquariumAdd].exists)
+        XCTAssertTrue(tokyo.isSelected)
+        XCTAssertTrue(app.buttons[UITestID.addCandidateArea("kanto")].isSelected)
+        XCTAssertTrue(path.waitForValue("関東、東京都"))
+        let wholeTokyo = app.buttons[UITestID.addCandidateMunicipalityWhole]
+        XCTAssertTrue(wholeTokyo.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(wholeTokyo.isSelected)
+    }
+
+    /// 市区町村のシートで「すみだ」と絞り込んで墨田区を選ぶ。シートが閉じ、墨田区の場所だけになる
+    @MainActor
+    private func pickSumida(in app: XCUIApplication, path: XCUIElement) {
+        let pick = app.buttons[UITestID.addCandidateMunicipalityPick]
+        pick.tap()
+        let sheet = app.otherElements[UITestID.municipalityPicker]
+        XCTAssertTrue(sheet.waitForExistence(timeout: UITestID.timeout))
+        let filter = app.textFields[UITestID.municipalityPickerFilter]
+        filter.tap()
+        filter.typeText("すみだ")
+        let sumidaRow = app.buttons[UITestID.municipalityPickerRow("131075")]
+        XCTAssertTrue(sumidaRow.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertFalse(app.buttons[UITestID.municipalityPickerRow("131164")].exists)
+        sumidaRow.tap()
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons["addCandidate.place.demo-place-sunshine-aquarium.add"].waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.sumidaAquariumAdd].exists)
+        XCTAssertTrue(pick.waitForLabel("墨田区"))
+        XCTAssertTrue(pick.isSelected)
+        XCTAssertTrue(path.waitForValue("関東、東京都、墨田区"))
+    }
+
     /// ルーム（S-07）で「準備OK」を押すと人数とヒントが変わり、ボタンが「準備OKを取り消す」になる（F-30）。
     /// 作成者が「強制解禁（作成者）」→ 確認の「解禁する」を押すと「作成者が解禁しました」になり、ガチャを回せる（F-32）
     @MainActor
