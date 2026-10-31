@@ -230,16 +230,20 @@ final class CandidateDetailModel {
 
     /// 削除の確認のダイアログを出している間に削除できなくなったら、ダイアログを閉じる（PR #55 の持ち越し）。
     ///
-    /// 閉じないと「削除する」を押しても何も起きない。ルームの行き先が決まった（ほかの人がガチャを回した）ときは、その理由をトーストで出す。
+    /// 閉じないと「削除する」を押しても何も起きない。ルームの行き先が決まった（ほかの人がガチャを回した）・作成者が途中で終了したときは、
+    /// その理由をトーストで出す。
     /// 画面が `canDelete` の変化で呼ぶ
     func closeUnavailableConfirmation() {
         guard isConfirmingDelete, !canDelete, !isDeleting else {
             return
         }
         isConfirmingDelete = false
-        if let status = room.room?.status, status == .drawn || status == .closed {
-            toasts.show(text: AppError(.roomAlreadyDecided).message)
+        guard let current = room.room, current.status == .drawn || current.status == .closed else {
+            return
         }
+        // 作成者が抽選の前に途中で終了したときは「このルームは終了しています」（行き先は決まっていない。Discussion #155）
+        let reason: AppError.Reason = RoomClosing.endedWithoutResult(current) ? .roomClosed : .roomAlreadyDecided
+        toasts.show(text: AppError(reason).message)
     }
 
     /// 「この候補を削除」が押された。確認のダイアログを出す（削除できないとき・送っている途中なら出さない）
