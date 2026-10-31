@@ -70,7 +70,9 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
   - そのときはメモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動く。UI テストはデモのデータを `-uiTesting -demo-scenario <名前>` で選ぶ
     （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`・`several-rooms`（撮影モードの既定）・`joinable`・`first-launch-invited`・`drawn-rooms`・`memories`・`past-ideas`・`ad-free-room`・`crowded-room`・`full-room`。`DemoScenario`。要るシナリオを足す）
   - 起動引数は `LaunchContext` にまとめる: `-open-url <URL>`・`-open-notification <JSON>`（招待リンク・通知から開いたことにする）・`-network-offline`（オフラインのことにする）は `-uiTesting`・撮影モードで、
-    `-ui-auto-members`（ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが返す）は `-uiTesting` だけで効く
+    `-ui-auto-members`（ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが返す）は `-uiTesting` だけで効く。
+    `-result-animation <flap|capsule|issue>`（S-14 の結果の演出。設定の S-16 を開かずに選ぶ）は `-uiTesting`・撮影モードで、
+    `-ui-reduce-motion`（S-14 の結果の演出を「視差効果を減らす」の流れにする。S-13 は UI テストではいつも減らす）は `-uiTesting` だけで効く
   - データ層は `AuthService`・`RoomRepository`・`FunctionsClient` の protocol の後ろにあり、起動時に `DataServices.make` が実装を選んで
     `ServerSession.services` で渡す。画面の Model は protocol だけを受け取る。backend に Callable を足したら、擬似のサーバーにも同じ検証を足す
   - Firestore のトリガー（`onUserProfileUpdate`・`onMemberWrite`）に当たる処理は `InMemoryServer+Triggers.swift` に置き、元の書き込みをした Callable・直接の書き込みの中で続けて呼ぶ
