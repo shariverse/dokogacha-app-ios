@@ -80,8 +80,8 @@ final class InMemoryServer {
 
     /// 今の時刻（サーバーの時刻の代わり）
     let clock: () -> Date
-    /// `0..<上限` の整数を返す乱数（招待コード・アバターの色）
-    let randomIndex: (Int) -> Int
+    /// `0..<上限` の整数を返す乱数（招待コード・アバターの色・抽選。撮影モードで当選を決めるときは差し替える）
+    var randomIndex: (Int) -> Int
     /// ドキュメントの ID を作る
     let makeID: () -> String
 

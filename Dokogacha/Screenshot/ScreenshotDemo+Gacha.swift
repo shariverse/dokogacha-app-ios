@@ -15,10 +15,14 @@ extension ScreenshotDemo {
     /// - `others-live`: 開いて少し後にはるかが回し、そのまま演出を再生する（動画を撮るため）
     /// - `play`: 開いて少し後に自分がレバーを回し、カプセルが出たら少し後に開ける（動画を撮るため）
     ///
-    /// 開け終えたら、アプリと同じく同じ画面の中で S-14 に替わる（`GachaFlowView`。S-13 から S-14 へのつながりを動画で撮るため）
+    /// 開け終えたら、アプリと同じく同じ画面の中で S-14 に替わる（`GachaFlowView`。S-13 から S-14 へのつながりを動画で撮るため）。
+    /// 起動引数 `-screenshot-gacha-winner <候補の ID>` を付けると、自分が回したときにその候補を当てる（S-14 の演出の案を同じ結果で見比べるため。
+    /// 例: `demo-candidate-1` のサンシャイン水族館）
     struct GachaScene: View {
         /// 撮る状態の起動引数
         static let modeArgument = "-screenshot-gacha"
+        /// 当てる候補の起動引数
+        static let winnerArgument = "-screenshot-gacha-winner"
         /// 開いてから操作するまでの間（動画で操作の前の状態が分かるように）
         static let actionDelay: Duration = .seconds(1.5)
         /// 回すほかの人（はるか）
@@ -36,6 +40,9 @@ extension ScreenshotDemo {
             let userID = services.auth.currentUserID ?? DemoScenario.myUserID
             let roomID = DemoScenario.unlockedRoomID
             let seenDraws = InMemorySeenDrawStore()
+            if let server = services.inMemoryServer, let winner = ScreenshotDemo.value(after: Self.winnerArgument) {
+                Self.fixWinner(winner, on: server, roomID: roomID)
+            }
             if mode == .dispensed, let server = services.inMemoryServer,
                let response = try? server.drawGacha(RoomRequest(roomId: roomID), by: userID) {
                 seenDraws.markSeen(drawID: response.drawId)
@@ -96,6 +103,26 @@ extension ScreenshotDemo {
                     toasts: toasts
                 )
             }
+        }
+
+        /// 抽選の乱数を差し替え、`winner` の候補が当たるようにする（重みの区間の真ん中を引く。`GachaDraw.pick`）
+        private static func fixWinner(_ winner: String, on server: InMemoryServer, roomID: String) {
+            guard let record = server.rooms[roomID] else {
+                return
+            }
+            let candidates = record.candidates.map { OddsInput(id: $0.key, likeCount: $0.value.likedBy.count) }
+            let entries = GachaDraw.entries(
+                of: candidates,
+                mode: record.room.settings.likeMode,
+                excluding: Set(record.room.excludedCandidateIds)
+            )
+            let total = entries.reduce(0) { $0 + $1.weight }
+            guard let index = entries.firstIndex(where: { $0.id == winner }), total > 0 else {
+                return
+            }
+            let before = entries.prefix(index).reduce(0) { $0 + $1.weight }
+            let middle = (before + entries[index].weight / 2) / total
+            server.randomIndex = { range in min(Int(middle * Double(range)), range - 1) }
         }
 
         /// 状態に合わせて、少し待ってから回す
