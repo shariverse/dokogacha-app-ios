@@ -23,8 +23,7 @@ struct DokoGachaApp: App {
                 .environment(appDelegate.ads)
                 .environment(appDelegate.purchases)
                 .environment(appDelegate.network)
-                // S-14 の演出の案（Debug ビルドの起動引数だけで選べる。Issue #158）
-                .environment(\.resultRevealStyle, LaunchContext.current.resultRevealStyle ?? .pop)
+                .environment(appDelegate.resultReveal)
                 .onOpenURL { url in
                     appDelegate.deepLinks.handle(url)
                 }

@@ -17,8 +17,9 @@ import SwiftUI
 ///
 /// 表示したときに、きっぷがポップインし（04 の §5 の `pop`。0.45 秒）、0.5 秒後にハンコを押す（`stamp`）。
 /// 「視差効果を減らす」ではフェード（0.2 秒）だけにする。撮影モード・UI テストでは `animatesIn` を false にして止める。
-/// S-13 から替わった直後で、起動引数で演出の案（`ResultRevealStyle`。Issue #158）を選んだときは、`ResultRevealStage` で案の演出を流す。
-/// 演出の間は見出し・レア当選・ボタン・引き直しの欄・下部の決定を隠し、行き先が分かったら見出しとレア当選を、演出を終えたら残りを出す。
+/// S-13 でカプセルを開けた直後は、ポップインの代わりに、設定（S-16）で選んだ演出（`ResultRevealStyle`。標準はパタパタ行き先表示。Issue #158）を
+/// `ResultRevealStage` で流す。演出の間は見出し・レア当選・ボタン・引き直しの欄・下部の決定を隠し、
+/// 行き先が分かったら見出しとレア当選を、演出を終えたら残りを出す。
 /// 文字を大きくしたときは、全体をスクロールし、2 列のボタンを縦に並べる。
 struct ResultView: View {
     /// UI テストが探す ID
@@ -45,9 +46,9 @@ struct ResultView: View {
     private static let rareBadgeSize: CGFloat = 13
     /// ポップインの前のきっぷの大きさ（04 の §5 の `pop`「0.7倍・透明 → 等倍」）
     private static let popStartScale: CGFloat = 0.7
-    /// 演出の案で、隠していた見出し・ボタンを出す時間
+    /// 演出で隠していた見出し・ボタンを出す時間
     private static let revealFadeDuration = 0.3
-    /// 演出の案で、見出しの後にレア当選を出すまでの間
+    /// 演出で、見出しの後にレア当選を出すまでの間
     private static let rareBadgeDelay = 0.08
 
     @State private var model: ResultModel
@@ -55,6 +56,8 @@ struct ResultView: View {
     @State private var toasts: DGToastCenter
     /// 表示したときにきっぷとハンコを動かすか
     private let animatesIn: Bool
+    /// 結果の演出を常に「視差効果を減らす」の流れで動かすか（UI テスト）
+    private let forcesReducedMotion: Bool
     /// 引き直しの可決の後に「ガチャを回す」・「結果を見る」が押された（S-13 に戻る）
     private let onPlayAgain: () -> Void
     /// きっぷを出し終えたか（ポップインの後の状態）
@@ -63,11 +66,11 @@ struct ResultView: View {
     @State private var sharedImage: SharedImage?
     /// VoiceOver の選択を「行き先が決まりました」に置くか（きっぷが出たときに 1 回だけ移す）
     @AccessibilityFocusState private var isTitleFocused: Bool
-    /// 演出の案の段階（案を流さないときは使わない）
+    /// 演出の段階（演出を流さないときは使わない）
     @State private var revealPhase: ResultRevealPhase = .revealing
-    /// 演出の案（起動引数で選ぶ。既定は今の演出）
+    /// 結果の演出（設定で選んだもの）
     @Environment(\.resultRevealStyle) private var revealStyle
-    /// S-14 にどこから入ったか（S-13 から替わった直後だけ案の演出を流す）
+    /// S-14 にどこから入ったか（S-13 から替わった直後だけ演出を流す）
     @Environment(\.resultEntrance) private var entrance
 
     @Environment(\.dismiss) private var dismiss
@@ -79,11 +82,19 @@ struct ResultView: View {
     ///   - model: 画面の状態（最初の 1 回だけ使う）
     ///   - toasts: トーストの窓口（最初の 1 回だけ使う）
     ///   - animatesIn: 表示したときにきっぷとハンコを動かすか（撮影・UI テストでは false）
+    ///   - forcesReducedMotion: 結果の演出を常に「視差効果を減らす」の流れで動かすか（UI テスト）
     ///   - onPlayAgain: 引き直しの可決の後に「ガチャを回す」・「結果を見る」が押された（S-13 に戻る）
-    init(model: ResultModel, toasts: DGToastCenter, animatesIn: Bool = true, onPlayAgain: @escaping () -> Void = {}) {
+    init(
+        model: ResultModel,
+        toasts: DGToastCenter,
+        animatesIn: Bool = true,
+        forcesReducedMotion: Bool = false,
+        onPlayAgain: @escaping () -> Void = {}
+    ) {
         _model = State(initialValue: model)
         _toasts = State(initialValue: toasts)
         self.animatesIn = animatesIn
+        self.forcesReducedMotion = forcesReducedMotion
         self.onPlayAgain = onPlayAgain
         _hasPopped = State(initialValue: !animatesIn)
     }
@@ -103,7 +114,7 @@ struct ResultView: View {
             .scrollBounceBehavior(.basedOnSize)
             // 下部に固定する「この行き先で決定」（作成者）・説明（作成者以外）。F-44
             ResultCloseSection(result: model)
-                .modifier(RevealedModifier(isShown: showsActions, rises: !reduceMotion, animation: revealAnimation))
+                .modifier(RevealedModifier(isShown: showsActions, rises: !reducesMotion, animation: revealAnimation))
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .accessibilityElement(children: .contain)
@@ -142,13 +153,13 @@ struct ResultView: View {
     private func loadedContent(_ ticket: ResultTicket) -> some View {
         VStack(spacing: DGSpacing.s16) {
             title
-                .modifier(RevealedModifier(isShown: showsHeadline, rises: !reduceMotion, animation: revealAnimation))
+                .modifier(RevealedModifier(isShown: showsHeadline, rises: !reducesMotion, animation: revealAnimation))
             if ticket.isRare {
                 rareBadge
                     .modifier(RevealedModifier(
                         isShown: showsHeadline,
-                        rises: !reduceMotion,
-                        animation: revealAnimation.delay(reduceMotion ? 0 : Self.rareBadgeDelay)
+                        rises: !reducesMotion,
+                        animation: revealAnimation.delay(reducesMotion ? 0 : Self.rareBadgeDelay)
                     ))
             }
             if playsReveal {
@@ -157,7 +168,8 @@ struct ResultView: View {
                     ticket: ticket,
                     capsuleColor: .dgCapsule(at: model.winnerColorIndex),
                     flapNames: model.drawnCandidateNames,
-                    capsuleCount: model.drawnCandidateNames.count
+                    capsuleCount: model.drawnCandidateNames.count,
+                    forcesReducedMotion: forcesReducedMotion
                 ) { phase in
                     revealPhase = phase
                     if phase == .decided {
@@ -188,29 +200,34 @@ struct ResultView: View {
                     onPlayAgain: onPlayAgain
                 )
             }
-            .modifier(RevealedModifier(isShown: showsActions, rises: !reduceMotion, animation: revealAnimation))
+            .modifier(RevealedModifier(isShown: showsActions, rises: !reducesMotion, animation: revealAnimation))
         }
         .frame(maxWidth: .infinity)
     }
 
-    /// 演出の案を流すか（S-13 から替わった直後で、今の演出でない案を選んでいて、動かしてよいとき）
+    /// 演出を流すか（S-13 でカプセルを開けた直後で、動かしてよいとき）
     private var playsReveal: Bool {
-        animatesIn && entrance == .afterOpening && revealStyle != .pop
+        animatesIn && entrance == .afterOpening
     }
 
-    /// 見出し・レア当選を出しているか（案の演出では、行き先が分かってから）
+    /// 見出し・レア当選を出しているか（演出では、行き先が分かってから）
     private var showsHeadline: Bool {
         !playsReveal || revealPhase >= .decided
     }
 
-    /// ボタン・引き直しの欄・下部の決定を出しているか（案の演出では、演出を終えてから。きっぷを作れなかったときは演出が無いので出す）
+    /// ボタン・引き直しの欄・下部の決定を出しているか（演出では、演出を終えてから。きっぷを作れなかったときは演出が無いので出す）
     private var showsActions: Bool {
         !playsReveal || revealPhase >= .settled || model.loadState == .missing || model.loadState == .unavailable
     }
 
+    /// 「視差効果を減らす」か（UI テストでは起動引数で減らせる）
+    private var reducesMotion: Bool {
+        reduceMotion || forcesReducedMotion
+    }
+
     /// 隠していた見出し・ボタンを出す動き（「視差効果を減らす」ではフェード 0.2 秒）
     private var revealAnimation: Animation {
-        reduceMotion ? DGMotion.reducedFade : .easeOut(duration: Self.revealFadeDuration)
+        reducesMotion ? DGMotion.reducedFade : .easeOut(duration: Self.revealFadeDuration)
     }
 
     /// 「行き先が決まりました」（見出し 22pt）
@@ -354,7 +371,7 @@ struct ResultView: View {
     }
 }
 
-/// 演出の案で、隠していたものを出す（隠している間は押せず、VoiceOver でも読まない）
+/// 演出で隠していたものを出す（隠している間は押せず、VoiceOver でも読まない）
 private struct RevealedModifier: ViewModifier {
     /// 出すときに下から上がる距離
     private static let riseDistance: CGFloat = 8

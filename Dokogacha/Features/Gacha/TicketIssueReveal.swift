@@ -2,13 +2,13 @@
 //  TicketIssueReveal.swift
 //  Dokogacha
 //
-//  案 C「発券」: 券売機の取り出し口から、行き先きっぷが少しずつ押し出されてくる。行き先の名前の手前でいったん止めて（溜め）、
+//  結果の演出「発券」: 券売機の取り出し口から、行き先きっぷが少しずつ押し出されてくる。行き先の名前の手前でいったん止めて（溜め）、
 //  名前の段を一気に出してから残りを出しきり、取り出し口が外れてきっぷがぽとっと落ち着く（Issue #158）。
 //
 
 import SwiftUI
 
-/// 案 C の時間と動き。時刻（演出を始めてからの秒）ときっぷの高さから形を求める
+/// 発券の時間と動き。時刻（演出を始めてからの秒）ときっぷの高さから形を求める
 nonisolated enum TicketIssueTimeline {
     /// 取り出し口が出始める時刻
     static let slotAppearStart = 0.15
@@ -202,7 +202,7 @@ nonisolated enum TicketIssueTimeline {
     }
 }
 
-/// 案 C の見た目。きっぷの下端に取り出し口を重ね、取り出し口より下に隠したきっぷを押し上げる
+/// 発券の見た目。きっぷの下端に取り出し口を重ね、取り出し口より下に隠したきっぷを押し上げる
 struct TicketIssueReveal: View {
     /// 取り出し口の高さ
     private static let slotHeight: CGFloat = 14
@@ -259,7 +259,7 @@ struct TicketIssueReveal: View {
     }
 }
 
-#Preview("案 C 発券") {
+#Preview("発券") {
     @Previewable @State var round = 0
     VStack(spacing: DGSpacing.s24) {
         ResultRevealStage(

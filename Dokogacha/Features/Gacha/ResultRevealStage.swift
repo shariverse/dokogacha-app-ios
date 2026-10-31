@@ -2,31 +2,34 @@
 //  ResultRevealStage.swift
 //  Dokogacha
 //
-//  S-14 で、S-13 から替わった直後に行き先きっぷを出す演出（案 A〜C）を流す舞台（Issue #158）。
+//  S-14 で、S-13 から替わった直後に行き先きっぷを出す演出（パタパタ行き先表示・カプセルぱかっ・発券）を流す舞台（Issue #158）。
 //
 
 import SwiftUI
 
-/// 行き先きっぷの置き場所に、選んだ案の演出を流す。
+/// 行き先きっぷの置き場所に、選んだ演出を流す。
 ///
-/// - 動きは時刻だけから決める（`TimelineView` の時刻から、案ごとの `pose(at:)` を読んで描く）。止めるときは最後の形に跳ぶだけで済む
-/// - 触覚の合図と段階（`decided`・`settled`）は、案ごとの予定（`ResultRevealPlan`）の時刻に `.task` から出す。
+/// - 動きは時刻だけから決める（`TimelineView` の時刻から、演出ごとの `pose(at:)` を読んで描く）。止めるときは最後の形に跳ぶだけで済む
+/// - 触覚の合図と段階（`decided`・`settled`）は、演出ごとの予定（`ResultRevealPlan`）の時刻に `.task` から出す。
 ///   段階は `onPhase` で画面に渡し、画面が見出し・ボタンを出す
 /// - 演出の途中に押すと、最後まで飛ばす（まだなら「決まった」の触覚だけ鳴らす）
 /// - VoiceOver: 重ねた飾り（カプセル・黒帯・取り出し口・紙吹雪）は読まない。きっぷは行き先が分かるまで読ませない
 ///   （見出しへの選択の移動は画面の側。`ResultView`）
-/// - 「視差効果を減らす」では、案ごとにフェード（0.2 秒）だけの流れにする（04 の §5）
+/// - 「視差効果を減らす」では、演出ごとにフェード（0.2 秒）だけの流れにする（04 の §5）
+/// - 設定（S-16）の見本でも同じものを流す（`onPhase` は使わない）
 struct ResultRevealStage: View {
-    /// 案（`pop` は使わない。画面の側で今の演出にする）
+    /// 演出
     let style: ResultRevealStyle
     /// きっぷの値
     let ticket: ResultTicket
-    /// 当選したカプセルの色（A）
+    /// 当選したカプセルの色（カプセルぱかっ）
     let capsuleColor: Color
-    /// 抽選の対象だった候補の名前（B）
+    /// 抽選の対象だった候補の名前（パタパタ行き先表示）
     let flapNames: [String]
-    /// 抽選の対象だった候補の数（B）
+    /// 抽選の対象だった候補の数（パタパタ行き先表示）
     let capsuleCount: Int
+    /// 常に「視差効果を減らす」の流れで動かすか（UI テスト）
+    let forcesReducedMotion: Bool
     /// 段階が進んだ
     let onPhase: (ResultRevealPhase) -> Void
 
@@ -46,14 +49,15 @@ struct ResultRevealStage: View {
     /// 合図の通し番号
     @State private var cueSequence = 0
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     /// - Parameters:
-    ///   - style: 案
+    ///   - style: 演出
     ///   - ticket: きっぷの値
     ///   - capsuleColor: 当選したカプセルの色
     ///   - flapNames: 抽選の対象だった候補の名前
     ///   - capsuleCount: 抽選の対象だった候補の数
+    ///   - forcesReducedMotion: 常に「視差効果を減らす」の流れで動かすか（UI テスト）
     ///   - onPhase: 段階が進んだ
     init(
         style: ResultRevealStyle,
@@ -61,6 +65,7 @@ struct ResultRevealStage: View {
         capsuleColor: Color,
         flapNames: [String],
         capsuleCount: Int,
+        forcesReducedMotion: Bool = false,
         onPhase: @escaping (ResultRevealPhase) -> Void
     ) {
         self.style = style
@@ -68,6 +73,7 @@ struct ResultRevealStage: View {
         self.capsuleColor = capsuleColor
         self.flapNames = flapNames
         self.capsuleCount = capsuleCount
+        self.forcesReducedMotion = forcesReducedMotion
         self.onPhase = onPhase
     }
 
@@ -91,14 +97,18 @@ struct ResultRevealStage: View {
         }
     }
 
-    /// 案ごとの予定
+    /// 演出ごとの予定
     static func plan(for style: ResultRevealStyle, reduceMotion: Bool) -> ResultRevealPlan {
         switch style {
-        case .capsule: CapsuleBurstTimeline.plan(reduceMotion: reduceMotion)
         case .flap: FlapBoardTimeline.plan(reduceMotion: reduceMotion)
+        case .capsule: CapsuleBurstTimeline.plan(reduceMotion: reduceMotion)
         case .issue: TicketIssueTimeline.plan(reduceMotion: reduceMotion)
-        case .pop: ResultRevealPlan(cues: [], decidedAt: 0, settledAt: 0, duration: 0)
         }
+    }
+
+    /// 「視差効果を減らす」か
+    private var reduceMotion: Bool {
+        systemReduceMotion || forcesReducedMotion
     }
 
     private var plan: ResultRevealPlan {
@@ -116,15 +126,9 @@ struct ResultRevealStage: View {
         return date.timeIntervalSince(startDate)
     }
 
-    /// 時刻 `time` の案の見た目
+    /// 時刻 `time` の演出の見た目
     @ViewBuilder private func reveal(at time: Double) -> some View {
         switch style {
-        case .capsule:
-            CapsuleBurstReveal(
-                pose: CapsuleBurstTimeline.pose(at: time, reduceMotion: reduceMotion),
-                ticket: ticket,
-                capsuleColor: capsuleColor
-            )
         case .flap:
             FlapBoardReveal(
                 pose: FlapBoardTimeline.pose(at: time, reduceMotion: reduceMotion),
@@ -132,11 +136,14 @@ struct ResultRevealStage: View {
                 texts: FlapBoardTimeline.texts(names: flapNames, winner: ticket.destinationName),
                 capsuleCount: capsuleCount
             )
+        case .capsule:
+            CapsuleBurstReveal(
+                pose: CapsuleBurstTimeline.pose(at: time, reduceMotion: reduceMotion),
+                ticket: ticket,
+                capsuleColor: capsuleColor
+            )
         case .issue:
             TicketIssueReveal(time: time, reduceMotion: reduceMotion, ticket: ticket)
-        case .pop:
-            RevealTicket(ticket: ticket, stampProgress: 1)
-                .equatable()
         }
     }
 

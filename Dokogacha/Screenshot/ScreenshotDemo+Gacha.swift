@@ -33,6 +33,8 @@ extension ScreenshotDemo {
         private let mode: ScreenshotGachaMode
         private let server: InMemoryServer?
         private let services: DataServices
+        /// 結果の演出（撮影モードでは起動引数 `-result-animation` の演出。無ければ標準）
+        @Environment(ResultRevealSetting.self) private var resultReveal: ResultRevealSetting?
 
         /// - Parameter services: データ層の窓口（撮影モードでは擬似のサーバー。この端末のユーザーはサインイン済み）
         init(services: DataServices) {
@@ -90,6 +92,7 @@ extension ScreenshotDemo {
                     toasts: toasts
                 )
             }
+            .environment(\.resultRevealStyle, resultReveal?.style ?? .standard)
         }
 
         /// 抽選の乱数を差し替え、`winner` の候補が当たるようにする（重みの区間の真ん中を引く。`GachaDraw.pick`）

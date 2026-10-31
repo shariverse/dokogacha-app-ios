@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     let purchases = PurchaseCoordinator.make(launch: .current)
     /// 端末の回線の状態（`DokoGachaApp` が `@Environment` で画面に渡す。オフラインのバナーと、オンライン必須の操作を止めるのに使う）
     let network = NetworkStatus()
+    /// S-14 で行き先きっぷを出す演出の設定（`DokoGachaApp` が `@Environment` で画面に渡す。S-16 で選ぶ）
+    let resultReveal = ResultRevealSetting.make(launch: .current)
 
     /// `UNUserNotificationCenter`・`Messaging` の delegate（どちらも弱い参照なので、ここで持つ）
     private var notificationObserver: NotificationCenterObserver?

@@ -2,24 +2,46 @@
 //  ResultReveal.swift
 //  Dokogacha
 //
-//  S-14 で行き先きっぷを出すときの演出の案（Issue #158。案を見比べて 1 つを選ぶまでの切り替え）。
-//  案ごとの時間・合図・動きの値は `nonisolated` の値の型にし、画面（`ResultRevealStage`）は時刻から値を読んで描くだけにする。
+//  S-14 で行き先きっぷを出すときの演出（Issue #158）。標準はパタパタ行き先表示で、設定（S-16 結果の演出）でカプセル・発券に替えられる。
+//  演出ごとの時間・合図・動きの値は `nonisolated` の値の型にし、画面（`ResultRevealStage`）は時刻から値を読んで描くだけにする。
 //
 
 import SwiftUI
 
-/// S-14 で行き先きっぷを出す演出の案。
+/// S-14 で行き先きっぷを出す演出（S-13 でカプセルを開けた直後に流す）。
 ///
-/// Debug ビルドの起動引数 `-result-animation <rawValue>` で選ぶ（`LaunchContext`）。Release・Stg では選べず、いつも `pop`
+/// 設定の「結果の演出」（`ResultRevealSetting`）で選び、端末に覚える。rawValue は端末に覚える値なので変えない
 nonisolated enum ResultRevealStyle: String, CaseIterable, Sendable {
-    /// 今の演出（きっぷがポップインし、0.5 秒後にハンコ。比べる基準）
-    case pop
-    /// A: カプセルが揺れて割れ、きっぷが紙吹雪とともに飛び出す
-    case capsule
-    /// B: 行き先表示の黒帯が候補の名前をパタパタとめくって止まり、裏返ってきっぷになる
+    /// パタパタ行き先表示: 駅の発車標のような黒帯が候補の名前をめくって止まり、裏返って行き先きっぷになる（標準）
     case flap
-    /// C: 券売機の取り出し口から、きっぷが少しずつ出てくる（行き先の手前でためる）
+    /// カプセルぱかっ: カプセルが揺れて割れ、きっぷが紙吹雪とともに飛び出す
+    case capsule
+    /// 発券: 券売機の取り出し口から、きっぷが少しずつ出てくる（行き先の手前でためる）
     case issue
+
+    /// 標準の演出（まだ選んでいない端末・覚えた値が読めないとき）
+    static let standard = Self.flap
+
+    /// 設定に並べる順（標準を先頭にする）
+    static let settingsOrder: [Self] = [.flap, .capsule, .issue]
+
+    /// 演出の名前（設定の行と選ぶ画面）
+    var title: LocalizedStringResource {
+        switch self {
+        case .flap: "パタパタ行き先表示"
+        case .capsule: "カプセルぱかっ"
+        case .issue: "発券"
+        }
+    }
+
+    /// 演出の説明（選ぶ画面の名前の下）
+    var summary: LocalizedStringResource {
+        switch self {
+        case .flap: "駅の行き先表示のように、候補の名前がめくれて当たりで止まります"
+        case .capsule: "カプセルが揺れて割れ、紙吹雪とともにきっぷが飛び出します"
+        case .issue: "券売機の口から、きっぷが少しずつ出てきます"
+        }
+    }
 }
 
 /// 演出の段階（画面の見出し・ボタンを出す区切り）
@@ -40,7 +62,7 @@ nonisolated enum ResultRevealPhase: Int, Comparable, Sendable {
 nonisolated enum ResultEntrance: Sendable {
     /// ルーム・通知から直接開いた（見終えた結果を開き直すことが多いので、短いポップインだけにする）
     case direct
-    /// S-13 でカプセルを開けた直後（案の演出を流す）
+    /// S-13 でカプセルを開けた直後（選んだ演出を流す）
     case afterOpening
 }
 
@@ -190,8 +212,8 @@ nonisolated enum RevealCurve {
 }
 
 extension EnvironmentValues {
-    /// S-14 で行き先きっぷを出す演出の案（起動引数で選ぶ。既定は今の演出）
-    @Entry var resultRevealStyle: ResultRevealStyle = .pop
+    /// S-14 で行き先きっぷを出す演出（設定で選んだもの。`MainNavigationView` が S-13・S-14 のカバーに渡す）
+    @Entry var resultRevealStyle: ResultRevealStyle = .standard
     /// S-14 にどこから入ったか（`GachaFlowView` が S-13 から替えたときに `afterOpening` にする）
     @Entry var resultEntrance: ResultEntrance = .direct
 }

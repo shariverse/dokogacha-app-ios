@@ -2,13 +2,13 @@
 //  FlapBoardReveal.swift
 //  Dokogacha
 //
-//  案 B「パタパタ行き先表示」: 駅の発車標（ソラリー式）のような黒帯が、抽選の対象だった候補の名前をパタパタとめくり、
+//  結果の演出「パタパタ行き先表示」（標準）: 駅の発車標（ソラリー式）のような黒帯が、抽選の対象だった候補の名前をパタパタとめくり、
 //  だんだん遅くなって当選の名前で止まる。点滅してから黒帯が裏返り、行き先きっぷになる（Issue #158）。
 //
 
 import SwiftUI
 
-/// 案 B の時間と動き。時刻（演出を始めてからの秒）から形を求める
+/// パタパタ行き先表示の時間と動き。時刻（演出を始めてからの秒）から形を求める
 nonisolated enum FlapBoardTimeline {
     /// めくり始める時刻（S-13 からのフェードが終わるころ）
     static let startAt = 0.35
@@ -208,7 +208,7 @@ nonisolated enum FlapBoardTimeline {
     }
 }
 
-/// 案 B の見た目。きっぷと同じ大きさの黒帯を重ね、黒帯が倒れたらきっぷが起き上がる
+/// パタパタ行き先表示の見た目。きっぷと同じ大きさの黒帯を重ね、黒帯が倒れたらきっぷが起き上がる
 struct FlapBoardReveal: View {
     /// いまの形
     let pose: FlapBoardTimeline.Pose
@@ -388,7 +388,7 @@ private struct SplitFlapWindow: View {
     }
 }
 
-#Preview("案 B パタパタ行き先表示") {
+#Preview("パタパタ行き先表示") {
     @Previewable @State var round = 0
     VStack(spacing: DGSpacing.s24) {
         ResultRevealStage(

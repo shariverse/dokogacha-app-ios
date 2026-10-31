@@ -2,12 +2,12 @@
 //  CapsuleBurstReveal.swift
 //  Dokogacha
 //
-//  案 A「カプセルぱかっ」: 当選のカプセルが揺れて（溜め）、ぎゅっと縮んでから上下に割れ、きっぷが紙吹雪とともに飛び出す（Issue #158）。
+//  結果の演出「カプセルぱかっ」: 当選のカプセルが揺れて（溜め）、ぎゅっと縮んでから上下に割れ、きっぷが紙吹雪とともに飛び出す（Issue #158）。
 //
 
 import SwiftUI
 
-/// 案 A の時間と動き。時刻（演出を始めてからの秒）から形を求める
+/// カプセルぱかっの時間と動き。時刻（演出を始めてからの秒）から形を求める
 nonisolated enum CapsuleBurstTimeline {
     /// カプセルの直径（S-13 の取り出し口のカプセル 60 の 2 倍）
     static let capsuleDiameter: CGFloat = 120
@@ -197,7 +197,7 @@ nonisolated enum CapsuleBurstTimeline {
     }
 }
 
-/// 案 A の見た目。きっぷの上に、割れる前のカプセル・割れた殻・紙吹雪を重ねる（重ねたものは VoiceOver では読まない）
+/// カプセルぱかっの見た目。きっぷの上に、割れる前のカプセル・割れた殻・紙吹雪を重ねる（重ねたものは VoiceOver では読まない）
 struct CapsuleBurstReveal: View {
     /// いまの形
     let pose: CapsuleBurstTimeline.Pose
@@ -280,7 +280,7 @@ private struct CapsuleHalf: View {
     }
 }
 
-#Preview("案 A カプセルぱかっ") {
+#Preview("カプセルぱかっ") {
     @Previewable @State var round = 0
     VStack(spacing: DGSpacing.s24) {
         ResultRevealStage(
