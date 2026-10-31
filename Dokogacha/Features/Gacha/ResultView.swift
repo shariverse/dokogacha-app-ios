@@ -103,15 +103,18 @@ struct ResultView: View {
         VStack(spacing: 0) {
             DGHeader(Text(verbatim: model.room.room?.name ?? ""), onBack: { dismiss() })
                 .padding(.leading, DGSpacing.s4)
+                .dgContentColumn()
                 // 引き直し・決定を送っている途中は閉じさせない（送った結果を見せる相手がいなくなるため）
                 .disabled(model.isSendingReroll || model.closing.isClosing)
             ScrollView {
                 content
                     .padding(.horizontal, DGSpacing.screenX)
+                    .dgContentColumn()
                     .padding(.top, DGSpacing.s8)
                     .padding(.bottom, DGSpacing.s24)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .dgCentersContentOnTallScreen()
             // 下部に固定する「この行き先で決定」（作成者）・説明（作成者以外）。F-44
             ResultCloseSection(result: model)
                 .modifier(RevealedModifier(isShown: showsActions, rises: !reducesMotion, animation: revealAnimation))

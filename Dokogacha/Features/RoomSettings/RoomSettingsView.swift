@@ -58,6 +58,7 @@ struct RoomSettingsView: View {
             ScrollView {
                 content
                     .padding(.horizontal, DGSpacing.screenX)
+                    .dgContentColumn()
                     .padding(.top, DGSpacing.s8)
                     .padding(.bottom, DGSpacing.s16)
             }
@@ -72,6 +73,7 @@ struct RoomSettingsView: View {
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.top, DGSpacing.s12)
             .padding(.bottom, DGSpacing.s14)
+            .dgContentColumn()
             .background(Color.dgBgBase)
         }
         .background(Color.dgBgBase.ignoresSafeArea())
@@ -115,6 +117,7 @@ struct RoomSettingsView: View {
                 .accessibilityIdentifier(Identifier.close)
         }
         .padding(.leading, DGSpacing.s12)
+        .dgContentColumn()
     }
 
     // MARK: - 中身

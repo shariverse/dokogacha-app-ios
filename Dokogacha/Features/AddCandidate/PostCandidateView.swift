@@ -64,10 +64,12 @@ struct PostCandidateView: View {
                 closeButton
             }
             .padding(.leading, DGSpacing.s12)
+            .dgContentColumn()
             ScrollView {
                 if let draft = model.draft {
                     form(draft)
                         .padding(.horizontal, DGSpacing.screenX)
+                        .dgContentColumn()
                         .padding(.bottom, DGSpacing.s16)
                 }
             }
@@ -82,6 +84,7 @@ struct PostCandidateView: View {
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.top, DGSpacing.s12)
             .padding(.bottom, DGSpacing.s14)
+            .dgContentColumn()
             .background(Color.dgBgBase)
         }
         .background(Color.dgBgBase.ignoresSafeArea())

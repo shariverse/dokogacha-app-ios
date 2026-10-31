@@ -92,10 +92,13 @@ struct InviteView: View {
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.top, contentTopPadding)
                 .padding(.bottom, DGSpacing.s16)
             }
             .scrollBounceBehavior(.basedOnSize)
+            // 作った直後（全画面）だけ、iPad の大きな画面で縦の中央に寄せる。シートはヘッダーの下に続ける
+            .dgCentersContentOnTallScreen(isEnabled: isCreatedContext)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
@@ -133,7 +136,16 @@ struct InviteView: View {
         .padding(.horizontal, DGSpacing.screenX)
         .padding(.top, DGSpacing.s12)
         .padding(.bottom, DGSpacing.s14)
+        .dgContentColumn()
         .background(Color.dgBgBase)
+    }
+
+    /// ルームを作った直後の S-04（プッシュ）か
+    private var isCreatedContext: Bool {
+        if case .created = context {
+            return true
+        }
+        return false
     }
 
     /// 「招待リンクを送る」と、前回のメンバーがいれば「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 3・4）
@@ -153,6 +165,7 @@ struct InviteView: View {
                 .accessibilityIdentifier(Identifier.close)
         }
         .padding(.leading, DGSpacing.s12)
+        .dgContentColumn()
     }
 
     /// 「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 4）。送っている途中と送った後は押せない

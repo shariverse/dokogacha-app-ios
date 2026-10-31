@@ -24,7 +24,7 @@ struct AdFreeNoticeSlot: View {
             DGAdFreeNotice(sponsorName: name)
                 .padding(.horizontal, DGSpacing.screenX)
                 .padding(.bottom, DGSpacing.s14)
-                .frame(maxWidth: .infinity)
+                .dgContentColumn()
                 .background(Color.dgBgBase)
                 .accessibilityIdentifier(Self.identifier)
         }
