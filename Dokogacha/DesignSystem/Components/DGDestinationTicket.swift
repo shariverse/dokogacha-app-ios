@@ -77,6 +77,8 @@ struct DGDestinationTicket: View {
     var notchColor: Color = .dgBgBase
     /// 表示したときにハンコを押す動きをするか（S-14 で表示したとき。既定は動かさない）
     var stampAnimatesIn = false
+    /// ハンコの押し具合（0〜1。演出の時刻に合わせて外から決めるとき。nil なら `stampAnimatesIn` に従う）
+    var stampProgress: Double?
 
     @Environment(\.timeZone) private var timeZone
 
@@ -188,7 +190,7 @@ struct DGDestinationTicket: View {
         .padding(.trailing, Self.detailsTrailingPadding)
         .padding(.bottom, DGSpacing.s16)
         .overlay(alignment: .topTrailing) {
-            DGStamp("決定", size: .large, date: drawnAt, animatesIn: stampAnimatesIn)
+            DGStamp("決定", size: .large, date: drawnAt, animatesIn: stampAnimatesIn, pressProgress: stampProgress)
                 .padding(.top, Self.stampTopInDetails)
                 .padding(.trailing, Self.stampTrailing)
         }

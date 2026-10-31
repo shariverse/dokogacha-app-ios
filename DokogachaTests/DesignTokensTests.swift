@@ -170,7 +170,6 @@ struct DesignTokensTests {
         "shake": DGMotion.shake,
         "turn": DGMotion.turn,
         "drop": DGMotion.drop,
-        "pulse": DGMotion.pulse,
         "open": DGMotion.open,
         "pop": DGMotion.pop,
         "stamp": DGMotion.stamp,
@@ -340,7 +339,7 @@ struct DesignTokensTests {
         #expect(Set(motion.keys) == Set(Self.motions.keys))
         for (key, spec) in Self.motions {
             let entry = try #require(motion[key])
-            // pulse だけは繰り返しの周期を period で書いている
+            // 止めるまで繰り返すものは、繰り返しの周期を period で書く
             let duration = (entry["duration"] ?? entry["period"]) as? NSNumber
             #expect(duration?.doubleValue == spec.duration, "\(key) の時間")
             #expect((entry["delay"] as? NSNumber)?.doubleValue ?? 0 == spec.delay, "\(key) の遅れ")

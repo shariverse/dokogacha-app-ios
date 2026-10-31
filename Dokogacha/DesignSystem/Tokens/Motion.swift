@@ -33,7 +33,7 @@ nonisolated struct DGMotionSpec: Sendable, Equatable {
     var delay: Double = 0
     /// 繰り返す回数。`nil` なら 1 回だけ（`repeatsForever` のときは使わない）
     var repeatCount: Int?
-    /// 止めるまで繰り返すか（`pulse`。tokens.json では `period` で周期だけを書いたもの）。
+    /// 止めるまで繰り返すか（tokens.json では `period` で周期だけを書いたもの。いまは使っているトークンが無い）。
     ///
     /// 止めるのは呼び出し側（`keyframeAnimator(initialValue:repeating:)` の `repeating` を false にする・ビューを外す）。
     /// 「視差効果を減らす」がオンのときは繰り返さない（04 の §5「すべて即時切り替え」）
@@ -73,8 +73,6 @@ nonisolated enum DGMotion {
     static let turn = DGMotionSpec(duration: 1.6, curve: .bezier(0.4, 0, 0.2, 1))
     /// 出てくるカプセルの落下（`motion.drop`）
     static let drop = DGMotionSpec(duration: 0.7, curve: .easeOut)
-    /// 出てきたカプセルの拡大縮小（`motion.pulse`。1.2 秒周期、0.8 秒後から。止めるまで繰り返す）
-    static let pulse = DGMotionSpec(duration: 1.2, curve: nil, delay: 0.8, repeatsForever: true)
     /// カプセルが開いて消える（`motion.open`）
     static let open = DGMotionSpec(duration: 0.5, curve: .easeIn)
     /// きっぷが出てくる（`motion.pop`）。SwiftUI では `popSpring` を使う
