@@ -36,7 +36,8 @@ struct GachaMachineStage: View {
         let winnerIndex = model.winnerCapsuleIndex
         let winnerColor = Color.dgCapsule(at: model.winnerColorIndex)
         let isLeverEnabled = model.canTurnLever
-        TimelineView(.animation(minimumInterval: nil, paused: !model.phase.isAnimating)) { context in
+        // 「視差効果を減らす」では筐体を動かさないので、時刻を進めない（止まった絵を毎フレーム描き直さない）
+        TimelineView(.animation(minimumInterval: nil, paused: !model.phase.isAnimating || reduceMotion)) { context in
             let spinTime = spinStart.map { context.date.timeIntervalSince($0) }
             let dropTime = dropStart.map { context.date.timeIntervalSince($0) }
             let openTime = openStart.map { context.date.timeIntervalSince($0) }
