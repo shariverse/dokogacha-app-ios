@@ -9,6 +9,18 @@ import Testing
 
 /// iPad の本文の幅と列の分け方（`DGLayout`。03 の §3「iPad」）を、端末とウィンドウの幅ごとに確かめる
 struct LayoutTests {
+    /// 値が tokens.json の `layout` と同じ（読み方は `DesignTokensTests` と同じ）
+    @Test
+    func layoutMatchesTokens() throws {
+        let root = try DesignTokensTests.loadTokens()
+        let layout = try #require(root["layout"] as? [String: Any])
+        #expect(layout.count == 4)
+        #expect(try DesignTokensTests.number("layout.contentMaxWidth", in: root) == DGLayout.contentMaxWidth)
+        #expect(try DesignTokensTests.number("layout.wideContentMaxWidth", in: root) == DGLayout.wideContentMaxWidth)
+        #expect(try DesignTokensTests.number("layout.columnMinWidth", in: root) == DGLayout.columnMinWidth)
+        #expect(try DesignTokensTests.number("layout.sidePaneWidth", in: root) == DGLayout.sidePaneWidth)
+    }
+
     /// iPhone（横の size class が compact）は、どの幅でも列を分けない（iPhone の見た目を変えない）
     @Test(arguments: [320, 375, 393, 402, 440] as [CGFloat])
     func iPhoneNeverSplits(width: CGFloat) {

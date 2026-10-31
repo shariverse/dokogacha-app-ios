@@ -314,18 +314,6 @@ struct DesignTokensTests {
         #expect(try Self.number("minTapTarget", in: root) == DGMetrics.minTapTarget)
     }
 
-    /// iPad の本文の幅と列の分け方が tokens.json と同じであることを確かめる
-    @Test
-    func layoutMatchesTokens() throws {
-        let root = try Self.loadTokens()
-        let layout = try #require(root["layout"] as? [String: Any])
-        #expect(layout.count == 4)
-        #expect(try Self.number("layout.contentMaxWidth", in: root) == DGLayout.contentMaxWidth)
-        #expect(try Self.number("layout.wideContentMaxWidth", in: root) == DGLayout.wideContentMaxWidth)
-        #expect(try Self.number("layout.columnMinWidth", in: root) == DGLayout.columnMinWidth)
-        #expect(try Self.number("layout.sidePaneWidth", in: root) == DGLayout.sidePaneWidth)
-    }
-
     /// ハードシャドウのずれ・ぼかし・色が tokens.json と同じであることを確かめる
     @Test
     func shadowsMatchTokens() throws {
