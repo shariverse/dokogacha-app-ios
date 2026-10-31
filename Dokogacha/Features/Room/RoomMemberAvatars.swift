@@ -13,6 +13,11 @@ import SwiftUI
 /// 並びの末尾（「+N」の後）に招待の「＋」（`DGAvatarInviteButton`）を置き、アバターと同じく幅に入らなければ折り返す。
 /// 「＋」はメンバーのボタンの中に入れ子にせず、並びの中には場所だけを取って、その場所にボタンを重ねる
 /// （押すと招待、ほかの場所を押すとメンバー一覧。VoiceOver でも「メンバー」の次に別の要素として読む）。
+///
+/// 名前・「+N」・「招待」と列の幅は Dynamic Type に合わせて広げるが、xxxLarge で止める（`maxTypeSize`。02 の §9「最大 xxxLarge まで崩れない」）。
+/// アクセシビリティの大きさまで広げると列が 1 つになり、10 人のルームではアバターと「＋」が 8 段の縦の列になって、
+/// 準備OKのボタンが画面の外に押し出されるため。名前は S-11 メンバー一覧で大きな文字のまま読め、VoiceOver はこの並びを「メンバー、n人」と読む。
+/// 列の幅（`@ScaledMetric`）もこの上限で決まるよう、上限は置く側（`RoomPanel`）がこの部品に付ける。
 struct RoomMemberAvatars: View {
     /// 末尾の招待の「＋」（02 の F-04）
     struct Invite {
@@ -22,6 +27,9 @@ struct RoomMemberAvatars: View {
         var onInvite: () -> Void = {}
     }
 
+    /// 文字と列の幅を大きくする上限（型の説明。`RoomPanel` が `dynamicTypeSize(...maxTypeSize)` で付ける）
+    static let maxTypeSize = DynamicTypeSize.xxxLarge
+
     /// 並べるアバターの上限（03 の S-07「7人以上は6人＋「+N」」）
     private static let maxVisibleAvatars = 6
     /// メンバーの列の幅（プロトタイプの 56。アバター 44 と名前）
@@ -30,10 +38,8 @@ struct RoomMemberAvatars: View {
     private static let memberNameSize: CGFloat = 11
     /// メンバーの名前を列の幅に収めるときに縮める下限
     private static let memberNameMinimumScale: CGFloat = 0.7
-    /// 「+N」の文字の大きさ
+    /// 「+N」の文字の大きさ（円の大きさは変えないので、並び全体の上限 `maxTypeSize` で 2〜3 文字が円に収まる）
     private static let overflowTextSize: CGFloat = 15
-    /// 「+N」を大きくする上限（円の大きさは変えないので、2〜3 文字が円に収まる大きさで止める）
-    private static let overflowMaxTypeSize = DynamicTypeSize.xxxLarge
 
     /// メンバー（参加の早い順）
     let members: [Identified<Member>]
@@ -61,7 +67,6 @@ struct RoomMemberAvatars: View {
                     Text(verbatim: "+\(overflow.hidden)")
                         .font(.dgBody(Self.overflowTextSize, weight: .black, relativeTo: .caption))
                         .lineLimit(1)
-                        .dynamicTypeSize(...Self.overflowMaxTypeSize)
                         .foregroundStyle(Color.dgInk)
                         .frame(width: DGAvatar.Size.large.diameter, height: DGAvatar.Size.large.diameter)
                         .background(Color.dgSurfaceMuted, in: Circle())

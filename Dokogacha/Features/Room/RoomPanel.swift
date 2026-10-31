@@ -72,6 +72,8 @@ struct RoomPanel: View {
             VStack(alignment: .leading, spacing: DGSpacing.s12) {
                 readyHeader
                 RoomMemberAvatars(members: members, memberCount: memberCount, invite: invite, onOpenMembers: onOpenMembers)
+                    // 文字を最大にしても列が 1 つの縦の並びにならないよう、名前と列の幅は xxxLarge で止める（`RoomMemberAvatars`）
+                    .dynamicTypeSize(...RoomMemberAvatars.maxTypeSize)
                 if let hint = readiness.hint {
                     hintText(hint)
                 }
