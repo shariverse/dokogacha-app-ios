@@ -73,7 +73,10 @@ struct AppStoreMetadataTests {
         #expect(required.allSatisfy { scenes.contains($0.rawValue) })
     }
 
-    /// iPhone だけのアプリなので、iPad の表示サイズを撮らない（`TARGETED_DEVICE_FAMILY = 1`）
+    /// 撮る表示サイズは、いまは iPhone だけ。
+    ///
+    /// iPad にも対応した（`TARGETED_DEVICE_FAMILY = 1,2`。Issue #156）が、iPad 13 inch の撮影はまだ撮影の仕組みに足していない
+    /// （`docs/setup-human.md` の 12 の 6 で手で撮る）。足すときは、このテストを iPad 13 inch があることを確かめる形に変える
     @Test
     func screenshotsAreIPhoneOnly() throws {
         let displayTypes = try #require(try Self.json("screenshots.json")["displayTypes"] as? [String: Any])
