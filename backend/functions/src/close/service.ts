@@ -126,7 +126,8 @@ export async function closeOverdueRooms(deps: Pick<ServiceDeps, "db" | "nowMs">)
 
 /**
  * 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデア（`users/{uid}/pastIdeas`）に登録する
- * （02 の §6.5・F-13。`onRoomClosed` の中身）。
+ * （02 の §6.5・F-13。`onRoomClosed` の中身）。行き先が決まらないまま終了したルーム（抽選の前に途中で終了した・
+ * アカウントの削除で終了した・引き直しの可決の後に終了した）は登録しない（`planPastIdeas` の `hasDecidedWinner`。Discussion #155 の Q4）。
  *
  * 宛先・ルーム名・当選・終了の日時は、トリガーが受け取った終了した時点のルームの値（`event.data.after`）を `closedRoom` で受け取って使う。
  * 読み直すと、終了の直後（トリガーが動く前・やり直しの前）に退出・削除された人が `memberIds` から外れていて、登録されないため。
@@ -160,6 +161,9 @@ export async function registerPastIdeas(db: Firestore, roomId: string, closedRoo
       roomId,
       name: typeof room.name === "string" ? room.name : "",
       winnerCandidateId: typeof room.winnerCandidateId === "string" ? room.winnerCandidateId : null,
+      excludedCandidateIds: Array.isArray(room.excludedCandidateIds)
+        ? room.excludedCandidateIds.filter((id): id is string => typeof id === "string")
+        : [],
       memberIds: Array.isArray(room.memberIds) ? room.memberIds : [],
       closedAt: room.closedAt instanceof Timestamp ? room.closedAt : Timestamp.now(),
     },
