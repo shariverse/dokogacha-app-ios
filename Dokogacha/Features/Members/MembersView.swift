@@ -12,6 +12,7 @@ import SwiftUI
 /// 標準のナビゲーションバーは使わず、ヘッダー（タイトルと右端の閉じる）を置く（03 の §3）。
 /// トーストの窓口はシートの中で持ち、シートの根元に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）。
 /// 退出・削除を送っている間は、閉じるボタンと下スワイプで閉じられないようにする。退出できたら `onLeft` で親がホームへ戻す。
+/// 確認のダイアログは「ルームから退出」・削除するメンバーの行に付ける（iPad と iOS 26 以降の iPhone では、そこを指して出る）。
 struct MembersView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -72,38 +73,9 @@ struct MembersView: View {
         .dgToast(toasts)
         // 送っている間は、下スワイプで閉じさせない（S-09・S-10 と同じ）
         .lockNavigation(while: model.locksNavigation)
-        .confirmationDialog(
-            Text("ルームから退出しますか？"),
-            isPresented: $model.isConfirmingLeave,
-            titleVisibility: .visible
-        ) {
-            Button(role: .destructive) {
-                model.confirmLeaveTapped()
-            } label: {
-                Text("退出する")
-            }
-            Button(role: .cancel) {} label: {
-                Text("キャンセル")
-            }
-        } message: {
-            Text("投稿した候補は残り、いいねは取り消されます。")
-        }
-        .confirmationDialog(
-            removalTitle,
-            isPresented: isConfirmingRemoval,
-            titleVisibility: .visible,
-            presenting: model.memberPendingRemoval
-        ) { row in
-            Button(role: .destructive) {
-                model.confirmRemoveTapped(row)
-            } label: {
-                Text("削除する")
-            }
-            Button(role: .cancel) {} label: {
-                Text("キャンセル")
-            }
-        } message: { _ in
-            Text("投稿した候補は残り、いいねは取り消されます。")
+        // 削除の確認を出しているメンバーが一覧から消えたら、確認を閉じる（ダイアログはその行と一緒に消える）
+        .onChange(of: model.rows) {
+            model.closeUnavailableRemoval()
         }
         .task {
             await model.observe()
@@ -152,6 +124,7 @@ struct MembersView: View {
                     .listRowStyle()
                 ForEach(model.rows) { row in
                     memberRow(row)
+                        .removalDialog(isPresented: isConfirmingRemoval(of: row), title: removalTitle, model: model)
                         .listRowStyle()
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             if row.canRemove {
@@ -348,16 +321,32 @@ struct MembersView: View {
         }
         .buttonStyle(.dgBare)
         .accessibilityIdentifier(Identifier.leave)
+        .confirmationDialog(
+            Text("ルームから退出しますか？"),
+            isPresented: $model.isConfirmingLeave,
+            titleVisibility: .visible
+        ) {
+            Button(role: .destructive) {
+                model.confirmLeaveTapped()
+            } label: {
+                Text("退出する")
+            }
+            Button(role: .cancel) {} label: {
+                Text("キャンセル")
+            }
+        } message: {
+            Text("投稿した候補は残り、いいねは取り消されます。")
+        }
     }
 
     // MARK: - 削除の確認
 
-    /// 削除の確認のダイアログを出しているか（閉じたら確認中のメンバーを消す）
-    private var isConfirmingRemoval: Binding<Bool> {
+    /// `row` の削除の確認のダイアログを出しているか（閉じたら確認中のメンバーを消す）
+    private func isConfirmingRemoval(of row: MembersModel.Row) -> Binding<Bool> {
         Binding {
-            model.memberPendingRemoval != nil
+            model.memberPendingRemoval?.id == row.id
         } set: { isPresented in
-            if !isPresented {
+            if !isPresented, model.memberPendingRemoval?.id == row.id {
                 model.memberPendingRemoval = nil
             }
         }
@@ -370,6 +359,31 @@ struct MembersView: View {
 }
 
 private extension View {
+    /// メンバーの削除の確認のダイアログ（削除するメンバーの行に付ける）
+    /// - Parameters:
+    ///   - isPresented: この行の確認を出しているか
+    ///   - title: 見出し（「◯◯さんをルームから削除しますか？」）
+    ///   - model: 確認中のメンバーと、「削除する」を受ける画面の状態
+    func removalDialog(isPresented: Binding<Bool>, title: Text, model: MembersModel) -> some View {
+        confirmationDialog(
+            title,
+            isPresented: isPresented,
+            titleVisibility: .visible,
+            presenting: model.memberPendingRemoval
+        ) { row in
+            Button(role: .destructive) {
+                model.confirmRemoveTapped(row)
+            } label: {
+                Text("削除する")
+            }
+            Button(role: .cancel) {} label: {
+                Text("キャンセル")
+            }
+        } message: { _ in
+            Text("投稿した候補は残り、いいねは取り消されます。")
+        }
+    }
+
     /// 一覧の行の並べ方（区切り線を出さず、背景を透かし、左右を画面の余白にそろえる）
     func listRowStyle() -> some View {
         listRowSeparator(.hidden)
