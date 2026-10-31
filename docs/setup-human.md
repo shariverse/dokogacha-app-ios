@@ -311,8 +311,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
 4. 年齢区分の質問に答える（ユーザーが投稿する内容がある・報告と削除の仕組みがある・広告がある）
 5. 審査メモに書く: 匿名で始まりログインは要らない／ガチャは課金の無い抽選（ルームの候補から行き先を決める）／投稿の報告は候補の詳細（S-10）の「この投稿を報告」、アカウントの削除は設定（S-15）の「アカウントを削除」にある
-6. スクリーンショット: `release/**` ブランチで Actions の `Screenshots/App Store` を手動実行する（6.9 inch を撮り、6.3 inch は縮めて作る。iPhone Duo は Xcode 27.1 のランナー）。撮る画面は `AppStore/screenshots.json` の 5 つ
-   - iPad に対応した（Issue #156）ので、App Store Connect は iPad 13 inch のスクリーンショットも求める。`AppStore/screenshots.json` の `displayTypes` に iPad 13 inch がまだ無いので、撮影の仕組みに足すまでは iPad の Simulator（iPad Pro 13-inch）で撮影モードを起動して撮り、手で上げる
+6. スクリーンショット: `release/**` ブランチで Actions の `Screenshots/App Store` を手動実行する（6.9 inch を撮り、6.3 inch は縮めて作る。iPhone Duo は Xcode 27.1 のランナー。iPad 13 inch は iPad Pro 13-inch の Simulator）。撮る画面は `AppStore/screenshots.json` の 5 つ
 7. プロダクトページのヘッダーと検索結果の画像: `AppStore/creative/src/creative.html` の `TODO:`（色と文言）を書き換え、6.9 inch のスクリーンショットから `Tools/render_creative_assets.sh build/screenshots/APP_IPHONE_67` で書き出してコミットし、`Creative assets/App Store` を流す（`TODO:` が残っていると反映が止まる）
 8. ビルドを選んで審査に出す（`remove_ads` も一緒に）
 
