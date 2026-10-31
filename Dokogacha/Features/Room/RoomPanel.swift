@@ -13,6 +13,7 @@ import SwiftUI
 ///
 /// 「準備OK」はオフのとき黄色（`accent.secondary`）、オンのとき白の「準備OKを取り消す」（03 の S-07）。
 /// 「強制解禁（作成者）」は下線付きの文字だけのボタンで、準備OKのボタンの横に置く。文字を大きくして横に入らなければ縦に並べる。
+/// 押したときの確認のダイアログはこのボタンに付ける（iPad と iOS 26 以降の iPhone では、ボタンを指して出る）。
 struct RoomPanel: View {
     /// 準備OKまわりの表示（ボタンを出すか・押したときの処理）
     struct Readiness {
@@ -26,10 +27,14 @@ struct RoomPanel: View {
         var canForceUnlock = false
         /// 強制解禁を送っている途中か（ボタンを押せなくする）
         var isForceUnlocking = false
+        /// 強制解禁の確認のダイアログを出しているか
+        var isConfirmingForceUnlock: Binding<Bool> = .constant(false)
         /// 準備OKのボタンを押したときの処理
         var onToggleReady: () -> Void = {}
-        /// 「強制解禁（作成者）」を押したときの処理
+        /// 「強制解禁（作成者）」を押したときの処理（確認のダイアログを出す）
         var onForceUnlock: () -> Void = {}
+        /// 確認のダイアログで「解禁する」を押したときの処理
+        var onConfirmForceUnlock: () -> Void = {}
     }
 
     /// 「準備OK」の文字の大きさ（プロトタイプの 14 の太字）
@@ -174,6 +179,14 @@ struct RoomPanel: View {
             .disabled(readiness.isForceUnlocking)
             .accessibilityHint(Text("確認のあと、準備OKが揃っていなくてもガチャを解禁します"))
             .accessibilityIdentifier(RoomView.Identifier.forceUnlock)
+            .confirmationDialog(
+                Text("まだ準備OKしていない人がいます。ガチャを解禁しますか？"),
+                isPresented: readiness.isConfirmingForceUnlock,
+                titleVisibility: .visible
+            ) {
+                Button("解禁する", action: readiness.onConfirmForceUnlock)
+                Button("キャンセル", role: .cancel) {}
+            }
         }
     }
 

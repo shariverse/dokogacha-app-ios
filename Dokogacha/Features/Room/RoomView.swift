@@ -10,8 +10,8 @@ import SwiftUI
 /// 下に「ガチャを回す」を固定する。
 ///
 /// 標準のナビゲーションバーは使わない（03 の §3）。画面の行き先（S-08・S-10・S-11・S-12・S-13）は `navigate` で親に渡す。
-/// ルームパネルは `RoomPanel`（準備OKのボタン・ヒント文言・強制解禁 F-30〜32 を含む）。強制解禁の確認のダイアログはこの画面で出し、
-/// 送っている途中はヘッダー（戻る・設定）を押せなくする。バナー広告（F-50）は下部のボタンの下に置く（`BannerAdSlot`。購入者がいるルームでは出さず、代わりに「◯◯さんのおかげで、このルームは広告なし」（`AdFreeNoticeSlot`。F-51）を出す）。
+/// ルームパネルは `RoomPanel`（準備OKのボタン・ヒント文言・強制解禁 F-30〜32 を含む。強制解禁の確認のダイアログもそのボタンに付く）。
+/// 強制解禁を送っている途中はヘッダー（戻る・設定）を押せなくする。バナー広告（F-50）は下部のボタンの下に置く（`BannerAdSlot`。購入者がいるルームでは出さず、代わりに「◯◯さんのおかげで、このルームは広告なし」（`AdFreeNoticeSlot`。F-51）を出す）。
 /// `drawn`・`closed` のルームを開いたときは結果（S-14）を自動で出す（03 の §2）。下部のボタンは `RoomGachaBar`。
 struct RoomView: View {
     /// UI テストが探す ID
@@ -97,16 +97,6 @@ struct RoomView: View {
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
-        .confirmationDialog(
-            Text("まだ準備OKしていない人がいます。ガチャを解禁しますか？"),
-            isPresented: $model.isConfirmingForceUnlock,
-            titleVisibility: .visible
-        ) {
-            Button("解禁する") {
-                model.confirmForceUnlockTapped()
-            }
-            Button("キャンセル", role: .cancel) {}
-        }
         .onChange(of: model.canForceUnlock) {
             model.closeUnavailableConfirmation()
         }
@@ -269,8 +259,10 @@ struct RoomView: View {
                 showsButton: model.showsReadyButton,
                 canForceUnlock: model.canForceUnlock,
                 isForceUnlocking: model.isSendingForceUnlock,
+                isConfirmingForceUnlock: $model.isConfirmingForceUnlock,
                 onToggleReady: { model.readyTapped() },
-                onForceUnlock: { model.forceUnlockTapped() }
+                onForceUnlock: { model.forceUnlockTapped() },
+                onConfirmForceUnlock: { model.confirmForceUnlockTapped() }
             ),
             invite: memberInvite
         ) {
