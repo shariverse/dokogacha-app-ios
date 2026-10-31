@@ -50,7 +50,7 @@ struct GachaComponentsPage: View {
                             domeRotationDegrees: -4,
                             leverRotationDegrees: 45,
                             dispensedOffsetY: -30,
-                            dispensedScale: 1.08
+                            dispensedScale: 1.3
                         )
                     ) {}
                 }

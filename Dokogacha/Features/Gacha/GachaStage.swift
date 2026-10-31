@@ -7,33 +7,33 @@
 
 import Foundation
 
-/// S-13 の演出の段階（03 の S-13「レバーを押す → 回転中（1.6秒）→ 取り出し → カプセルをタップ → 開く（0.5秒）→ S-14」）。
+/// S-13 の演出の段階（03 の S-13「レバーを押す → 回転中（1.6秒）→ 取り出し → 開く（0.5秒）→ S-14」）。
+///
+/// レバーを押したら、結果の画面まで止まらずに進む（カプセルを押して開ける操作は無い。Issue #158）
 nonisolated enum GachaPhase: Equatable, Sendable {
     /// 待機（レバーを回せる）
     case idle
     /// 回転中（ドームが揺れ、レバーのバーが回る。自分が回したときは、この間に `drawGacha` を呼ぶ）
     case spinning
-    /// 取り出し口へカプセルが落ちている途中（`drop`。押せない）
+    /// 取り出し口へカプセルが落ち、少し止まって見せている途中（`drop`）
     case dropping
-    /// 取り出し口にカプセルがある（`pulse`。押すと開ける）
-    case dispensed
-    /// カプセルが開いている途中（`open`。押せない）
+    /// カプセルが開いている途中（`open`）
     case opening
     /// 開け終えた（結果の画面へ進む）
     case opened
 
-    /// 演出の途中か（レバー・閉じるボタンを押せない。取り出し口にカプセルがある `dispensed` と、開け終えた後は含めない）
+    /// 演出の途中か（レバー・閉じるボタンを押せない。開け終えた後は含めない）
     var isAnimating: Bool {
         switch self {
         case .spinning, .dropping, .opening: true
-        case .idle, .dispensed, .opened: false
+        case .idle, .opened: false
         }
     }
 
     /// 取り出し口にカプセルを出しているか
     var showsCapsule: Bool {
         switch self {
-        case .dropping, .dispensed, .opening, .opened: true
+        case .dropping, .opening, .opened: true
         case .idle, .spinning: false
         }
     }
@@ -51,8 +51,8 @@ nonisolated enum GachaCaption: Equatable, Sendable {
     case spinning
     /// ほかの人が回した回転中（「{名前}さんが回しました！」／「どこに決まるかな」。F-41）
     case drawnByOther(name: String)
-    /// 取り出し（「カプセルをタップ！」／「開けると行き先が決まります」）
-    case dispensed
+    /// 取り出し（「ころん！」／「行き先を発表します」。カプセルが落ちてから結果の画面に替わるまで）
+    case landed
 
     /// 段階とルームの状態から、出す文言を選ぶ
     /// - Parameters:
@@ -74,8 +74,8 @@ nonisolated enum GachaCaption: Equatable, Sendable {
             return capsuleCount > 0 ? .ready(isReroll: isReroll) : .noCandidates
         case .spinning:
             return drawnByName.map(Self.drawnByOther(name:)) ?? .spinning
-        case .dropping, .dispensed, .opening, .opened:
-            return .dispensed
+        case .dropping, .opening, .opened:
+            return .landed
         }
     }
 }
@@ -83,7 +83,8 @@ nonisolated enum GachaCaption: Equatable, Sendable {
 /// 演出の合図（触覚と、後で足すサウンドのフック。04 の §5「演出の各タイミングにフックを用意する」）。
 ///
 /// 03 の S-13 の触覚: レバーを押した瞬間 `.impact(.heavy)`、回転中は 0.2 秒ごとに `.impact(.light)`、カプセルが落ちた瞬間 `.impact(.medium)`、
-/// 開いた瞬間 `.success`。`SensoryFeedback` への対応は画面の側（`GachaView`）で持つ
+/// 開いた瞬間 `.impact(.soft)`（行き先が決まった `.success` は、S-14 の結果の演出の決まる瞬間に鳴らす）。
+/// `SensoryFeedback` への対応は画面の側（`GachaView`）で持つ
 nonisolated enum GachaCue: Equatable, Sendable {
     /// レバーを押した（自分が回したときだけ）
     case leverPulled
@@ -113,8 +114,10 @@ nonisolated enum GachaTimeline {
     static let tickCount = Int((spinDuration / tickInterval).rounded()) - 1
     /// カプセルが落ちきる（取り出し口の底に当たる）までの時間（プロトタイプの `dgDrop` の 55% の位置）
     static let landingDelay = DGMotion.drop.duration * DropKeyframes.landingFraction
-    /// 落ち始めてから押せるようになるまでの時間（`pulse` が始まる 0.8 秒後。`drop` の 0.7 秒の後）
-    static let dispenseDelay = max(DGMotion.drop.duration, DGMotion.pulse.delay)
+    /// 落ちきってから開け始めるまで、取り出し口のカプセルを見せておく時間（何色のカプセルが出たかが分かる間）
+    static let landedHold = 0.4
+    /// 底に当たってから開け始めるまでの時間（跳ね終えるまで ＋ `landedHold`）
+    static let openDelay = DGMotion.drop.duration - landingDelay + landedHold
     /// カプセルが開く時間（03「開く（0.5秒）」）
     static let openDuration = DGMotion.open.duration
 
@@ -136,8 +139,6 @@ nonisolated enum GachaTimeline {
     static let shakeAngles: [Double] = [-4, 4, -3, 3, 0]
     /// レバーのバーを回す角度（04 の §5 の `turn`「720°回転」）
     static let turnDegrees: Double = 720
-    /// 出てきたカプセルをいちばん大きくしたときの倍率（04 の §5 の `pulse`「1.0↔1.08」）
-    static let pulseScale = 1.08
     /// 開くときにいちばん大きくする倍率（04 の §5 の `open`「1.6倍に拡大しながら消える」）
     static let openScale = 1.6
 }

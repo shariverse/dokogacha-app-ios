@@ -8,9 +8,10 @@ import SwiftUI
 /// S-13 ガチャ（フルスクリーンカバー）。03 の S-13 の上から順に、ヘッダー（閉じる（戻る矢印）・ルーム名）、
 /// 段階ごとのタイトルとサブ文言、GachaMachine（動きは `GachaMachineStage`）、「カプセル N個 · 共感ブースト」を並べる。
 ///
-/// レバーを押す → 回転中（揺れ・レバーの回転・0.2 秒ごとの触覚）→ カプセルが落ちる → カプセルを押す → 開く → `onOpened`（S-14 はタスク 28）。
+/// レバーを押す → 回転中（揺れ・レバーの回転・0.2 秒ごとの触覚）→ カプセルが落ちる → 自動で開く → `onOpened`（S-14 で結果の演出を流す）。
+/// カプセルを押して開ける操作は無い（レバーを押したら結果まで止まらずに進む。Issue #158）。
 /// ほかの人が回したときは、購読で知って同じ演出を自動で再生する（`GachaModel`）。
-/// 演出の段階が変わるたびに、タイトルとサブ文言を VoiceOver で読み上げる（開け終えたときは S-14 への切り替えで伝える）。
+/// 回し始めたら、タイトルとサブ文言を VoiceOver で読み上げる（落ちてから開け終えるまでは S-14 への切り替えで伝える）。
 /// バナー広告は出さない（02 の F-50「表示しない画面：ガチャ」）。トーストはフルスクリーンカバーの中に重ねる。
 struct GachaView: View {
     /// UI テストが探す ID
@@ -38,8 +39,6 @@ struct GachaView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// S-14 の演出の案（開いた瞬間の触覚を選ぶ）
-    @Environment(\.resultRevealStyle) private var revealStyle
 
     /// - Parameters:
     ///   - model: 画面の状態（最初の 1 回だけ使う）
@@ -72,7 +71,7 @@ struct GachaView: View {
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
         .sensoryFeedback(trigger: model.cue) { _, event in
-            event?.cue.feedback(revealStyle: revealStyle)
+            event?.cue.feedback
         }
         .task {
             model.reducesMotion = reduceMotion || forcesReducedMotion
@@ -135,15 +134,15 @@ struct GachaView: View {
             .accessibilityIdentifier(Identifier.capsuleCount)
     }
 
-    /// 段階が変わったことを VoiceOver で読み上げる（待機は読まない）。
+    /// 回し始めたことを VoiceOver で読み上げる（待機は読まない）。
     ///
-    /// 開け終えたときは読まない。S-14 に替わり、画面の切り替えの通知と S-14 の見出し「行き先が決まりました」で伝えるため
-    /// （読み上げと画面の切り替えが重なると、どちらかが途中で切れる。`GachaFlowView`）
+    /// 落ちてから開け終えるまでは読まない。1 秒ほどで S-14 に替わり、画面の切り替えの通知と、結果の演出の決まる瞬間に
+    /// S-14 の見出し「行き先が決まりました」へ選択を移して伝えるため（読み上げと画面の切り替えが重なると、どちらかが途中で切れる。`GachaFlowView`）
     private func announce(_ phase: GachaPhase) {
         switch phase {
         case .idle, .dropping, .opening, .opened:
             return
-        case .spinning, .dispensed:
+        case .spinning:
             let caption = model.caption
             let text = "\(String(localized: caption.title)) \(String(localized: caption.subtitle))"
             AccessibilityNotification.Announcement(text).post()
@@ -158,7 +157,7 @@ extension GachaCaption {
         case .ready, .noCandidates, .locked: "レバーを回してね"
         case .spinning: "ガラガラ…"
         case let .drawnByOther(name): "\(name)さんが回しました！"
-        case .dispensed: "カプセルをタップ！"
+        case .landed: "ころん！"
         }
     }
 
@@ -169,30 +168,23 @@ extension GachaCaption {
         case .noCandidates: "候補がありません"
         case .locked: "まだガチャは解禁されていません"
         case .spinning, .drawnByOther: "どこに決まるかな"
-        case .dispensed: "開けると行き先が決まります"
+        case .landed: "行き先を発表します"
         }
     }
 }
 
 extension GachaCue {
     /// 合図の触覚（03 の S-13「レバーを押した瞬間 .impact(.heavy)、回転中は0.2秒ごとに .impact(.light)、
-    /// カプセルが落ちた瞬間 .impact(.medium)、開いた瞬間 .success」）
+    /// カプセルが落ちた瞬間 .impact(.medium)、開いた瞬間 .impact(.soft)」）。
+    ///
+    /// 行き先が決まった `.success` は、S-14 の結果の演出の決まる瞬間に鳴らす（決まる前に「決まった」を鳴らさない。Issue #158）
     var feedback: SensoryFeedback {
         switch self {
         case .leverPulled: .impact(weight: .heavy)
         case .spinTick: .impact(weight: .light)
         case .capsuleLanded: .impact(weight: .medium)
-        case .capsuleOpened: .success
+        case .capsuleOpened: .impact(flexibility: .soft)
         }
-    }
-
-    /// S-14 の演出の案に合わせた触覚。案の演出では「決まった」の `.success` を S-14 の決まる瞬間に鳴らすので、
-    /// 開いた瞬間は `.impact(.medium)` にする（決まる前に「決まった」を鳴らさない。Issue #158）
-    func feedback(revealStyle: ResultRevealStyle) -> SensoryFeedback {
-        if self == .capsuleOpened, revealStyle != .pop {
-            return .impact(weight: .medium)
-        }
-        return feedback
     }
 }
 

@@ -29,12 +29,12 @@ struct GachaModelRecoveryTests {
         #expect(model.drawID == nil)
 
         fixture.functions.finish()
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
         let room = try #require(fixture.server.rooms[Self.roomID]?.room)
         #expect(model.drawID == room.currentDrawId)
         #expect(model.winnerCandidateID == room.winnerCandidateId)
         #expect(model.drawnByName == nil)
-        #expect(model.caption == .dispensed)
+        #expect(model.caption == .landed)
         #expect(fixture.toasts.current == nil)
         #expect(!model.isDrawing)
         #expect(fixture.server.rooms[Self.roomID]?.draws.count == 1)
@@ -67,7 +67,7 @@ struct GachaModelRecoveryTests {
         #expect(model.room?.status == .unlocked)
 
         repository.releaseRoom()
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
         #expect(model.drawID == fixture.server.rooms[Self.roomID]?.room.currentDrawId)
         #expect(model.drawnByName == nil)
     }
