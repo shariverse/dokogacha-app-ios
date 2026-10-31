@@ -21,7 +21,8 @@ nonisolated struct SearchedPlace: Identifiable, Equatable, Hashable, Sendable {
 
     /// MapKit の検索結果の値から作る。場所名が空・長すぎるなど、投稿できない（`CandidateRules.validatedPlace` が断る）結果は nil。
     ///
-    /// - エリアは `PlaceArea.text` で「東京・豊島区」の形にする。長すぎるときは都道府県だけ、それでも長ければ空にする
+    /// - エリアは `PlaceArea.text` で「東京・豊島区」の形にする。市区町村は `PlaceLocality.displayName` で形をそろえる
+    ///   （「中区, 横浜市」→「横浜市中区」、「足柄下郡箱根町」→「箱根町」）。長すぎるときは都道府県だけ、それでも長ければ空にする
     /// - カテゴリは `PlaceCategory.classify`（MapKit のカテゴリ → 場所名の「神社」「寺」「宮」→ 街歩き）
     /// - MapKit の識別子は、保存できる形（`CandidateRules.isAcceptableMapItemID`）のときだけ持つ
     /// - Parameter hit: MapKit の検索結果から取り出した値
@@ -29,8 +30,9 @@ nonisolated struct SearchedPlace: Identifiable, Equatable, Hashable, Sendable {
         guard let name = hit.name else {
             return nil
         }
+        let locality = PlaceLocality.displayName(locality: hit.locality, subLocality: hit.subLocality)
         let areaCandidates = [
-            PlaceArea.text(administrativeArea: hit.administrativeArea, locality: hit.locality),
+            PlaceArea.text(administrativeArea: hit.administrativeArea, locality: locality),
             PlaceArea.text(administrativeArea: hit.administrativeArea, locality: nil),
             ""
         ]
@@ -65,8 +67,10 @@ nonisolated struct PlaceSearchHit: Sendable {
     var name: String?
     /// 都道府県（`MKPlacemark.administrativeArea`。「東京都」の形）
     var administrativeArea: String?
-    /// 市区町村（`MKPlacemark.locality`。「豊島区」の形）
+    /// 市区町村（`MKPlacemark.locality`。「豊島区」の形。政令指定都市・郡は形が揺れる（`PlaceLocality`））
     var locality: String?
+    /// 市区町村の中の地名（`MKPlacemark.subLocality`。`locality` が郡・政令指定都市だけのときは、町村・区が入る）
+    var subLocality: String?
     /// 緯度
     var latitude: Double
     /// 経度

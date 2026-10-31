@@ -8,7 +8,7 @@ import Foundation
 import Testing
 
 /// S-08 の検索欄（`PlaceSearchModel`）を確かめる: 入力から 0.3 秒のデバウンス（待ちは手で進める）・クイックカテゴリは待たない・
-/// 遅れて届いた古い結果で上書きしない・0 件・通信エラーのトースト・エリアの選び直し（Issue #131）
+/// 遅れて届いた古い結果で上書きしない・0 件・通信エラーのトースト・エリアの選び直し（Issue #131・#160）
 struct PlaceSearchModelTests {
     static func makeModel(
         places: RecordingPlaceSearch = RecordingPlaceSearch(),
@@ -178,12 +178,12 @@ struct PlaceSearchModelTests {
     @Test
     func searchesInRememberedArea() async {
         let places = RecordingPlaceSearch()
-        let model = Self.makeModel(places: places, areaStore: InMemorySearchAreaStore(area: .kansai))
-        #expect(model.area == .kansai)
+        let model = Self.makeModel(places: places, areaStore: InMemorySearchAreaStore(scope: SearchScope(area: .kansai)))
+        #expect(model.scope == SearchScope(area: .kansai))
 
         model.searchNow("水族館")
         #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
-        #expect(places.areas == [.kansai])
+        #expect(places.scopes == [SearchScope(area: .kansai)])
     }
 
     /// エリアを選び直すと、覚えて、いまの語を待たずにそのエリアで検索し直す
@@ -196,14 +196,14 @@ struct PlaceSearchModelTests {
 
         model.searchNow("テーマパーク")
         #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["富士急ハイランド"] })
-        model.selectArea(.kanto)
-        #expect(model.area == .kanto)
-        #expect(areaStore.area == .kanto)
+        model.select(SearchScope(area: .kanto))
+        #expect(model.scope == SearchScope(area: .kanto))
+        #expect(areaStore.scope == SearchScope(area: .kanto))
         #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
-        model.selectArea(.chubu)
+        model.select(SearchScope(area: .chubu))
         #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["富士急ハイランド"] })
         #expect(places.queries == ["テーマパーク", "テーマパーク", "テーマパーク"])
-        #expect(places.areas == [.nationwide, .kanto, .chubu])
+        #expect(places.scopes == [.nationwide, SearchScope(area: .kanto), SearchScope(area: .chubu)])
         #expect(sleeper.requested.isEmpty)
     }
 
@@ -214,13 +214,13 @@ struct PlaceSearchModelTests {
         let areaStore = InMemorySearchAreaStore()
         let model = Self.makeModel(places: places, areaStore: areaStore)
 
-        model.selectArea(.okinawa)
-        #expect(areaStore.area == .okinawa)
+        model.select(SearchScope(area: .okinawa))
+        #expect(areaStore.scope == SearchScope(area: .okinawa))
         #expect(model.phase == .idle)
 
         model.searchNow("海")
         #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
-        model.selectArea(.okinawa)
+        model.select(SearchScope(area: .okinawa))
         for _ in 0..<100 {
             await Task.yield()
         }
@@ -236,7 +236,7 @@ struct PlaceSearchModelTests {
 
         model.searchNow("水族館")
         #expect(await AsyncTestSupport.eventually { places.heldCount == 1 })
-        model.selectArea(.hokkaido)
+        model.select(SearchScope(area: .hokkaido))
         #expect(await AsyncTestSupport.eventually { places.heldCount == 2 })
 
         // 全国の結果（4 件）が先に届いても映さない
@@ -247,20 +247,45 @@ struct PlaceSearchModelTests {
         #expect(model.phase == .searching)
         places.releaseFirst()
         #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
-        #expect(places.areas == [.nationwide, .hokkaido])
+        #expect(places.scopes == [.nationwide, SearchScope(area: .hokkaido)])
     }
 
     /// 地方で見つからなかった後の「全国で探す」は、全国にして検索し直す
     @Test
     func searchingNationwideAfterNoResults() async {
         let places = RecordingPlaceSearch()
-        let areaStore = InMemorySearchAreaStore(area: .kyushu)
+        let areaStore = InMemorySearchAreaStore(scope: SearchScope(area: .kyushu))
         let model = Self.makeModel(places: places, areaStore: areaStore)
 
         model.searchNow("高尾山")
         #expect(await AsyncTestSupport.eventually { model.phase == .noResults })
-        model.selectArea(.nationwide)
+        model.select(.nationwide)
         #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["高尾山"] })
-        #expect(areaStore.area == .nationwide)
+        #expect(areaStore.scope == .nationwide)
+    }
+
+    // MARK: - 都道府県・市区町村（Issue #160）
+
+    /// 都道府県・市区町村まで絞ると、そのエリアで検索し直して覚える。一段上に戻すと、また広く探す
+    @Test
+    func narrowingToPrefectureAndMunicipality() async throws {
+        let places = RecordingPlaceSearch()
+        let areaStore = InMemorySearchAreaStore()
+        let model = Self.makeModel(places: places, areaStore: areaStore)
+        let tokyo = SearchScope(prefecture: try #require(Prefecture.code(13)))
+        let sumida = try #require(MunicipalityCatalog.bundled.municipality(code: "131075").flatMap(SearchScope.init(municipality:)))
+
+        model.searchNow("水族館")
+        #expect(await AsyncTestSupport.eventually { Self.names(model.phase)?.count == 4 })
+        model.select(tokyo)
+        #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["すみだ水族館", "サンシャイン水族館", "しながわ水族館"] })
+        model.select(sumida)
+        #expect(await AsyncTestSupport.eventually { Self.names(model.phase) == ["すみだ水族館"] })
+        #expect(areaStore.scope == sumida)
+
+        model.select(try #require(model.scope.parent))
+        #expect(model.scope == tokyo)
+        #expect(await AsyncTestSupport.eventually { Self.names(model.phase)?.count == 3 })
+        #expect(places.scopes == [.nationwide, tokyo, sumida, tokyo])
     }
 }

@@ -127,6 +127,21 @@ struct SearchedPlaceTests {
         #expect(SearchedPlace.uniqued([]).isEmpty)
     }
 
+    /// MapKit の市区町村の形の揺れ（政令指定都市の区・郡）をそろえて、エリアに出す（Issue #160）
+    @Test(arguments: [
+        ("中区, 横浜市", nil, "神奈川・横浜市中区"),
+        ("横浜市", "金沢区", "神奈川・横浜市"),
+        ("足柄下郡箱根町", "強羅", "神奈川・箱根町"),
+        ("足柄下郡", "箱根町", "神奈川・箱根町"),
+        ("足柄下郡", "強羅", "神奈川・足柄下郡"),
+        ("Hakone, Ashigarashimo-Gun", "Gora", "神奈川・Hakone")
+    ])
+    func areaNormalizesMapKitLocality(locality: String, subLocality: String?, area: String) throws {
+        var hit = Self.hit(prefecture: "神奈川県", city: locality)
+        hit.subLocality = subLocality
+        #expect(try #require(SearchedPlace.make(hit)).place.area == area)
+    }
+
     // MARK: - 擬似の検索
 
     /// 擬似の検索は、名前・エリア・語に当たる場所を一覧の順に返し、同じ判定でカテゴリを付ける。空の語では何も返さない
@@ -143,13 +158,20 @@ struct SearchedPlaceTests {
         #expect(DemoPlaceSearchService.results(for: "存在しない場所").isEmpty)
     }
 
-    /// 擬似の検索も、MapKit の実装と同じ判定（`SearchArea.keeps`）でエリアの外の都道府県を取り除く
+    /// 擬似の検索も、MapKit の実装と同じ判定（`SearchScope.keeps`）でエリアの外の都道府県・市区町村を取り除く
     @Test
-    func demoSearchFiltersByArea() {
-        #expect(DemoPlaceSearchService.results(for: "自然", in: .kanto).map(\.place.name) == ["高尾山", "箱根 大涌谷"])
-        #expect(DemoPlaceSearchService.results(for: "テーマパーク", in: .kanto).isEmpty)
-        #expect(DemoPlaceSearchService.results(for: "テーマパーク", in: .chubu).map(\.place.name) == ["富士急ハイランド"])
-        #expect(DemoPlaceSearchService.results(for: "水族館", in: .kansai).isEmpty)
+    func demoSearchFiltersByScope() throws {
+        let kanto = SearchScope(area: .kanto)
+        #expect(DemoPlaceSearchService.results(for: "自然", in: kanto).map(\.place.name) == ["高尾山", "箱根 大涌谷"])
+        #expect(DemoPlaceSearchService.results(for: "テーマパーク", in: kanto).isEmpty)
+        #expect(DemoPlaceSearchService.results(for: "テーマパーク", in: SearchScope(area: .chubu)).map(\.place.name) == ["富士急ハイランド"])
+        #expect(DemoPlaceSearchService.results(for: "水族館", in: SearchScope(area: .kansai)).isEmpty)
+
+        let tokyo = SearchScope(prefecture: try #require(Prefecture.code(13)))
+        #expect(DemoPlaceSearchService.results(for: "水族館", in: tokyo).map(\.place.name) == ["すみだ水族館", "サンシャイン水族館", "しながわ水族館"])
+        let sumida = try #require(MunicipalityCatalog.bundled.municipality(code: "131075").flatMap(SearchScope.init(municipality:)))
+        #expect(DemoPlaceSearchService.results(for: "水族館", in: sumida).map(\.place.name) == ["すみだ水族館"])
+        #expect(DemoPlaceSearchService.results(for: "寺社", in: sumida).isEmpty)
     }
 
     // MARK: - MapKit の結果の写し
@@ -188,13 +210,30 @@ struct SearchedPlaceTests {
         #expect(place.category == .town)
     }
 
-    /// MapKit の検索の範囲は、エリアの矩形（`DomainConstants.SearchRegion`）の中心と幅
+    /// MapKit の検索の範囲は、エリアの矩形（`DomainConstants.SearchRegion`・`Prefecture.all`）の中心と幅
     @Test(arguments: SearchArea.allCases)
     func mapKitRegionMatchesArea(area: SearchArea) {
-        let region = MapKitPlaceSearchService.region(for: area)
+        let region = MapKitPlaceSearchService.region(for: area.bounds)
         #expect(region.center.latitude == area.bounds.centerLatitude)
         #expect(region.center.longitude == area.bounds.centerLongitude)
         #expect(region.span.latitudeDelta == area.bounds.latitudeDelta)
         #expect(region.span.longitudeDelta == area.bounds.longitudeDelta)
+    }
+
+    /// MapKit で引いた市区町村の範囲は、狭すぎれば中心を変えずに最も狭い幅まで広げる
+    @Test
+    func narrowMunicipalityBoundsAreWidened() {
+        let minimum = DomainConstants.SearchRegion.minimumMunicipalityDelta
+        let bounds = SearchBounds(
+            centerLatitude: 35.7,
+            centerLongitude: 139.7,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.2,
+            minimumDelta: minimum
+        )
+        #expect(abs(bounds.latitudeDelta - minimum) < 1e-9)
+        #expect(abs(bounds.longitudeDelta - 0.2) < 1e-9)
+        #expect(abs(bounds.centerLatitude - 35.7) < 1e-9)
+        #expect(abs(bounds.centerLongitude - 139.7) < 1e-9)
     }
 }

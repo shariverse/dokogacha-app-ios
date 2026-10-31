@@ -140,16 +140,20 @@ nonisolated enum DomainConstants {
         static let allLikedMinOtherMembers = 2
     }
 
-    /// 場所検索の範囲（06 の §4 の仮決め「全国か地方を選ぶ。初めは全国」。Issue #131）。
+    /// 場所検索の範囲（06 の §4 の仮決め「全国・地方・都道府県・市区町村を選ぶ。初めは全国」。Issue #131・#160）。
     ///
     /// エリア（`SearchArea`）ごとの、`MKLocalSearch` の `region` にする矩形。位置情報は使わない。
     /// - 全国: 沖縄から北海道まで（北緯 23.8〜45.8 度・東経 122.5〜146.5 度）。矩形なので、日本の外（韓国・中国・台湾の一部と周りの海）も含む。
     ///   範囲の外の結果は出さないが、この矩形の中の日本の外の場所は結果に出うる（国で絞る API は無い。実機での確かめは #59）
-    /// - 地方: 地方の都道府県の本土と主な島を囲む。矩形なので隣の地方の一部も入る（結果は都道府県で取り除く。`SearchArea.keeps`）。
-    ///   矩形の外の離島（伊豆諸島・小笠原諸島・奄美群島など）は「全国」で探す
+    /// - 地方: 地方の都道府県の本土と主な島を囲む。矩形なので隣の地方の一部も入る（結果は都道府県で取り除く。`SearchScope.keeps`）。
+    ///   矩形の外の離島（伊豆諸島・小笠原諸島・奄美群島など）は、その市区町村を選ぶか「全国」で探す
+    /// - 都道府県: 都道府県の本土と近くの島を囲む矩形（`Prefecture.all`）
+    /// - 市区町村: MapKit の住所の検索（「東京都豊島区」）で引いた範囲（`MapKitPlaceSearchService`）。引けなければ都道府県の矩形
     nonisolated enum SearchRegion {
         /// 初めて S-08 を開いたときのエリア（選んだ後は端末に覚えたエリア。`SearchAreaStore`）
-        static let initialArea = SearchArea.nationwide
+        static let initialScope = SearchScope.nationwide
+        /// 市区町村の範囲の最も狭い幅（度。約 4km）。MapKit が狭い範囲を返しても、ここまでは広げて探す（小さな町村で結果が減りすぎないように）
+        static let minimumMunicipalityDelta = 0.04
         /// 全国
         static let nationwide = SearchBounds(minLatitude: 23.8, maxLatitude: 45.8, minLongitude: 122.5, maxLongitude: 146.5)
         /// 北海道（松前・奥尻島から宗谷岬・納沙布岬まで）

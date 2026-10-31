@@ -26,6 +26,7 @@ struct LicenseCatalogTests {
         case .apache2: "Apache License"
         case .bsd3: "Redistribution and use in source and binary forms"
         case .zlib: "This software is provided 'as-is'"
+        case .pdl1: "公共データ利用規約（第1.0版）"
         }
         #expect(text.contains(marker))
     }
@@ -49,6 +50,23 @@ struct LicenseCatalogTests {
         #expect(names.contains("Google Mobile Ads SDK"))
         let ids = LicenseCatalog.all.map(\.id)
         #expect(Set(ids).count == ids.count)
+    }
+
+    /// 同梱の市区町村の一覧は、出典（総務省のコード表を加工したこと）と利用条件（PDL1.0）の URL を出す（公共データ利用規約の出典の記載）
+    @Test
+    func municipalityDataShowsSourceAndTerms() throws {
+        let entry = try #require(LicenseCatalog.data.first { $0.id == "municipalities" })
+        #expect(entry.kind == .pdl1)
+        #expect(entry.notice.contains("https://www.soumu.go.jp/denshijiti/code.html"))
+        #expect(entry.notice.hasSuffix("を加工して作成"))
+        let text = try #require(LicenseCatalog.text(of: entry))
+        #expect(text.contains("https://www.digital.go.jp/resources/open_data/public_data_license_v1.0"))
+        // 同梱の一覧の注記と同じ出典を書いている
+        let url = try #require(
+            Bundle.main.url(forResource: MunicipalityCatalog.resourceName, withExtension: MunicipalityCatalog.resourceExtension)
+        )
+        let tsv = try String(contentsOf: url, encoding: .utf8)
+        #expect(tsv.contains(entry.notice))
     }
 
     /// 全文にメールアドレスを入れていない（public リポジトリとアプリの画面に出さない）
