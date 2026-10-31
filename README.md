@@ -182,8 +182,9 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-municipality-picker`・`-screenshot-municipality-filter <語>` | `addCandidate` | 市区町村を選ぶシートを開いておく（都道府県を選んでいるときだけ）・シートの絞り込みの語 |
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
 | `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings`・`roomInvite` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態（`roomInvite` は S-07 の上に招待のシートを出す） |
+| `-screenshot-confirm-leave`・`-screenshot-confirm-remove <uid>` | `members` | 退出の確認のダイアログ（`-screenshot-not-owner` と一緒に付ける）・そのメンバーの削除の確認のダイアログ |
 | `-screenshot-gacha <状態>` | `gacha` | `ready`（既定）・`dispensed`・`others`・`others-live`・`play` |
-| `-screenshot-result <状態>`・`-screenshot-reroll <状態>`・`-screenshot-result-animate` | `result` | 当選（`normal`・`rare`）・引き直し（`voting`・`passed`・`used`）・きっぷを動かす |
+| `-screenshot-result <状態>`・`-screenshot-reroll <状態>`・`-screenshot-result-animate`・`-screenshot-confirm-decide` | `result` | 当選（`normal`・`rare`）・引き直し（`voting`・`passed`・`used`）・きっぷを動かす・「この行き先で決定」の確認のダイアログ |
 | `-screenshot-result-closed` | `resultMember` | 終了したルームの閲覧のみ |
 | `-screenshot-memories-only` | `homeMemories` | 進行中のルームを足さない |
 | `-screenshot-invite-last-members` | `inviteLastMembers` | 「前回のメンバーを招待」を押した状態 |
