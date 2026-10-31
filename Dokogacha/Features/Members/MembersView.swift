@@ -128,7 +128,9 @@ struct MembersView: View {
                         .listRowStyle()
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             if row.canRemove {
-                                Button(role: .destructive) {
+                                // `role: .destructive` にすると、押した時点で行を消す動きが入り、行に付けた確認のダイアログが出ない
+                                // （確認してから消すので、赤い色だけを `tint` で付ける）
+                                Button {
                                     model.removeTapped(row)
                                 } label: {
                                     Text("削除")
