@@ -21,7 +21,10 @@ import * as close from "./service";
 /** Callable の処理が使う外部のもの（呼ばれたときに作る。読み込みの時点では Firestore に繋がない） */
 const deps = () => defaultDeps(getFirestore());
 
-/** 作成者がルームを終了する（02 の §6.3「この行き先で決定」。`drawn` のときだけ。もう終了していれば何もしない） */
+/**
+ * 作成者がルームを終了する（02 の §6.3「この行き先で決定」は `drawn` のときだけ・03 の S-12「ルームを終了する」は抽選の前の
+ * `open`・`unlocked` のときだけ。入力の `reason` で分ける。もう終了していれば何もしない）
+ */
 export const closeRoom = onCall({ region: FUNCTIONS_REGION }, (request) =>
   runCallable("closeRoom", request, (uid, data) => close.closeRoom(deps(), uid, data)),
 );
@@ -41,7 +44,7 @@ export const autoCloseRooms = onSchedule(
 );
 
 /**
- * ルームが `closed` になったら（作成者の決定・自動の終了のどちらでも）、当選しなかった候補を、
+ * ルームが `closed` になったら（作成者の決定・途中の終了・自動の終了のどれでも）、当選しなかった候補を、
  * 終了したときの各メンバー（`event.data.after` の `memberIds`。やり直しでも同じ値）の過去のアイデアに登録する（02 の §6.5・F-13。Firestore のトリガー）。
  * `closed` のままの更新では何もしない。失敗したらやり直す（`retry: true`。登録は冪等）
  */

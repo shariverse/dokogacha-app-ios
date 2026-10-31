@@ -3,7 +3,7 @@
  * （Firestore に触れない純粋な関数）。Firestore の読み書きは `service.ts` が行う。
  * 擬似のサーバー（`Dokogacha/Data/InMemory/InMemoryServer+Close.swift`）も同じ順で判定する。
  *
- * 終了は 2 つの道（作成者の「この行き先で決定」・抽選から 7 日）があり、どちらもルームを `closed` にするだけにする。
+ * 終了は 3 つの道（作成者の「この行き先で決定」・作成者が抽選の前に途中で終了する（S-12）・抽選から 7 日）があり、どれもルームを `closed` にするだけにする。
  * 過去のアイデアの登録は、`closed` になったことを受けた Firestore のトリガー（`onRoomClosed`）がまとめて行う
  * （同じ処理を両方から使う。登録は冪等なので、トリガーのやり直しで重ねて作らない）。
  */
@@ -13,6 +13,7 @@ import { FALLBACK_PLACE_CATEGORY, isPlaceCategory } from "../domain/category";
 import { AUTO_CLOSE_AFTER_DRAW_MS } from "../domain/constants";
 import type { CandidateDoc, PastIdeaDoc, Place, RoomDoc } from "../domain/models";
 import { appError } from "../errors";
+import type { CloseReason } from "./input";
 
 /**
  * 抽選から 7 日たったルームを終了するスケジュール（05 の §5「1日1回」）。
@@ -27,20 +28,25 @@ export type CloseDecision = "close" | "alreadyClosed";
 export type ClosableRoom = Pick<RoomDoc, "status" | "ownerId"> & Partial<Pick<RoomDoc, "memberIds">>;
 
 /**
- * 作成者が「この行き先で決定」でルームを終了できるか確かめる（02 の §6.3・§6.5）。順に確かめる:
+ * 作成者がルームを終了できるか、終了の意図（`reason`）と今の状態を突き合わせて確かめる（02 の §6.3・§6.5・Discussion #155）。順に確かめる:
  * 1. 呼んだ人がメンバー（`memberIds` にいる。いなければ `not-room-member`）
- * 2. 呼んだ人が作成者（違えば `not-room-owner`。02 の §6.3「作成者のみ」）
- * 3. 状態が `drawn`（`open`・`unlocked` は `room-not-drawn`。引き直しが可決して `unlocked` に戻ったルームも決定できない）
+ * 2. 呼んだ人が作成者（違えば `not-room-owner`。02 の §6.3「作成者のみ」・03 の S-12「作成者のみ」）
+ * 3. 状態が意図に合う:
+ *    - `decide`（S-14 の「この行き先で決定」）: `drawn` だけ。`open`・`unlocked` は `room-not-drawn`
+ *      （引き直しが可決して `unlocked` に戻ったルームも決定できない）
+ *    - `endEarly`（S-12 の「ルームを終了する」）: `open`・`unlocked` だけ。`drawn` は `room-already-decided`
+ *      （確認のダイアログを出している間にほかの人がガチャを回したとき。抽選の後は「この行き先で決定」と抽選から 7 日の自動の終了に任せる。Q3）
  *
- * もう `closed` なら失敗にせず、何もしない（`alreadyClosed`）。作成者が確認のダイアログを出している間に、
+ * もう `closed` なら、どちらの意図でも失敗にせず、何もしない（`alreadyClosed`）。作成者が確認のダイアログを出している間に、
  * 抽選から 7 日たって自動で終了したとき・二度押しで、トーストを出さずにホームへ戻せるようにする。
- * 引き直しの投票中（`reroll.status` が `voting`）でも終了できる（作成者が行き先を決める。投票は終了とともに意味を失う。
+ * 引き直しの投票中（`reroll.status` が `voting`）でも決定できる（作成者が行き先を決める。投票は終了とともに意味を失う。
  * 終了するときに否決にする（`rerollUpdateOnClose`））。
  * @param room ルーム
  * @param uid 呼んだ人
- * @throws `not-room-member`・`not-room-owner`・`room-not-drawn`
+ * @param reason 終了の意図
+ * @throws `not-room-member`・`not-room-owner`・`room-not-drawn`・`room-already-decided`
  */
-export function decideClose(room: ClosableRoom, uid: string): CloseDecision {
+export function decideClose(room: ClosableRoom, uid: string, reason: CloseReason): CloseDecision {
   if (!Array.isArray(room.memberIds) || !room.memberIds.includes(uid)) {
     throw appError("not-room-member");
   }
@@ -48,13 +54,19 @@ export function decideClose(room: ClosableRoom, uid: string): CloseDecision {
     throw appError("not-room-owner");
   }
   switch (room.status) {
-    case "drawn":
-      return "close";
     case "closed":
       return "alreadyClosed";
+    case "drawn":
+      if (reason === "endEarly") {
+        throw appError("room-already-decided");
+      }
+      return "close";
     case "open":
     case "unlocked":
-      throw appError("room-not-drawn");
+      if (reason === "decide") {
+        throw appError("room-not-drawn");
+      }
+      return "close";
   }
 }
 

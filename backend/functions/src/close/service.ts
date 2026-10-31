@@ -4,7 +4,7 @@
  *
  * - 終了は、ルームを読んだのと同じトランザクションで `status = closed`・`closedAt`（サーバーの時刻）を書くだけ
  *   （作成者の決定と自動の終了が重なっても、後から確定する方は `closed` を読んで何もしない）
- * - 過去のアイデアは、`closed` になったことを受けたトリガーが `registerPastIdeas` で書く（2 つの道で同じ処理を使う）。
+ * - 過去のアイデアは、`closed` になったことを受けたトリガーが `registerPastIdeas` で書く（どの道で終了しても同じ処理を使う）。
  *   最大 20 人 × 199 件になりうるので、終了のトランザクションには入れない（トランザクションを大きくしない）
  */
 import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
@@ -14,7 +14,6 @@ import type { RoomDoc } from "../domain/models";
 import type { ServiceDeps } from "../deps";
 import { appError } from "../errors";
 import { candidatesRef, roomRef, userRef } from "../paths";
-import { parseRoomIdInput } from "../unlock/input";
 import {
   autoCloseCutoffMs,
   decideClose,
@@ -23,6 +22,7 @@ import {
   rerollUpdateOnClose,
   type PastIdeaWrite,
 } from "./logic";
+import { parseCloseRoomInput } from "./input";
 
 /** 自動の終了で、同時に処理するルームの数（トランザクションを一度に開きすぎない） */
 export const AUTO_CLOSE_PARALLEL_ROOMS = 10;
@@ -37,22 +37,24 @@ export function closedUpdate(room: Partial<RoomDoc>): Record<string, unknown> {
 }
 
 /**
- * 作成者がルームを終了する（02 の §6.3「この行き先で決定」・F-44）。`drawn` のルームを `closed` にする。
- * もう `closed` なら何も書かずに成功する（`decideClose`）。過去のアイデアはトリガー（`onRoomClosed`）が登録する。
+ * 作成者がルームを終了する（02 の §6.3「この行き先で決定」・F-44、03 の S-12「ルームを終了する」）。
+ * 意図（`reason`）が `decide` なら `drawn` のルームを、`endEarly` なら抽選の前の `open`・`unlocked` のルームを `closed` にする。
+ * 意図と今の状態を同じトランザクションで突き合わせる（`decideClose`）。もう `closed` なら何も書かずに成功する。
+ * 過去のアイデアはトリガー（`onRoomClosed`）が登録する。
  * @param deps 外部のもの
  * @param uid 呼んだ人（作成者であること）
- * @param data `request.data`（`{ roomId }`）
- * @throws `invalid-argument`・`room-not-found`・`not-room-member`・`not-room-owner`・`room-not-drawn`
+ * @param data `request.data`（`{ roomId, reason }`。`reason` が無ければ `decide`）
+ * @throws `invalid-argument`・`room-not-found`・`not-room-member`・`not-room-owner`・`room-not-drawn`・`room-already-decided`
  */
 export async function closeRoom(deps: Pick<ServiceDeps, "db">, uid: string, data: unknown): Promise<Record<string, never>> {
-  const { roomId } = parseRoomIdInput(data);
+  const { roomId, reason } = parseCloseRoomInput(data);
   const ref = roomRef(deps.db, roomId);
   await deps.db.runTransaction(async (tx) => {
     const room = (await tx.get(ref)).data() as RoomDoc | undefined;
     if (room === undefined) {
       throw appError("room-not-found");
     }
-    if (decideClose(room, uid) === "close") {
+    if (decideClose(room, uid, reason) === "close") {
       tx.update(ref, closedUpdate(room));
     }
   });
