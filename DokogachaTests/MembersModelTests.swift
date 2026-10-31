@@ -263,6 +263,28 @@ struct MembersModelTests {
         #expect(fixture.functions.removeRequests.isEmpty)
     }
 
+    /// 削除の確認を出している間にそのメンバーが退出したら、確認を閉じる（ダイアログはそのメンバーの行に付くので、行と一緒に消える）
+    @Test
+    func removalConfirmationClosesWhenMemberLeaves() async throws {
+        let fixture = Self.make()
+        let model = fixture.model
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model, members: 4, candidates: 3))
+
+        model.removeTapped(try Self.row(model, "demo-sota"))
+        // 一覧にいて削除できるうちは閉じない
+        model.closeUnavailableRemoval()
+        #expect(model.memberPendingRemoval?.id == "demo-sota")
+
+        // 別の端末でそうたが退出した
+        try await fixture.functions.server.device(of: "demo-sota").leaveRoom(RoomRequest(roomId: DemoScenario.roomID))
+        #expect(await AsyncTestSupport.eventually { model.rows.count == 3 })
+        model.closeUnavailableRemoval()
+        #expect(model.memberPendingRemoval == nil)
+        #expect(fixture.functions.removeRequests.isEmpty)
+    }
+
     /// サーバーに断られたら（もういないメンバー）、その理由の文言のトーストを出す
     @Test
     func removeRejectionShowsReason() async throws {

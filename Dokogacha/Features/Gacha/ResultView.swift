@@ -123,11 +123,6 @@ struct ResultView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
-        .sheet(item: $sharedImage) { shared in
-            ActivityShareSheet(items: [shared.image])
-                .presentationDetents([.medium, .large])
-                .ignoresSafeArea()
-        }
         .task {
             await model.observe()
         }
@@ -278,7 +273,8 @@ struct ResultView: View {
         .accessibilityIdentifier(Identifier.openInMaps)
     }
 
-    /// 「きっぷを共有」（SecondaryButton）。押したら `ticket_share` を送り、きっぷの画像を作って共有シートを出す。
+    /// 「きっぷを共有」（SecondaryButton）。押したら `ticket_share` を送り、きっぷの画像を作って共有シートを出す
+    /// （iPhone は下からのシート、iPad はボタンを指すポップオーバー。`activityShareSheet(item:)`）。
     ///
     /// `ShareLink` にしないのは、押したことを同時のタップで受けると VoiceOver・Switch Control で送られないため（PR #94 の持ち越し）
     private func shareButton(_ ticket: ResultTicket) -> some View {
@@ -300,6 +296,7 @@ struct ResultView: View {
         }
         .buttonStyle(.dg(.secondary))
         .accessibilityIdentifier(Identifier.share)
+        .activityShareSheet(item: $sharedImage)
     }
 
     /// 抽選の記録・候補が届くまでの、部品の形を保った読み込み中の表示（03 の §3）
