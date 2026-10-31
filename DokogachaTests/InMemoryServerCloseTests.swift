@@ -7,7 +7,7 @@
 import Foundation
 import Testing
 
-/// 擬似のサーバーのルームの終了（`closeRoom`）が、backend の `close/logic.ts`・`close/service.ts` と同じ順で検証し、
+/// 擬似のサーバーのルームの終了（`closeRoom`。意図は `decide`（この行き先で決定）と `endEarly`（S-12 の途中の終了））が、backend の `close/logic.ts`・`close/service.ts` と同じ順で検証し、
 /// 終了したら過去のアイデアを登録すること（Emulator のテスト `test/emulator/close.test.ts` と同じ観点）。
 ///
 /// デモのルームは `drawn-rooms` の「週末のランチ」（自分が作成者・はるか・そうた。サンシャイン水族館が当選、候補 3 件）
@@ -81,16 +81,62 @@ struct InMemoryServerCloseTests {
     @Test
     func rejectsInTheSameOrderAsBackend() throws {
         let server = Self.makeServer()
-        Self.expectReason(.notRoomOwner) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: Self.haruka) }
-        Self.expectReason(.notRoomMember) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: "demo-mio") }
-        Self.expectReason(.roomNotFound) { try server.closeRoom(CloseRoomRequest(roomId: "nothing", reason: .decide), by: DemoScenario.myUserID) }
-        Self.expectReason(.invalidArgument) { try server.closeRoom(CloseRoomRequest(roomId: "a/b", reason: .decide), by: DemoScenario.myUserID) }
-        Self.expectReason(.unauthenticated) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: nil) }
+        let decide = { (roomID: String) in CloseRoomRequest(roomId: roomID, reason: .decide) }
+        Self.expectReason(.notRoomOwner) { try server.closeRoom(decide(Self.roomID), by: Self.haruka) }
+        Self.expectReason(.notRoomMember) { try server.closeRoom(decide(Self.roomID), by: "demo-mio") }
+        Self.expectReason(.roomNotFound) { try server.closeRoom(decide("nothing"), by: DemoScenario.myUserID) }
+        Self.expectReason(.invalidArgument) { try server.closeRoom(decide("a/b"), by: DemoScenario.myUserID) }
+        Self.expectReason(.unauthenticated) { try server.closeRoom(decide(Self.roomID), by: nil) }
         #expect(server.rooms[Self.roomID]?.room.status == .drawn)
 
         server.rooms[Self.roomID]?.room.status = .unlocked
-        Self.expectReason(.roomNotDrawn) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: DemoScenario.myUserID) }
+        Self.expectReason(.roomNotDrawn) { try server.closeRoom(decide(Self.roomID), by: DemoScenario.myUserID) }
         #expect(server.pastIdeas.isEmpty)
+    }
+
+    /// endEarly（S-12 の「ルームを終了する」）: 作成者は抽選の前の open・unlocked のルームを closed にできる
+    @Test(arguments: [RoomStatus.open, .unlocked])
+    func ownerEndsRoomEarlyBeforeDraw(status: RoomStatus) throws {
+        let server = Self.makeServer()
+        server.rooms[Self.roomID]?.room.status = status
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: DemoScenario.myUserID)
+
+        let room = try #require(server.rooms[Self.roomID]?.room)
+        #expect(room.status == .closed)
+        #expect(room.closedAt == RoomModelTests.now)
+    }
+
+    /// endEarly で drawn（確認の間にほかの人がガチャを回した）は room-already-decided。drawn のまま・過去のアイデアも登録しない
+    @Test
+    func endEarlyRejectsDrawnRoom() throws {
+        let server = Self.makeServer()
+        Self.expectReason(.roomAlreadyDecided) {
+            try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: DemoScenario.myUserID)
+        }
+        #expect(server.rooms[Self.roomID]?.room.status == .drawn)
+        #expect(server.rooms[Self.roomID]?.room.closedAt == nil)
+        #expect(server.pastIdeas.isEmpty)
+    }
+
+    /// endEarly でも、もう closed なら何もしない。作成者以外・メンバー以外は状態より先に断る
+    @Test
+    func endEarlyChecksMembershipAndClosedLikeBackend() throws {
+        var now = RoomModelTests.now
+        let server = InMemoryServer.demo(.drawnRooms) { now }
+        server.rooms[Self.roomID]?.room.status = .open
+        Self.expectReason(.notRoomOwner) {
+            try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: Self.haruka)
+        }
+        Self.expectReason(.notRoomMember) {
+            try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: "demo-mio")
+        }
+        #expect(server.rooms[Self.roomID]?.room.status == .open)
+
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: DemoScenario.myUserID)
+        now = now.addingTimeInterval(60)
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .endEarly), by: DemoScenario.myUserID)
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: DemoScenario.myUserID)
+        #expect(server.rooms[Self.roomID]?.room.closedAt == RoomModelTests.now)
     }
 
     /// 終了したルームは、ホームの思い出のきっぷの購読に、終了の新しい順で流れる。当選した候補 1 件も購読できる

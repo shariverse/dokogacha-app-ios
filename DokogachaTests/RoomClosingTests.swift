@@ -62,6 +62,28 @@ struct RoomClosingTests {
         }
     }
 
+    /// closeRoom の状態と意図の突き合わせ（backend の `close/logic.test.ts` の `decideClose` と同じケース）
+    @Test
+    func decisionMatchesStatusAndReason() {
+        #expect(RoomClosing.decision(status: .drawn, reason: .decide) == .close)
+        #expect(RoomClosing.decision(status: .open, reason: .decide) == .reject(.roomNotDrawn))
+        #expect(RoomClosing.decision(status: .unlocked, reason: .decide) == .reject(.roomNotDrawn))
+        #expect(RoomClosing.decision(status: .open, reason: .endEarly) == .close)
+        #expect(RoomClosing.decision(status: .unlocked, reason: .endEarly) == .close)
+        #expect(RoomClosing.decision(status: .drawn, reason: .endEarly) == .reject(.roomAlreadyDecided))
+        #expect(RoomClosing.decision(status: .closed, reason: .decide) == .alreadyClosed)
+        #expect(RoomClosing.decision(status: .closed, reason: .endEarly) == .alreadyClosed)
+    }
+
+    /// closeRoom の入力は backend の `parseCloseRoomInput` が読む形（`{ roomId, reason }`。意図は `decide`・`endEarly`）
+    @Test
+    func closeRoomRequestEncodesReason() throws {
+        let data = try JSONEncoder().encode(CloseRoomRequest(roomId: "r1", reason: .endEarly))
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: String])
+        #expect(json == ["roomId": "r1", "reason": "endEarly"])
+        #expect(CloseRoomRequest.Reason.decide.rawValue == "decide")
+    }
+
     /// 当選以外の候補を、各メンバーに登録する（自分以外の投稿も・引き直しで外れた前の当選も）
     @Test
     func pastIdeasAreLosersForEveryMember() throws {
