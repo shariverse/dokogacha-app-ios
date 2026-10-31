@@ -25,6 +25,8 @@ nonisolated struct PushDestination: Equatable, Sendable {
         case invited
         /// その日に候補が増えた（まとめ通知 `notifyNewCandidates`）
         case newCandidates
+        /// 作成者がルームを途中で終了した（S-12 の「ルームを終了する」。開くのは終了したルームの S-07）
+        case roomEnded
     }
 
     /// 開く画面（ペイロードの `target`）
@@ -89,8 +91,8 @@ nonisolated struct VisibleRoomScreen: Equatable, Sendable {
 ///
 /// 通知の中身がもう画面に出ているときは出さない（そのルームの画面は購読で変わる）:
 /// - そのルームの S-13・S-14 を出している → 出さない（抽選の演出の上にバナーを重ねない。引き直しの投票も S-14 で見える）
-/// - そのルームの S-07 を出している → 解禁・抽選結果は出さない（S-07 が解禁の表示に替わる・ガチャの演出を自動で再生する F-41）。
-///   引き直しの提案は S-07 に出ないので出す
+/// - そのルームの S-07 を出している → 解禁・抽選結果・新しい候補は出さない（S-07 が解禁の表示に替わる・ガチャの演出を自動で再生する F-41）。
+///   引き直しの提案は S-07 に出ないので出す。途中の終了も出す（S-07 は閲覧のみに替わるだけで、誰が終了したかは出ない）
 /// - ほかの画面・ほかのルーム → 出す（バナー・通知センター・音）
 nonisolated enum PushForegroundPolicy {
     /// バナーで出すか
@@ -104,6 +106,6 @@ nonisolated enum PushForegroundPolicy {
         if visible.isGachaCover {
             return false
         }
-        return destination.kind == .rerollProposed
+        return destination.kind == .rerollProposed || destination.kind == .roomEnded
     }
 }

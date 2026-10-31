@@ -1,6 +1,6 @@
 /**
- * プッシュ通知（02 の §8 F-60）を送る処理。解禁・抽選結果・引き直しの提案の呼び出し口
- * （`unlock/notify.ts`・`draw/notify.ts`・`reroll/notify.ts`）から呼ぶ。前回のメンバーへの招待（`invite/service.ts`）と
+ * プッシュ通知（02 の §8 F-60）を送る処理。解禁・抽選結果・引き直しの提案・途中の終了の呼び出し口
+ * （`unlock/notify.ts`・`draw/notify.ts`・`reroll/notify.ts`・`close/notify.ts`）から呼ぶ。前回のメンバーへの招待（`invite/service.ts`）と
  * 新しい候補のまとめ（`digest/service.ts`）は、送る出来事を自分で作って `deliver` を呼ぶ。
  *
  * 1. ルーム（と抽選の記録・提案者のメンバー）を読んで、送る出来事（`PushEvent`）を作る
@@ -110,6 +110,25 @@ export async function sendRerollProposed(
     proposedBy,
     proposerName: member.displayName,
   });
+}
+
+/**
+ * 作成者がルームを途中で終了したことを、作成者以外のメンバーに送る（ルームにつき 1 回。Discussion #155 の Q5）。
+ * 宛先は終了した後のルームの `memberIds`（終了しても `memberIds` は変わらないので、終了したときのメンバー）。
+ * @param deps 外部のもの
+ * @param roomId ルームの ID
+ * @param endedBy 終了した人（作成者）の uid（文面の {作成者} はルームのメンバーの表示名）
+ */
+export async function sendRoomEnded(deps: NotificationDeps, roomId: string, endedBy: string): Promise<NotificationOutcome> {
+  const room = await readRoom(deps.db, roomId);
+  if (room === null) {
+    return { kind: "skipped", reason: "room-not-found" };
+  }
+  const member = (await membersRef(roomRef(deps.db, roomId)).doc(endedBy).get()).data() as Partial<MemberDoc> | undefined;
+  if (typeof member?.displayName !== "string") {
+    return { kind: "skipped", reason: "owner-not-found" };
+  }
+  return deliver(deps, room, { kind: "roomEnded", roomId, roomName: room.name, endedBy, ownerName: member.displayName });
 }
 
 /**
