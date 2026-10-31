@@ -26,43 +26,110 @@ struct GachaMotionTests {
         // 刻みの後は少し行き過ぎてから戻る
         let overshoot = GachaMotion.leverAngle(at: GachaTimeline.tickInterval + 0.02)
         #expect(overshoot > GachaMotion.leverStepDegrees)
-        // 角度はほぼ減らない（行き過ぎから戻る分だけ）
+        // 角度はほぼ減らない（行き過ぎから戻る分だけ）。行き過ぎは最大で約 4.3°
         var previous = 0.0
-        for frame in 0...160 {
-            let angle = GachaMotion.leverAngle(at: Double(frame) / 100)
-            #expect(angle >= previous - GachaMotion.leverOvershootDegrees)
+        var maxOvershoot = 0.0
+        for frame in 0..<1_600 {
+            let time = Double(frame) / 1_000
+            let angle = GachaMotion.leverAngle(at: time)
+            #expect(angle >= previous - GachaMotion.leverOvershootAmplitude)
+            let index = (time / GachaTimeline.tickInterval).rounded(.down)
+            let within = (time - index * GachaTimeline.tickInterval) / GachaTimeline.tickInterval
+            let pulled = (index + RevealCurve.easeIn(within)) * GachaMotion.leverStepDegrees
+            maxOvershoot = max(maxOvershoot, angle - pulled)
+            previous = angle
+        }
+        #expect(maxOvershoot > 4 && maxOvershoot < 4.5)
+    }
+
+    /// ドームの揺れは 0.4 秒で 0 → −4° → 4° → −3° → 3° → 0 を通る。抽選の結果が遅いときは回転中のまま揺れ続け、落ち始めから収めて 0 にする
+    @Test
+    func domeShakesUntilDropStarts() {
+        let segment = DGMotion.shake.duration / Double(GachaTimeline.shakeAngles.count)
+        for (offset, angle) in GachaTimeline.shakeAngles.enumerated() {
+            #expect(abs(GachaMotion.domeAngle(spinTime: segment * Double(offset + 1) - 1e-9, dropTime: nil) - angle) < 1e-3)
+        }
+        #expect(GachaMotion.domeAngle(spinTime: 0, dropTime: nil) == 0)
+        // 1.6 秒を過ぎても、落ち始めるまでは揺れ続ける（通信が遅いとき）
+        let late = GachaTimeline.spinDuration + segment
+        #expect(abs(GachaMotion.domeAngle(spinTime: late, dropTime: nil) - GachaTimeline.shakeAngles[0]) < 1e-3)
+        // 落ち始めから収めて 0 にする
+        let settling = GachaMotion.domeAngle(spinTime: late + 0.1, dropTime: 0.1)
+        #expect(abs(settling) < abs(GachaMotion.domeAngle(spinTime: late + 0.1, dropTime: nil)) + 1e-9)
+        #expect(GachaMotion.domeAngle(spinTime: late + GachaMotion.settleDuration, dropTime: GachaMotion.settleDuration) == 0)
+    }
+
+    /// ドームのカプセルは回転中にかき混ぜ（上にだけ跳ねる）、通信が遅くても落ち始めるまで続け、落ち始めから置き場所に収める
+    @Test
+    func capsulesTumbleUntilDropStarts() {
+        #expect(GachaMotion.tumbleAmount(spinTime: 0, dropTime: nil) == 0)
+        #expect(GachaMotion.tumbleAmount(spinTime: 0.7, dropTime: nil) == 1)
+        #expect(GachaMotion.tumbleAmount(spinTime: 3, dropTime: nil) == 1)
+        #expect(GachaMotion.tumbleAmount(spinTime: 3, dropTime: GachaMotion.settleDuration) == 0)
+        for index in 0..<DGGachaCapsuleLayout.maxVisibleCount {
+            #expect(GachaMotion.tumble(index: index, spinTime: 0, dropTime: nil) == .rest)
+            let moving = GachaMotion.tumble(index: index, spinTime: 0.7, dropTime: nil)
+            #expect(moving.offset.height <= 0)
+            #expect(abs(moving.offset.width) <= GachaMotion.tumbleSway.base + GachaMotion.tumbleSway.spread)
+            #expect(-moving.offset.height <= GachaMotion.tumbleHop.base + GachaMotion.tumbleHop.spread)
+            // 収めた後はずれが無く、角度は止まったまま
+            let spinAtDrop = GachaTimeline.spinDuration
+            let settled = GachaMotion.tumble(index: index, spinTime: spinAtDrop + 1, dropTime: 1)
+            #expect(settled.offset == .zero)
+            #expect(abs(settled.turnDegrees - GachaMotion.tumble(index: index, spinTime: spinAtDrop + 2, dropTime: 2).turnDegrees) < 1e-9)
+        }
+        // 番号ごとに動きをずらす（すべてが同じ向きに動かない）
+        let offsets = (0..<6).map { GachaMotion.tumble(index: $0, spinTime: 0.7, dropTime: nil).offset.width }
+        #expect(Set(offsets.map { $0 > 0 }).count == 2)
+    }
+
+    /// 転がる角度は巻き戻らない（向きが変わらず、速さは転がる速さの上限を超えない）
+    @Test(arguments: [0, 1, 7])
+    func tumbleTurnNeverUnwinds(index: Int) {
+        let maxSpeed = GachaMotion.tumbleSpin.base + GachaMotion.tumbleSpin.spread
+        let step = 1.0 / 120
+        let spinAtDrop = GachaTimeline.spinDuration
+        var previous = 0.0
+        for frame in 1...Int((spinAtDrop + 0.6) / step) {
+            let time = Double(frame) * step
+            let dropTime = time > spinAtDrop ? time - spinAtDrop : nil
+            let angle = GachaMotion.tumble(index: index, spinTime: time, dropTime: dropTime).turnDegrees
+            let delta = angle - previous
+            #expect(abs(delta) <= maxSpeed * step + 1e-6)
+            #expect(delta * (index.isMultiple(of: 2) ? 1 : -1) >= -1e-9)
             previous = angle
         }
     }
 
-    /// ドームの揺れは 0.4 秒で 0 → −4° → 4° → −3° → 3° → 0 を通り、回転中の外では 0
+    /// 「視差効果を減らす」では筐体を動かさない（傾き・回転・ずれ・拡大が無い）
     @Test
-    func domeShakesDuringSpin() {
-        let segment = DGMotion.shake.duration / Double(GachaTimeline.shakeAngles.count)
-        for (offset, angle) in GachaTimeline.shakeAngles.enumerated() {
-            #expect(abs(GachaMotion.domeAngle(at: segment * Double(offset + 1) - 1e-9) - angle) < 1e-3)
-        }
-        #expect(GachaMotion.domeAngle(at: 0) == 0)
-        #expect(GachaMotion.domeAngle(at: GachaTimeline.spinDuration) == 0)
+    func reducedMotionPoseIsStill() {
+        let pose = GachaMotion.machinePose(
+            times: GachaMotion.StageTimes(spin: 0.8, drop: 0.3, open: 0.2), capsuleCount: 3, winnerIndex: 1, reduceMotion: true
+        )
+        #expect(pose == DGGachaMachine.Pose())
+        let moving = GachaMotion.machinePose(
+            times: GachaMotion.StageTimes(spin: 0.9), capsuleCount: 3, winnerIndex: 1, reduceMotion: false
+        )
+        #expect(moving.domeRotationDegrees != 0)
+        #expect(moving.capsuleTransforms.count == 3)
     }
 
-    /// ドームのカプセルは回転中だけかき混ぜ（上にだけ跳ねる）、回し始めと回し終えでは置き場所のまま
+    /// 落ち始めたら、当選のカプセルを手前に描いて底から抜く
     @Test
-    func capsulesTumbleOnlyWhileSpinning() {
-        #expect(GachaMotion.tumbleAmount(at: 0) == 0)
-        #expect(GachaMotion.tumbleAmount(at: GachaTimeline.spinDuration) == 0)
-        #expect(GachaMotion.tumbleAmount(at: GachaTimeline.spinDuration / 2) == 1)
-        for index in 0..<DGGachaCapsuleLayout.maxVisibleCount {
-            #expect(GachaMotion.tumble(index: index, at: 0) == .rest)
-            #expect(GachaMotion.tumble(index: index, at: GachaTimeline.spinDuration) == .rest)
-            let moving = GachaMotion.tumble(index: index, at: 0.7)
-            #expect(moving.offset.height <= 0)
-            #expect(abs(moving.offset.width) <= GachaMotion.tumbleSway.base + GachaMotion.tumbleSway.spread)
-            #expect(-moving.offset.height <= GachaMotion.tumbleHop.base + GachaMotion.tumbleHop.spread)
-        }
-        // 番号ごとに動きをずらす（すべてが同じ向きに動かない）
-        let offsets = (0..<6).map { GachaMotion.tumble(index: $0, at: 0.7).offset.width }
-        #expect(Set(offsets.map { $0 > 0 }).count == 2)
+    func winnerIsDrawnInFrontWhileExiting() {
+        let pose = GachaMotion.machinePose(
+            times: GachaMotion.StageTimes(spin: GachaTimeline.spinDuration + 0.1, drop: 0.1),
+            capsuleCount: 3,
+            winnerIndex: 2,
+            reduceMotion: false
+        )
+        #expect(pose.frontCapsuleIndex == 2)
+        #expect(pose.capsuleTransforms[2]?.offset.height ?? 0 > 0)
+        let spinning = GachaMotion.machinePose(
+            times: GachaMotion.StageTimes(spin: 0.5), capsuleCount: 3, winnerIndex: 2, reduceMotion: false
+        )
+        #expect(spinning.frontCapsuleIndex == nil)
     }
 
     /// 当選のカプセルは、置き場所からドームの底の抜け口へ吸い込まれて消える

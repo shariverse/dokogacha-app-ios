@@ -294,6 +294,29 @@ struct GachaModelTests {
         #expect(fixture.server.rooms[Self.roomID]?.draws.count == 1)
     }
 
+    // MARK: - ドームの中の当選のカプセル
+
+    /// ドームから抜くカプセル（`winnerCapsuleIndex`）は、ドームに並べたカプセルのうち当選の色のもの。
+    /// 引き直しで除外した候補があっても（ドームに並べない）、番号がずれない（Issue #178）
+    @Test(arguments: [[String](), ["demo-candidate-1"]])
+    func winnerCapsuleIndexMatchesWinnerColor(excluded: [String]) async throws {
+        let fixture = Self.makeFixture(holdsClock: false)
+        fixture.server.rooms[Self.roomID]?.room.excludedCandidateIds = excluded
+        let model = fixture.model
+        #expect(model.winnerCapsuleIndex == nil)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+        #expect(model.capsuleCount == 3 - excluded.count)
+
+        await model.turnLever()
+        let index = try #require(model.winnerCapsuleIndex)
+        #expect(model.capsuleColorIndexes.indices.contains(index))
+        #expect(model.capsuleColorIndexes[index] == model.winnerColorIndex)
+        #expect(model.drawableCandidates[index].id == model.winnerCandidateID)
+        #expect(!excluded.contains(model.winnerCandidateID ?? ""))
+    }
+
     // MARK: - 止める
 
     /// 画面が消えたら（`stop()`）演出を止め、それ以上進めない
