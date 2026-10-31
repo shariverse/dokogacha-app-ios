@@ -59,6 +59,7 @@ struct OnboardingView: View {
             .padding(.bottom, DGSpacing.s16)
         }
         .scrollDismissesKeyboard(.interactively)
+        .dgCentersContentOnTallScreen()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             DGButton("はじめる") {
                 model.submitTapped()

@@ -72,6 +72,7 @@ struct InviteView: View {
             .padding(.bottom, DGSpacing.s16)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .dgCentersContentOnTallScreen()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             DGButton("ルームへ進む", kind: .dark, action: onOpenRoom)
                 .accessibilityIdentifier(Identifier.openRoom)

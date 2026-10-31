@@ -64,3 +64,32 @@ extension View {
     }
 }
 
+/// iPad の大きな画面（横・縦の size class がどちらも regular）で、スクロールの中身が画面より低いときに縦の中央に寄せる。
+///
+/// 中身の少ない画面（ガチャ・結果・招待・オンボーディング）が、大きな画面の上にだけ寄って下が大きく空かないようにする。
+/// 中身が画面より高いときは、ふつうどおり上から並べてスクロールする（`ScrollAnchorRole.alignment` は初めのスクロールの位置を変えない）。
+/// iPhone（横が compact）では何もしない。iOS 17 には寄せ方の指定（`for: .alignment`）が無いので、上に寄せたままにする
+private struct DGTallScreenCentering: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18, *) {
+            content.defaultScrollAnchor(centers ? .center : nil, for: .alignment)
+        } else {
+            content
+        }
+    }
+
+    /// 縦の中央に寄せるか
+    private var centers: Bool {
+        horizontalSizeClass == .regular && verticalSizeClass == .regular
+    }
+}
+
+extension View {
+    /// `ScrollView` に付ける。iPad の大きな画面で、中身が画面より低いときに縦の中央に寄せる（03 の §3「iPad」）
+    func dgCentersContentOnTallScreen() -> some View {
+        modifier(DGTallScreenCentering())
+    }
+}

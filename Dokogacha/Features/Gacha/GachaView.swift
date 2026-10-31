@@ -66,6 +66,7 @@ struct GachaView: View {
                     .padding(.bottom, DGSpacing.s24)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .dgCentersContentOnTallScreen()
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .accessibilityElement(children: .contain)

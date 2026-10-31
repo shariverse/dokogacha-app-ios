@@ -91,6 +91,7 @@ struct ResultView: View {
                     .padding(.bottom, DGSpacing.s24)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .dgCentersContentOnTallScreen()
             // 下部に固定する「この行き先で決定」（作成者）・説明（作成者以外）。F-44
             ResultCloseSection(result: model)
         }
