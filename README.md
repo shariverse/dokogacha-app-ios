@@ -47,7 +47,7 @@
 │   │   ├── GoogleMobileAds/   #   バナー広告
 │   │   └── StoreKit/          #   広告非表示の購入（StoreKit 2）
 │   ├── Screenshot/            # 撮影モード（ScreenshotDemo）
-│   ├── Resources/             # フォント（OFL）・ライセンス・Localizable.xcstrings・Firebase の plist の置き場所（git 管理外）
+│   ├── Resources/             # フォント（OFL）・ライセンス・市区町村の一覧（Municipalities.tsv）・Localizable.xcstrings・Firebase の plist の置き場所（git 管理外）
 │   ├── Info.plist             # 構成で変える値は xcconfig の変数を $(…) で参照する
 │   └── PrivacyInfo.xcprivacy  # プライバシーマニフェスト
 ├── DokogachaTests/            # Unit テスト（Swift Testing）
@@ -57,7 +57,7 @@
 ├── StoreKit/Dokogacha.storekit # ローカルで購入を試す StoreKit Configuration（remove_ads）
 ├── backend/                   # Firebase（下の「backend」）
 ├── AppStore/                  # App Store の掲載情報（言語・撮る画面・説明文・クリエイティブアセット）
-├── Tools/                     # スクリーンショットの撮影と App Store Connect への反映
+├── Tools/                     # スクリーンショットの撮影と App Store Connect への反映・市区町村の一覧の作成（make_municipalities.py）
 ├── docs/                      # spec/（企画・仕様・デザイン）・setup-human.md・ExportOptions.sample.plist
 ├── scripts/                   # ralph-loop の中継（ralph-*.sh・askhub-manual.sh）。rename.sh はテンプレートの名残で使わない
 └── .github/                   # ワークフロー・Issue / PR のテンプレート・App Store Connect のスクリプト
@@ -177,7 +177,9 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-like <候補の ID>`・`-screenshot-ready <uid,…>`・`-screenshot-force-unlocked`・`-screenshot-confirm-force-unlock` | `room` | いいね・準備OK・強制解禁・その確認のダイアログ |
 | `-screenshot-candidate <ID>`・`-screenshot-not-owner`・`-screenshot-confirm-delete`・`-screenshot-report-reasons`・`-screenshot-reported` | `candidateDetail` | 開く候補・他人のルーム・削除の確認・報告の理由・報告した後 |
 | `-screenshot-query <語>` | `addCandidate` | 検索しておく語（既定は「水族館」） |
-| `-screenshot-search-area <エリア>` | `addCandidate` | 選んでおくエリア（`SearchArea` の rawValue。`kanto`・`hokkaido` など。既定は全国） |
+| `-screenshot-search-area <エリア>` | `addCandidate` | 選んでおく地方（`SearchArea` の rawValue。`kanto`・`hokkaido` など。既定は全国） |
+| `-screenshot-search-prefecture <コード>`・`-screenshot-search-municipality <団体コード>` | `addCandidate` | 選んでおく都道府県（都道府県コード。`13` など）・市区町村（6 桁の団体コード。`131075`（墨田区）など）。いくつか付けたら市区町村・都道府県・地方の順に見る |
+| `-screenshot-municipality-picker`・`-screenshot-municipality-filter <語>` | `addCandidate` | 市区町村を選ぶシートを開いておく（都道府県を選んでいるときだけ）・シートの絞り込みの語 |
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
 | `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態 |
 | `-screenshot-gacha <状態>` | `gacha` | `ready`（既定）・`dispensed`・`others`・`others-live`・`play` |
@@ -266,10 +268,29 @@ body=$(gh pr view <番号> --json body -q .body) &&
 - **レア当選**: プロトタイプは丸めた % で比べるが、02 の §6.3 どおり丸める前の確率で比べる
 - **フォルダ**: 05 の §2 の `Features/Room/` の下に置くとした候補の詳細・メンバー・ルーム設定は、`Features/CandidateDetail/`・`Members/`・`RoomSettings/` に分けた
 - **経過時間**: 06 の §2 は Swift と TypeScript の両方に載せているが、サーバーで使わないので Swift だけ
+- **場所検索のエリア**（Issue #131・#160）: 資料は位置情報を使わず日本全体を範囲にするとしていたが、全国・地方・都道府県・市区町村を選べるようにした（06 の §4 の仮決め）。
+  都道府県の範囲は本土と近くの島を囲む矩形（`Prefecture.all`。東京の伊豆諸島・小笠原諸島、鹿児島のトカラ列島・奄美群島などの遠くの離島は入れない）。
+  市区町村の範囲は同梱せず、選んだときに MapKit の住所の検索（「東京都豊島区」）で引く。結果は `administrativeArea`・`locality` で絞る（政令指定都市の区・郡の表記の揺れは `PlaceLocality`）。
+  市区町村の一覧は上の「同梱のデータ」。政令指定都市の区は選べない（市全体）。北方領土の 6 村は一覧に入れていない
 - **ホーム画面のアプリ名**（Discussion #147）: `Dokogacha/InfoPlist.xcstrings` で `CFBundleDisplayName` を日本語「ドコガチャ」・英語「Dokogacha」にした（`PRODUCT_NAME`・Bundle ID は変えていない）。
   開発言語が日本語なので、足したローカライズは `en`。pbxproj を編集しないため、`knownRegions` は `ja`・`Base` のまま（足さなくても `en.lproj` はアプリに入る）。
   `en` が入ったので、英語の端末ではアプリの言語が英語として扱われ、システムが出す部品（日時の選択・地図の表記・共有シートなど）と締切の曜日が英語になる。アプリの文言は日本語のまま。
   日本語・英語のどちらでもない端末（フランス語など）も `en` が選ばれ、ホーム画面は「Dokogacha」になる。`Info.plist` には `CFBundleDisplayName` を書いていない（無くても言語ごとの値が出る。どの言語の値も無いときは `PRODUCT_NAME`）
+
+## 同梱のデータ（市区町村の一覧）
+
+S-08 の検索のエリアで選ぶ市区町村の一覧（`Dokogacha/Resources/Municipalities.tsv`。団体コード・名前・よみ）は、
+総務省の「[都道府県コード及び市区町村コード](https://www.soumu.go.jp/denshijiti/code.html)」（令和6年1月1日現在）を加工して作ったものです。
+
+- 出典: 「都道府県コード及び市区町村コード」（総務省）（https://www.soumu.go.jp/denshijiti/code.html）を加工して作成
+- 利用条件: [公共データ利用規約（第1.0版）（PDL1.0）](https://www.digital.go.jp/resources/open_data/public_data_license_v1.0)（CC BY 4.0 と互換。商用利用・加工・再配布ができ、出典と加工したことを書く）。アプリでは設定 → ライセンスの「データ」に出しています（`LicenseCatalog.data`）
+- 加工の内容: 「現在の団体」のシートから団体コード・市区町村名・カナを抜き出し、都道府県の行と北方領土の 6 村を除き、よみをひらがなにしました。
+  政令指定都市は市全体で 1 つ（区のシートは使わない）、東京の 23 区は 1 区ずつです
+- 作り直し方: 合併などで表が更新されたら、上のページの「Excelファイル」を落として次を流し、`MunicipalityTests` の件数を直します
+
+```bash
+python3 -I Tools/make_municipalities.py <落とした .xlsx> > Dokogacha/Resources/Municipalities.tsv
+```
 
 ## License
 
