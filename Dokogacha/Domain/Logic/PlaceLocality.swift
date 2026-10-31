@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// MapKit の結果の市区町村を、同梱の市区町村の名前と突き合わせる。
+/// MapKit の結果の市区町村を、同梱の市区町村の名前と突き合わせる・画面に出す形にする。
 ///
 /// `locality` は、同じ市区町村でも形がそろわない（Mac の MapKit で確かめた形）:
 /// - 東京の 23 区・市・町村: 「渋谷区」「鎌ケ谷市」「箱根町」
@@ -43,6 +43,32 @@ nonisolated enum PlaceLocality {
         return japanese.contains { matches(normalized($0), target) }
     }
 
+    /// 画面に出す市区町村（「東京・豊島区」の「豊島区」の段。02 の §3.1「エリア表示」）。
+    ///
+    /// - 政令指定都市の「中区, 横浜市」は「横浜市中区」にする
+    /// - 郡は外す（「足柄下郡箱根町」→「箱根町」。`locality` が「足柄下郡」だけなら `subLocality` の「箱根町」）
+    /// - 英語の名前が区切られて並んでいれば、最初の 1 つ（「Hakone, Ashigarashimo-Gun」→「Hakone」）
+    /// - Parameters:
+    ///   - locality: `MKPlacemark.locality`
+    ///   - subLocality: `MKPlacemark.subLocality`
+    /// - Returns: 市区町村。無ければ nil
+    static func displayName(locality: String?, subLocality: String?) -> String? {
+        let parts = parts(of: locality)
+        guard let first = parts.first else {
+            return nil
+        }
+        if parts.count == 2, let ward = parts.first(where: { $0.hasSuffix("区") }), let city = parts.first(where: { $0.hasSuffix("市") }) {
+            return city + ward
+        }
+        guard isJapanese(first) else {
+            return first
+        }
+        if first.hasSuffix("郡"), parts.count == 1, let town = trimmed(subLocality), isTown(town) {
+            return town
+        }
+        return withoutDistrict(first)
+    }
+
     /// 比べるために形をそろえた名前（前後と中の空白を外し、互換の字を合わせ、書き分けのある字をそろえる）
     static func normalized(_ name: String) -> String {
         let compatible = name.precomposedStringWithCompatibilityMapping
@@ -60,6 +86,20 @@ nonisolated enum PlaceLocality {
         }
         // 足柄下郡箱根町 → 箱根町（赤穂郡上郡町 → 上郡町）
         return part.hasSuffix(target) && part.dropLast(target.count).hasSuffix("郡")
+    }
+
+    /// 「足柄下郡箱根町」の郡を外した「箱根町」。郡の町村でなければそのまま（「郡山市」「大和郡山市」「上郡町」は外さない）
+    private static func withoutDistrict(_ name: String) -> String {
+        guard let index = name.firstIndex(of: "郡"), index != name.startIndex else {
+            return name
+        }
+        let town = String(name[name.index(after: index)...])
+        return isTown(town) ? town : name
+    }
+
+    /// 町・村の名前の形か（名前が 1 字以上あって「町」「村」で終わる）
+    private static func isTown(_ name: String) -> Bool {
+        name.count >= 2 && (name.hasSuffix("町") || name.hasSuffix("村"))
     }
 
     /// `locality` を「,」「、」で区切った、空でない部分

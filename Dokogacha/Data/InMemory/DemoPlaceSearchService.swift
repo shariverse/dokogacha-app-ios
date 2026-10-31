@@ -12,6 +12,7 @@ import MapKit
 /// 語は、場所名・都道府県・市区町村・場所ごとの語（クイックカテゴリの「水族館」「自然」「グルメ」「テーマパーク」「街歩き」など）に含まれれば当たる。
 /// エリアは MapKit の実装と同じ `SearchScope.keeps` で絞る（場所は関東・中部のものだけなので、ほかの地方では見つからない）。
 /// 市区町村は MapKit で範囲を引かず、都道府県の矩形と市区町村の名前で絞る。
+/// 市区町村の形は MapKit が返す形に合わせてある（横浜は政令指定都市の「中区, 横浜市」、箱根は郡の付いた「足柄下郡箱根町」）。
 ///
 /// デモのルーム（`room-with-candidates`）の候補と同じ場所（サンシャイン水族館・明治神宮・江の島）を含めてあり、
 /// 「追加済み」・重複の確認を確かめられる。
@@ -95,7 +96,7 @@ nonisolated struct DemoPlaceSearchService: PlaceSearchService {
             hit: PlaceSearchHit(
                 name: "箱根 大涌谷",
                 administrativeArea: "神奈川県",
-                locality: "箱根町",
+                locality: "足柄下郡箱根町",
                 latitude: 35.244_1,
                 longitude: 139.019_6,
                 mapItemID: "demo-place-owakudani",
@@ -191,7 +192,7 @@ nonisolated struct DemoPlaceSearchService: PlaceSearchService {
             hit: PlaceSearchHit(
                 name: "横浜赤レンガ倉庫",
                 administrativeArea: "神奈川県",
-                locality: "横浜市",
+                locality: "中区, 横浜市",
                 latitude: 35.452_6,
                 longitude: 139.642_8,
                 mapItemID: "demo-place-redbrick",
