@@ -21,6 +21,19 @@ CURRENT_PROJECT_VERSION = 1
 // 最低サポート OS
 IPHONEOS_DEPLOYMENT_TARGET = 17.0
 
+// 対象の端末（1 = iPhone、2 = iPad。Issue #156）。iPad では互換表示ではなく、iPad の画面の大きさで組む（03 の §3「iPad」）。
+// pbxproj のターゲット側に書くと xcconfig より優先されるので、ここだけに書く。テストのターゲットも同じ端末で動かす
+TARGETED_DEVICE_FAMILY = 1,2
+
+// 向き（Info.plist の UISupportedInterfaceOrientations）。iPhone は縦向きだけ（02 の §9）。
+// iPad はすべての向き。iPadOS 26 からウィンドウの大きさを自由に変えられ（Split View・Stage Manager）、大きさの変更に対応する
+// シーンはすべての向きに対応していることが条件になる（TN3192。向きを絞る UIRequiresFullScreen は非推奨で、iOS 27 の SDK では効かない）。
+// アプリのターゲットだけに付け、Unit・UI テストのターゲットには付けない（CODE_SIGN_ENTITLEMENTS と同じ形）
+DG_INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone_com_apple_product_type_application = UIInterfaceOrientationPortrait
+DG_INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad_com_apple_product_type_application = UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = $(DG_INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone_$(PRODUCT_TYPE:identifier))
+INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = $(DG_INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad_$(PRODUCT_TYPE:identifier))
+
 // Firebase（Analytics など）と Google Mobile Ads を SPM で入れるときに必要（各 SDK の導入手順）。
 // -ObjC で Google Mobile Ads のすべてのオブジェクトを読み込むため、コードで import していない間も
 // JavaScriptCore が要る（モジュールの link 指定は import したときにしか効かない）
