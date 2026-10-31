@@ -15,6 +15,7 @@ import { getAuth, type Auth } from "firebase-admin/auth";
 import { Timestamp, type Firestore } from "firebase-admin/firestore";
 
 import { deleteAccount, type AccountDeletionDeps } from "../../functions/src/account/service";
+import { registerPastIdeas } from "../../functions/src/close/service";
 import { FUNCTIONS_REGION } from "../../functions/src/config";
 import { AVATAR_COLORS } from "../../functions/src/domain/avatarPalette";
 import { cryptoRandomInt } from "../../functions/src/domain/random";
@@ -179,7 +180,7 @@ describe("アカウントの削除（deleteAccount）", () => {
     await expect(authUserExists("alice")).resolves.toBe(true);
   });
 
-  it("作成者のルームは、終了していなければ終了し、作成者を外す。過去のアイデアは残るメンバーにだけ登録される", async () => {
+  it("作成者のルームは、終了していなければ終了し、作成者を外す。抽選の前のルームなので過去のアイデアは登録しない", async () => {
     await addUser("alice", { adFree: true });
     await addUser("bob");
     const roomId = await roomOf("alice", ["bob"]);
@@ -194,11 +195,27 @@ describe("アカウントの削除（deleteAccount）", () => {
     expect((await db.doc(`rooms/${roomId}/members/alice`).get()).exists).toBe(false);
     expect((await db.doc(`rooms/${roomId}/candidates/c1`).get()).data()?.likedBy).toEqual([]);
     expect((await db.doc(`rooms/${roomId}/candidates/c2`).get()).data()).toMatchObject({ postedBy: "alice" });
-    // 当選が無いので、両方の候補が bob の過去のアイデアになる。alice（削除した人）には登録しない
-    await waitForPastIdeas("bob", roomId, [`${roomId}_c1`, `${roomId}_c2`]);
+    // 抽選の前に終了したルーム（当選が無い）は、過去のアイデアを誰にも登録しない（Discussion #155 の Q4。
+    // トリガーの中身を直接呼んで、書く数が 0 であることを確かめる）
+    await expect(registerPastIdeas(db, roomId)).resolves.toBe(0);
+    expect(await pastIdeaIds("bob", roomId)).toEqual([]);
     expect(await pastIdeaIds("alice", roomId)).toEqual([]);
     expect((await db.doc("users/alice").get()).exists).toBe(false);
     await expect(authUserExists("alice")).resolves.toBe(false);
+  });
+
+  it("行き先が決まった作成者のルームは、終了すると今までどおり当選以外の候補が残るメンバーの過去のアイデアになる", async () => {
+    await addUser("alice");
+    await addUser("bob");
+    const roomId = await roomOf("alice", ["bob"]);
+    await addCandidate(roomId, "c1", "bob", []);
+    await addCandidate(roomId, "c2", "alice", ["bob"]);
+    await db.doc(`rooms/${roomId}`).update({ status: "drawn", winnerCandidateId: "c1", currentDrawId: "d1", drawnAt: Timestamp.now() });
+
+    await expect(deleteAccount(deletionDeps(), "alice")).resolves.toMatchObject({ closedRooms: 1 });
+
+    await waitForPastIdeas("bob", roomId, [`${roomId}_c2`]);
+    expect(await pastIdeaIds("alice", roomId)).toEqual([]);
   });
 
   it("作成者のルームで引き直しの投票中なら、終了と同じ書き込みで否決にする（残りで過半数でも可決しない）", async () => {
