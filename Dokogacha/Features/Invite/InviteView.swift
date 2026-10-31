@@ -12,7 +12,7 @@ import SwiftUI
 ///   03 の S-04 とプロトタイプにはヘッダーが無いので置かない（戻るのは「ルームへ進む」か端からのスワイプで、どちらもルームに出る）
 /// - S-07 のアバターの並びの招待の「＋」から（シート）。ヘッダー（「メンバーを招待」と右端の閉じる）を置き、
 ///   「ルームを作成しました」と「ルームへ進む」は出さない（作った直後ではなく、閉じればルームに戻るため）。
-///   トーストはシートの中に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）
+///   「招待リンクを送る」と「前回のメンバーを招待」は下部に固定する。トーストはシートの中に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）
 ///
 /// 「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 4）は、前回のルームがあり招待する人がいるときだけ
 /// 「招待リンクを送る」の下に出す（`LastMembersInviteModel`。プレビューなどで渡さなければ出さない）。
@@ -87,11 +87,8 @@ struct InviteView: View {
                 VStack(spacing: DGSpacing.s24) {
                     titleBlock
                     codeCard
-                    VStack(spacing: DGSpacing.s12) {
-                        shareButton
-                        if let lastMembers, let invitation = lastMembers.invitation {
-                            lastMembersButton(lastMembers, invitation: invitation)
-                        }
+                    if case .created = context {
+                        inviteActions
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
@@ -101,14 +98,7 @@ struct InviteView: View {
             .scrollBounceBehavior(.basedOnSize)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if case let .created(onOpenRoom) = context {
-                DGButton("ルームへ進む", kind: .dark, action: onOpenRoom)
-                    .accessibilityIdentifier(Identifier.openRoom)
-                    .padding(.horizontal, DGSpacing.screenX)
-                    .padding(.top, DGSpacing.s12)
-                    .padding(.bottom, DGSpacing.s14)
-                    .background(Color.dgBgBase)
-            }
+            bottomBar
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
@@ -125,6 +115,34 @@ struct InviteView: View {
         switch context {
         case .created: DGHeader<EmptyView>.height
         case .sheet: DGSpacing.s8
+        }
+    }
+
+    /// 下部に固定するもの。作った直後は「ルームへ進む」、シートでは「招待リンクを送る」と「前回のメンバーを招待」
+    /// （シートは閉じるとルームに戻るので「ルームへ進む」が無く、送るボタンを指の届く下に置く。S-11 の「招待する」と同じ位置）
+    @ViewBuilder private var bottomBar: some View {
+        Group {
+            switch context {
+            case let .created(onOpenRoom):
+                DGButton("ルームへ進む", kind: .dark, action: onOpenRoom)
+                    .accessibilityIdentifier(Identifier.openRoom)
+            case .sheet:
+                inviteActions
+            }
+        }
+        .padding(.horizontal, DGSpacing.screenX)
+        .padding(.top, DGSpacing.s12)
+        .padding(.bottom, DGSpacing.s14)
+        .background(Color.dgBgBase)
+    }
+
+    /// 「招待リンクを送る」と、前回のメンバーがいれば「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 3・4）
+    private var inviteActions: some View {
+        VStack(spacing: DGSpacing.s12) {
+            shareButton
+            if let lastMembers, let invitation = lastMembers.invitation {
+                lastMembersButton(lastMembers, invitation: invitation)
+            }
         }
     }
 
