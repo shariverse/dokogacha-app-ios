@@ -280,7 +280,7 @@ extension InMemoryServer: FunctionsClient {
         rooms[roomID] = record
     }
 
-    // MARK: まだ backend に無い Callable（backend のタスクで足すときに、ここにも同じ検証を足す）
+    // MARK: 検証をほかのファイルに置いた Callable（`InMemoryServer+Close.swift`・`+Invite.swift`・`+Account.swift`）
 
     func closeRoom(_ request: CloseRoomRequest) async throws {
         try closeRoom(request, by: signedInUserID)
