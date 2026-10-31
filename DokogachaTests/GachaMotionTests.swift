@@ -115,7 +115,28 @@ struct GachaMotionTests {
         #expect(moving.capsuleTransforms.count == 3)
     }
 
-    /// 落ち始めたら、当選のカプセルを手前に描いて底から抜く
+    /// 落ち始めの前後で、当選のカプセルの形（位置・角度・大きさ）が跳ばない（かき混ぜていた形から続けて抜く）。
+    /// 1.6 秒で落ち始めるときも、通信が遅くて後から落ち始めるときも確かめる
+    @Test(arguments: [GachaTimeline.spinDuration, 2.3])
+    func winnerDoesNotJumpWhenDropStarts(spinAtDrop: Double) {
+        for winner in 0..<10 {
+            let before = Self.winnerTransform(GachaMotion.StageTimes(spin: spinAtDrop), winner: winner)
+            let after = Self.winnerTransform(GachaMotion.StageTimes(spin: spinAtDrop + 1e-6, drop: 1e-6), winner: winner)
+            #expect(abs(after.offset.width - before.offset.width) < 0.01, "\(winner) の横")
+            #expect(abs(after.offset.height - before.offset.height) < 0.01, "\(winner) の縦")
+            #expect(abs(after.turnDegrees - before.turnDegrees) < 0.01, "\(winner) の角度")
+            #expect(abs(after.scale - before.scale) < 1e-3, "\(winner) の大きさ")
+            #expect(abs(after.opacity - before.opacity) < 1e-3, "\(winner) の不透明度")
+        }
+    }
+
+    /// 10 個のカプセルのうち、`winner` 番目を当選にしたときの、そのカプセルの形（番号が 10 未満なら、置き場所はカプセルの数によらない）
+    private static func winnerTransform(_ times: GachaMotion.StageTimes, winner: Int) -> DGGachaMachine.CapsuleTransform {
+        let pose = GachaMotion.machinePose(times: times, capsuleCount: 10, winnerIndex: winner, reduceMotion: false)
+        return pose.capsuleTransforms[winner] ?? .rest
+    }
+
+    /// 落ち始めたら、当選のカプセルを手前に描き、抜けきったときにはドームの底の抜け口に着いて消えている
     @Test
     func winnerIsDrawnInFrontWhileExiting() {
         let pose = GachaMotion.machinePose(
@@ -125,7 +146,14 @@ struct GachaMotionTests {
             reduceMotion: false
         )
         #expect(pose.frontCapsuleIndex == 2)
-        #expect(pose.capsuleTransforms[2]?.offset.height ?? 0 > 0)
+        let center = try #require(DGGachaCapsuleLayout.center(at: 2))
+        let exited = Self.winnerTransform(
+            GachaMotion.StageTimes(spin: GachaTimeline.spinDuration + GachaTimeline.exitDuration, drop: GachaTimeline.exitDuration),
+            winner: 2
+        )
+        #expect(abs(center.x + exited.offset.width - GachaMotion.exitPoint.x) < 1e-6)
+        #expect(abs(center.y + exited.offset.height - GachaMotion.exitPoint.y) < 1e-6)
+        #expect(exited.opacity == 0)
         let spinning = GachaMotion.machinePose(
             times: GachaMotion.StageTimes(spin: 0.5), capsuleCount: 3, winnerIndex: 2, reduceMotion: false
         )

@@ -184,7 +184,8 @@ nonisolated enum GachaMotion {
     /// 抜ける途中で消え始める位置（抜ける時間に対する割合）
     static let exitFadeStart = 0.6
 
-    /// 落ち始めてから `time` 秒の、当選のカプセルのずれ（置き場所 `center` から底の抜け口へ吸い込まれ、小さくなって消える）
+    /// 落ち始めてから `time` 秒の、当選のカプセルのずれ（置き場所 `center` から底の抜け口へ吸い込まれ、小さくなって消える）。
+    /// かき混ぜていたときは、そのずれと角度を `machinePose` が重ねる
     static func exit(from center: CGPoint, at time: Double) -> CapsuleTransform {
         let progress = RevealCurve.progress(time, from: 0, duration: exitDuration)
         let pull = RevealCurve.easeIn(progress)
@@ -292,7 +293,16 @@ nonisolated enum GachaMotion {
         }
         if let dropTime {
             if let winnerIndex, let center = DGGachaCapsuleLayout.center(at: winnerIndex) {
-                pose.capsuleTransforms[winnerIndex] = exit(from: center, at: dropTime)
+                var transform = exit(from: center, at: dropTime)
+                if let spinTime {
+                    // 落ち始めた瞬間のかき混ぜの形から続けて抜く（かき混ぜのずれは抜ける時間と同じ 0.35 秒で 0 に収まる。
+                    // 置き場所から抜き始めると、落ち始めの 1 フレームで位置と角度が跳ぶ）
+                    let tumbling = tumble(index: winnerIndex, spinTime: spinTime, dropTime: dropTime)
+                    transform.offset.width += tumbling.offset.width
+                    transform.offset.height += tumbling.offset.height
+                    transform.turnDegrees = tumbling.turnDegrees
+                }
+                pose.capsuleTransforms[winnerIndex] = transform
                 // 抜けるときに、ほかのカプセルの後ろに隠れないよう手前に描く
                 pose.frontCapsuleIndex = winnerIndex
             }
