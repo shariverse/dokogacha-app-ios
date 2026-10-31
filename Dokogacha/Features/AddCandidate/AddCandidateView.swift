@@ -25,8 +25,18 @@ struct AddCandidateView: View {
         static let searchField = "addCandidate.search"
         /// 結果 0 件の表示
         static let noResults = "addCandidate.noResults"
-        /// 地方で結果が 0 件のときの「全国で探す」
+        /// エリアを絞って結果が 0 件のときの「全国で探す」
         static let searchNationwide = "addCandidate.searchNationwide"
+        /// エリアの見出しの道筋（「関東 › 東京都 › 墨田区」）
+        static let areaPath = "addCandidate.areaPath"
+        /// 都道府県・市区町村で結果が 0 件のときの「{一段上}で探す」
+        static let searchParent = "addCandidate.searchParent"
+        /// 都道府県の行の「{地方}全体」
+        static let prefectureWhole = "addCandidate.prefecture.all"
+        /// 市区町村の行の「{都道府県}全体」
+        static let municipalityWhole = "addCandidate.municipality.all"
+        /// 市区町村の行の「選ぶ」（選んでいれば市区町村の名前）
+        static let municipalityPick = "addCandidate.municipality.pick"
         /// 「過去のアイデア」の 0 件の表示
         static let pastIdeas = "addCandidate.pastIdeas"
 
@@ -45,9 +55,14 @@ struct AddCandidateView: View {
             "addCandidate.quick.\(index)"
         }
 
-        /// エリアのチップ
+        /// エリアのチップ（全国・地方）
         static func area(_ area: SearchArea) -> String {
             "addCandidate.area.\(area.rawValue)"
+        }
+
+        /// 都道府県のチップ（都道府県コード）
+        static func prefecture(_ prefecture: Prefecture) -> String {
+            "addCandidate.prefecture.\(prefecture.code)"
         }
     }
 
@@ -73,6 +88,7 @@ struct AddCandidateView: View {
             DGHeader(Text("行きたい場所を追加"), onBack: { dismiss() }, trailing: {
                 postCount
             })
+            .dgContentColumn()
             .disabled(model.locksNavigation)
             DGTabSwitch(
                 selection: $model.tab,
@@ -82,6 +98,7 @@ struct AddCandidateView: View {
                 ]
             )
             .padding(.horizontal, DGSpacing.screenX)
+            .dgContentColumn()
             .padding(.top, DGSpacing.s4)
             .padding(.bottom, DGSpacing.s12)
             ScrollView {
@@ -94,6 +111,7 @@ struct AddCandidateView: View {
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.bottom, DGSpacing.s16)
             }
             .scrollDismissesKeyboard(.interactively)

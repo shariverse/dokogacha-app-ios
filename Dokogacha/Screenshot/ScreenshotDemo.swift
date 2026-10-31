@@ -33,10 +33,12 @@ enum ScreenshotDemo {
         case homeMemories
         case pastIdeas
         case inviteLastMembers
+        case roomInvite
         case roomAdFree
         case settingsAppleLinked
         case settingsAdFree
         case settingsDeleteAccount
+        case resultRevealSetting
         case licenses
     }
 
@@ -263,23 +265,38 @@ extension ScreenshotDemo {
     /// S-08 候補を追加を、デモのルーム（`DemoScenario.roomID`）と擬似の検索で開く（ルームから進まずに、S-08 を `NavigationStack` に入れて出す）。
     ///
     /// 起動引数 `-screenshot-query <語>` を付けると、その語で検索した結果を出した状態で開く（既定は「水族館」）。
-    /// `-screenshot-search-area <エリア>`（`SearchArea` の rawValue。`kanto` など）を付けると、そのエリアを選んだ状態で開く（既定は全国）
+    /// 検索のエリアは、次のどれかで選んだ状態で開く（既定は全国。いくつか付けたら、市区町村・都道府県・地方の順に見る）:
+    /// - `-screenshot-search-area <エリア>`（`SearchArea` の rawValue。`kanto` など）
+    /// - `-screenshot-search-prefecture <都道府県コード>`（`13` など）
+    /// - `-screenshot-search-municipality <団体コード>`（`131075`（墨田区）など）
+    ///
+    /// `-screenshot-municipality-picker` を付けると、市区町村を選ぶシートを開いた状態にする（都道府県を選んでいるときだけ）。
+    /// `-screenshot-municipality-filter <語>` で、シートの絞り込みの語を入れておく
     struct AddCandidateScene: View {
         /// 検索しておく語の起動引数
         static let queryArgument = "-screenshot-query"
-        /// 選んでおくエリアの起動引数
+        /// 選んでおく地方の起動引数
         static let searchAreaArgument = "-screenshot-search-area"
+        /// 選んでおく都道府県の起動引数
+        static let searchPrefectureArgument = "-screenshot-search-prefecture"
+        /// 選んでおく市区町村の起動引数
+        static let searchMunicipalityArgument = "-screenshot-search-municipality"
+        /// 市区町村を選ぶシートを開いておく起動引数
+        static let municipalityPickerArgument = "-screenshot-municipality-picker"
+        /// 市区町村を選ぶシートに入れておく絞り込みの語の起動引数
+        static let municipalityFilterArgument = "-screenshot-municipality-filter"
         /// 起動引数が無いときに検索しておく語
         static let defaultQuery = "水族館"
 
         @State private var toasts: DGToastCenter
+        @State private var isPickingMunicipality = ProcessInfo.processInfo.arguments.contains(Self.municipalityPickerArgument)
         private let model: AddCandidateModel
 
         /// - Parameter services: データ層の窓口（撮影モードでは擬似のサーバーと擬似の検索）
         init(services: DataServices) {
             let toasts = DGToastCenter()
-            if let area = ScreenshotDemo.value(after: Self.searchAreaArgument).flatMap(SearchArea.init(rawValue:)) {
-                services.searchArea.save(area)
+            if let scope = Self.argumentScope {
+                services.searchArea.save(scope)
             }
             model = AddCandidateModel(
                 roomID: DemoScenario.roomID,
@@ -298,7 +315,32 @@ extension ScreenshotDemo {
             NavigationStack {
                 AddCandidateView(model: model)
             }
+            .sheet(isPresented: $isPickingMunicipality) {
+                if let prefecture = model.search.scope.prefecture {
+                    MunicipalityPicker(
+                        prefecture: prefecture,
+                        path: SearchAreaPicker.path(to: prefecture),
+                        selected: model.search.scope.municipality,
+                        municipalities: MunicipalityCatalog.bundled.municipalities(in: prefecture),
+                        initialFilter: ScreenshotDemo.value(after: Self.municipalityFilterArgument) ?? ""
+                    ) { scope in
+                        model.search.select(scope)
+                    }
+                }
+            }
             .dgToast(toasts)
+        }
+
+        /// 起動引数で選んでおくエリア（市区町村・都道府県・地方の順に見る）。どれも無い・知らない値なら nil
+        private static var argumentScope: SearchScope? {
+            let catalog = MunicipalityCatalog.bundled
+            if let municipality = ScreenshotDemo.value(after: searchMunicipalityArgument).flatMap(catalog.municipality(code:)) {
+                return SearchScope(municipality: municipality)
+            }
+            if let prefecture = ScreenshotDemo.value(after: searchPrefectureArgument).flatMap(Int.init).flatMap(Prefecture.code) {
+                return SearchScope(prefecture: prefecture)
+            }
+            return ScreenshotDemo.value(after: searchAreaArgument).flatMap(SearchArea.init(rawValue:)).map(SearchScope.init(area:))
         }
     }
 

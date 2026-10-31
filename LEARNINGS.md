@@ -23,6 +23,9 @@
 - Firebase Auth で匿名のユーザーに Apple を `link(with:)` して、その Apple ID が既に別のユーザーに使われていると `credentialAlreadyInUse`（17025）になる。Apple の ID トークンは 1 回しか使えないので、サインインし直すときはエラーの `userInfo[AuthErrors.userInfoUpdatedCredentialKey]` の資格情報を使う（`FirebaseAuthService.pendingAppleCredential`）（2026-10-22）
 - Sign in with Apple に連携したアカウントを削除するときは、Apple の認証をし直して `authorizationCode` を受け取り、サーバーで消す**前に** `Auth.auth().revokeToken(withAuthorizationCode:)` を呼ぶ（審査 5.1.1(v)。消した後は ID トークンが取れない）。SDK 13 の `revokeToken` は `currentUser` が nil だと完了を呼ばない（`_currentUser?.` で何もしない）ので、先に確かめる。サーバーで消された Auth のユーザーは `currentUser.reload()` が `userNotFound`（17011）で失敗するので、削除の応答が届かなかったときの確かめに使える（2026-10-23）
 - SPM の checkouts（`SourcePackages/checkouts/…`）のファイルは読み取り専用（`r--r--r--`）なので、ライセンスの全文などを `cp` で `Dokogacha/` に持ってくると、そのままでは書き換えられない（`chmod 644` してから直す）（2026-10-22）
+- `xcode-select` が Xcode 27 を指す Mac では、develop は `DGDashedLine.swift` の `Shape` への準拠が `#ConformanceIsolation` のエラーになってビルドできない（前提は Xcode 26.6）。`DEVELOPER_DIR` に Xcode 26.6 の `Contents/Developer` を渡す。
+  Xcode 27 の `simctl` で Simulator を起動した後、Xcode 26.6 の `xcodebuild` から Simulator が 1 台も見えなくなった（`-destination id=…` が `Unable to find a device`。`simctl list` には出る）。
+  ビルドは `-destination 'generic/platform=iOS Simulator'`（x86_64 も作るので初回は遅い）で行い、できた `Build/Products/*.xctestrun` を Xcode 27 の `xcodebuild test-without-building -xctestrun … -destination id=…` で流すと Unit・UI テストとも通った（2026-11-01）
 - `Localizable.xcstrings` に文字列を足すのは Xcode の画面のビルドだけで、`xcodebuild` は足さない。コマンドで足すときは、`xcodebuild build` の後に `xcrun xcstringstool sync Dokogacha/Resources/Localizable.xcstrings --stringsdata "$DD"/Build/Intermediates.noindex/Dokogacha.build/Debug-iphonesimulator/Dokogacha.build/Objects-normal/arm64/*.stringsdata` を流す（`--stringsdata` は 1 回だけ書いて後ろにファイルを並べる）。カタログに無い文字列もキーの日本語がそのまま出るので、足し忘れても表示は変わらない（2026-10-23）
 
 ## テスト
@@ -44,6 +47,20 @@
 - 撮影モードで画面を続けて撮るとき、Mac が混んでいる（load average 400 以上）と起動に 10 秒以上かかり、起動画面だけが写る（どの scene でも同じ大きさの PNG になる）。撮ったファイルの大きさがそろっていたら、待ち時間を延ばして撮り直す（2026-10-23）
 - VoiceOver で読ませたくない「押せない状態」を、無効の `DGButton` で描くと「淡色表示、ボタン」と読まれる。ボタンの形の状態の表示は `DGButtonShapedStatus`（`Button` ではない）を使う。UI テストでは `app.staticTexts[...]` で探す（2026-10-23）
 - iOS 26.5 の Simulator では、`confirmationDialog` の `role: .cancel` のボタンが UI テストの要素に出ない（ダイアログは外を押すと閉じる）。UI テストで `app.buttons["キャンセル"]` を押そうとすると見つからずに落ちるので、確認のボタン（「終了する」など）だけを押す（2026-10-31）
+- iPadOS 26.5 の Simulator で iPhone 専用だったときのアプリ（互換表示。ウィンドウで開く）を動かした後に、iPad に対応したアプリを入れ直すと、互換表示のときの狭いウィンドウの大きさで開いた（iPad mini で確かめた。互換表示を動かしていない Simulator では全画面で開く）。iPad の全画面の After は、互換表示を動かす前に撮るか、`simctl erase` した Simulator で撮る（2026-11-01）
+- `simctl` には向きを変える命令が無い。iPad の横向きは、一時的な UI テストで `XCUIDevice.shared.orientation = .landscapeLeft` にしてから `simctl launch` で撮影モードを起動すると撮れる（テストの後も横向きのまま残る）。`test-without-building` の途中で同じ DerivedData にビルドし直すと、テストが進まなくなる（2026-10-31）
+- iPad の Simulator のステータスバーは、時刻の横に日付（「11月1日(日)」）も出す。書き方は Simulator の言語で決まり、アプリに渡す `-AppleLanguages` は効かない。
+  GitHub Actions のランナーで作った Simulator は英語（「9:41 AM Sat Oct 31」。手元の Mac では Mac の言語になる）なので、`Tools/capture_screenshots.sh` は言語ごとに `simctl spawn <UDID> defaults write -g AppleLanguages` と `AppleLocale` を書いてから起動し直して撮る。
+  `simctl status_bar override --time` に ISO の日時を渡すと日付も固定できるが、撮影モードのデモのデータは実際の時刻から作る（きっぷの「決定」の日付など）ので、日付だけ固定すると画面の中と食い違う。App Store の iPad 13 inch は `--time "9:41"` のまま、撮った日の日付で撮っている。
+  iPadOS 26.5 では全画面のアプリでも右下の角にウィンドウの大きさを変える取っ手が写る（システムの表示で、App Store の撮影でもそのまま残している）（2026-11-01）
+- 撮影モードの `result` は、Mac が混んでいる（load average 300 前後）と、白い画面 → きっぷの形の読み込み中 → 結果の順に 1 分ほどかかる。続けて撮った 2 枚が同じになるまで待つだけでは白い画面や読み込み中の形を撮るので、初めに長めに待つか、白い画面（PNG が小さい）なら撮り直す（2026-10-31）
+
+## 場所検索（MapKit）
+
+- `MKPlacemark.locality` は、同じ市区町村でも形がそろわない（Mac の MapKit で確かめた形）。政令指定都市は「中区, 横浜市」「横浜市」（区は `subLocality`）「札幌市中央区」、郡の町村は「足柄下郡箱根町」「箱根町」「足柄下郡」（町は `subLocality`）。
+  英語の端末では同じ検索の結果に「Kanagawa」「Hakone, Ashigarashimo-Gun」のような英語の値が混ざる（全部ではない）。市区町村で絞るときは `PlaceLocality` で吸収し、日本語でなければ座標で決める（2026-10-31）
+- `MKLocalSearch` の住所の検索（`resultTypes = .address`、語は「東京都豊島区」）の `response.boundingRegion` は、市区町村のおおよその広さになる（豊島区で 0.03×0.08 度、浜松市で 0.66×0.57 度）。都道府県の語では本土の外まで広がる（鹿児島県は奄美群島の南の北緯 26.9 度から、島根県は北緯 37.3 度まで、東京都は東経 140.4 度まで）ので、都道府県の範囲には使わず `Prefecture.all` に本土を囲む矩形を持っている（2026-10-31）
+- Mac のコマンドラインの Swift で `MKLocalSearch` を試すとき、`DispatchSemaphore` でメインスレッドを待たせると結果が返らず止まる。`Task { @MainActor in … ; exit(0) }` の後に `RunLoop.main.run()` で回す（2026-10-31）
 
 ## backend（Firebase）
 

@@ -14,7 +14,7 @@ export type InvitingRoom = Pick<RoomDoc, "status"> & Partial<Pick<RoomDoc, "memb
  * 今のルームから前回のメンバーを招待できるか確かめる。順に確かめる:
  * 1. 呼んだ人が今のルームのメンバー（`memberIds` にいる。いなければ `not-room-member`）。
  *    作成者に限らない（02 の §2.4 は「自分が参加した直近の closed ルームのメンバー」とだけあり、作成者だけとは書いていない。
- *    ボタンは S-04（作成した直後）にしか無いので、アプリから呼ぶのは作成者になる）
+ *    ボタンは S-04 にあり、S-04 はルームを作った直後と、S-07 のアバターの並びの招待の「＋」（メンバー全員に出す）から開く）
  * 2. 今のルームが参加できる状態（`open`・`unlocked`。02 の §2.4 の参加条件。`drawn`・`closed` は `room-already-decided`。
  *    招待しても参加できないルームには送らない）
  * @param room 今のルーム

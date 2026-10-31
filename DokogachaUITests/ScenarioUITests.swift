@@ -253,7 +253,7 @@ final class ScenarioUITests: XCTestCase {
         XCTAssertTrue(candidateCard(app, containing: placeName).waitForExistence(timeout: UITestID.timeout), file: file, line: line)
     }
 
-    /// S-13 でレバーを回してカプセルを開け、S-14 の行き先きっぷを出す。当選した場所名を返す
+    /// S-13 でレバーを回し、S-14 の行き先きっぷを出す（カプセルは押さなくても開く）。当選した場所名を返す
     @MainActor
     private func drawFromGachaScreen(
         _ app: XCUIApplication,
@@ -264,9 +264,6 @@ final class ScenarioUITests: XCTestCase {
         let lever = app.buttons["レバーを回す"]
         XCTAssertTrue(lever.waitForEnabled(), file: file, line: line)
         lever.tap()
-        let capsule = app.buttons["カプセルを開ける"]
-        XCTAssertTrue(capsule.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
-        capsule.tap()
         let result = app.otherElements[UITestID.resultScreen]
         XCTAssertTrue(result.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
         let ticket = result.descendants(matching: .any)[UITestID.resultTicket]

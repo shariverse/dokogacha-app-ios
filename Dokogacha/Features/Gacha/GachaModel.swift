@@ -9,14 +9,14 @@ import Observation
 /// S-13 ガチャの状態（ルームと候補の購読・抽選・演出の段階・触覚の合図）。
 ///
 /// **自分が回す（F-40・F-41）**: レバーを押すと回転中にし、同時に Callable の `drawGacha` を呼ぶ。結果が返り、かつ回転（1.6 秒）が終わったら
-/// カプセルを落とす（02 の §6.2）。送っている途中・演出の途中はレバーを押せない（二重に回さない）。
+/// カプセルを落とし、少し見せてから自動で開ける（02 の §6.2。カプセルを押す操作は無い。Issue #158）。送っている途中・演出の途中はレバーを押せない（二重に回さない）。
 /// 失敗したら演出を止めて待機に戻し、トーストを出す（通信のエラーは「通信できませんでした。もう一度回してください」、
 /// `room-not-unlocked`・`no-candidates` などの理由は `AppError` の文言）。ほかの人と同時に回して先を越されたとき（`alreadyDrawn`）は、
 /// 先に回した人の名前を出して同じ結果を見せる。
 ///
 /// **ほかの人が回した（F-41）**: 待機中にルームの購読で `drawn` と `currentDrawId` が届いたら、`draws/{drawId}` の `drawnByName` を読み、
-/// 「◯◯さんが回しました！」を出して同じ演出（揺れ → カプセルの落下）を自動で再生する。
-/// 演出を見終えた抽選は端末に覚え（`SeenDrawStore`）、もう一度開いたときは再生せずに取り出し口にカプセルを出した状態にする。
+/// 「◯◯さんが回しました！」を出して同じ演出（揺れ → カプセルの落下 → 開ける）を自動で再生する。
+/// 演出を見終えた抽選は端末に覚え（`SeenDrawStore`）、もう一度開いたときは揺れと落下を飛ばし、取り出し口のカプセルを開けるところから始める。
 ///
 /// **時間**: 演出の時間は `GachaTimeline` で、待つ処理（`sleep`）は注入する（テストでは待たないものを渡す）。
 /// 「視差効果を減らす」（`reducesMotion`）では待たずに次の段階へ進み、回転中の刻みの触覚も鳴らさない（04 の §5「すべて即時切り替え」）。
@@ -143,11 +143,6 @@ final class GachaModel {
     /// レバーを回せるか（待機中・`unlocked`・候補がある・まだ抽選していない・送っている途中でない）
     var canTurnLever: Bool {
         phase == .idle && !isDrawing && drawID == nil && room?.status == .unlocked && capsuleCount > 0
-    }
-
-    /// 取り出し口のカプセルを押せるか（落ちている途中・開いている途中は押せない）
-    var isCapsuleEnabled: Bool {
-        phase == .dispensed
     }
 
     /// 画面を閉じてよいか（演出の途中・送っている途中は閉じない。抽選は終わっているので、途中で閉じると結果を見ないまま戻るため）
@@ -305,7 +300,7 @@ final class GachaModel {
     // MARK: - ほかの人が回した
 
     /// 待機中に、ほかの人が回した（ルームが `drawn` で、まだ扱っていない抽選がある）なら演出を始める。
-    /// 見終えた抽選なら再生せず、取り出し口にカプセルを出した状態にする
+    /// 見終えた抽選なら揺れと落下を飛ばし、取り出し口のカプセルを開けるところから始める
     private func replayIfDrawnByOthers() {
         guard let room, room.status == .drawn, let drawID = room.currentDrawId, !drawID.isEmpty,
               phase == .idle, !isDrawing, self.drawID == nil else {
@@ -314,7 +309,9 @@ final class GachaModel {
         self.drawID = drawID
         winnerCandidateID = room.winnerCandidateId
         if seenDraws.hasSeen(drawID: drawID) {
-            phase = .dispensed
+            playTask = Task { [weak self] in
+                await self?.openCapsule()
+            }
             return
         }
         playTask = Task { [weak self] in
@@ -322,7 +319,7 @@ final class GachaModel {
         }
     }
 
-    /// ほかの人が回した抽選の演出を再生する（回した人の名前を読んでから、揺れ → 落下）
+    /// ほかの人が回した抽選の演出を再生する（回した人の名前を読んでから、揺れ → 落下 → 開ける）
     private func replay(drawID: String) async {
         drawnByName = await drawerName(of: drawID)
         guard !Task.isCancelled else {
@@ -364,7 +361,7 @@ final class GachaModel {
         _ = await wait(GachaTimeline.tickInterval)
     }
 
-    /// カプセルを取り出し口に落とし、底に当たったら合図を出して見終えた抽選として覚え、押せる状態にする
+    /// カプセルを取り出し口に落とし、底に当たったら合図を出して見終えた抽選として覚え、少し見せてから開ける
     private func dispense() async {
         guard let drawID else {
             return
@@ -378,28 +375,18 @@ final class GachaModel {
         emit(.capsuleLanded)
         seenDraws.markSeen(drawID: drawID)
         if !reducesMotion {
-            guard await wait(GachaTimeline.dispenseDelay - GachaTimeline.landingDelay) else {
+            guard await wait(GachaTimeline.openDelay) else {
                 return
             }
         }
-        phase = .dispensed
+        await openCapsule()
     }
 
     // MARK: - 開ける
 
-    /// 取り出し口のカプセルが押された。開ける（`openCapsule()` を `Task` で動かす）
-    func capsuleTapped() {
-        guard isCapsuleEnabled else {
-            return
-        }
-        playTask = Task { [weak self] in
-            await self?.openCapsule()
-        }
-    }
-
-    /// カプセルを開ける（`open` の 0.5 秒の後に開け終える）。押せないとき（`dispensed` でない）は何もしない
-    func openCapsule() async {
-        guard isCapsuleEnabled else {
+    /// カプセルを開ける（`open` の 0.5 秒の後に開け終える）。cancel されたら途中で終わる
+    private func openCapsule() async {
+        guard !Task.isCancelled else {
             return
         }
         phase = .opening

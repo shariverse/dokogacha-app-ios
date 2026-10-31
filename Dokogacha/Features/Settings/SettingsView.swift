@@ -12,6 +12,7 @@ import UIKit
 /// - 「広告を非表示にする（¥480）」「購入を復元」で買い切りの購入と復元（02 の §7.2 F-51）。購入済みなら「広告非表示：購入済み」にして押せなくする
 /// - 「Apple でサインインを連携」で Sign in with Apple に連携する（02 の §1 F-01）。連携済みなら「連携済み」にして押せなくする。
 ///   その Apple ID が別のアカウントで使われていたら、そのアカウントでサインインし直すかを尋ねる
+/// - 「結果の演出」は、ガチャの結果（S-14）で行き先きっぷを出す演出を選ぶ画面（S-16 `ResultRevealSettingView`）を積む。行の値は選んでいる演出の名前
 /// - 「通知設定」は iOS の設定アプリのこのアプリの通知の画面を開く（03 の S-15「iOS の設定アプリを開く」。アプリの中にオン／オフは持たない）
 /// - 利用規約・プライバシーポリシーは Web のページ（`DomainConstants.Web`）をアプリの中の Safari（`SFSafariViewController`）で開く
 /// - ライセンスは、同梱のフォントの OFL と主要なライブラリのライセンスの画面（`LicensesView`）を積む
@@ -33,6 +34,8 @@ struct SettingsView: View {
         static let restore = "settings.restore"
         /// 「Apple でサインインを連携」の行
         static let appleLink = "settings.appleLink"
+        /// 「結果の演出」の行
+        static let resultReveal = "settings.resultReveal"
         /// 「通知設定」の行
         static let notifications = "settings.notifications"
         /// 「利用規約」の行
@@ -67,12 +70,18 @@ struct SettingsView: View {
     @State private var webPage: WebPage?
     /// ライセンスの画面を積んでいるか
     @State private var isShowingLicenses = false
+    /// 結果の演出の画面（S-16）を積んでいるか
+    @State private var isShowingResultReveal = false
+    /// 結果の演出の設定が渡されていないとき（プレビュー）に使う、メモリだけの設定
+    @State private var fallbackResultReveal = ResultRevealSetting(defaults: nil)
     /// 編集のシートにもトーストを重ねるための窓口（シートは画面の根元のトーストより上に出るため）
     private let toasts: DGToastCenter
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.authorizationController) private var authorizationController
+    /// 結果の演出の設定（`DokoGachaApp` が渡す。プレビューでは無い）
+    @Environment(ResultRevealSetting.self) private var resultReveal: ResultRevealSetting?
 
     /// - Parameters:
     ///   - model: 画面の状態（最初の 1 回だけ使う）
@@ -85,6 +94,7 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             DGHeader(Text("設定"), onBack: { dismiss() })
+                .dgContentColumn()
                 // 購入・復元・連携・削除を行っている途中は戻らせない
                 .disabled(model.activeAction != nil)
             ScrollView {
@@ -95,6 +105,8 @@ struct SettingsView: View {
                         appleLinkRow
                     }
                     SettingsSection {
+                        resultRevealRow
+                        DGDashedLine()
                         notificationsRow
                     }
                     aboutSection
@@ -103,6 +115,7 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.horizontal, DGSpacing.screenX)
+                .dgContentColumn()
                 .padding(.top, DGSpacing.s8)
                 .padding(.bottom, DGSpacing.s24)
             }
@@ -132,6 +145,9 @@ struct SettingsView: View {
         }
         .navigationDestination(isPresented: $isShowingLicenses) {
             LicensesView()
+        }
+        .navigationDestination(isPresented: $isShowingResultReveal) {
+            ResultRevealSettingView(setting: resultRevealSetting)
         }
         .alert(Text("この Apple ID は別のアカウントで使われています"), isPresented: $model.isConfirmingAccountSwitch) {
             Button("サインインし直す") {
@@ -238,6 +254,23 @@ struct SettingsView: View {
             .accessibilityHint(Text("機種を変更したときに、同じ Apple ID でサインインすると参加中のルームが戻ります"))
             .accessibilityIdentifier(Identifier.appleLink)
         }
+    }
+
+    /// 結果の演出の設定（渡されていなければメモリだけのもの）
+    private var resultRevealSetting: ResultRevealSetting {
+        resultReveal ?? fallbackResultReveal
+    }
+
+    /// 「結果の演出」（押すと S-16。値は選んでいる演出の名前）
+    private var resultRevealRow: some View {
+        Button {
+            isShowingResultReveal = true
+        } label: {
+            SettingsRow(title: Text("結果の演出"), value: Text(resultRevealSetting.style.title), accessory: .disclosure)
+        }
+        .buttonStyle(.dgBare)
+        .accessibilityHint(Text("ガチャの結果で行き先きっぷを出す演出を選びます"))
+        .accessibilityIdentifier(Identifier.resultReveal)
     }
 
     /// 「通知設定」（iOS の設定アプリのこのアプリの通知の画面を開く）

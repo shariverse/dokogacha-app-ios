@@ -17,7 +17,8 @@
 
 ## 環境
 
-- Xcode 26.6 / iOS 17.0 以上 / iPhone のみ・縦向き固定・ライトモード固定
+- Xcode 26.6 / iOS 17.0 以上 / iPhone と iPad（iPhone は縦向き固定。iPad はすべての向きとウィンドウの大きさの変更に対応）/ ライトモード固定
+  - iPad の広い画面では本文を最大幅の列に収めて中央に寄せ、ホーム・ルームは 2 列に分ける（03 の §3「iPad」・04 の §3 の `layout`）。分けるのは `horizontalSizeClass` が `.regular` のときだけなので、iPhone の見た目は変わらない
 - Swift 6（言語モード 6・Strict Concurrency complete・既定の分離は MainActor。UI テストのターゲットだけ nonisolated）
 - SwiftUI・`@Observable` / Swift Testing（Unit）/ XCTest（UI テスト）/ SwiftLint 0.65.1（Build Tool Plugin と CI の `--strict`）
 - SPM で導入済み（アプリのターゲットにリンク済み）: firebase-ios-sdk 13（`FirebaseAuth` `FirebaseFirestore` `FirebaseFunctions` `FirebaseMessaging` `FirebaseAnalytics` `FirebaseCrashlytics`）、Google Mobile Ads 13
@@ -68,9 +69,11 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - plist が無い・読めないときは落とさずに起動し、`ServerSession.connection` が `.unavailable` になる（サーバーに接続できない状態）
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化しない（`.disabled`）
   - そのときはメモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動く。UI テストはデモのデータを `-uiTesting -demo-scenario <名前>` で選ぶ
-    （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`・`several-rooms`（撮影モードの既定）・`joinable`・`first-launch-invited`・`drawn-rooms`・`memories`・`past-ideas`・`ad-free-room`・`ended-room`。`DemoScenario`。要るシナリオを足す）
+    （`first-launch`・`empty`（既定）・`one-room`・`room-with-candidates`・`several-rooms`（撮影モードの既定）・`joinable`・`first-launch-invited`・`drawn-rooms`・`memories`・`past-ideas`・`ad-free-room`・`ended-room`・`crowded-room`・`full-room`。`DemoScenario`。要るシナリオを足す）
   - 起動引数は `LaunchContext` にまとめる: `-open-url <URL>`・`-open-notification <JSON>`（招待リンク・通知から開いたことにする）・`-network-offline`（オフラインのことにする）は `-uiTesting`・撮影モードで、
-    `-ui-auto-members`（ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが返す）・`-ui-owner-ends-room`（ほかの人が作ったルームで自分が準備OKになっていたら、その作成者がルームを途中で終了する）は `-uiTesting` だけで効く
+    `-ui-auto-members`（ほかのメンバーの参加・準備OK・引き直しの賛成を擬似のサーバーが返す）・`-ui-owner-ends-room`（ほかの人が作ったルームで自分が準備OKになっていたら、その作成者がルームを途中で終了する）は `-uiTesting` だけで効く。
+    `-result-animation <flap|capsule|issue>`（S-14 の結果の演出。設定の S-16 を開かずに選ぶ）は `-uiTesting`・撮影モードで、
+    `-ui-reduce-motion`（S-14 の結果の演出を「視差効果を減らす」の流れにする。S-13 は UI テストではいつも減らす）は `-uiTesting` だけで効く
   - データ層は `AuthService`・`RoomRepository`・`FunctionsClient` の protocol の後ろにあり、起動時に `DataServices.make` が実装を選んで
     `ServerSession.services` で渡す。画面の Model は protocol だけを受け取る。backend に Callable を足したら、擬似のサーバーにも同じ検証を足す
   - Firestore のトリガー（`onUserProfileUpdate`・`onMemberWrite`）に当たる処理は `InMemoryServer+Triggers.swift` に置き、元の書き込みをした Callable・直接の書き込みの中で続けて呼ぶ

@@ -1,8 +1,8 @@
 # ドコガチャ（Dokogacha）
 
-友人グループ（最大 20 人）が「行きたい場所」をルームに持ち寄り、いいねで出やすさを少しだけ動かし、準備OKがそろったらガチャ（サーバー側の抽選）で行き先を 1 つに決める iPhone アプリです。
+友人グループ（最大 20 人）が「行きたい場所」をルームに持ち寄り、いいねで出やすさを少しだけ動かし、準備OKがそろったらガチャ（サーバー側の抽選）で行き先を 1 つに決める iPhone・iPad アプリです。
 
-- Bundle ID `jp.shilokuma.Dokogacha`・iOS 17.0 以上・iPhone のみ・縦向き・ライトモード
+- Bundle ID `jp.shilokuma.Dokogacha`・iOS 17.0 以上・iPhone（縦向き）と iPad（すべての向き・ウィンドウの大きさの変更）・ライトモード
 - 企画・仕様・デザインは [docs/spec/](docs/spec/README.md)（優先順位は `02_requirements.md` ＞ `03_screens.md` ＞ `design/prototype/`）
 - 公開までに人間が用意するもの（Firebase・Apple・AdMob・ドメイン・規約・申請）は [docs/setup-human.md](docs/setup-human.md)
 
@@ -28,7 +28,8 @@
 | S-11 | メンバー一覧 | `Members/` |
 | S-12 | ルーム設定（作成者のみ。ルームを途中で終了する） | `RoomSettings/` |
 | S-13・S-14 | ガチャ・結果（行き先きっぷ・引き直し・決定） | `Gacha/` |
-| S-15 | 設定（表示名・Apple の連携・広告非表示・アカウントの削除・ライセンス） | `Settings/` |
+| S-15 | 設定（表示名・Apple の連携・広告非表示・結果の演出・アカウントの削除・ライセンス） | `Settings/` |
+| S-16 | 結果の演出（パタパタ行き先表示・カプセルぱかっ・発券から選ぶ。見本付き） | `Settings/` |
 
 起動の流れ・画面の積み方・通知と招待リンクから開く処理は `Root/`、画面をまたぐ部品は `Shared/` にあります。
 
@@ -47,7 +48,7 @@
 │   │   ├── GoogleMobileAds/   #   バナー広告
 │   │   └── StoreKit/          #   広告非表示の購入（StoreKit 2）
 │   ├── Screenshot/            # 撮影モード（ScreenshotDemo）
-│   ├── Resources/             # フォント（OFL）・ライセンス・Localizable.xcstrings・Firebase の plist の置き場所（git 管理外）
+│   ├── Resources/             # フォント（OFL）・ライセンス・市区町村の一覧（Municipalities.tsv）・Localizable.xcstrings・Firebase の plist の置き場所（git 管理外）
 │   ├── Info.plist             # 構成で変える値は xcconfig の変数を $(…) で参照する
 │   └── PrivacyInfo.xcprivacy  # プライバシーマニフェスト
 ├── DokogachaTests/            # Unit テスト（Swift Testing）
@@ -57,7 +58,7 @@
 ├── StoreKit/Dokogacha.storekit # ローカルで購入を試す StoreKit Configuration（remove_ads）
 ├── backend/                   # Firebase（下の「backend」）
 ├── AppStore/                  # App Store の掲載情報（言語・撮る画面・説明文・クリエイティブアセット）
-├── Tools/                     # スクリーンショットの撮影と App Store Connect への反映
+├── Tools/                     # スクリーンショットの撮影と App Store Connect への反映・市区町村の一覧の作成（make_municipalities.py）
 ├── docs/                      # spec/（企画・仕様・デザイン）・setup-human.md・ExportOptions.sample.plist
 ├── scripts/                   # ralph-loop の中継（ralph-*.sh・askhub-manual.sh）。rename.sh はテンプレートの名残で使わない
 └── .github/                   # ワークフロー・Issue / PR のテンプレート・App Store Connect のスクリプト
@@ -167,7 +168,7 @@ xcrun simctl io <UDID> screenshot room.png
 | 起動引数 | 効く画面（scene） | 中身 |
 | --- | --- | --- |
 | `-screenshot-demo` | すべて | 撮影モードにする |
-| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`licenses`）。無ければホーム |
+| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`resultRevealSetting`・`licenses`）。無ければホーム |
 | `-demo-scenario <名前>` | すべて | デモのデータ（`DemoScenario`）。撮影モードの既定は `several-rooms` |
 | `-screenshot-ad-placeholder` | 広告のある画面 | バナー広告の場所に固定の枠を出す（App Store の撮影では付けない） |
 | `-network-offline` | すべて | オフラインのことにする（「オフラインです」の帯） |
@@ -177,10 +178,13 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-like <候補の ID>`・`-screenshot-ready <uid,…>`・`-screenshot-force-unlocked`・`-screenshot-confirm-force-unlock` | `room` | いいね・準備OK・強制解禁・その確認のダイアログ |
 | `-screenshot-candidate <ID>`・`-screenshot-not-owner`・`-screenshot-confirm-delete`・`-screenshot-report-reasons`・`-screenshot-reported` | `candidateDetail` | 開く候補・他人のルーム・削除の確認・報告の理由・報告した後 |
 | `-screenshot-query <語>` | `addCandidate` | 検索しておく語（既定は「水族館」） |
-| `-screenshot-search-area <エリア>` | `addCandidate` | 選んでおくエリア（`SearchArea` の rawValue。`kanto`・`hokkaido` など。既定は全国） |
+| `-screenshot-search-area <エリア>` | `addCandidate` | 選んでおく地方（`SearchArea` の rawValue。`kanto`・`hokkaido` など。既定は全国） |
+| `-screenshot-search-prefecture <コード>`・`-screenshot-search-municipality <団体コード>` | `addCandidate` | 選んでおく都道府県（都道府県コード。`13` など）・市区町村（6 桁の団体コード。`131075`（墨田区）など）。いくつか付けたら市区町村・都道府県・地方の順に見る |
+| `-screenshot-municipality-picker`・`-screenshot-municipality-filter <語>` | `addCandidate` | 市区町村を選ぶシートを開いておく（都道府県を選んでいるときだけ）・シートの絞り込みの語 |
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
-| `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態 |
-| `-screenshot-gacha <状態>` | `gacha` | `ready`（既定）・`dispensed`・`others`・`others-live`・`play` |
+| `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings`・`roomInvite` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態（`roomInvite` は S-07 の上に招待のシートを出す） |
+| `-screenshot-gacha <状態>`・`-screenshot-gacha-winner <候補の ID>` | `gacha` | `ready`（既定）・`others`・`others-live`・`play`・自分が回したときに当てる候補（`demo-candidate-1` など） |
+| `-result-animation <演出>` | `gacha`・`resultRevealSetting` | S-14 の結果の演出（`flap`（既定）・`capsule`・`issue`。UI テストと共通） |
 | `-screenshot-result <状態>`・`-screenshot-reroll <状態>`・`-screenshot-result-animate` | `result` | 当選（`normal`・`rare`）・引き直し（`voting`・`passed`・`used`）・きっぷを動かす |
 | `-screenshot-result-closed` | `resultMember` | 終了したルームの閲覧のみ |
 | `-screenshot-memories-only` | `homeMemories` | 進行中のルームを足さない |
@@ -211,7 +215,7 @@ xcrun simctl io <UDID> screenshot room.png
 `AppStore/` の JSON を元にして、手動実行のワークフローで App Store Connect に反映します。反映先は「編集できる状態のバージョン」だけです。
 
 - 言語は日本語だけ（`AppStore/languages.json`。02 の §10 で多言語は対象外）
-- スクリーンショット: `AppStore/screenshots.json` の 5 つ（ルーム・ガチャ・行き先きっぷ・過去のアイデア・招待）を、`release/**` ブランチで `Screenshots/App Store` を手動実行して撮ります。6.9 inch を撮り、6.3 inch は縮めて作り、iPhone Duo は Xcode 27.1 のランナーで撮ります。手元では `Tools/capture_screenshots.sh APP_IPHONE_67 ja`（出力は `build/screenshots/`）
+- スクリーンショット: `AppStore/screenshots.json` の 5 つ（ルーム・ガチャ・行き先きっぷ・過去のアイデア・招待）を、`release/**` ブランチで `Screenshots/App Store` を手動実行して撮ります。6.9 inch を撮り、6.3 inch は縮めて作り、iPhone Duo は Xcode 27.1 のランナーで、iPad 13 inch は iPad Pro 13-inch の Simulator で撮ります。手元では `Tools/capture_screenshots.sh APP_IPHONE_67 ja`（iPad は `APP_IPAD_PRO_3GEN_129`。出力は `build/screenshots/`）
 - 説明文など: `AppStore/metadata/ja.json`・`shared.json`（URL は `DomainConstants.Web` と同じ。`AppStoreMetadataTests` が突き合わせる）を `Metadata/App Store` で反映します（既定は dry-run）
 - プロダクトページのヘッダーと検索結果: `AppStore/creative/src/creative.html` から `Tools/render_creative_assets.sh` で書き出し、`Creative assets/App Store` で反映します（`TODO:` が残っていると止まる）
 - 「App のプライバシー」の申告は Xcode の Privacy Report を正にします（[docs/setup-human.md](docs/setup-human.md) の 12）
@@ -266,6 +270,10 @@ body=$(gh pr view <番号> --json body -q .body) &&
 - **レア当選**: プロトタイプは丸めた % で比べるが、02 の §6.3 どおり丸める前の確率で比べる
 - **フォルダ**: 05 の §2 の `Features/Room/` の下に置くとした候補の詳細・メンバー・ルーム設定は、`Features/CandidateDetail/`・`Members/`・`RoomSettings/` に分けた
 - **経過時間**: 06 の §2 は Swift と TypeScript の両方に載せているが、サーバーで使わないので Swift だけ
+- **場所検索のエリア**（Issue #131・#160）: 資料は位置情報を使わず日本全体を範囲にするとしていたが、全国・地方・都道府県・市区町村を選べるようにした（06 の §4 の仮決め）。
+  都道府県の範囲は本土と近くの島を囲む矩形（`Prefecture.all`。東京の伊豆諸島・小笠原諸島、鹿児島のトカラ列島・奄美群島などの遠くの離島は入れない）。
+  市区町村の範囲は同梱せず、選んだときに MapKit の住所の検索（「東京都豊島区」）で引く。結果は `administrativeArea`・`locality` で絞る（政令指定都市の区・郡の表記の揺れは `PlaceLocality`）。
+  市区町村の一覧は上の「同梱のデータ」。政令指定都市の区は選べない（市全体）。北方領土の 6 村は一覧に入れていない
 - **ホーム画面のアプリ名**（Discussion #147）: `Dokogacha/InfoPlist.xcstrings` で `CFBundleDisplayName` を日本語「ドコガチャ」・英語「Dokogacha」にした（`PRODUCT_NAME`・Bundle ID は変えていない）。
   開発言語が日本語なので、足したローカライズは `en`。pbxproj を編集しないため、`knownRegions` は `ja`・`Base` のまま（足さなくても `en.lproj` はアプリに入る）。
   `en` が入ったので、英語の端末ではアプリの言語が英語として扱われ、システムが出す部品（日時の選択・地図の表記・共有シートなど）と締切の曜日が英語になる。アプリの文言は日本語のまま。
@@ -278,6 +286,25 @@ body=$(gh pr view <番号> --json body -q .body) &&
   - 終了したルームの S-07 は下部に「このルームは終了しています」を出す。S-13 を開いている間に終了したら「このルームは終了しています」／「ガチャは回せません」。サーバーが返すエラーの文言（候補の追加・ガチャ）は `room-already-decided` のまま
   - ホームの思い出のきっぷは、「すべて見る」を押す前に読んだ 6 件に行き先の決まらないルームが混ざっていたら、上限なしで読み直し、きっぷになるルームの数で「すべて見る」を出すかを決める
   - Analytics の `room_close` に `early` を足した（05 の §9 に追記）
+- **ガチャの結果の演出**（Issue #158）: 資料は S-13 でカプセルを押して開け、S-14 できっぷがポップインするとしていたが、レバーを押したら結果まで止まらずに進むようにし
+  （カプセルは落ちてから 0.4 秒見せて自動で開く。タップを促す `pulse` は外した）、S-14 は選んだ結果の演出（パタパタ行き先表示（標準）・カプセルぱかっ・発券）で出すようにした。
+  演出は S-16（設定の「結果の演出」）で選び、端末に覚える。行き先が決まった `.success` の触覚は、S-13 でカプセルが開いた瞬間から S-14 の決まる瞬間に移した。
+  ルーム・通知から S-14 を直接開いたときは、見終えた結果を開き直すことが多いので、これまでのポップインのままにしている
+
+## 同梱のデータ（市区町村の一覧）
+
+S-08 の検索のエリアで選ぶ市区町村の一覧（`Dokogacha/Resources/Municipalities.tsv`。団体コード・名前・よみ）は、
+総務省の「[都道府県コード及び市区町村コード](https://www.soumu.go.jp/denshijiti/code.html)」（令和6年1月1日現在）を加工して作ったものです。
+
+- 出典: 「都道府県コード及び市区町村コード」（総務省）（https://www.soumu.go.jp/denshijiti/code.html）を加工して作成
+- 利用条件: [公共データ利用規約（第1.0版）（PDL1.0）](https://www.digital.go.jp/resources/open_data/public_data_license_v1.0)（CC BY 4.0 と互換。商用利用・加工・再配布ができ、出典と加工したことを書く）。アプリでは設定 → ライセンスの「データ」に出しています（`LicenseCatalog.data`）
+- 加工の内容: 「現在の団体」のシートから団体コード・市区町村名・カナを抜き出し、都道府県の行と北方領土の 6 村を除き、よみをひらがなにしました。
+  政令指定都市は市全体で 1 つ（区のシートは使わない）、東京の 23 区は 1 区ずつです
+- 作り直し方: 合併などで表が更新されたら、上のページの「Excelファイル」を落として次を流し、`MunicipalityTests` の件数を直します
+
+```bash
+python3 -I Tools/make_municipalities.py <落とした .xlsx> > Dokogacha/Resources/Municipalities.tsv
+```
 
 ## License
 

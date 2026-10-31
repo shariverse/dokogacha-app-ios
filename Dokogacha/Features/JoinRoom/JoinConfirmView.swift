@@ -52,10 +52,12 @@ struct JoinConfirmView: View {
         VStack(spacing: 0) {
             DGHeader(Text("参加確認"), onBack: { dismiss() })
                 .padding(.horizontal, DGSpacing.s4)
+                .dgContentColumn()
                 .disabled(model.locksNavigation)
             ScrollView {
                 roomCard
                     .padding(.horizontal, DGSpacing.screenX)
+                    .dgContentColumn()
                     .padding(.top, DGSpacing.s8)
                     .padding(.bottom, DGSpacing.s16)
             }
@@ -73,6 +75,7 @@ struct JoinConfirmView: View {
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.top, DGSpacing.s12)
             .padding(.bottom, DGSpacing.s14)
+            .dgContentColumn()
             .background(Color.dgBgBase)
         }
         .background(Color.dgBgBase.ignoresSafeArea())

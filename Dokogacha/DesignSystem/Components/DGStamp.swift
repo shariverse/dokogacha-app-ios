@@ -12,6 +12,7 @@ import SwiftUI
 /// 線 3 の `accent.text`、文字は見出しフォントの `accent.text`。
 /// 大きさは 2 つ: 思い出のきっぷの「済」（直径 50）と、行き先きっぷの「決定」（直径 70・19pt ＋日付 `M.DD` 9pt Black・背景は白 85%）。
 /// `animatesIn` を付けると、表示したときに 0.5 秒遅れて押す動き（2.2 倍・透明 → 0.92 倍 → 等倍）をする（S-14）。
+/// 演出の時刻に合わせて外から押し具合を決めるときは、`pressProgress`（0〜1）を渡す（S-14 の演出の案。`ResultRevealStage`）。
 /// 「視差効果を減らす」がオンのときは、大きさを変えずにフェード（0.2 秒）だけにする。
 /// 飾りなので VoiceOver では読まない（意味は隣の文言で伝える）。円の大きさは置き場所で決まっているので Dynamic Type では変えず、文字を縮めて収める。
 struct DGStamp: View {
@@ -75,6 +76,8 @@ struct DGStamp: View {
     var date: Date?
     /// 表示したときに押す動きをするか
     var animatesIn = false
+    /// 押し具合（0〜1。外から決めるとき。nil なら `animatesIn` に従って自分で動かす）
+    var pressProgress: Double?
 
     @State private var scale: CGFloat
     @State private var opacity: Double
@@ -86,11 +89,13 @@ struct DGStamp: View {
     ///   - size: 大きさ
     ///   - date: 文字の下に出す日付（大きいハンコだけ）
     ///   - animatesIn: 表示したときに押す動きをするか
-    init(_ text: LocalizedStringKey, size: Size = .small, date: Date? = nil, animatesIn: Bool = false) {
+    ///   - pressProgress: 押し具合（0〜1。外から決めるとき）
+    init(_ text: LocalizedStringKey, size: Size = .small, date: Date? = nil, animatesIn: Bool = false, pressProgress: Double? = nil) {
         self.text = text
         self.size = size
         self.date = date
         self.animatesIn = animatesIn
+        self.pressProgress = pressProgress
         _scale = State(initialValue: animatesIn ? Self.startScale : 1)
         _opacity = State(initialValue: animatesIn ? 0 : 1)
     }
@@ -112,10 +117,30 @@ struct DGStamp: View {
         .background(size.background, in: Circle())
         .overlay(Circle().strokeBorder(Color.dgAccentText, lineWidth: Self.lineWidth))
         .rotationEffect(Self.angle)
-        .scaleEffect(scale)
-        .opacity(opacity)
+        .scaleEffect(pressProgress.map { Self.pressPose($0, reduceMotion: reduceMotion).scale } ?? scale)
+        .opacity(pressProgress.map { Self.pressPose($0, reduceMotion: reduceMotion).opacity } ?? opacity)
         .onAppear(perform: press)
         .accessibilityHidden(true)
+    }
+
+    /// 押し具合 `progress`（0〜1）のときの大きさと不透明度（`animatesIn` の動きと同じ形。前の 7 割で押し込み、残りで等倍に戻る）
+    static func pressPose(_ progress: Double, reduceMotion: Bool) -> (scale: CGFloat, opacity: Double) {
+        let clamped = min(max(progress, 0), 1)
+        if reduceMotion {
+            return (1, clamped)
+        }
+        if clamped < pressPortion {
+            let pressed = easeOut(clamped / pressPortion)
+            return (startScale + (pressedScale - startScale) * pressed, pressed)
+        }
+        let settled = easeOut((clamped - pressPortion) / (1 - pressPortion))
+        return (pressedScale + (1 - pressedScale) * settled, 1)
+    }
+
+    /// だんだん遅く（3 次）
+    private static func easeOut(_ value: Double) -> Double {
+        let rest = 1 - value
+        return 1 - rest * rest * rest
     }
 
     /// 押す動きを始める（`animatesIn` のときだけ）

@@ -175,9 +175,9 @@ struct OnlineRequiredPlaceSearchService: PlaceSearchService {
     /// 回線の状態
     let network: NetworkStatus
 
-    func search(_ query: String, in area: SearchArea) async throws -> [SearchedPlace] {
+    func search(_ query: String, in scope: SearchScope) async throws -> [SearchedPlace] {
         try network.requireOnline()
-        return try await base.search(query, in: area)
+        return try await base.search(query, in: scope)
     }
 }
 

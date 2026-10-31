@@ -122,6 +122,21 @@ struct MembersModelTests {
         #expect(model.shareMessage == nil)
     }
 
+    /// 満員（20 人）のルームには招待できない（招待しても参加できないため。S-07 の招待の「＋」と同じ判定）。
+    /// 誰かが抜けて 19 人になると、また招待できる
+    @Test
+    func cannotInviteToFullRoomUntilSomeoneLeaves() async throws {
+        let fixture = Self.make(.fullRoom)
+        let model = fixture.model
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model, members: DomainConstants.Limits.maxMembers, candidates: 3))
+        #expect(model.shareMessage == nil)
+
+        try await fixture.functions.server.device(of: "demo-guest-16").leaveRoom(RoomRequest(roomId: DemoScenario.roomID))
+        #expect(await AsyncTestSupport.eventually { model.shareMessage != nil })
+    }
+
     // MARK: - 退出
 
     /// 確認してから退出すると `leaveRoom` を呼び、メンバーから外れて `didLeave` が立つ。外れて購読が読めなくなってもシートは閉じない

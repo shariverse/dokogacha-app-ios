@@ -73,11 +73,21 @@ struct AppStoreMetadataTests {
         #expect(required.allSatisfy { scenes.contains($0.rawValue) })
     }
 
-    /// iPhone だけのアプリなので、iPad の表示サイズを撮らない（`TARGETED_DEVICE_FAMILY = 1`）
+    /// 撮る表示サイズに、App Store Connect が必須とするもの（iPhone 6.3 inch・iPhone Duo・iPad 13 inch）がそろう。
+    ///
+    /// iPad にも対応した（`TARGETED_DEVICE_FAMILY = 1,2`。Issue #156）ので、iPad 13 inch（`APP_IPAD_PRO_3GEN_129`）が要る。
+    /// iPad Pro 13-inch の Simulator で縦向きに撮る（`Tools/capture_screenshots.sh` は sizes の先頭の寸法で撮る）
     @Test
-    func screenshotsAreIPhoneOnly() throws {
-        let displayTypes = try #require(try Self.json("screenshots.json")["displayTypes"] as? [String: Any])
-        #expect(!displayTypes.isEmpty)
-        #expect(displayTypes.keys.allSatisfy { $0.hasPrefix("APP_IPHONE_") })
+    func screenshotsIncludeRequiredDisplayTypes() throws {
+        #expect(try UniversalLinksConfigTests.projectSettings()["TARGETED_DEVICE_FAMILY"] == "1,2")
+        let displayTypes = try #require(try Self.json("screenshots.json")["displayTypes"] as? [String: [String: Any]])
+        #expect(["APP_IPHONE_61", "APP_IPHONE_DUO", "APP_IPAD_PRO_3GEN_129"].allSatisfy { displayTypes[$0] != nil })
+
+        let iPad = try #require(displayTypes["APP_IPAD_PRO_3GEN_129"])
+        #expect(iPad["deriveFrom"] == nil)
+        #expect((iPad["sizes"] as? [String])?.first == "2064x2752")
+        let devices = try #require(iPad["devices"] as? [String])
+        #expect(!devices.isEmpty)
+        #expect(devices.allSatisfy { $0.hasPrefix("iPad Pro 13-inch") })
     }
 }

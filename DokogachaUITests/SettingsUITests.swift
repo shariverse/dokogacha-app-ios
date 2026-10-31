@@ -15,11 +15,22 @@ final class SettingsUITests: XCTestCase {
         static let removeAds = "settings.removeAds"
         static let restore = "settings.restore"
         static let appleLink = "settings.appleLink"
+        static let resultReveal = "settings.resultReveal"
         static let notifications = "settings.notifications"
         static let terms = "settings.terms"
         static let privacy = "settings.privacy"
         static let licenses = "settings.licenses"
         static let version = "settings.version"
+    }
+
+    /// 結果の演出の画面（`ResultRevealSettingView.Identifier.screen`）
+    private static let resultRevealScreen = "resultReveal.screen"
+    /// 結果の演出の画面の「もう一度見る」（`ResultRevealSettingView.Identifier.replay`）
+    private static let resultRevealReplay = "resultReveal.replay"
+
+    /// 結果の演出の選択肢（`ResultRevealSettingView.Identifier.option(_:)`）
+    private static func resultRevealOption(_ rawValue: String) -> String {
+        "resultReveal.option.\(rawValue)"
     }
 
     /// ライセンスの画面（`LicensesView.Identifier.screen`）
@@ -129,5 +140,38 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(app.otherElements[Self.licensesScreen].waitForExistence(timeout: UITestID.timeout))
         app.buttons["戻る"].tap()
         XCTAssertTrue(app.otherElements[UITestID.settingsScreen].waitForExistence(timeout: UITestID.timeout))
+    }
+
+    /// 「結果の演出」の行は標準のパタパタ行き先表示を示し、押すと S-16 が開く。別の演出を選ぶと選んだ印が移り、
+    /// 戻ると行の値もその演出になる（Issue #158）
+    @MainActor
+    func testChooseResultReveal() throws {
+        let app = openSettings()
+
+        let row = app.buttons[Row.resultReveal]
+        XCTAssertTrue(row.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(row.label.contains("パタパタ行き先表示"), row.label)
+        row.tap()
+        XCTAssertTrue(app.otherElements[Self.resultRevealScreen].waitForExistence(timeout: UITestID.timeout))
+
+        let flap = app.buttons[Self.resultRevealOption("flap")]
+        let capsule = app.buttons[Self.resultRevealOption("capsule")]
+        XCTAssertTrue(flap.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(flap.isSelected)
+        XCTAssertTrue(flap.label.contains("標準"), flap.label)
+        XCTAssertFalse(capsule.isSelected)
+        XCTAssertTrue(app.buttons[Self.resultRevealReplay].exists)
+
+        if !capsule.isHittable {
+            app.swipeUp()
+        }
+        capsule.tap()
+        XCTAssertTrue(capsule.waitForSelected())
+        XCTAssertFalse(flap.isSelected)
+
+        app.buttons["戻る"].firstMatch.tap()
+        XCTAssertTrue(app.otherElements[UITestID.settingsScreen].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(row.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(row.label.contains("カプセルぱかっ"), row.label)
     }
 }

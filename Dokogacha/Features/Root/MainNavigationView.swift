@@ -37,6 +37,8 @@ struct MainNavigationView: View {
     @Environment(PushNotificationCoordinator.self) private var push: PushNotificationCoordinator?
     /// 広告非表示の買い切りのまとめ役（`DokoGachaApp` が渡す。プレビューでは無い）
     @Environment(PurchaseCoordinator.self) private var purchases: PurchaseCoordinator?
+    /// 結果の演出の設定（S-16。プレビューでは無く、標準の演出にする）
+    @Environment(ResultRevealSetting.self) private var resultReveal: ResultRevealSetting?
 
     /// - Parameters:
     ///   - userID: 自分の uid
@@ -143,19 +145,8 @@ struct MainNavigationView: View {
                 presentation.path = AppRoute.pathAfterCreating(created, from: presentation.path)
                 requestNotificationPermission()
             }
-        case let .invite(created):
-            InviteView(
-                model: InviteModel(destination: created, toasts: toasts),
-                lastMembers: LastMembersInviteModel(
-                    roomID: created.roomID,
-                    userID: userID,
-                    repository: services.rooms,
-                    functions: services.functions,
-                    toasts: toasts
-                )
-            ) {
-                presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
-            }
+        case .invite, .inviteMembers:
+            invite(route)
         case .joinByCode, .joinByInviteLink:
             joinRoomFlow(initialCode: route.inviteLinkCode, via: route.joinVia ?? .code)
         case let .room(roomID):
@@ -232,13 +223,15 @@ struct MainNavigationView: View {
         }
     }
 
-    /// S-13 と S-14 を行き来するカバーの中身（`drawID` があれば S-14 から始める）
+    /// S-13 と S-14 を行き来するカバーの中身（`drawID` があれば S-14 から始める）。
+    /// 設定（S-16）で選んだ結果の演出を渡す（無ければ標準のパタパタ行き先表示）
     private func gachaFlow(roomID: String, startingWith drawID: String?) -> some View {
         GachaFlowView(startingWith: drawID) { onOpened in
             gacha(roomID: roomID, onOpened: onOpened)
         } result: { drawID, onPlayAgain in
             result(roomID: roomID, drawID: drawID, onPlayAgain: onPlayAgain)
         }
+        .environment(\.resultRevealStyle, resultReveal?.style ?? .standard)
     }
 
     /// S-11 メンバー一覧（シート）。退出できたら、シートを閉じてホームに戻り、トーストで知らせる
@@ -256,6 +249,41 @@ struct MainNavigationView: View {
             presentation.path = []
             toasts.show("ルームから退出しました")
         }
+    }
+
+    /// S-04 招待。ルームを作った直後（`invite`。プッシュ）は「ルームへ進む」で下のルームに出る。
+    /// ルームの招待の「＋」から（`inviteMembers`。シート）は、トーストをシートの中に重ねるので、シート用の窓口を作って渡す
+    @ViewBuilder private func invite(_ route: AppRoute) -> some View {
+        switch route {
+        case let .invite(created):
+            InviteView(
+                model: InviteModel(destination: created, toasts: toasts),
+                lastMembers: lastMembersInvite(created, toasts: toasts)
+            ) {
+                presentation.path = AppRoute.pathOpeningRoom(from: presentation.path)
+            }
+        case let .inviteMembers(room):
+            let sheetToasts = DGToastCenter()
+            InviteView(
+                model: InviteModel(destination: room, toasts: sheetToasts),
+                lastMembers: lastMembersInvite(room, toasts: sheetToasts),
+                context: .sheet(toasts: sheetToasts)
+            )
+        default:
+            // S-04 で出す行き先は `invite`・`inviteMembers` だけ
+            EmptyView()
+        }
+    }
+
+    /// S-04 の「前回のメンバー（{前回ルーム名}・N人）を招待」
+    private func lastMembersInvite(_ room: InviteDestination, toasts: DGToastCenter) -> LastMembersInviteModel {
+        LastMembersInviteModel(
+            roomID: room.roomID,
+            userID: userID,
+            repository: services.rooms,
+            functions: services.functions,
+            toasts: toasts
+        )
     }
 
     /// S-12 ルーム設定（シート）。保存できたら、シートを閉じてトーストで知らせる。
@@ -317,7 +345,16 @@ struct MainNavigationView: View {
             reportedCandidates: services.reportedCandidates,
             analytics: services.analytics
         )
-        return ResultView(model: model, toasts: coverToasts, animatesIn: !LaunchContext.current.isUITesting, onPlayAgain: onPlayAgain)
+        // UI テストでも、起動引数で演出を選んだときは流す（演出の後に結果が出ることを確かめる。Issue #158）
+        let launch = LaunchContext.current
+        let animatesIn = !launch.isUITesting || launch.resultRevealStyle != nil
+        return ResultView(
+            model: model,
+            toasts: coverToasts,
+            animatesIn: animatesIn,
+            forcesReducedMotion: launch.reducesRevealMotion,
+            onPlayAgain: onPlayAgain
+        )
     }
 
     /// S-10 候補の詳細（シート）。トーストはシートの中に重ねるので、シート用の窓口を作って渡す

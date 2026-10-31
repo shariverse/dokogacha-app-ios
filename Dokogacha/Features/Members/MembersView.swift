@@ -133,6 +133,7 @@ struct MembersView: View {
                 .accessibilityIdentifier(Identifier.close)
         }
         .padding(.leading, DGSpacing.s12)
+        .dgContentColumn()
     }
 
     // MARK: - 一覧
@@ -166,6 +167,7 @@ struct MembersView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .dgContentColumn()
             .disabled(model.isSending)
         }
     }
@@ -275,6 +277,7 @@ struct MembersView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, DGSpacing.screenX)
+        .dgContentColumn()
         .redacted(reason: .placeholder)
         .disabled(true)
         .accessibilityElement(children: .ignore)
@@ -294,11 +297,12 @@ struct MembersView: View {
         .padding(.horizontal, DGSpacing.screenX)
         .padding(.top, DGSpacing.s12)
         .padding(.bottom, DGSpacing.s14)
+        .dgContentColumn()
         .background(Color.dgBgBase)
         .disabled(model.isSending)
     }
 
-    /// 「招待する」（S-04 と同じ文面を共有シートで送る）。参加できない状態・ルームが届くまでは押せない
+    /// 「招待する」（S-04 と同じ文面を共有シートで送る）。参加できない状態・満員・ルームが届くまでは押せない（満員は上の「20人 · 最大20人」で分かる）
     @ViewBuilder private var inviteButton: some View {
         if let message = model.shareMessage {
             ShareLink(item: message) {

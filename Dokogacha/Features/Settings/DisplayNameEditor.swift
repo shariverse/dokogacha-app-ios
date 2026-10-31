@@ -34,6 +34,7 @@ struct DisplayNameEditor: View {
                 closeButton
             }
             .padding(.leading, DGSpacing.s12)
+            .dgContentColumn()
             ScrollView {
                 DisplayNameField(text: $model.draftName, check: model.draftCheck, identifier: Identifier.field)
                     .focused($isFieldFocused)
@@ -41,6 +42,7 @@ struct DisplayNameEditor: View {
                     .onSubmit { model.saveTapped() }
                     .disabled(model.isSaving)
                     .padding(.horizontal, DGSpacing.screenX)
+                    .dgContentColumn()
                     .padding(.vertical, DGSpacing.s16)
             }
             .scrollDismissesKeyboard(.interactively)
@@ -54,6 +56,7 @@ struct DisplayNameEditor: View {
             .padding(.horizontal, DGSpacing.screenX)
             .padding(.top, DGSpacing.s12)
             .padding(.bottom, DGSpacing.s14)
+            .dgContentColumn()
             .background(Color.dgBgBase)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

@@ -11,9 +11,9 @@ import SwiftUI
 ///
 /// ドーム（直径 250・線 5・`surface.gachaDome`・左上にハイライト）に、候補の色のカプセル（直径 40）を 50 個まで散らす（`DGGachaCapsuleLayout`）。
 /// 本体（280×210・ドームに 14 重ねる・線 5・角丸「上 14・下 30」・`accent.primary`）の左にレバー（直径 96）、右下に取り出し口（96×76）を置く。
-/// 当選したカプセル（直径 60・白い線 4）は、`dispensedColor` を渡すと取り出し口に出る。
+/// 当選したカプセル（直径 60・白い線 4）は、`dispensedColor` を渡すと取り出し口に出る（押せない。自動で開ける。Issue #158）。
 ///
-/// ここは形と静止状態だけを描き、動き（ドームの揺れ・レバーの回転・カプセルの落下と拡大縮小・開く）は画面の側（S-13）で付ける。
+/// ここは形と静止状態だけを描き、動き（ドームの揺れ・レバーの回転・カプセルの落下・開く）は画面の側（S-13）で付ける。
 /// そのために、動かす値（傾き・回転角・ずれ・大きさ・不透明度）を `Pose` で受け取る。
 /// 筐体の大きさは 04 の値で固定し、Dynamic Type では変えない（ネームプレートの文字だけ、本体に収まる大きさまで追従する）。
 /// ドメインのモデルには依存させず、カプセルの色の並びだけを受け取る。
@@ -26,7 +26,7 @@ struct DGGachaMachine: View {
         var leverRotationDegrees: Double = 0
         /// 取り出し口のカプセルの縦のずれ（pt。`drop` で上から落とす）
         var dispensedOffsetY: CGFloat = 0
-        /// 取り出し口のカプセルの大きさの倍率（`pulse`・`open` で変える）
+        /// 取り出し口のカプセルの大きさの倍率（`open` で変える）
         var dispensedScale: CGFloat = 1
         /// 取り出し口のカプセルの不透明度（`drop`・`open` で変える）
         var dispensedOpacity: Double = 1
@@ -96,39 +96,29 @@ struct DGGachaMachine: View {
     let dispensedColor: Color?
     /// レバーを回せるか（回転中・取り出し中・候補が 0 件のときは `false`）
     let isLeverEnabled: Bool
-    /// 取り出し口のカプセルを押せるか（落ちている途中・開いている途中は `false`。演出の途中で二度開けないため）
-    let isCapsuleEnabled: Bool
     /// 動かす値
     let pose: Pose
     /// レバーを押したときの処理
     let onTurnLever: () -> Void
-    /// 取り出し口のカプセルを押したときの処理
-    let onOpenCapsule: () -> Void
 
     /// - Parameters:
     ///   - capsuleColors: ドームに入れるカプセルの色（50 個を超えた分は描かない）
     ///   - dispensedColor: 取り出し口に出ている当選のカプセルの色。出ていなければ `nil`
     ///   - isLeverEnabled: レバーを回せるか
-    ///   - isCapsuleEnabled: 取り出し口のカプセルを押せるか
     ///   - pose: 動かす値。静止状態は `.rest`
     ///   - onTurnLever: レバーを押したときの処理
-    ///   - onOpenCapsule: 取り出し口のカプセルを押したときの処理
     init(
         capsuleColors: [Color],
         dispensedColor: Color? = nil,
         isLeverEnabled: Bool = true,
-        isCapsuleEnabled: Bool = true,
         pose: Pose = .rest,
-        onTurnLever: @escaping () -> Void,
-        onOpenCapsule: @escaping () -> Void = {}
+        onTurnLever: @escaping () -> Void
     ) {
         self.capsuleColors = capsuleColors
         self.dispensedColor = dispensedColor
         self.isLeverEnabled = isLeverEnabled
-        self.isCapsuleEnabled = isCapsuleEnabled
         self.pose = pose
         self.onTurnLever = onTurnLever
-        self.onOpenCapsule = onOpenCapsule
     }
 
     var body: some View {
@@ -239,27 +229,21 @@ struct DGGachaMachine: View {
         .accessibilityLabel(Text("レバーを回す"))
     }
 
-    /// 墨色の取り出し口と、出ている当選のカプセル（`isCapsuleEnabled` のときだけ押せて、押すと開ける）
+    /// 墨色の取り出し口と、出ている当選のカプセル（押せない飾り。何が起きているかは画面の文言と読み上げで伝える）
     private var outlet: some View {
         RoundedRectangle(cornerRadius: DGRadius.md)
             .fill(Color.dgInk)
             .frame(width: Self.outletSize.width, height: Self.outletSize.height)
             .overlay(alignment: .bottom) {
                 if let dispensedColor {
-                    Button(action: onOpenCapsule) {
-                        CapsuleBall(color: dispensedColor, strokeColor: .dgSurfaceCard, lineWidth: Self.dispensedLineWidth)
-                            .frame(width: Self.dispensedDiameter, height: Self.dispensedDiameter)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.dgBare)
-                    .disabled(!isCapsuleEnabled)
-                    // 押せない間は、拡大縮小の途中の形でもタップを受けない
-                    .allowsHitTesting(isCapsuleEnabled)
-                    .scaleEffect(pose.dispensedScale)
-                    .opacity(pose.dispensedOpacity)
-                    .offset(y: pose.dispensedOffsetY)
-                    .padding(.bottom, Self.outletBottomPadding)
-                    .accessibilityLabel(Text("カプセルを開ける"))
+                    CapsuleBall(color: dispensedColor, strokeColor: .dgSurfaceCard, lineWidth: Self.dispensedLineWidth)
+                        .frame(width: Self.dispensedDiameter, height: Self.dispensedDiameter)
+                        .scaleEffect(pose.dispensedScale)
+                        .opacity(pose.dispensedOpacity)
+                        .offset(y: pose.dispensedOffsetY)
+                        .padding(.bottom, Self.outletBottomPadding)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
             }
     }
@@ -299,7 +283,7 @@ private func previewCapsuleColors(_ count: Int) -> [Color] {
         capsuleColors: previewCapsuleColors(12),
         dispensedColor: .dgCapsule(at: 4),
         isLeverEnabled: false,
-        pose: DGGachaMachine.Pose(domeRotationDegrees: -4, leverRotationDegrees: 45, dispensedOffsetY: -30, dispensedScale: 1.08)
+        pose: DGGachaMachine.Pose(domeRotationDegrees: -4, leverRotationDegrees: 45, dispensedOffsetY: -30, dispensedScale: 1.3)
     ) {}
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.dgBgBase)
