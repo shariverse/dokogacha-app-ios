@@ -14,6 +14,8 @@ final class GachaStepClock {
     private(set) var requested: [Duration] = []
     /// 仮の時刻（秒。待ち終えた時間の合計）
     private(set) var elapsed: TimeInterval = 0
+    /// 待つたびに、頼まれた時間より余計にかかったことにする時間（秒。待ちの遅れを再現する）
+    var lagPerWait: TimeInterval = 0
     /// true なら、`advance()` を呼ぶまで返さない。false ならすぐに返す
     var holds: Bool
     private var waiting: CheckedContinuation<Void, Never>?
@@ -61,7 +63,7 @@ final class GachaStepClock {
                 Task { @MainActor in advance() }
             }
         }
-        elapsed += Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
+        elapsed += Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18 + lagPerWait
         try Task.checkCancellation()
     }
 }
@@ -292,6 +294,25 @@ struct GachaModelTests {
         #expect(model.winnerCandidateID == first.candidateId)
         #expect(model.drawnByName == "はるか")
         #expect(fixture.server.rooms[Self.roomID]?.draws.count == 1)
+    }
+
+    /// 回転中の刻みは、待つたびに遅れても積み重ねない（k 回目は回し始めから k × 0.2 秒まで待つので、遅れた分だけ次の待ちが短くなる）
+    @Test
+    func spinTicksDoNotAccumulateDelay() async throws {
+        let fixture = Self.makeFixture(holdsClock: false)
+        fixture.clock.lagPerWait = 0.05
+        let model = fixture.model
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+
+        await model.turnLever()
+        let spinWaits = Array(fixture.clock.requestedSeconds.prefix(GachaTimeline.tickCount + 1))
+        let expected = [GachaTimeline.tickInterval] + Array(repeating: GachaTimeline.tickInterval - 0.05, count: GachaTimeline.tickCount)
+        #expect(spinWaits.count == expected.count)
+        for (actual, wanted) in zip(spinWaits, expected) {
+            #expect(abs(actual - wanted) < 1e-6)
+        }
     }
 
     // MARK: - ドームの中の当選のカプセル

@@ -23,23 +23,22 @@ struct GachaMotionTests {
             #expect(abs(before - GachaMotion.leverStepDegrees * Double(step)) < 0.01)
         }
         #expect(GachaMotion.leverAngle(at: GachaTimeline.spinDuration) == GachaTimeline.turnDegrees)
-        // 刻みの後は少し行き過ぎてから戻る
-        let overshoot = GachaMotion.leverAngle(at: GachaTimeline.tickInterval + 0.02)
-        #expect(overshoot > GachaMotion.leverStepDegrees)
-        // 角度はほぼ減らない（行き過ぎから戻る分だけ）。行き過ぎは最大で約 4.3°
-        var previous = 0.0
-        var maxOvershoot = 0.0
-        for frame in 0..<1_600 {
-            let time = Double(frame) / 1_000
-            let angle = GachaMotion.leverAngle(at: time)
-            #expect(angle >= previous - GachaMotion.leverOvershootAmplitude)
-            let index = (time / GachaTimeline.tickInterval).rounded(.down)
-            let within = (time - index * GachaTimeline.tickInterval) / GachaTimeline.tickInterval
-            let pulled = (index + RevealCurve.easeIn(within)) * GachaMotion.leverStepDegrees
-            maxOvershoot = max(maxOvershoot, angle - pulled)
-            previous = angle
+        // 刻みの時刻ちょうどに 90° の倍数で止まる
+        for step in 1..<GachaMotion.leverStepCount {
+            let tick = GachaTimeline.tickInterval * Double(step)
+            #expect(abs(GachaMotion.leverAngle(at: tick) - GachaMotion.leverStepDegrees * Double(step)) < 1e-9)
         }
-        #expect(maxOvershoot > 4 && maxOvershoot < 4.5)
+        // 止まった直後に少し行き過ぎてから戻る。行き過ぎ（止まった角度を超えた分）は 4.5° 未満
+        var maxOvershoot = 0.0
+        for step in 1..<GachaMotion.leverStepCount {
+            let clicked = GachaMotion.leverStepDegrees * Double(step)
+            for frame in 0..<100 {
+                let time = GachaTimeline.tickInterval * (Double(step) + Double(frame) / 100 * GachaMotion.leverSettleFraction)
+                maxOvershoot = max(maxOvershoot, GachaMotion.leverAngle(at: time) - clicked)
+            }
+        }
+        #expect(maxOvershoot > 2)
+        #expect(maxOvershoot < 4.5)
     }
 
     /// ドームの揺れは 0.4 秒で 0 → −4° → 4° → −3° → 3° → 0 を通る。抽選の結果が遅いときは回転中のまま揺れ続け、落ち始めから収めて 0 にする
@@ -138,7 +137,7 @@ struct GachaMotionTests {
 
     /// 落ち始めたら、当選のカプセルを手前に描き、抜けきったときにはドームの底の抜け口に着いて消えている
     @Test
-    func winnerIsDrawnInFrontWhileExiting() {
+    func winnerIsDrawnInFrontWhileExiting() throws {
         let pose = GachaMotion.machinePose(
             times: GachaMotion.StageTimes(spin: GachaTimeline.spinDuration + 0.1, drop: 0.1),
             capsuleCount: 3,

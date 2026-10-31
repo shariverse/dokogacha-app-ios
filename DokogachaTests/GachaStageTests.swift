@@ -45,7 +45,8 @@ struct GachaStageTests {
     func cueFeedbackFollowsScreenSpec() {
         #expect(GachaCue.leverPulled.feedback == .impact(weight: .heavy))
         #expect(GachaCue.spinTick.feedback == .impact(weight: .light))
-        #expect(GachaCue.capsuleReleased.feedback == .impact(flexibility: .rigid, intensity: GachaCue.releasedIntensity))
+        // 落ち始めは硬い手応えを、落ちた瞬間（.medium）より控えめに鳴らす
+        #expect(GachaCue.capsuleReleased.feedback == .impact(flexibility: .rigid, intensity: 0.6))
         #expect(GachaCue.capsuleLanded.feedback == .impact(weight: .medium))
         #expect(GachaCue.capsuleOpened.feedback == .impact(flexibility: .soft))
     }
