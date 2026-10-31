@@ -135,6 +135,14 @@ final class GachaModel {
         candidates.first { $0.id == winnerCandidateID }?.colorIndex ?? 0
     }
 
+    /// 当選したカプセルの、ドームの中の番号（`capsuleColorIndexes` の位置。ドームから抜く動きに使う。まだ無ければ nil）
+    var winnerCapsuleIndex: Int? {
+        guard let winnerCandidateID else {
+            return nil
+        }
+        return drawableCandidates.firstIndex { $0.id == winnerCandidateID }
+    }
+
     /// 引き直しの抽選か（除外した候補がある）
     var isReroll: Bool {
         !(room?.excludedCandidateIds.isEmpty ?? true)
@@ -372,13 +380,14 @@ final class GachaModel {
         _ = await wait(GachaTimeline.tickInterval)
     }
 
-    /// カプセルを取り出し口に落とし、底に当たったら合図を出して見終えた抽選として覚え、少し見せてから開ける
+    /// 当選のカプセルをドームの底から抜いて取り出し口に落とし、底に当たったら合図を出して見終えた抽選として覚え、少し見せてから開ける
     private func dispense() async {
         guard let drawID else {
             return
         }
         phase = .dropping
         if !reducesMotion {
+            emit(.capsuleReleased)
             guard await wait(GachaTimeline.landingDelay) else {
                 return
             }

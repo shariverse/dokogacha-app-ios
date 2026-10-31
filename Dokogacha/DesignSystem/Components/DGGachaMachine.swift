@@ -13,21 +13,42 @@ import SwiftUI
 /// 本体（280×210・ドームに 14 重ねる・線 5・角丸「上 14・下 30」・`accent.primary`）の左にレバー（直径 96）、右下に取り出し口（96×76）を置く。
 /// 当選したカプセル（直径 60・白い線 4）は、`dispensedColor` を渡すと取り出し口に出る（押せない。自動で開ける。Issue #158）。
 ///
-/// ここは形と静止状態だけを描き、動き（ドームの揺れ・レバーの回転・カプセルの落下・開く）は画面の側（S-13）で付ける。
-/// そのために、動かす値（傾き・回転角・ずれ・大きさ・不透明度）を `Pose` で受け取る。
+/// ここは形と静止状態だけを描き、動き（ドームの揺れ・レバーの回転・ドームのカプセルのかき混ぜと抜け・カプセルの落下・開く）は
+/// 画面の側（S-13 の `GachaMotion`）で付ける。そのために、動かす値（傾き・回転角・ずれ・大きさ・不透明度）を `Pose` で受け取る。
 /// 筐体の大きさは 04 の値で固定し、Dynamic Type では変えない（ネームプレートの文字だけ、本体に収まる大きさまで追従する）。
 /// ドメインのモデルには依存させず、カプセルの色の並びだけを受け取る。
 struct DGGachaMachine: View {
+    /// ドームのカプセル 1 個の、置き場所からのずれ（`tumble` でかき混ぜる・`exit` で底から抜く）
+    nonisolated struct CapsuleTransform: Equatable, Sendable {
+        /// 置き場所からのずれ
+        var offset = CGSize.zero
+        /// 置き場所の傾きに足す角度（度）
+        var turnDegrees: Double = 0
+        /// 大きさ
+        var scale: Double = 1
+        /// 不透明度
+        var opacity: Double = 1
+
+        /// 置き場所のまま
+        static let rest = Self()
+    }
+
     /// 動かす値。静止状態は `rest`
     nonisolated struct Pose: Equatable, Sendable {
         /// ドームの傾き（度。`shake` で揺らす）
         var domeRotationDegrees: Double = 0
         /// レバーのバーの回転角（度。`turn` で回す）
         var leverRotationDegrees: Double = 0
+        /// ドームのカプセルのずれ（カプセルの番号ごと。無い番号は置き場所のまま）
+        var capsuleTransforms: [Int: CapsuleTransform] = [:]
         /// 取り出し口のカプセルの縦のずれ（pt。`drop` で上から落とす）
         var dispensedOffsetY: CGFloat = 0
         /// 取り出し口のカプセルの大きさの倍率（`open` で変える）
         var dispensedScale: CGFloat = 1
+        /// 取り出し口のカプセルの横・縦の倍率（`drop` で底に当たったときにつぶす）
+        var dispensedSquash = CGSize(width: 1, height: 1)
+        /// 取り出し口のカプセルの傾き（度。`drop` の跳ね返りで転がす）
+        var dispensedRotationDegrees: Double = 0
         /// 取り出し口のカプセルの不透明度（`drop`・`open` で変える）
         var dispensedOpacity: Double = 1
 
@@ -141,10 +162,16 @@ struct DGGachaMachine: View {
         return ZStack(alignment: .topLeading) {
             Color.dgSurfaceGachaDome
             ForEach(placements, id: \.index) { placement in
+                let transform = pose.capsuleTransforms[placement.index] ?? .rest
                 CapsuleBall(color: capsuleColors[placement.index])
                     .frame(width: DGGachaCapsuleLayout.capsuleDiameter, height: DGGachaCapsuleLayout.capsuleDiameter)
-                    .rotationEffect(.degrees(placement.rotationDegrees))
-                    .position(placement.center)
+                    .rotationEffect(.degrees(placement.rotationDegrees + transform.turnDegrees))
+                    .scaleEffect(transform.scale)
+                    .opacity(transform.opacity)
+                    .position(
+                        x: placement.center.x + transform.offset.width,
+                        y: placement.center.y + transform.offset.height
+                    )
             }
             Capsule()
                 .fill(Color.dgSurfaceCard.opacity(Self.highlightOpacity))
@@ -238,6 +265,8 @@ struct DGGachaMachine: View {
                 if let dispensedColor {
                     CapsuleBall(color: dispensedColor, strokeColor: .dgSurfaceCard, lineWidth: Self.dispensedLineWidth)
                         .frame(width: Self.dispensedDiameter, height: Self.dispensedDiameter)
+                        .rotationEffect(.degrees(pose.dispensedRotationDegrees))
+                        .scaleEffect(x: pose.dispensedSquash.width, y: pose.dispensedSquash.height, anchor: .bottom)
                         .scaleEffect(pose.dispensedScale)
                         .opacity(pose.dispensedOpacity)
                         .offset(y: pose.dispensedOffsetY)

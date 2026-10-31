@@ -69,8 +69,8 @@ nonisolated enum DGMotion {
     /// 1 回は 0 → −4° → 4° → −3° → 3° → 0（プロトタイプの `dgShake`）で、行って戻るだけの `repeatCount(autoreverses:)` では作れない。
     /// 画面の側で `keyframeAnimator` に `duration` と `repeatCount` を渡して作る（S-13）
     static let shake = DGMotionSpec(duration: 0.4, curve: .easeInOut, repeatCount: 4)
-    /// レバーのバーの回転（`motion.turn`）
-    static let turn = DGMotionSpec(duration: 1.6, curve: .bezier(0.4, 0, 0.2, 1))
+    /// レバーのバーの回転（`motion.turn`。0.2 秒ごとに 90° ずつカチッと回す刻みは `GachaMotion.leverAngle` が持つので、時間だけ）
+    static let turn = DGMotionSpec(duration: 1.6, curve: nil)
     /// 出てくるカプセルの落下（`motion.drop`）
     static let drop = DGMotionSpec(duration: 0.7, curve: .easeOut)
     /// カプセルが開いて消える（`motion.open`）

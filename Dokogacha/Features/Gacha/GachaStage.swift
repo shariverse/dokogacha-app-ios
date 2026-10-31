@@ -15,7 +15,7 @@ nonisolated enum GachaPhase: Equatable, Sendable {
     case idle
     /// 回転中（ドームが揺れ、レバーのバーが回る。自分が回したときは、この間に `drawGacha` を呼ぶ）
     case spinning
-    /// 取り出し口へカプセルが落ち、少し止まって見せている途中（`drop`）
+    /// 当選のカプセルがドームの底から抜け（`exit`）、取り出し口へ落ちて（`drop`）、少し止まって見せている途中
     case dropping
     /// カプセルが開いている途中（`open`）
     case opening
@@ -82,14 +82,17 @@ nonisolated enum GachaCaption: Equatable, Sendable {
 
 /// 演出の合図（触覚と、後で足すサウンドのフック。04 の §5「演出の各タイミングにフックを用意する」）。
 ///
-/// 03 の S-13 の触覚: レバーを押した瞬間 `.impact(.heavy)`、回転中は 0.2 秒ごとに `.impact(.light)`、カプセルが落ちた瞬間 `.impact(.medium)`、
-/// 開いた瞬間 `.impact(.soft)`（行き先が決まった `.success` は、S-14 の結果の演出の決まる瞬間に鳴らす）。
+/// 03 の S-13 の触覚: レバーを押した瞬間 `.impact(.heavy)`、回転中は 0.2 秒ごとに `.impact(.light)`（レバーがカチッと止まる刻みと同じ）、
+/// 当選のカプセルがドームから抜けた瞬間 `.impact(.rigid)`、カプセルが落ちた瞬間 `.impact(.medium)`、開いた瞬間 `.impact(.soft)`
+/// （行き先が決まった `.success` は、S-14 の結果の演出の決まる瞬間に鳴らす）。
 /// `SensoryFeedback` への対応は画面の側（`GachaView`）で持つ
 nonisolated enum GachaCue: Equatable, Sendable {
     /// レバーを押した（自分が回したときだけ）
     case leverPulled
     /// 回転中の刻み
     case spinTick
+    /// 当選のカプセルがドームの底から抜けた（落ち始め）
+    case capsuleReleased
     /// カプセルが取り出し口に落ちた
     case capsuleLanded
     /// カプセルが開いた
@@ -112,12 +115,16 @@ nonisolated enum GachaTimeline {
     static let tickInterval = 0.2
     /// 回転中の刻みの数（押した瞬間の後から、回転が終わる前まで。0.2・0.4…1.4 秒の 7 回）
     static let tickCount = Int((spinDuration / tickInterval).rounded()) - 1
-    /// カプセルが落ちきる（取り出し口の底に当たる）までの時間（プロトタイプの `dgDrop` の 55% の位置）
-    static let landingDelay = DGMotion.drop.duration * DropKeyframes.landingFraction
+    /// 当選のカプセルがドームの底から抜けるまでの時間（落ち始めてから。抜けてから取り出し口に落とす。Issue #178）
+    static let exitDuration = 0.35
+    /// 取り出し口に落とし始めてから底に当たるまでの時間（プロトタイプの `dgDrop` の 55% の位置）
+    static let dropLandingDelay = DGMotion.drop.duration * DropKeyframes.landingFraction
+    /// 落ち始め（ドームから抜け始め）から、取り出し口の底に当たるまでの時間
+    static let landingDelay = exitDuration + dropLandingDelay
     /// 落ちきってから開け始めるまで、取り出し口のカプセルを見せておく時間（何色のカプセルが出たかが分かる間）
     static let landedHold = 0.4
     /// 底に当たってから開け始めるまでの時間（跳ね終えるまで ＋ `landedHold`）
-    static let openDelay = DGMotion.drop.duration - landingDelay + landedHold
+    static let openDelay = DGMotion.drop.duration - dropLandingDelay + landedHold
     /// カプセルが開く時間（03「開く（0.5秒）」）
     static let openDuration = DGMotion.open.duration
 
