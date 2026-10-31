@@ -42,11 +42,11 @@ struct LayoutTests {
         #expect(DGLayout.splitsRoom(width: width, sizeClass: .regular))
     }
 
-    /// regular でも、列の最小の幅が取れない狭いウィンドウでは分けない（ホームは 688、ルームは 744 から分ける）
+    /// regular でも、列の最小の幅が取れない狭いウィンドウでは分けない（ホームは 696、ルームは 744 から分ける）
     @Test
     func splitsFromThresholdWidth() {
-        #expect(!DGLayout.splitsHome(width: 687, sizeClass: .regular))
-        #expect(DGLayout.splitsHome(width: 688, sizeClass: .regular))
+        #expect(!DGLayout.splitsHome(width: 695, sizeClass: .regular))
+        #expect(DGLayout.splitsHome(width: 696, sizeClass: .regular))
         #expect(!DGLayout.splitsRoom(width: 743, sizeClass: .regular))
         #expect(DGLayout.splitsRoom(width: 744, sizeClass: .regular))
     }
