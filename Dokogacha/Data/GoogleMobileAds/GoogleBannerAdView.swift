@@ -12,7 +12,13 @@ import SwiftUI
 /// 読み込めるまでは `surface.ad` の枠で場所を取っておき（読み込めた瞬間に下のボタンが押し上がらないように）、
 /// 読み込めなかったら（オフライン・在庫なし）`didFail` を立てる。置いた側（`BannerAdSlot`）が余白ごと場所を消し、
 /// 回線が戻ったら `didFail` を下ろして読み込み直す（PR #89 の持ち越し）。
+///
+/// iPad でウィンドウの大きさを変えている間（Split View・Stage Manager）は幅が続けて変わるので、そのたびには読み込み直さず、
+/// 幅が `resizeSettleDelay` のあいだ変わらなくなってから、その幅で読み込み直す（広告のリクエストを続けて送らない）。最初の 1 回はすぐに読み込む
 struct GoogleBannerAdView: View {
+    /// 幅が変わってから読み込み直すまでの待ち時間
+    private static let resizeSettleDelay: Duration = .milliseconds(500)
+
     /// 広告ユニット ID
     let adUnitID: String
     /// リクエストに足すパラメータ（ATT で許可していなければ非パーソナライズの `npa`）
@@ -20,23 +26,28 @@ struct GoogleBannerAdView: View {
     /// 読み込めなかったか（置いた側が持つ。下ろすと読み込み直す）
     @Binding var didFail: Bool
 
-    /// 置いた場所の幅（測るまでは 0）
+    /// 置いた場所の幅（測るまでは 0。ウィンドウの大きさを変えている間も追いかける）
     @State private var width: CGFloat = 0
+    /// 広告を読み込む幅（最初に測るまでは 0）。幅が落ち着いてから `width` に合わせる
+    @State private var loadWidth: CGFloat = 0
 
     var body: some View {
         if !didFail {
             Color.dgSurfaceAd
-                .frame(height: width > 0 ? Self.adSize(width: width).size.height : 0)
+                .frame(height: loadWidth > 0 ? Self.adSize(width: loadWidth).size.height : 0)
                 .frame(maxWidth: .infinity)
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.width
                 } action: { newWidth in
                     width = newWidth
                 }
+                .task(id: width) {
+                    await settleLoadWidth()
+                }
                 .overlay {
-                    if width > 0 {
+                    if loadWidth > 0 {
                         BannerRepresentable(
-                            adSize: Self.adSize(width: width),
+                            adSize: Self.adSize(width: loadWidth),
                             adUnitID: adUnitID,
                             requestParameters: requestParameters
                         ) {
@@ -46,6 +57,20 @@ struct GoogleBannerAdView: View {
                 }
                 .clipped()
         }
+    }
+
+    /// 広告を読み込む幅を、いまの幅に合わせる。2 回目からは幅が落ち着くまで待つ（待っている間に幅が変われば、この待ちは取り消される）
+    private func settleLoadWidth() async {
+        guard width > 0, width != loadWidth else {
+            return
+        }
+        if loadWidth > 0 {
+            try? await Task.sleep(for: Self.resizeSettleDelay)
+            guard !Task.isCancelled else {
+                return
+            }
+        }
+        loadWidth = width
     }
 
     /// 幅から決まるバナーの大きさ（同じ幅なら同じ高さ）
