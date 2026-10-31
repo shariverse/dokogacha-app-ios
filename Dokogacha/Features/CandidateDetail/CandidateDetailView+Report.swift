@@ -29,7 +29,8 @@ extension View {
 
 /// 報告の理由を選ぶダイアログ（02 の §3.5「理由（不適切な内容／スパム／その他）を選んで送信」）。
 ///
-/// 削除の確認と同じ `confirmationDialog`（アクションシート）にし、何が起きるか（運営に届く・自分の画面で隠れる）を本文に書く
+/// 削除の確認と同じ `confirmationDialog` にし（「…」を指して出る。iOS 18 までの iPhone では下からのアクションシート）、
+/// 何が起きるか（運営に届く・自分の画面で隠れる）を本文に書く
 private struct CandidateReportDialog: ViewModifier {
     @Bindable var model: CandidateDetailModel
 

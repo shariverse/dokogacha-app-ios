@@ -9,7 +9,7 @@ import SwiftUI
 /// 画像にはアプリ名と App Store のURL（仮）を入れる」・04 の §4「このきっぷを 3倍の解像度で書き出し、下に
 /// 『ドコガチャ｜友達旅行・おでかけの行き先ガチャ』を追加する」）。
 ///
-/// 画像は「きっぷを共有」が押されたときに作り、共有シート（`ActivityShareSheet`）に渡す（画面を描くたびに書き出さない）。
+/// 画像は「きっぷを共有」が押されたときに作り、共有シート（`activityShareSheet(item:)`）に渡す（画面を描くたびに書き出さない）。
 nonisolated struct TicketShareImage: Sendable {
     /// きっぷの値
     let ticket: ResultTicket
