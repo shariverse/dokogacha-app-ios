@@ -26,6 +26,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private var messagingObserver: MessagingTokenObserver?
     /// UI テストで、ほかのメンバーの操作を擬似のサーバーが自動で返す（`-uiTesting -ui-auto-members` のときだけ。ここで持って寿命を合わせる）
     private var autoMembers: InMemoryAutoMembers?
+    /// UI テストで、ほかの人が作ったルームを作成者が途中で終了したことにする（`-ui-owner-ends-room`）
+    private var ownerEndsRoom: InMemoryOwnerEndsRoom?
 
     override init() {
         push = PushNotificationCoordinator(router: deepLinks)
@@ -48,6 +50,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         serverSession.start(connection: connection, services: services)
         if launch.autoMembers, let server = services.inMemoryServer {
             autoMembers = InMemoryAutoMembers(server: server)
+        }
+        if launch.ownerEndsRoom, let server = services.inMemoryServer {
+            ownerEndsRoom = InMemoryOwnerEndsRoom(server: server)
         }
         // 本物の広告を読み込むときだけ Google Mobile Ads を初期化する（Unit テストのホスト・`-uiTesting`・撮影モードでは初期化しない）
         ads.start()
