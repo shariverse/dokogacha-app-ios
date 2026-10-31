@@ -16,6 +16,8 @@ final class CloseRoomUITests: XCTestCase {
     private static let othersDrawnRoomCard = "home.room.demo-room-drawn-others"
     /// 週末のランチの思い出のきっぷ（`HomeMemoryTickets.Identifier.ticket(DemoScenario.drawnRoomID)`）
     private static let myMemoryTicket = "home.memory.demo-room-drawn-mine"
+    /// 候補募集中のルーム（年末の旅行）の思い出のきっぷ（`HomeMemoryTickets.Identifier.ticket(DemoScenario.roomID)`）
+    private static let demoRoomMemoryTicket = "home.memory.demo-room"
     /// 思い出のきっぷの空の表示（`HomeView.Identifier.memoriesEmpty`）
     private static let memoriesEmpty = "home.memories.empty"
     /// S-14 の「この行き先で決定」（`ResultCloseSection.Identifier.decide`）
@@ -127,11 +129,12 @@ final class CloseRoomUITests: XCTestCase {
         XCTAssertTrue(confirm.waitForExistence(timeout: UITestID.timeout))
         confirm.tap()
 
-        // シートが閉じてホームに戻り、終了したルームが進行中のルームから消える。思い出のきっぷは空のまま
+        // シートが閉じてホームに戻り、終了したルームが進行中のルームから消える。抽選していないので思い出のきっぷにも出ない
+        // （思い出のきっぷの空の表示を出すかは、行き先の決まらないルームを数えないようにするタスク 5 で確かめる）
         XCTAssertTrue(sheet.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(card.waitForNonExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(app.staticTexts[Self.memoriesEmpty].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertFalse(app.buttons[Self.demoRoomMemoryTicket].exists)
     }
 }
