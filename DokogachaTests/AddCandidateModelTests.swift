@@ -134,6 +134,23 @@ struct AddCandidateModelTests {
         #expect(model.canSubmit)
     }
 
+    /// S-09 を開いている間に作成者がルームを途中で終了したら、「候補に追加」を押せなくする（送っても断られるため。Discussion #155）
+    @Test
+    func cannotSubmitAfterRoomEndedEarly() async throws {
+        let server = Self.makeServer()
+        server.rooms[DemoScenario.roomID]?.room.ownerId = "demo-haruka"
+        let model = Self.makeModel(server: server)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+        model.addTapped(try Self.place("すみだ水族館"))
+        #expect(model.canSubmit)
+
+        try server.closeRoom(CloseRoomRequest(roomId: DemoScenario.roomID, reason: .endEarly), by: "demo-haruka")
+        #expect(await AsyncTestSupport.eventually { !model.canSubmit })
+        #expect(!model.acceptsCandidates)
+    }
+
     /// ひとことは 40 文字まで（41 文字は理由を出して送れない）、参考 URL は http(s) だけ。前後の空白は取り除いて送る
     @Test
     func validatesNoteAndURL() async throws {

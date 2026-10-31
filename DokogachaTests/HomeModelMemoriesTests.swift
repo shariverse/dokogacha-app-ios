@@ -39,6 +39,29 @@ struct HomeModelMemoriesTests {
         #expect(repository.candidateRoomIDs.isEmpty)
     }
 
+    /// 読んだ 6 件に行き先の決まらないまま終了したルームが混ざっていたら、上限なしで読み直し、きっぷになるルームの数で
+    /// 「すべて見る」を決める（6 件のうち 2 件が途中の終了なら、きっぷは 4 枚で「すべて見る」を出さない。PR #175 のレビュー）
+    @Test
+    func roomsEndedWithoutResultDoNotCountForShowAll() async throws {
+        let server = InMemoryServer.demo(.memories) { RoomModelTests.now }
+        for index in [1, 2] {
+            let roomID = "\(DemoScenario.closedRoomIDPrefix)\(index)"
+            server.rooms[roomID]?.room.currentDrawId = nil
+            server.rooms[roomID]?.room.winnerCandidateId = nil
+        }
+        let repository = MemoriesRecordingRepository(server: server)
+        let model = HomeModelTests.makeModel(repository)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+
+        #expect(await AsyncTestSupport.eventually { model.memoryTickets.count == 4 && !model.isReadingAllClosedRooms })
+        #expect(!model.hasMoreMemories)
+        #expect(!model.isMemoriesEmpty)
+        #expect(model.visibleMemoryTickets.count == 4)
+        #expect(repository.closedRoomLimits.first == MemoryTicket.queryLimit)
+        #expect(repository.closedRoomLimits.contains(nil))
+    }
+
     /// 終了したルームを新しい順に 5 枚まで出し、「すべて見る」で 6 枚目も出す。当選した場所と外れた候補の数を出す。
     /// 押す前は終了したルームを 6 件だけ読み、当選した候補は出す 5 枚の分だけ購読する（PR #78 のレビュー）
     @Test

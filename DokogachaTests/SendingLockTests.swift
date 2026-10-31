@@ -110,4 +110,27 @@ struct SendingLockTests {
         #expect(!model.isConfirmingDelete)
         #expect(toasts.current?.text == "このルームはもう行き先が決まっています")
     }
+
+    /// 削除の確認のダイアログを出している間に作成者がルームを途中で終了したら、ダイアログを閉じて
+    /// 「このルームは終了しています」を出す（行き先は決まっていない。Discussion #155）
+    @Test
+    func deleteConfirmationClosesWhenRoomEndsEarly() async throws {
+        let server = RoomModelTests.makeServer()
+        server.rooms[DemoScenario.roomID]?.room.ownerId = "demo-haruka"
+        let toasts = DGToastCenter(visibleFor: .seconds(3_600))
+        let model = CandidateDetailModelTests.makeModel(CandidateDetailModelTests.mine, server: server, toasts: toasts)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await CandidateDetailModelTests.waitUntilLoaded(model))
+
+        model.deleteTapped()
+        #expect(model.isConfirmingDelete)
+        try server.closeRoom(CloseRoomRequest(roomId: DemoScenario.roomID, reason: .endEarly), by: "demo-haruka")
+        #expect(await AsyncTestSupport.eventually { model.room.room?.status == .closed })
+        #expect(!model.canDelete)
+
+        model.closeUnavailableConfirmation()
+        #expect(!model.isConfirmingDelete)
+        #expect(toasts.current?.text == "このルームは終了しています")
+    }
 }

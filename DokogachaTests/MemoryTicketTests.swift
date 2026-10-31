@@ -78,6 +78,20 @@ struct MemoryTicketTests {
         #expect(!MemoryTicket.isWaitingForWinners(watched: [rerolled, early], settledRoomIDs: []))
     }
 
+    /// 読んだ 6 件にきっぷにならないルームが混ざっていたら、上限なしで読み直す。購読する枠もきっぷになるルームだけで使う（Discussion #155）
+    @Test
+    func readsAllWhenRoomsEndedWithoutResultAreMixed() {
+        #expect(MemoryTicket.needsAllRooms(roomCount: 6, ticketRoomCount: 5))
+        #expect(MemoryTicket.needsAllRooms(roomCount: 6, ticketRoomCount: 0))
+        #expect(!MemoryTicket.needsAllRooms(roomCount: 6, ticketRoomCount: 6))
+        #expect(!MemoryTicket.needsAllRooms(roomCount: 5, ticketRoomCount: 3))
+
+        var early = Self.closedRoom("early", daysAgo: 1, drawID: nil)
+        early.value.winnerCandidateId = nil
+        let rooms = [early] + (1...5).map { Self.closedRoom("r\($0)", daysAgo: Double($0 + 1)) }
+        #expect(MemoryTicket.watchedRooms(rooms, showsAll: false).map(\.id) == ["r1", "r2", "r3", "r4", "r5"])
+    }
+
     /// 当選した候補を待つのは、きっぷになりうるルームで、購読がまだ値も失敗も受け取っていないものがある間だけ（PR #78 の持ち越し）
     @Test
     func waitsOnlyForUnsettledWinners() {
