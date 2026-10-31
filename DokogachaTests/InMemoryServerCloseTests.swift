@@ -32,7 +32,7 @@ struct InMemoryServerCloseTests {
     @Test
     func ownerClosesDrawnRoomAndRegistersPastIdeas() throws {
         let server = Self.makeServer()
-        try server.closeRoom(RoomRequest(roomId: Self.roomID), by: DemoScenario.myUserID)
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: DemoScenario.myUserID)
 
         let room = try #require(server.rooms[Self.roomID]?.room)
         #expect(room.status == .closed)
@@ -51,9 +51,9 @@ struct InMemoryServerCloseTests {
     func closingTwiceDoesNothing() throws {
         var now = RoomModelTests.now
         let server = InMemoryServer.demo(.drawnRooms) { now }
-        try server.closeRoom(RoomRequest(roomId: Self.roomID), by: DemoScenario.myUserID)
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: DemoScenario.myUserID)
         now = now.addingTimeInterval(60)
-        try server.closeRoom(RoomRequest(roomId: Self.roomID), by: DemoScenario.myUserID)
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: DemoScenario.myUserID)
         #expect(server.rooms[Self.roomID]?.room.closedAt == RoomModelTests.now)
     }
 
@@ -65,7 +65,7 @@ struct InMemoryServerCloseTests {
         try server.proposeReroll(RoomRequest(roomId: Self.roomID), by: Self.haruka)
         #expect(server.rooms[Self.roomID]?.room.reroll.status == .voting)
 
-        try server.closeRoom(RoomRequest(roomId: Self.roomID), by: DemoScenario.myUserID)
+        try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: DemoScenario.myUserID)
         let closed = try #require(server.rooms[Self.roomID]?.room)
         #expect(closed.status == .closed)
         #expect(closed.reroll.status == .rejected)
@@ -81,15 +81,15 @@ struct InMemoryServerCloseTests {
     @Test
     func rejectsInTheSameOrderAsBackend() throws {
         let server = Self.makeServer()
-        Self.expectReason(.notRoomOwner) { try server.closeRoom(RoomRequest(roomId: Self.roomID), by: Self.haruka) }
-        Self.expectReason(.notRoomMember) { try server.closeRoom(RoomRequest(roomId: Self.roomID), by: "demo-mio") }
-        Self.expectReason(.roomNotFound) { try server.closeRoom(RoomRequest(roomId: "nothing"), by: DemoScenario.myUserID) }
-        Self.expectReason(.invalidArgument) { try server.closeRoom(RoomRequest(roomId: "a/b"), by: DemoScenario.myUserID) }
-        Self.expectReason(.unauthenticated) { try server.closeRoom(RoomRequest(roomId: Self.roomID), by: nil) }
+        Self.expectReason(.notRoomOwner) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: Self.haruka) }
+        Self.expectReason(.notRoomMember) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: "demo-mio") }
+        Self.expectReason(.roomNotFound) { try server.closeRoom(CloseRoomRequest(roomId: "nothing", reason: .decide), by: DemoScenario.myUserID) }
+        Self.expectReason(.invalidArgument) { try server.closeRoom(CloseRoomRequest(roomId: "a/b", reason: .decide), by: DemoScenario.myUserID) }
+        Self.expectReason(.unauthenticated) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: nil) }
         #expect(server.rooms[Self.roomID]?.room.status == .drawn)
 
         server.rooms[Self.roomID]?.room.status = .unlocked
-        Self.expectReason(.roomNotDrawn) { try server.closeRoom(RoomRequest(roomId: Self.roomID), by: DemoScenario.myUserID) }
+        Self.expectReason(.roomNotDrawn) { try server.closeRoom(CloseRoomRequest(roomId: Self.roomID, reason: .decide), by: DemoScenario.myUserID) }
         #expect(server.pastIdeas.isEmpty)
     }
 

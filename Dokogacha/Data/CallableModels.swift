@@ -47,7 +47,7 @@ nonisolated enum CallableTime {
 /// 入力・戻り値の無い Callable の `{}`（`deleteAccount` の入力、`leaveRoom` などの戻り値）
 nonisolated struct EmptyCallablePayload: Codable, Equatable, Sendable {}
 
-/// ルームを 1 つ指す入力（`leaveRoom`・`forceUnlock`・`drawGacha`・`proposeReroll`・`closeRoom`・`inviteLastMembers`）
+/// ルームを 1 つ指す入力（`leaveRoom`・`forceUnlock`・`drawGacha`・`proposeReroll`・`inviteLastMembers`）
 nonisolated struct RoomRequest: Codable, Equatable, Sendable {
     /// ルームの ID
     var roomId: String
@@ -257,4 +257,22 @@ nonisolated struct VoteRerollRequest: Codable, Equatable, Sendable {
     var roomId: String
     /// 賛成なら true、反対なら false
     var approve: Bool
+}
+
+// MARK: - 終了
+
+/// `closeRoom` の入力（作成者がルームを終了する。F-44・03 の S-12）
+nonisolated struct CloseRoomRequest: Codable, Equatable, Sendable {
+    /// 終了の意図（backend の `close/input.ts` の `CLOSE_REASONS`）。サーバーが今の状態と突き合わせる
+    enum Reason: String, Codable, Sendable {
+        /// S-14 の「この行き先で決定」（`drawn` のルームを終了する。`open`・`unlocked` なら `room-not-drawn`）
+        case decide
+        /// S-12 の「ルームを終了する」（抽選の前の `open`・`unlocked` のルームを途中で終了する。`drawn` なら `room-already-decided`）
+        case endEarly
+    }
+
+    /// ルームの ID
+    var roomId: String
+    /// 終了の意図
+    var reason: Reason
 }
