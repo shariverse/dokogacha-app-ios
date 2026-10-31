@@ -140,7 +140,7 @@ struct InMemoryServerAccountTests {
         let server = InMemoryServer.demo(.drawnRooms) { RoomModelTests.now }
         server.users[Self.sota] = nil
 
-        try server.closeRoom(RoomRequest(roomId: DemoScenario.drawnRoomID), by: DemoScenario.myUserID)
+        try server.closeRoom(CloseRoomRequest(roomId: DemoScenario.drawnRoomID, reason: .decide), by: DemoScenario.myUserID)
 
         #expect(server.pastIdeas[Self.sota] == nil)
         #expect(server.pastIdeas[Self.haruka]?.count == 2)

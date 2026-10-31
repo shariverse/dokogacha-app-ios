@@ -159,7 +159,8 @@ extension AppError {
         case inviteCodeNotFound = "invite-code-not-found"
         /// メンバーが上限に達している（F-04 の AC）
         case roomFull = "room-full"
-        /// ルームが `drawn`・`closed` で参加できない（F-04 の AC）。候補の追加・削除・強制解禁を `drawn`・`closed` でしたときも
+        /// ルームが `drawn`・`closed` で参加できない（F-04 の AC）。候補の追加・削除・強制解禁を `drawn`・`closed` でしたときも。
+        /// S-12 の「ルームを終了する」（`closeRoom` の `endEarly`）を送ったときに、ほかの人がガチャを回して `drawn` になっていたときも
         case roomAlreadyDecided = "room-already-decided"
         /// ルームが存在しない
         case roomNotFound = "room-not-found"
@@ -195,7 +196,7 @@ extension AppError {
         case noCandidates = "no-candidates"
         /// ガチャで当選した候補（今の当選・引き直しで除外した前の当選）を削除しようとした
         case candidateDrawn = "candidate-drawn"
-        /// 行き先が決まる前（`open`・`unlocked`）に、引き直しを提案した（F-43）か「この行き先で決定」をした（F-44）
+        /// 行き先が決まる前（`open`・`unlocked`）に、引き直しを提案した（F-43）か「この行き先で決定」（`closeRoom` の `decide`）をした（F-44）
         case roomNotDrawn = "room-not-drawn"
         /// 引き直しの権利を使った後に、もう一度提案した（F-43 の AC「引き直しは2回目を提案できない」）
         case rerollUsed = "reroll-used"

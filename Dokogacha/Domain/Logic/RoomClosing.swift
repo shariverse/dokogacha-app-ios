@@ -32,6 +32,38 @@ nonisolated enum RoomClosing {
         return room.ownerId == userID ? .decide : .waitingForOwner
     }
 
+    /// `closeRoom` の状態の判定の結果（backend の `CloseDecision` と、失敗の理由）
+    enum Decision: Equatable, Sendable {
+        /// 終了する
+        case close
+        /// もう終了している（何も書かずに成功する。二度押し・自動の終了と重なった）
+        case alreadyClosed
+        /// 終了できない（理由）
+        case reject(AppError.Reason)
+    }
+
+    /// 作成者の `closeRoom` で、今の状態と終了の意図を突き合わせる（backend の `decideClose` の 3 つ目の確認。メンバー・作成者の確認は呼ぶ側）。
+    ///
+    /// - `closed`: どちらの意図でも `alreadyClosed`
+    /// - `decide`（S-14 の「この行き先で決定」）: `drawn` だけ終了する。`open`・`unlocked` は `room-not-drawn`
+    /// - `endEarly`（S-12 の「ルームを終了する」）: `open`・`unlocked` だけ終了する。`drawn` は `room-already-decided`
+    ///   （確認の間にほかの人がガチャを回したとき。途中でやめるつもりの操作で、決定と同じ終了にしない）
+    /// - Parameters:
+    ///   - status: ルームの今の状態
+    ///   - reason: 終了の意図
+    static func decision(status: RoomStatus, reason: CloseRoomRequest.Reason) -> Decision {
+        switch (status, reason) {
+        case (.closed, _):
+            .alreadyClosed
+        case (.drawn, .decide), (.open, .endEarly), (.unlocked, .endEarly):
+            .close
+        case (.open, .decide), (.unlocked, .decide):
+            .reject(.roomNotDrawn)
+        case (.drawn, .endEarly):
+            .reject(.roomAlreadyDecided)
+        }
+    }
+
     /// 登録する過去のアイデア 1 件（backend の `PastIdeaWrite`）
     struct PastIdeaWrite: Equatable, Sendable {
         /// 登録するメンバーの uid

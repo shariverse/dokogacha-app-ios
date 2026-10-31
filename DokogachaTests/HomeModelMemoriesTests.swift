@@ -82,7 +82,7 @@ struct HomeModelMemoriesTests {
         defer { observing.cancel() }
         #expect(await AsyncTestSupport.eventually { model.cards.count == 2 && model.isMemoriesEmpty })
 
-        try await server.closeRoom(RoomRequest(roomId: DemoScenario.drawnRoomID))
+        try await server.closeRoom(CloseRoomRequest(roomId: DemoScenario.drawnRoomID, reason: .decide))
         #expect(await AsyncTestSupport.eventually { model.memoryTickets.count == 1 })
         let ticket = try #require(model.memoryTickets.first)
         #expect(ticket.id == DemoScenario.drawnRoomID)

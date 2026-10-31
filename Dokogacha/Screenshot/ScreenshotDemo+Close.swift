@@ -57,7 +57,7 @@ extension ScreenshotDemo {
                     InMemoryServer.addDrawnDemoRooms(to: server, now: server.clock())
                 }
                 if ProcessInfo.processInfo.arguments.contains(Self.closedArgument) {
-                    try? server.closeRoom(RoomRequest(roomId: roomID), by: server.rooms[roomID]?.room.ownerId)
+                    try? server.closeRoom(CloseRoomRequest(roomId: roomID, reason: .decide), by: server.rooms[roomID]?.room.ownerId)
                 }
             }
             let drawID = services.inMemoryServer?.rooms[roomID]?.room.currentDrawId ?? ""
