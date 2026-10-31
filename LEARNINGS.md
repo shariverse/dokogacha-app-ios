@@ -27,7 +27,6 @@
   Xcode 27 の `simctl` で Simulator を起動した後、Xcode 26.6 の `xcodebuild` から Simulator が 1 台も見えなくなった（`-destination id=…` が `Unable to find a device`。`simctl list` には出る）。
   ビルドは `-destination 'generic/platform=iOS Simulator'`（x86_64 も作るので初回は遅い）で行い、できた `Build/Products/*.xctestrun` を Xcode 27 の `xcodebuild test-without-building -xctestrun … -destination id=…` で流すと Unit・UI テストとも通った（2026-11-01）
 - `Localizable.xcstrings` に文字列を足すのは Xcode の画面のビルドだけで、`xcodebuild` は足さない。コマンドで足すときは、`xcodebuild build` の後に `xcrun xcstringstool sync Dokogacha/Resources/Localizable.xcstrings --stringsdata "$DD"/Build/Intermediates.noindex/Dokogacha.build/Debug-iphonesimulator/Dokogacha.build/Objects-normal/arm64/*.stringsdata` を流す（`--stringsdata` は 1 回だけ書いて後ろにファイルを並べる）。カタログに無い文字列もキーの日本語がそのまま出るので、足し忘れても表示は変わらない（2026-10-23）
-- Xcode 27.1 では `DGDashedLine` の `DashedLineShape`（`Shape` への準拠）が「crosses into main actor-isolated code」（#ConformanceIsolation）のエラーになり、ビルドできない。既定の Xcode（`xcode-select -p`）が 27 の Mac では、`xcode-select` を変えずに `DEVELOPER_DIR` に Xcode 26.6 の `Contents/Developer` を渡して `xcodebuild` を流す（2026-10-31）
 
 ## テスト
 
