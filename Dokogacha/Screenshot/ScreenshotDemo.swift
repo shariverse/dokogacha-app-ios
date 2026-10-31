@@ -279,7 +279,7 @@ extension ScreenshotDemo {
         init(services: DataServices) {
             let toasts = DGToastCenter()
             if let area = ScreenshotDemo.value(after: Self.searchAreaArgument).flatMap(SearchArea.init(rawValue:)) {
-                services.searchArea.save(area)
+                services.searchArea.save(SearchScope(area: area))
             }
             model = AddCandidateModel(
                 roomID: DemoScenario.roomID,

@@ -128,11 +128,11 @@ struct PlaceSearchSection: View {
                 ForEach(SearchArea.allCases) { area in
                     chip(
                         Self.areaLabel(area),
-                        isSelected: model.search.area == area,
+                        isSelected: model.search.scope == SearchScope(area: area),
                         hint: Text("このエリアで検索します"),
                         identifier: Identifier.area(area)
                     ) {
-                        model.search.selectArea(area)
+                        model.search.select(SearchScope(area: area))
                     }
                 }
             }
@@ -254,7 +254,7 @@ struct PlaceSearchSection: View {
     /// 結果 0 件の表示（03 の S-08 の 5）。地方で探したときは、地方の名前を添え、全国で探し直すボタンも出す
     /// （地方の外の場所は、地方では見つからないため）
     @ViewBuilder private var noResults: some View {
-        let area = model.search.area
+        let area = model.search.scope.area
         if area == .nationwide {
             message("見つかりませんでした")
                 .accessibilityIdentifier(Identifier.noResults)
@@ -263,7 +263,7 @@ struct PlaceSearchSection: View {
                 messageText("\(Self.areaLabel(area))では見つかりませんでした")
                     .accessibilityIdentifier(Identifier.noResults)
                 DGButton("全国で探す", kind: .secondary, fillsWidth: false) {
-                    model.search.selectArea(.nationwide)
+                    model.search.select(.nationwide)
                 }
                 .accessibilityIdentifier(Identifier.searchNationwide)
             }

@@ -65,8 +65,10 @@ nonisolated struct PlaceSearchHit: Sendable {
     var name: String?
     /// 都道府県（`MKPlacemark.administrativeArea`。「東京都」の形）
     var administrativeArea: String?
-    /// 市区町村（`MKPlacemark.locality`。「豊島区」の形）
+    /// 市区町村（`MKPlacemark.locality`。「豊島区」の形。政令指定都市・郡は形が揺れる（`PlaceLocality`））
     var locality: String?
+    /// 市区町村の中の地名（`MKPlacemark.subLocality`。`locality` が郡・政令指定都市だけのときは、町村・区が入る）
+    var subLocality: String?
     /// 緯度
     var latitude: Double
     /// 経度
