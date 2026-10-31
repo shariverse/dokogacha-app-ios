@@ -5,10 +5,15 @@
 
 import SwiftUI
 
-/// S-04 招待（プッシュ。作成したルームの上に積み、戻るとルーム）。03 の S-04 の上から順に、
-/// 「ルームを作成しました」＋ルーム名・招待コードカード・「招待リンクを送る」を並べ、「ルームへ進む」を下に固定する。
+/// S-04 招待。03 の S-04 の上から順に、「ルームを作成しました」＋ルーム名・招待コードカード・「招待リンクを送る」を並べる。
 ///
-/// 03 の S-04 とプロトタイプにはヘッダーが無いので置かない（戻るのは「ルームへ進む」か端からのスワイプで、どちらもルームに出る）。
+/// 開き方は 2 つ（`Context`）:
+/// - ルームを作った直後（プッシュ。作成したルームの上に積み、戻るとルーム）。「ルームへ進む」を下に固定する。
+///   03 の S-04 とプロトタイプにはヘッダーが無いので置かない（戻るのは「ルームへ進む」か端からのスワイプで、どちらもルームに出る）
+/// - S-07 のアバターの並びの招待の「＋」から（シート）。ヘッダー（「メンバーを招待」と右端の閉じる）を置き、
+///   「ルームを作成しました」と「ルームへ進む」は出さない（作った直後ではなく、閉じればルームに戻るため）。
+///   トーストはシートの中に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）
+///
 /// 「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 4）は、前回のルームがあり招待する人がいるときだけ
 /// 「招待リンクを送る」の下に出す（`LastMembersInviteModel`。プレビューなどで渡さなければ出さない）。
 struct InviteView: View {
@@ -24,6 +29,16 @@ struct InviteView: View {
         static let openRoom = "invite.openRoom"
         /// 「前回のメンバー（{前回ルーム名}・N人）を招待」
         static let lastMembers = "invite.lastMembers"
+        /// シートの閉じるボタン
+        static let close = "invite.close"
+    }
+
+    /// 開き方
+    enum Context {
+        /// ルームを作った直後（プッシュ）。値は「ルームへ進む」を押したときの処理（招待の画面を閉じてルームを出す）
+        case created(onOpenRoom: () -> Void)
+        /// S-07 の招待の「＋」から（シート）。値はシートの中に重ねるトーストの窓口（`InviteModel`・`LastMembersInviteModel` に渡したもの）
+        case sheet(toasts: DGToastCenter)
     }
 
     /// 「ルームを作成しました」「招待コード」の文字の大きさ（03 の S-04「13pt」）
@@ -38,54 +53,88 @@ struct InviteView: View {
     @State private var model: InviteModel
     /// 前回のメンバーへの招待（無ければボタンを出さない）
     @State private var lastMembers: LastMembersInviteModel?
-    /// 「ルームへ進む」を押したときの処理（招待の画面を閉じてルームを出す）
-    private let onOpenRoom: () -> Void
+    /// 開き方
+    private let context: Context
 
+    @Environment(\.dismiss) private var dismiss
     @ScaledMetric(relativeTo: .body) private var shareIconSize = InviteView.shareIconSize
 
     /// - Parameters:
     ///   - model: 画面の値（最初の 1 回だけ使う）
     ///   - lastMembers: 前回のメンバーへの招待（最初の 1 回だけ使う。nil ならボタンを出さない）
-    ///   - onOpenRoom: 「ルームへ進む」を押したときの処理
-    init(model: InviteModel, lastMembers: LastMembersInviteModel? = nil, onOpenRoom: @escaping () -> Void) {
+    ///   - context: 開き方
+    init(model: InviteModel, lastMembers: LastMembersInviteModel? = nil, context: Context) {
         _model = State(initialValue: model)
         _lastMembers = State(initialValue: lastMembers)
-        self.onOpenRoom = onOpenRoom
+        self.context = context
+    }
+
+    /// ルームを作った直後の S-04（プッシュ）
+    /// - Parameters:
+    ///   - model: 画面の値（最初の 1 回だけ使う）
+    ///   - lastMembers: 前回のメンバーへの招待（最初の 1 回だけ使う。nil ならボタンを出さない）
+    ///   - onOpenRoom: 「ルームへ進む」を押したときの処理
+    init(model: InviteModel, lastMembers: LastMembersInviteModel? = nil, onOpenRoom: @escaping () -> Void) {
+        self.init(model: model, lastMembers: lastMembers, context: .created(onOpenRoom: onOpenRoom))
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: DGSpacing.s24) {
-                titleBlock
-                codeCard
-                VStack(spacing: DGSpacing.s12) {
-                    shareButton
-                    if let lastMembers, let invitation = lastMembers.invitation {
-                        lastMembersButton(lastMembers, invitation: invitation)
+        VStack(spacing: 0) {
+            if case .sheet = context {
+                sheetHeader
+            }
+            ScrollView {
+                VStack(spacing: DGSpacing.s24) {
+                    titleBlock
+                    codeCard
+                    VStack(spacing: DGSpacing.s12) {
+                        shareButton
+                        if let lastMembers, let invitation = lastMembers.invitation {
+                            lastMembersButton(lastMembers, invitation: invitation)
+                        }
                     }
                 }
-            }
-            .padding(.horizontal, DGSpacing.screenX)
-            // ヘッダーのある画面と、内容の始まりの高さをそろえる（プロトタイプの上の余白 56）
-            .padding(.top, DGHeader<EmptyView>.height)
-            .padding(.bottom, DGSpacing.s16)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            DGButton("ルームへ進む", kind: .dark, action: onOpenRoom)
-                .accessibilityIdentifier(Identifier.openRoom)
                 .padding(.horizontal, DGSpacing.screenX)
-                .padding(.top, DGSpacing.s12)
-                .padding(.bottom, DGSpacing.s14)
-                .background(Color.dgBgBase)
+                .padding(.top, contentTopPadding)
+                .padding(.bottom, DGSpacing.s16)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if case let .created(onOpenRoom) = context {
+                DGButton("ルームへ進む", kind: .dark, action: onOpenRoom)
+                    .accessibilityIdentifier(Identifier.openRoom)
+                    .padding(.horizontal, DGSpacing.screenX)
+                    .padding(.top, DGSpacing.s12)
+                    .padding(.bottom, DGSpacing.s14)
+                    .background(Color.dgBgBase)
+            }
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
+        .modifier(SheetToast(context: context))
         .task {
             await lastMembers?.observe()
         }
+    }
+
+    /// 内容の上の余白。作った直後はヘッダーのある画面と内容の始まりの高さをそろえ（プロトタイプの上の余白 56）、シートではヘッダーの下に続ける
+    private var contentTopPadding: CGFloat {
+        switch context {
+        case .created: DGHeader<EmptyView>.height
+        case .sheet: DGSpacing.s8
+        }
+    }
+
+    /// シートのヘッダー（「メンバーを招待」と右端の閉じる。S-11 と同じ形）
+    private var sheetHeader: some View {
+        DGHeader(Text("メンバーを招待"), onBack: nil) {
+            JoinSheetCloseButton { dismiss() }
+                .accessibilityIdentifier(Identifier.close)
+        }
+        .padding(.leading, DGSpacing.s12)
     }
 
     /// 「前回のメンバー（{前回ルーム名}・N人）を招待」（03 の S-04 の 4）。送っている途中と送った後は押せない
@@ -97,12 +146,14 @@ struct InviteView: View {
         .accessibilityIdentifier(Identifier.lastMembers)
     }
 
-    /// 「ルームを作成しました」＋ルーム名（03 の S-04 の 1）
+    /// 「ルームを作成しました」＋ルーム名（03 の S-04 の 1）。シートではルーム名だけ（作った直後ではないため）
     private var titleBlock: some View {
         VStack(spacing: DGSpacing.s8) {
-            Text("ルームを作成しました")
-                .font(.dgBody(Self.captionSize, relativeTo: .subheadline))
-                .foregroundStyle(Color.dgTextSecondary)
+            if case .created = context {
+                Text("ルームを作成しました")
+                    .font(.dgBody(Self.captionSize, relativeTo: .subheadline))
+                    .foregroundStyle(Color.dgTextSecondary)
+            }
             Text(verbatim: model.roomName)
                 .font(.dg(.displayL))
                 .foregroundStyle(Color.dgInk)
@@ -174,6 +225,19 @@ struct InviteView: View {
     }
 }
 
+/// シートで開いたときだけ、シートの中にトーストを重ねる（作った直後はアプリの根元のトーストに出す）
+private struct SheetToast: ViewModifier {
+    let context: InviteView.Context
+
+    func body(content: Content) -> some View {
+        if case let .sheet(toasts) = context {
+            content.dgToast(toasts)
+        } else {
+            content
+        }
+    }
+}
+
 #Preview("S-04 招待") {
     InviteView(
         model: InviteModel(
@@ -185,6 +249,24 @@ struct InviteView: View {
             toasts: DGToastCenter()
         )
     ) {}
+}
+
+#Preview("S-04 ルームから（シート）") {
+    let toasts = DGToastCenter()
+    Color.dgBgBase
+        .sheet(isPresented: .constant(true)) {
+            InviteView(
+                model: InviteModel(
+                    destination: InviteDestination(
+                        roomID: DemoScenario.roomID,
+                        roomName: "年末の旅行",
+                        inviteCode: InviteCode(DemoScenario.inviteCode) ?? InviteCode.generate { _ in 0 }
+                    ),
+                    toasts: toasts
+                ),
+                context: .sheet(toasts: toasts)
+            )
+        }
 }
 
 #Preview("S-04 文字を最大") {

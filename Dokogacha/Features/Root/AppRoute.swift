@@ -30,6 +30,8 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
     case candidateDetail(roomID: String, candidateID: String)
     /// S-11 メンバー一覧（ルームのアバターから。シート。タスク 25）
     case members(roomID: String)
+    /// S-04 招待（ルームのアバターの並びの招待の「＋」から。シート。Issue #157）
+    case inviteMembers(InviteDestination)
     /// S-12 ルーム設定（ルームのヘッダーの設定から。作成者だけ。シート。タスク 25）
     case roomSettings(roomID: String)
     /// S-13 ガチャ（ルームの「ガチャを回す」から。フルスクリーンカバー。タスク 27）。カプセルを開け終えたら同じカバーの中で S-14 に替わる
@@ -52,7 +54,7 @@ nonisolated enum AppRoute: Hashable, Identifiable, Sendable {
         switch self {
         case .createRoom, .invite, .room, .settings, .addCandidate:
             .push
-        case .joinByCode, .joinByInviteLink, .candidateDetail, .members, .roomSettings:
+        case .joinByCode, .joinByInviteLink, .candidateDetail, .members, .inviteMembers, .roomSettings:
             .sheet
         case .gacha, .result:
             .fullScreenCover
@@ -120,9 +122,9 @@ extension AppRoute {
     }
 }
 
-/// S-04 招待の行き先（作成したルーム）。
+/// S-04 招待の行き先（作成したルーム・招待の「＋」を押したルーム）。
 ///
-/// ルーム名は作成に送った名前（前後の空白を取り除いたもの）。S-04 はルームを購読せず、この値だけで表示する
+/// ルーム名は作成に送った名前（前後の空白を取り除いたもの）か、「＋」を押したときのルーム名。S-04 はルームを購読せず、この値だけで表示する
 nonisolated struct InviteDestination: Hashable, Sendable {
     /// ルームの ID
     let roomID: String
