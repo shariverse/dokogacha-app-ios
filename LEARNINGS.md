@@ -48,6 +48,8 @@
 - VoiceOver で読ませたくない「押せない状態」を、無効の `DGButton` で描くと「淡色表示、ボタン」と読まれる。ボタンの形の状態の表示は `DGButtonShapedStatus`（`Button` ではない）を使う。UI テストでは `app.staticTexts[...]` で探す（2026-10-23）
 - iPadOS 26.5 の Simulator で iPhone 専用だったときのアプリ（互換表示。ウィンドウで開く）を動かした後に、iPad に対応したアプリを入れ直すと、互換表示のときの狭いウィンドウの大きさで開いた（iPad mini で確かめた。互換表示を動かしていない Simulator では全画面で開く）。iPad の全画面の After は、互換表示を動かす前に撮るか、`simctl erase` した Simulator で撮る（2026-11-01）
 - `simctl` には向きを変える命令が無い。iPad の横向きは、一時的な UI テストで `XCUIDevice.shared.orientation = .landscapeLeft` にしてから `simctl launch` で撮影モードを起動すると撮れる（テストの後も横向きのまま残る）。`test-without-building` の途中で同じ DerivedData にビルドし直すと、テストが進まなくなる（2026-10-31）
+- iPad の Simulator のステータスバーは、時刻の横に日付（「11月1日(日)」）も出す。`simctl status_bar override --time` に ISO の日時を渡すと日付も固定できるが、撮影モードのデモのデータは実際の時刻から作る（きっぷの「決定」の日付など）ので、日付だけ固定すると画面の中と食い違う。App Store の iPad 13 inch は `--time "9:41"` のまま、撮った日の日付で撮っている。
+  iPadOS 26.5 では全画面のアプリでも右下の角にウィンドウの大きさを変える取っ手が写る（システムの表示で、App Store の撮影でもそのまま残している）（2026-11-01）
 - 撮影モードの `result` は、Mac が混んでいる（load average 300 前後）と、白い画面 → きっぷの形の読み込み中 → 結果の順に 1 分ほどかかる。続けて撮った 2 枚が同じになるまで待つだけでは白い画面や読み込み中の形を撮るので、初めに長めに待つか、白い画面（PNG が小さい）なら撮り直す（2026-10-31）
 
 ## 場所検索（MapKit）
