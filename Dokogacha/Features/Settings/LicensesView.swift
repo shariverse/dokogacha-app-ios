@@ -5,7 +5,8 @@
 
 import SwiftUI
 
-/// S-15 の「ライセンス」から積む画面。同梱のフォント（OFL）と、アプリに入るライブラリを並べ、押すとライセンスの全文を出す（`LicenseDetailView`）。
+/// S-15 の「ライセンス」から積む画面。同梱のフォント（OFL）と、アプリに入るライブラリと、同梱のデータ（市区町村の一覧）を並べ、
+/// 押すとライセンスの全文（データは出典と利用条件）を出す（`LicenseDetailView`）。
 ///
 /// 03 の S-15「ライセンス（フォントの OFL 表記を含む）」・04 の §2・06 の §5「フォントの OFL ライセンス表記」。
 /// 設定と同じく、標準のナビゲーションバーは使わず画面のヘッダー（`DGHeader`）を置く
@@ -33,6 +34,7 @@ struct LicensesView: View {
                 VStack(alignment: .leading, spacing: DGSpacing.s16) {
                     section(Text("フォント"), entries: LicenseCatalog.fonts)
                     section(Text("ライブラリ"), entries: LicenseCatalog.libraries)
+                    section(Text("データ"), entries: LicenseCatalog.data)
                 }
                 .padding(.horizontal, DGSpacing.screenX)
                 .padding(.top, DGSpacing.s8)

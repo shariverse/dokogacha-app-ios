@@ -15,6 +15,8 @@ nonisolated enum LicenseKind: String, CaseIterable, Sendable {
     case bsd3
     /// zlib License（nanopb。Firebase が使う）
     case zlib
+    /// 公共データ利用規約（第1.0版）（S-08 の市区町村の一覧。総務省のコード表を加工したもの。Issue #160）
+    case pdl1
 
     /// 画面に出すライセンスの名前
     var title: String {
@@ -23,6 +25,7 @@ nonisolated enum LicenseKind: String, CaseIterable, Sendable {
         case .apache2: "Apache License 2.0"
         case .bsd3: "BSD 3-Clause License"
         case .zlib: "zlib License"
+        case .pdl1: "公共データ利用規約（第1.0版）"
         }
     }
 }
@@ -41,7 +44,7 @@ nonisolated struct LicenseEntry: Identifiable, Hashable, Sendable {
     let textResource: String
 }
 
-/// S-15 のライセンスの画面に出す一覧（同梱のフォントと、アプリに入る主要なライブラリ）。
+/// S-15 のライセンスの画面に出す一覧（同梱のフォントと、アプリに入る主要なライブラリと、同梱のデータ）。
 ///
 /// ライブラリは SPM で入れたもの（firebase-ios-sdk・Google Mobile Ads）と、それらがアプリに持ち込むもの（`Package.resolved` にあるもの）。
 /// ビルドのときだけ使うもの（SwiftLint）は入れない。依存を足したら、ここと `Dokogacha/Resources/Licenses/` に足す
@@ -89,9 +92,20 @@ nonisolated enum LicenseCatalog {
         LicenseEntry(id: "nanopb", name: "nanopb", notice: "Copyright (c) 2011 Petteri Aimonen", kind: .zlib, textResource: "nanopb-Zlib")
     ]
 
-    /// フォントとライブラリのすべて
+    /// アプリに同梱したデータ（S-08 の市区町村の一覧。`Resources/Municipalities.tsv`）。全文の代わりに、出典・加工の内容・利用条件を出す
+    static let data: [LicenseEntry] = [
+        LicenseEntry(
+            id: "municipalities",
+            name: "市区町村の一覧",
+            notice: "「都道府県コード及び市区町村コード」（総務省）（https://www.soumu.go.jp/denshijiti/code.html）を加工して作成",
+            kind: .pdl1,
+            textResource: "Municipalities-PDL1.0"
+        )
+    ]
+
+    /// フォント・ライブラリ・データのすべて
     static var all: [LicenseEntry] {
-        fonts + libraries
+        fonts + libraries + data
     }
 
     /// Apache License 2.0 の全文のファイル
