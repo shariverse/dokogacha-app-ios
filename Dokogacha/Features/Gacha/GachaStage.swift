@@ -29,14 +29,6 @@ nonisolated enum GachaPhase: Equatable, Sendable {
         case .idle, .opened: false
         }
     }
-
-    /// 取り出し口にカプセルを出しているか
-    var showsCapsule: Bool {
-        switch self {
-        case .dropping, .opening, .opened: true
-        case .idle, .spinning: false
-        }
-    }
 }
 
 /// S-13 のタイトルとサブ文言の組み合わせ（03 の S-13 の表）。文言は `GachaView` が `Text` にする
@@ -83,7 +75,7 @@ nonisolated enum GachaCaption: Equatable, Sendable {
 /// 演出の合図（触覚と、後で足すサウンドのフック。04 の §5「演出の各タイミングにフックを用意する」）。
 ///
 /// 03 の S-13 の触覚: レバーを押した瞬間 `.impact(.heavy)`、回転中は 0.2 秒ごとに `.impact(.light)`（レバーがカチッと止まる刻みと同じ）、
-/// 当選のカプセルがドームから抜けた瞬間 `.impact(.rigid)`、カプセルが落ちた瞬間 `.impact(.medium)`、開いた瞬間 `.impact(.soft)`
+/// 落ち始め（レバーが回りきり、当選のカプセルがドームの底へ抜け始める瞬間）`.impact(.rigid)`、カプセルが落ちた瞬間 `.impact(.medium)`、開いた瞬間 `.impact(.soft)`
 /// （行き先が決まった `.success` は、S-14 の結果の演出の決まる瞬間に鳴らす）。
 /// `SensoryFeedback` への対応は画面の側（`GachaView`）で持つ
 nonisolated enum GachaCue: Equatable, Sendable {
@@ -91,7 +83,7 @@ nonisolated enum GachaCue: Equatable, Sendable {
     case leverPulled
     /// 回転中の刻み
     case spinTick
-    /// 当選のカプセルがドームの底から抜けた（落ち始め）
+    /// 落ち始め（レバーが回りきり、当選のカプセルがドームの底へ抜け始める瞬間）
     case capsuleReleased
     /// カプセルが取り出し口に落ちた
     case capsuleLanded

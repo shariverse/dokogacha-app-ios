@@ -67,12 +67,12 @@ nonisolated enum DGMotion {
     /// ドームの揺れ（`motion.shake`。0.4 秒 × 4 回）。
     ///
     /// 1 回は 0 → −4° → 4° → −3° → 3° → 0（プロトタイプの `dgShake`）で、行って戻るだけの `repeatCount(autoreverses:)` では作れない。
-    /// 画面の側で `keyframeAnimator` に `duration` と `repeatCount` を渡して作る（S-13）
+    /// 画面の側で `GachaMotion.domeAngle` が時刻から求める（S-13）。回転中の 1.6 秒でちょうど 4 回で、抽選の結果が遅いときは落ち始めるまで繰り返す
     static let shake = DGMotionSpec(duration: 0.4, curve: .easeInOut, repeatCount: 4)
     /// レバーのバーの回転（`motion.turn`。0.2 秒ごとに 90° ずつカチッと回す刻みは `GachaMotion.leverAngle` が持つので、時間だけ）
     static let turn = DGMotionSpec(duration: 1.6, curve: nil)
-    /// 出てくるカプセルの落下（`motion.drop`）
-    static let drop = DGMotionSpec(duration: 0.7, curve: .easeOut)
+    /// 出てくるカプセルの落下（`motion.drop`。落ちる・跳ね返る・止まるの区間ごとの曲線は `GachaMotion.dispensed` が持つので、時間だけ）
+    static let drop = DGMotionSpec(duration: 0.7, curve: nil)
     /// カプセルが開いて消える（`motion.open`）
     static let open = DGMotionSpec(duration: 0.5, curve: .easeIn)
     /// きっぷが出てくる（`motion.pop`）。SwiftUI では `popSpring` を使う

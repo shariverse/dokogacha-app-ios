@@ -23,8 +23,8 @@ nonisolated enum GachaMotion {
         Int((GachaTimeline.spinDuration / GachaTimeline.tickInterval).rounded())
     }
 
-    /// 刻みで止まったときに行き過ぎる角度（カチッと止まる手応え）
-    static let leverOvershootDegrees: Double = 7
+    /// 刻みで止まった後の行き過ぎの振れ幅（カチッと止まる手応え。減衰をかけるので、実際の行き過ぎは最大で約 4.3°）
+    static let leverOvershootAmplitude: Double = 7
     /// 刻みの中で、行き過ぎから戻るまでの割合
     static let leverSettleFraction = 0.35
 
@@ -48,7 +48,7 @@ nonisolated enum GachaMotion {
             // 前の刻みでカチッと止まった後の行き過ぎ（すぐに戻る）
             let settle: Double = within / leverSettleFraction
             let wave: Double = sin(Double.pi * settle)
-            angle += leverOvershootDegrees * wave * (1 - settle)
+            angle += leverOvershootAmplitude * wave * (1 - settle)
         }
         return angle
     }
@@ -174,8 +174,11 @@ nonisolated enum GachaMotion {
         GachaTimeline.exitDuration
     }
 
-    /// ドームの底の抜け口（ドームの外形の左上からの位置。真ん中の下、線の少し上）
-    static let exitPoint = CGPoint(x: DGGachaCapsuleLayout.domeDiameter / 2, y: DGGachaCapsuleLayout.domeDiameter - 6)
+    /// ドームの底の抜け口（ドームの外形の左上からの位置。真ん中の下の、線の内側）
+    static let exitPoint = CGPoint(
+        x: DGGachaCapsuleLayout.domeDiameter / 2,
+        y: DGGachaCapsuleLayout.domeDiameter - DGBorder.machine
+    )
     /// 抜けきったときの大きさ
     static let exitScale = 0.7
     /// 抜ける途中で消え始める位置（抜ける時間に対する割合）
@@ -252,9 +255,6 @@ nonisolated enum GachaMotion {
         return pose
     }
 
-    /// 番号と種から作る 0〜1 の値（同じ番号なら毎回同じ）
-    private static func unit(_ index: Int, salt: Int) -> Double {
-        let value = sin(Double(index * 193 + salt * 457) * 12.9898) * 43_758.5453
     // MARK: 筐体の形
 
     /// 段階に入ってからの秒（まだその段階に入っていなければ nil）
@@ -310,6 +310,9 @@ nonisolated enum GachaMotion {
         return pose
     }
 
+    /// 番号と種から作る 0〜1 の値（同じ番号なら毎回同じ）
+    private static func unit(_ index: Int, salt: Int) -> Double {
+        let value = sin(Double(index * 193 + salt * 457) * 12.9898) * 43_758.5453
         return value - value.rounded(.down)
     }
 }

@@ -45,7 +45,7 @@ struct GachaStageTests {
     func cueFeedbackFollowsScreenSpec() {
         #expect(GachaCue.leverPulled.feedback == .impact(weight: .heavy))
         #expect(GachaCue.spinTick.feedback == .impact(weight: .light))
-        #expect(GachaCue.capsuleReleased.feedback == .impact(flexibility: .rigid, intensity: 0.6))
+        #expect(GachaCue.capsuleReleased.feedback == .impact(flexibility: .rigid, intensity: GachaCue.releasedIntensity))
         #expect(GachaCue.capsuleLanded.feedback == .impact(weight: .medium))
         #expect(GachaCue.capsuleOpened.feedback == .impact(flexibility: .soft))
     }
@@ -67,12 +67,10 @@ struct GachaStageTests {
         #expect(GachaTimeline.shakeAngles == [-4, 4, -3, 3, 0])
     }
 
-    /// 演出の途中か・取り出し口にカプセルを出しているか
+    /// 演出の途中か
     @Test
     func phaseFlags() {
         #expect([GachaPhase.idle, .spinning, .dropping, .opening, .opened].map(\.isAnimating)
             == [false, true, true, true, false])
-        #expect([GachaPhase.idle, .spinning, .dropping, .opening, .opened].map(\.showsCapsule)
-            == [false, false, true, true, true])
     }
 }
