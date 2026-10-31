@@ -26,6 +26,11 @@ extension XCUIElement {
         wait(for: NSPredicate(format: "enabled == true"), timeout: timeout)
     }
 
+    /// 選択中（`isSelected`）になるまで待つ。なれば true
+    func waitForSelected(timeout: TimeInterval = UITestID.timeout) -> Bool {
+        wait(for: NSPredicate(format: "selected == true"), timeout: timeout)
+    }
+
     /// 入力欄の文字を 1 文字ずつ消し、空（プレースホルダーの表示）になるまで続ける。
     ///
     /// 削除キーをまとめて打つと、負荷が高いときに抜けて文字が残る（招待コードは入力のたびに画面が値を直すので特に抜けやすい）。

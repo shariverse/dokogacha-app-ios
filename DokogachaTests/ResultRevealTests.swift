@@ -7,28 +7,78 @@
 import Foundation
 import Testing
 
-/// S-14 で行き先きっぷを出す演出の案（Issue #158）の予定・動き・切り替え
+/// S-14 で行き先きっぷを出す演出（Issue #158）の予定・動き・切り替え
 struct ResultRevealTests {
-    /// 案の演出（今の演出を除く）
-    nonisolated static let revealStyles: [ResultRevealStyle] = [.capsule, .flap, .issue]
+    /// すべての演出
+    nonisolated static let revealStyles: [ResultRevealStyle] = [.flap, .capsule, .issue]
 
-    /// 起動引数 `-result-animation <案>` で案を選ぶ（Debug ビルドのテストで読める。知らない値・無いときは nil）
+    /// 標準はパタパタ行き先表示で、設定には標準を先頭に 3 つ並べる。名前と説明は 03 の S-16 の表記
+    @Test
+    func standardIsFlapBoard() {
+        #expect(ResultRevealStyle.standard == .flap)
+        #expect(ResultRevealStyle.settingsOrder == [.flap, .capsule, .issue])
+        #expect(Set(ResultRevealStyle.settingsOrder) == Set(ResultRevealStyle.allCases))
+        #expect(String(localized: ResultRevealStyle.flap.title) == "パタパタ行き先表示")
+        #expect(String(localized: ResultRevealStyle.capsule.title) == "カプセルぱかっ")
+        #expect(String(localized: ResultRevealStyle.issue.title) == "発券")
+        // 端末に覚える値なので、rawValue を変えない
+        #expect(ResultRevealStyle.allCases.map(\.rawValue) == ["flap", "capsule", "issue"])
+    }
+
+    /// 起動引数 `-result-animation <演出>` は `-uiTesting`・撮影モードでだけ読む（知らない値・無いときは nil）
     @Test
     func launchArgumentSelectsStyle() {
         func style(_ arguments: [String]) -> ResultRevealStyle? {
             LaunchContext(arguments: ["Dokogacha"] + arguments, environment: [:]).resultRevealStyle
         }
-        #expect(style(["-result-animation", "capsule"]) == .capsule)
         #expect(style(["-screenshot-demo", "-result-animation", "flap"]) == .flap)
         #expect(style(["-uiTesting", "-result-animation", "issue"]) == .issue)
-        #expect(style(["-result-animation", "pop"]) == .pop)
-        #expect(style(["-result-animation", "unknown"]) == nil)
-        #expect(style(["-result-animation"]) == nil)
+        #expect(style(["-uiTesting", "-result-animation", "capsule"]) == .capsule)
+        #expect(style(["-result-animation", "capsule"]) == nil)
+        #expect(style(["-uiTesting", "-result-animation", "pop"]) == nil)
+        #expect(style(["-uiTesting", "-result-animation"]) == nil)
         #expect(style([]) == nil)
     }
 
+    /// 設定は端末に覚え、作り直しても同じ演出になる。覚えていない・知らない値なら標準
+    @Test
+    func settingRemembersSelection() throws {
+        let suite = "ResultRevealTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        #expect(ResultRevealSetting(defaults: defaults).style == .standard)
+        ResultRevealSetting(defaults: defaults).select(.issue)
+        #expect(defaults.string(forKey: ResultRevealSetting.key) == "issue")
+        #expect(ResultRevealSetting(defaults: defaults).style == .issue)
+
+        defaults.set("pop", forKey: ResultRevealSetting.key)
+        #expect(ResultRevealSetting(defaults: defaults).style == .standard)
+    }
+
+    /// `-uiTesting`・撮影モードでは端末に覚えず、起動引数の演出（無ければ標準）から始める
+    @Test
+    func settingForTestingIsMemoryOnly() throws {
+        let suite = "ResultRevealTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("issue", forKey: ResultRevealSetting.key)
+
+        let uiTesting = LaunchContext(arguments: ["Dokogacha", "-uiTesting", "-result-animation", "capsule"], environment: [:])
+        let setting = ResultRevealSetting.make(launch: uiTesting, defaults: defaults)
+        #expect(setting.style == .capsule)
+        setting.select(.flap)
+        #expect(setting.style == .flap)
+        #expect(defaults.string(forKey: ResultRevealSetting.key) == "issue")
+
+        let screenshot = LaunchContext(arguments: ["Dokogacha", "-screenshot-demo"], environment: [:])
+        #expect(ResultRevealSetting.make(launch: screenshot, defaults: defaults).style == .standard)
+        let app = LaunchContext(arguments: ["Dokogacha"], environment: [:])
+        #expect(ResultRevealSetting.make(launch: app, defaults: defaults).style == .issue)
+    }
+
     /// 予定は時刻の順で、決まる → 終わる → 止まるの順に並ぶ。「決まった」の触覚は、見出しを出すより後にならない。
-    /// 刻みの触覚は、動きのある案だけで鳴らす
+    /// 刻みの触覚は、動きのある流れでだけ鳴らす
     @Test(arguments: Self.revealStyles, [false, true])
     func planOrdersPhases(style: ResultRevealStyle, reduceMotion: Bool) {
         let plan = ResultRevealStage.plan(for: style, reduceMotion: reduceMotion)
@@ -44,7 +94,7 @@ struct ResultRevealTests {
             }
             return nil
         }
-        // A・B の刻みは「決まった」より前だけ（決まった後は静かにする）。C は名前の後の残りも押し出すので、決まった後も刻みが続く
+        // パタパタ・カプセルの刻みは「決まった」より前だけ（決まった後は静かにする）。発券は名前の後の残りも押し出すので、決まった後も刻みが続く
         if style != .issue {
             #expect(tickTimes.allSatisfy { $0 < (plan.decidedCueAt ?? 0) })
         }
@@ -54,7 +104,7 @@ struct ResultRevealTests {
         }
     }
 
-    /// 演出の長さ（案ごとの「決まる瞬間」と「終わる」の目安。比較の表と同じ値）
+    /// 演出の長さ（演出ごとの「決まる瞬間」と「終わる」の目安。04 の §5 の表と同じ値）
     @Test
     func planDurationsMatchComparison() {
         func times(_ style: ResultRevealStyle) -> (Double, Double) {
@@ -69,7 +119,7 @@ struct ResultRevealTests {
         #expect(abs(times(.issue).1 - 3.37) < 1e-9)
     }
 
-    /// 演出の後は、どの案も飾りの無いきっぷだけの形になる（今の演出の最後と同じ見た目）
+    /// 演出の後は、どの演出も飾りの無いきっぷだけの形になる（直接開いたときのきっぷと同じ見た目）
     @Test(arguments: [false, true])
     func posesEndWithPlainTicket(reduceMotion: Bool) {
         let capsuleEnd = CapsuleBurstTimeline.plan(reduceMotion: reduceMotion).duration + 0.01
@@ -94,7 +144,7 @@ struct ResultRevealTests {
         #expect(issue.stampProgress == 1)
     }
 
-    /// 演出の始めは、どの案も行き先を見せない（きっぷは隠れ、ハンコは押していない）
+    /// 演出の始めは、どの演出も行き先を見せない（きっぷは隠れ、ハンコは押していない）
     @Test
     func posesStartHidingDestination() {
         let capsule = CapsuleBurstTimeline.pose(at: 0, reduceMotion: false)
@@ -113,7 +163,7 @@ struct ResultRevealTests {
         #expect(issue.stampProgress == 0)
     }
 
-    /// 案 A: 割れる直前にいちばん大きく揺れ、割れる瞬間に殻・きっぷ・紙吹雪を出す
+    /// カプセルぱかっ: 割れる直前にいちばん大きく揺れ、割れる瞬間に殻・きっぷ・紙吹雪を出す
     @Test
     func capsuleBurstsAtDecidedMoment() {
         let before = CapsuleBurstTimeline.pose(at: CapsuleBurstTimeline.burstAt - 0.001, reduceMotion: false)
@@ -131,7 +181,7 @@ struct ResultRevealTests {
         #expect(CapsuleBurstTimeline.wobbleAngle(at: CapsuleBurstTimeline.wobbleEnd) == 0)
     }
 
-    /// 案 B: めくる文字は「？？？」で始まり、当選の名前で終わり、同じ文字が続かない
+    /// パタパタ行き先表示: めくる文字は「？？？」で始まり、当選の名前で終わり、同じ文字が続かない
     @Test(arguments: [
         ["サンシャイン水族館", "明治神宮", "代々木公園"],
         ["サンシャイン水族館", "明治神宮"],
@@ -147,7 +197,7 @@ struct ResultRevealTests {
         #expect(zip(texts, texts.dropFirst()).allSatisfy { $0 != $1 })
     }
 
-    /// 案 B: めくりは速く回ってから遅くなり、止まった瞬間に当選の名前になる
+    /// パタパタ行き先表示: めくりは速く回ってから遅くなり、止まった瞬間に当選の名前になる
     @Test
     func flapSlowsDownAndStopsOnWinner() {
         let durations = FlapBoardTimeline.flipDurations
@@ -163,7 +213,7 @@ struct ResultRevealTests {
         #expect(flipping.flip != nil)
     }
 
-    /// 案 C: 名前の手前で止め（溜め）、名前の段を出しきったら決まる。出ている長さは減らない
+    /// 発券: 名前の手前で止め（溜め）、名前の段を出しきったら決まる。出ている長さは減らない
     @Test
     func issueHoldsBeforeDestination() {
         let height = 320.0
@@ -212,14 +262,14 @@ struct ResultRevealTests {
         #expect(reduced.opacity == 0.5)
     }
 
-    /// 案の演出では、S-13 でカプセルが開いた瞬間を `.success` にしない（決まる瞬間の S-14 で鳴らす）
+    /// `.success` は S-13 でカプセルが開いた瞬間ではなく、S-14 の演出で行き先が分かった瞬間に鳴らす
     @Test
-    func capsuleOpenedFeedbackLeavesSuccessToReveal() {
-        #expect(GachaCue.capsuleOpened.feedback(revealStyle: .pop) == .success)
-        for style in Self.revealStyles {
-            #expect(GachaCue.capsuleOpened.feedback(revealStyle: style) == .impact(weight: .medium))
-        }
-        #expect(GachaCue.leverPulled.feedback(revealStyle: .capsule) == .impact(weight: .heavy))
+    func successFeedbackIsForDecidedMoment() {
+        #expect(GachaCue.capsuleOpened.feedback != .success)
         #expect(ResultRevealCue.decided.feedback == .success)
+        for style in Self.revealStyles {
+            let plan = ResultRevealStage.plan(for: style, reduceMotion: false)
+            #expect(plan.events.filter { $0.kind == .cue(.decided) }.count == 1)
+        }
     }
 }
