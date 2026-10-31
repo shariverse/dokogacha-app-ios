@@ -129,12 +129,74 @@ final class CloseRoomUITests: XCTestCase {
         XCTAssertTrue(confirm.waitForExistence(timeout: UITestID.timeout))
         confirm.tap()
 
-        // シートが閉じてホームに戻り、終了したルームが進行中のルームから消える。抽選していないので思い出のきっぷにも出ない
-        // （思い出のきっぷの空の表示を出すかは、行き先の決まらないルームを数えないようにするタスク 5 で確かめる）
+        // シートが閉じてホームに戻り、トーストで知らせる。終了したルームが進行中のルームから消え、
+        // 抽選していないので思い出のきっぷにも出ない（空の表示のまま。見出しだけのセクションにならない）
         XCTAssertTrue(sheet.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.staticTexts["ルームを終了しました"].waitForExistence(timeout: UITestID.timeout))
         XCTAssertTrue(app.otherElements[UITestID.roomScreen].waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(card.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.staticTexts[Self.memoriesEmpty].waitForExistence(timeout: UITestID.timeout))
         XCTAssertFalse(app.buttons[Self.demoRoomMemoryTicket].exists)
+    }
+
+    /// ほかの人（はるか）が作ったルームの S-07 を開いている間に、はるかがルームを途中で終了すると、S-07 が閲覧のみになる:
+    /// 下部が「このルームは終了しています」になり、準備OK・候補を追加を出さず、結果（S-14）も開かない。戻るとホームの進行中のルームから消える
+    /// （`-ui-owner-ends-room`: 準備OKを押したら、作成者がルームを途中で終了したことにする。Discussion #155）
+    @MainActor
+    func testMemberSeesRoomEndedWhileOpen() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "several-rooms", UITestID.ownerEndsRoomArgument]
+        app.launch()
+
+        XCTAssertTrue(app.buttons[UITestID.demoRoomCard].waitForExistence(timeout: UITestID.timeout))
+        let card = app.buttons[UITestID.othersRoomCard]
+        XCTAssertTrue(card.scrollIntoView(in: app))
+        card.tap()
+        let room = app.otherElements[UITestID.roomScreen]
+        XCTAssertTrue(room.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.roomAddCandidate].waitForExistence(timeout: UITestID.timeout))
+
+        let ready = app.buttons[UITestID.roomReady]
+        XCTAssertTrue(ready.waitForExistence(timeout: UITestID.timeout))
+        ready.tap()
+
+        let ended = app.descendants(matching: .any)[UITestID.roomEnded]
+        XCTAssertTrue(ended.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(ended.label.contains("このルームは終了しています"), ended.label)
+        XCTAssertTrue(ready.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertFalse(app.buttons[UITestID.roomAddCandidate].exists)
+        XCTAssertFalse(app.buttons[UITestID.roomGacha].exists)
+        XCTAssertFalse(app.otherElements[UITestID.resultScreen].exists)
+
+        room.buttons["戻る"].firstMatch.tap()
+        XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(card.waitForNonExistence(timeout: UITestID.timeout))
+    }
+
+    /// 途中で終了したルームを通知（終了の通知）から開くと、S-07 を閲覧のみで出す（結果は無いので S-14 は開かない）。
+    /// ホームの進行中のルームには出ない（`ended-room`: はるかが作った春のお花見を、はるかが抽選の前に終了した）
+    @MainActor
+    func testOpenEndedRoomFromNotification() throws {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-uiTesting", "-demo-scenario", "ended-room",
+            "-open-notification", #"{"type":"roomEnded","roomId":"demo-room-others","target":"room"}"#
+        ]
+        app.launch()
+
+        let room = app.otherElements[UITestID.roomScreen]
+        XCTAssertTrue(room.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.staticTexts["春のお花見"].firstMatch.waitForExistence(timeout: UITestID.timeout))
+        let ended = app.descendants(matching: .any)[UITestID.roomEnded]
+        XCTAssertTrue(ended.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertFalse(app.buttons[UITestID.roomReady].exists)
+        XCTAssertFalse(app.buttons[UITestID.roomAddCandidate].exists)
+        XCTAssertFalse(app.otherElements[UITestID.resultScreen].exists)
+
+        room.buttons["戻る"].firstMatch.tap()
+        XCTAssertTrue(app.otherElements[UITestID.home].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.demoRoomCard].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertFalse(app.buttons[UITestID.othersRoomCard].exists)
     }
 }

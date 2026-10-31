@@ -116,6 +116,8 @@ enum UITestID {
     static let offlineBanner = "offline.banner"
     /// 端末がオフラインのことにする起動引数（`LaunchContext.networkOfflineArgument`）
     static let networkOfflineArgument = "-network-offline"
+    /// ほかの人が作ったルームで準備OKにしたら、作成者がルームを途中で終了したことにする起動引数（`LaunchContext.ownerEndsRoomArgument`）
+    static let ownerEndsRoomArgument = "-ui-owner-ends-room"
     /// S-07 の「準備OK n/m」（`RoomView.Identifier.readyCount`）
     static let roomReadyCount = "room.readyCount"
     /// S-07 のヒント文言（`RoomView.Identifier.readyHint`）
@@ -144,6 +146,8 @@ enum UITestID {
     static let roomSettingsEndRoom = "roomSettings.endRoom"
     /// S-07 の下部の「行き先きっぷを見る」（`RoomGachaBar.Identifier.result`）
     static let roomResult = "room.result"
+    /// S-07 の下部の「このルームは終了しています」（`RoomGachaBar.Identifier.ended`）
+    static let roomEnded = "room.ended"
     /// S-14 結果（`ResultView.Identifier.screen`）
     static let resultScreen = "result.screen"
     /// S-14 の「行き先が決まりました」（`ResultView.Identifier.title`）
