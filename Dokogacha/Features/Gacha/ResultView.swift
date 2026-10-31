@@ -17,6 +17,8 @@ import SwiftUI
 ///
 /// 表示したときに、きっぷがポップインし（04 の §5 の `pop`。0.45 秒）、0.5 秒後にハンコを押す（`stamp`）。
 /// 「視差効果を減らす」ではフェード（0.2 秒）だけにする。撮影モード・UI テストでは `animatesIn` を false にして止める。
+/// S-13 から替わった直後で、起動引数で演出の案（`ResultRevealStyle`。Issue #158）を選んだときは、`ResultRevealStage` で案の演出を流す。
+/// 演出の間は見出し・レア当選・ボタン・引き直しの欄・下部の決定を隠し、行き先が分かったら見出しとレア当選を、演出を終えたら残りを出す。
 /// 文字を大きくしたときは、全体をスクロールし、2 列のボタンを縦に並べる。
 struct ResultView: View {
     /// UI テストが探す ID
@@ -43,6 +45,10 @@ struct ResultView: View {
     private static let rareBadgeSize: CGFloat = 13
     /// ポップインの前のきっぷの大きさ（04 の §5 の `pop`「0.7倍・透明 → 等倍」）
     private static let popStartScale: CGFloat = 0.7
+    /// 演出の案で、隠していた見出し・ボタンを出す時間
+    private static let revealFadeDuration = 0.3
+    /// 演出の案で、見出しの後にレア当選を出すまでの間
+    private static let rareBadgeDelay = 0.08
 
     @State private var model: ResultModel
     /// トーストの窓口（フルスクリーンカバーの中に重ねる。親が描き直しても最初のものを使い続ける）
@@ -57,6 +63,12 @@ struct ResultView: View {
     @State private var sharedImage: SharedImage?
     /// VoiceOver の選択を「行き先が決まりました」に置くか（きっぷが出たときに 1 回だけ移す）
     @AccessibilityFocusState private var isTitleFocused: Bool
+    /// 演出の案の段階（案を流さないときは使わない）
+    @State private var revealPhase: ResultRevealPhase = .revealing
+    /// 演出の案（起動引数で選ぶ。既定は今の演出）
+    @Environment(\.resultRevealStyle) private var revealStyle
+    /// S-14 にどこから入ったか（S-13 から替わった直後だけ案の演出を流す）
+    @Environment(\.resultEntrance) private var entrance
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -91,6 +103,7 @@ struct ResultView: View {
             .scrollBounceBehavior(.basedOnSize)
             // 下部に固定する「この行き先で決定」（作成者）・説明（作成者以外）。F-44
             ResultCloseSection(result: model)
+                .modifier(RevealedModifier(isShown: showsActions, rises: !reduceMotion, animation: revealAnimation))
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .accessibilityElement(children: .contain)
@@ -129,29 +142,75 @@ struct ResultView: View {
     private func loadedContent(_ ticket: ResultTicket) -> some View {
         VStack(spacing: DGSpacing.s16) {
             title
+                .modifier(RevealedModifier(isShown: showsHeadline, rises: !reduceMotion, animation: revealAnimation))
             if ticket.isRare {
                 rareBadge
+                    .modifier(RevealedModifier(
+                        isShown: showsHeadline,
+                        rises: !reduceMotion,
+                        animation: revealAnimation.delay(reduceMotion ? 0 : Self.rareBadgeDelay)
+                    ))
             }
-            ResultTicketView(ticket: ticket, stampAnimatesIn: animatesIn)
-                .scaleEffect(hasPopped || reduceMotion ? 1 : Self.popStartScale)
-                .opacity(hasPopped ? 1 : 0)
-                .onAppear {
-                    popIn()
-                    // S-13 から替わったとき・ルームから開いたときに、VoiceOver で結果の見出しから読めるようにする（PR #72 の持ち越し）
-                    isTitleFocused = true
+            if playsReveal {
+                ResultRevealStage(
+                    style: revealStyle,
+                    ticket: ticket,
+                    capsuleColor: .dgCapsule(at: model.winnerColorIndex),
+                    flapNames: model.drawnCandidateNames,
+                    capsuleCount: model.drawnCandidateNames.count
+                ) { phase in
+                    revealPhase = phase
+                    if phase == .decided {
+                        // 行き先が分かったら、VoiceOver で結果の見出しから読めるようにする
+                        isTitleFocused = true
+                    }
                 }
                 .accessibilityIdentifier(Identifier.ticket)
-            actions(ticket)
-                .padding(.top, DGSpacing.s4)
-            ResultRerollSection(
-                state: model.rerollPanel,
-                isSending: model.isSendingReroll,
-                onPropose: model.proposeRerollTapped,
-                onVote: { model.voteTapped(approve: $0) },
-                onPlayAgain: onPlayAgain
-            )
+            } else {
+                ResultTicketView(ticket: ticket, stampAnimatesIn: animatesIn)
+                    .scaleEffect(hasPopped || reduceMotion ? 1 : Self.popStartScale)
+                    .opacity(hasPopped ? 1 : 0)
+                    .onAppear {
+                        popIn()
+                        // S-13 から替わったとき・ルームから開いたときに、VoiceOver で結果の見出しから読めるようにする（PR #72 の持ち越し）
+                        isTitleFocused = true
+                    }
+                    .accessibilityIdentifier(Identifier.ticket)
+            }
+            Group {
+                actions(ticket)
+                    .padding(.top, DGSpacing.s4)
+                ResultRerollSection(
+                    state: model.rerollPanel,
+                    isSending: model.isSendingReroll,
+                    onPropose: model.proposeRerollTapped,
+                    onVote: { model.voteTapped(approve: $0) },
+                    onPlayAgain: onPlayAgain
+                )
+            }
+            .modifier(RevealedModifier(isShown: showsActions, rises: !reduceMotion, animation: revealAnimation))
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// 演出の案を流すか（S-13 から替わった直後で、今の演出でない案を選んでいて、動かしてよいとき）
+    private var playsReveal: Bool {
+        animatesIn && entrance == .afterOpening && revealStyle != .pop
+    }
+
+    /// 見出し・レア当選を出しているか（案の演出では、行き先が分かってから）
+    private var showsHeadline: Bool {
+        !playsReveal || revealPhase >= .decided
+    }
+
+    /// ボタン・引き直しの欄・下部の決定を出しているか（案の演出では、演出を終えてから。きっぷを作れなかったときは演出が無いので出す）
+    private var showsActions: Bool {
+        !playsReveal || revealPhase >= .settled || model.loadState == .missing || model.loadState == .unavailable
+    }
+
+    /// 隠していた見出し・ボタンを出す動き（「視差効果を減らす」ではフェード 0.2 秒）
+    private var revealAnimation: Animation {
+        reduceMotion ? DGMotion.reducedFade : .easeOut(duration: Self.revealFadeDuration)
     }
 
     /// 「行き先が決まりました」（見出し 22pt）
@@ -292,6 +351,28 @@ struct ResultView: View {
         withAnimation(reduceMotion ? DGMotion.reducedFade : DGMotion.popSpring) {
             hasPopped = true
         }
+    }
+}
+
+/// 演出の案で、隠していたものを出す（隠している間は押せず、VoiceOver でも読まない）
+private struct RevealedModifier: ViewModifier {
+    /// 出すときに下から上がる距離
+    private static let riseDistance: CGFloat = 8
+
+    /// 出しているか
+    let isShown: Bool
+    /// 出すときに下から上げるか（「視差効果を減らす」ではフェードだけ）
+    let rises: Bool
+    /// 出す動き
+    let animation: Animation
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isShown ? 1 : 0)
+            .offset(y: isShown || !rises ? 0 : Self.riseDistance)
+            .allowsHitTesting(isShown)
+            .accessibilityHidden(!isShown)
+            .animation(animation, value: isShown)
     }
 }
 

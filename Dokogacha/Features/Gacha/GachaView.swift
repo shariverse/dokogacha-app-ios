@@ -38,6 +38,8 @@ struct GachaView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// S-14 の演出の案（開いた瞬間の触覚を選ぶ）
+    @Environment(\.resultRevealStyle) private var revealStyle
 
     /// - Parameters:
     ///   - model: 画面の状態（最初の 1 回だけ使う）
@@ -70,7 +72,7 @@ struct GachaView: View {
         .accessibilityIdentifier(Identifier.screen)
         .dgToast(toasts)
         .sensoryFeedback(trigger: model.cue) { _, event in
-            event?.cue.feedback
+            event?.cue.feedback(revealStyle: revealStyle)
         }
         .task {
             model.reducesMotion = reduceMotion || forcesReducedMotion
@@ -182,6 +184,15 @@ extension GachaCue {
         case .capsuleLanded: .impact(weight: .medium)
         case .capsuleOpened: .success
         }
+    }
+
+    /// S-14 の演出の案に合わせた触覚。案の演出では「決まった」の `.success` を S-14 の決まる瞬間に鳴らすので、
+    /// 開いた瞬間は `.impact(.medium)` にする（決まる前に「決まった」を鳴らさない。Issue #158）
+    func feedback(revealStyle: ResultRevealStyle) -> SensoryFeedback {
+        if self == .capsuleOpened, revealStyle != .pop {
+            return .impact(weight: .medium)
+        }
+        return feedback
     }
 }
 

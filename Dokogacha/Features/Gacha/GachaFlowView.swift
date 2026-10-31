@@ -11,7 +11,8 @@ import SwiftUI
 /// 引き直しが可決して S-14 の「ガチャを回す」が押されたら、同じカバーの中で S-13 に戻す（新しい S-13 は、除外の後の候補で待機から始まる）。
 /// 可決の後にほかの人が先に回し直したときは、S-14 のまま「結果を見る」を出し、押されたら S-13 に戻す（新しい S-13 が新しい抽選の演出を再生する）。
 /// `drawn`・`closed` のルームを開いたとき（`AppRoute.result`）は S-14 から始める。
-/// 「視差効果を減らす」ではフェード（0.2 秒）で、そうでなければ少し長めのフェードで替える
+/// 「視差効果を減らす」ではフェード（0.2 秒）で、そうでなければ少し長めのフェードで替える。
+/// S-13 から替えた S-14 には、`resultEntrance` を `afterOpening` にして渡す（S-14 が演出の案を流すかを決める。Issue #158）
 struct GachaFlowView<Gacha: View, Result: View>: View {
     /// 出している画面
     enum Stage: Hashable {
@@ -28,6 +29,8 @@ struct GachaFlowView<Gacha: View, Result: View>: View {
 
     /// 出している画面
     @State private var stage: Stage
+    /// S-13 でカプセルを開けて S-14 に替えたことがあるか（初めから S-14 で開いたときは false のまま）
+    @State private var hasOpenedCapsule = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// - Parameters:
@@ -57,6 +60,7 @@ struct GachaFlowView<Gacha: View, Result: View>: View {
                 result(drawID) {
                     move(to: .gacha(round: round + 1))
                 }
+                .environment(\.resultEntrance, hasOpenedCapsule ? .afterOpening : .direct)
                 .id(stage)
                 .transition(.opacity)
             }
@@ -68,6 +72,9 @@ struct GachaFlowView<Gacha: View, Result: View>: View {
     /// 同じカバーの中の切り替えなので、知らせないと VoiceOver は前の画面の要素を選んだまま変化に気づかない（PR #72 の持ち越し）。
     /// S-14 では、出てきたときに「行き先が決まりました」の見出しへ VoiceOver の選択を移す（`ResultView`）
     private func move(to next: Stage) {
+        if case .result = next {
+            hasOpenedCapsule = true
+        }
         withAnimation(reduceMotion ? DGMotion.reducedFade : .easeInOut(duration: DGMotion.pop.duration)) {
             stage = next
         }

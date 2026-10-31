@@ -306,7 +306,10 @@ struct MainNavigationView: View {
             reportedCandidates: services.reportedCandidates,
             analytics: services.analytics
         )
-        return ResultView(model: model, toasts: coverToasts, animatesIn: !LaunchContext.current.isUITesting, onPlayAgain: onPlayAgain)
+        // UI テストでも、演出の案を選んだときは流す（案の演出の後に結果が出ることを確かめる。Issue #158）
+        let launch = LaunchContext.current
+        let animatesIn = !launch.isUITesting || launch.resultRevealStyle != nil
+        return ResultView(model: model, toasts: coverToasts, animatesIn: animatesIn, onPlayAgain: onPlayAgain)
     }
 
     /// S-10 候補の詳細（シート）。トーストはシートの中に重ねるので、シート用の窓口を作って渡す

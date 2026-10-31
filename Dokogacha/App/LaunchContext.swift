@@ -28,6 +28,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// オンライン必須の操作を止めることを確かめる。Simulator の回線はテストから切れないため）
     static let networkOfflineArgument = "-network-offline"
 
+    /// デバッグ用: S-14 で行き先きっぷを出す演出の案を選ぶ起動引数（`-result-animation <案>`。`ResultRevealStyle` の rawValue。Issue #158）。
+    /// 案を見比べて 1 つを選ぶまでの切り替えなので、Debug ビルドでだけ読む（Release・Stg では選べず、いつも今の演出）
+    static let resultRevealStyleArgument = "-result-animation"
+
     /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
     /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
     static let unitTestHostEnvironmentKeys = ["XCTestConfigurationFilePath", "XCTestBundlePath", "XCTestSessionIdentifier"]
@@ -51,6 +55,8 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let autoMembers: Bool
     /// オフラインのことにするか（`-network-offline`。`-uiTesting`・撮影モードのときだけ true になりうる）
     let networkOffline: Bool
+    /// S-14 の演出の案（`-result-animation <案>`。Debug ビルドでだけ読み、指定が無い・知らない値なら nil）
+    let resultRevealStyle: ResultRevealStyle?
 
     /// 起動引数と環境変数から作る
     init(arguments: [String], environment: [String: String]) {
@@ -65,6 +71,11 @@ nonisolated struct LaunchContext: Equatable, Sendable {
             arguments: arguments,
             fallback: isScreenshotDemo ? DemoScenario.screenshotFallback : DemoScenario.fallback
         )
+        #if DEBUG
+        resultRevealStyle = Self.value(after: Self.resultRevealStyleArgument, in: arguments).flatMap(ResultRevealStyle.init(rawValue:))
+        #else
+        resultRevealStyle = nil
+        #endif
         if isUITesting || isScreenshotDemo {
             openURL = Self.value(after: Self.openURLArgument, in: arguments).flatMap { URL(string: $0) }
             openNotification = Self.value(after: Self.openNotificationArgument, in: arguments).flatMap(Self.payload(fromJSON:))
