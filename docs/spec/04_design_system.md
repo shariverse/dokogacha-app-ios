@@ -151,7 +151,7 @@ Dynamic Type に追従させる（`Font.custom(_:size:relativeTo:)`）。
 | 最小タップ領域 | 44×44 |
 | 本文の最大幅 `layout.contentMaxWidth` | 600（左右の余白 16 を除く。iPad の広い画面では中央に寄せる） |
 | 2 列の画面の本文の最大幅 `layout.wideContentMaxWidth` | 1000（ホーム・ルームを 2 列に分けたとき） |
-| 2 列に分けるときの 1 列の最小の幅 `layout.columnMinWidth` | 320 |
+| 2 列に分けるときの 1 列の最小の幅 `layout.columnMinWidth` | 358（iPhone 15 の本文の幅。列を iPhone より狭くしない） |
 | ルームの左の列の幅 `layout.sidePaneWidth` | 360（ルームパネルとガチャのボタン） |
 
 iPad での使い方は 03 の §3「iPad」。iPhone の画面の幅はどれも本文の最大幅より狭いので、iPhone の見た目は変わらない。

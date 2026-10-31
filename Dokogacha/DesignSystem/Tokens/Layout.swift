@@ -18,8 +18,10 @@ nonisolated enum DGLayout {
     static let contentMaxWidth: CGFloat = 600
     /// 2 列に分けた画面（ホーム・ルーム）の本文の最大幅（左右の余白を除く。`layout.wideContentMaxWidth`）
     static let wideContentMaxWidth: CGFloat = 1000
-    /// 2 列に分けるときの、1 列の本文の最小の幅（`layout.columnMinWidth`）
-    static let columnMinWidth: CGFloat = 320
+    /// 2 列に分けるときの、1 列の本文の最小の幅（`layout.columnMinWidth`）。
+    /// iPhone 15（03 の寸法の基準。幅 390）の本文の幅と同じにし、列が iPhone の画面より狭くならないようにする
+    /// （iPad mini の縦（744）では分けない。分けると、きっぷの行き先や候補の名前が折り返し、ひとことが省略される）
+    static let columnMinWidth: CGFloat = 358
     /// ルームを 2 列に分けたときの、左の列（ルームパネルとガチャのボタン）の本文の幅（`layout.sidePaneWidth`）
     static let sidePaneWidth: CGFloat = 360
     /// ホームを 2 列に分けたときの列のあいだ（`spacing.s24`）

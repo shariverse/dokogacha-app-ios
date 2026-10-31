@@ -35,20 +35,27 @@ struct LayoutTests {
         #expect(widestIPhone <= DGLayout.contentMaxWidth + DGSpacing.screenX * 2)
     }
 
-    /// iPad を全画面で使うとき（縦・横。mini の縦の 744 を含む）は、ホームもルームも 2 列にする
-    @Test(arguments: [744, 820, 834, 1032, 1133, 1180, 1210, 1376] as [CGFloat])
+    /// iPad を全画面で使うとき（11 インチ以上の縦・横と、mini の横）は、ホームもルームも 2 列にする
+    @Test(arguments: [820, 834, 1032, 1133, 1180, 1210, 1376] as [CGFloat])
     func iPadFullScreenSplits(width: CGFloat) {
         #expect(DGLayout.splitsHome(width: width, sizeClass: .regular))
         #expect(DGLayout.splitsRoom(width: width, sizeClass: .regular))
     }
 
-    /// regular でも、列の最小の幅が取れない狭いウィンドウでは分けない（ホームは 696、ルームは 744 から分ける）
+    /// iPad mini の縦（744）は、列が iPhone の本文の幅より狭くなるので分けない（本文の列 1 つで出す）
+    @Test
+    func iPadMiniPortraitDoesNotSplit() {
+        #expect(!DGLayout.splitsHome(width: 744, sizeClass: .regular))
+        #expect(!DGLayout.splitsRoom(width: 744, sizeClass: .regular))
+    }
+
+    /// regular でも、列の最小の幅が取れない狭いウィンドウでは分けない（ホームは 772、ルームは 782 から分ける）
     @Test
     func splitsFromThresholdWidth() {
-        #expect(!DGLayout.splitsHome(width: 695, sizeClass: .regular))
-        #expect(DGLayout.splitsHome(width: 696, sizeClass: .regular))
-        #expect(!DGLayout.splitsRoom(width: 743, sizeClass: .regular))
-        #expect(DGLayout.splitsRoom(width: 744, sizeClass: .regular))
+        #expect(!DGLayout.splitsHome(width: 771, sizeClass: .regular))
+        #expect(DGLayout.splitsHome(width: 772, sizeClass: .regular))
+        #expect(!DGLayout.splitsRoom(width: 781, sizeClass: .regular))
+        #expect(DGLayout.splitsRoom(width: 782, sizeClass: .regular))
     }
 
     /// size class が分からないときは分けない
