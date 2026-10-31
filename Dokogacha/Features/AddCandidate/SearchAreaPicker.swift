@@ -14,7 +14,7 @@ import SwiftUI
 ///   選んだ市区町村は「選ぶ」の代わりに名前で出し、押すと選び直せる
 ///
 /// 選んでいる段のチップを塗る。どの行も「〇〇全体」を押せば一段上に戻れる（地方のチップを押し直しても、その地方全体に戻る）。
-/// 文字を大きくしても切れないよう、行ごとに横にスクロールし、開いたときは選んでいるチップを真ん中に寄せる
+/// 文字を大きくしても切れないよう、行ごとに横にスクロールし、選んでいるチップが画面の外なら見えるところまで寄せる
 struct SearchAreaPicker: View {
     private typealias Identifier = AddCandidateView.Identifier
 
@@ -150,8 +150,8 @@ struct SearchAreaPicker: View {
         }
     }
 
-    /// チップの 1 行。横にスクロールし、開いたときは選んでいるチップ（`selection` の ID）を真ん中に寄せる（端なら寄せられるところまで）。
-    /// 選び直したときは、選んだチップが見えるところまでだけ動かす（押したチップは見えているので、たいてい動かない）
+    /// チップの 1 行。横にスクロールし、選んでいるチップ（`selection` の ID）が画面の外なら、見えるところまでだけ動かす
+    /// （見えていれば動かさないので、行の頭がそろったまま。押したチップは見えているので、選び直しても動かない）
     private func row(label: Text, selection: String, @ViewBuilder chips: () -> some View) -> some View {
         let chips = chips()
         return ScrollViewReader { proxy in
@@ -162,7 +162,7 @@ struct SearchAreaPicker: View {
             }
             .scrollClipDisabled()
             .onAppear {
-                proxy.scrollTo(selection, anchor: .center)
+                proxy.scrollTo(selection)
             }
             .onChange(of: selection) { _, id in
                 withAnimation(reduceMotion ? nil : DGMotion.reducedFade) {

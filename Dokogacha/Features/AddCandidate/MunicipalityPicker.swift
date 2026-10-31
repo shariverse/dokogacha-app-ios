@@ -47,6 +47,8 @@ struct MunicipalityPicker: View {
     private static let messageSize: CGFloat = 13
     /// 選んでいる印の大きさ
     private static let checkSize: CGFloat = 20
+    /// 選んでいる行まで送る前に待つ時間（開いてからシートが出きるまでと、行のまとまりまで送ってから中の行が並ぶまで）
+    private static let scrollToSelectedDelay: Duration = .milliseconds(300)
 
     /// 市区町村の都道府県
     let prefecture: Prefecture
@@ -177,7 +179,7 @@ struct MunicipalityPicker: View {
     private var list: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: DGSpacing.s16, pinnedViews: [.sectionHeaders]) {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                     if !isFiltering {
                         card {
                             row(
@@ -203,6 +205,7 @@ struct MunicipalityPicker: View {
                                     municipalityRow(municipality)
                                 }
                             }
+                            .id(section.row)
                         } header: {
                             sectionHeader(section)
                         }
@@ -212,22 +215,28 @@ struct MunicipalityPicker: View {
                 .padding(.bottom, DGSpacing.s24)
             }
             .scrollDismissesKeyboard(.interactively)
-            .onAppear {
-                // 選んでいる市区町村まで送る（都道府県全体なら一番上のまま）
-                if let selected {
-                    proxy.scrollTo(selected.code, anchor: .center)
+            .task {
+                // 選んでいる市区町村まで送る（都道府県全体なら一番上のまま）。一覧は見えるところだけを並べ、まだ並べていない行は ID で探せないので、
+                // まず行の見出しのまとまりまで送り、並んでからその中の行を真ん中に寄せる
+                guard let selected else {
+                    return
                 }
+                try? await Task.sleep(for: Self.scrollToSelectedDelay)
+                proxy.scrollTo(MunicipalityFilter.kanaRow(of: selected.kana), anchor: .top)
+                try? await Task.sleep(for: Self.scrollToSelectedDelay)
+                proxy.scrollTo(selected.code, anchor: .center)
             }
         }
     }
 
-    /// 五十音の行の見出し（「あ行」。上に留まる間も下の行が透けないよう、画面の背景で塗る）
+    /// 五十音の行の見出し（「あ行」。上のカードとは離し、下のカードには寄せる。上に留まる間も下の行が透けないよう、画面の背景で塗る）
     private func sectionHeader(_ section: KanaSection) -> some View {
         Text("\(section.row)行")
             .font(.dgBody(Self.captionSize, weight: .black, relativeTo: .caption))
             .foregroundStyle(Color.dgTextSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, DGSpacing.s6)
+            .padding(.top, DGSpacing.s16)
+            .padding(.bottom, DGSpacing.s6)
             .background(Color.dgBgBase)
             .accessibilityAddTraits(.isHeader)
     }
