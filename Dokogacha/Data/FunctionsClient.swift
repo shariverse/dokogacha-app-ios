@@ -36,8 +36,8 @@ protocol FunctionsClient {
     func proposeReroll(_ request: RoomRequest) async throws
     /// 引き直しに投票する（F-43）
     func voteReroll(_ request: VoteRerollRequest) async throws
-    /// 作成者がルームを終了する（F-44）
-    func closeRoom(_ request: RoomRequest) async throws
+    /// 作成者がルームを終了する（F-44 の「この行き先で決定」・S-12 の「ルームを終了する」。意図は `CloseRoomRequest.Reason`）
+    func closeRoom(_ request: CloseRoomRequest) async throws
     /// 前回のメンバーを招待する（F-04）
     func inviteLastMembers(_ request: RoomRequest) async throws -> InviteLastMembersResponse
     /// 候補を報告する（F-14）

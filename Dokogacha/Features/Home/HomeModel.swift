@@ -56,6 +56,9 @@ final class HomeModel {
     private(set) var settledWinnerRoomIDs: Set<String> = []
     /// 「すべて見る」を押したか（押したら 6 枚目からも出す）
     private(set) var showsAllMemories = false
+    /// 「すべて見る」を押す前に、きっぷにならないルームが混ざったので上限なしで読み直していて、まだ届いていないか
+    /// （`MemoryTicket.needsAllRooms`。届くまでは空の表示にしない）
+    private(set) var isReadingAllClosedRooms = false
 
     @ObservationIgnored private let repository: any RoomRepository
     @ObservationIgnored private let toasts: DGToastCenter
@@ -100,21 +103,29 @@ final class HomeModel {
         MemoryTicket.visible(memoryTickets, showsAll: showsAllMemories)
     }
 
-    /// 「すべて見る」を出すか
-    var hasMoreMemories: Bool {
-        MemoryTicket.hasMore(roomCount: closedRooms.count, showsAll: showsAllMemories)
+    /// 読んだ終了したルームのうち、きっぷになりうるものの数（行き先が決まらないまま終了したルームを数えない）
+    private var ticketRoomCount: Int {
+        closedRooms.count { MemoryTicket.canBecomeTicket($0.value) }
     }
 
-    /// 終了したルームが 1 つも無いと分かったか（空の表示を出す）
+    /// 「すべて見る」を出すか（きっぷになりうるルームが 5 つより多いとき）
+    var hasMoreMemories: Bool {
+        MemoryTicket.hasMore(roomCount: ticketRoomCount, showsAll: showsAllMemories)
+    }
+
+    /// きっぷになりうる終了したルームが 1 つも無いと分かったか（空の表示を出す）。
+    ///
+    /// 行き先が決まらないまま終了したルーム（抽選の前に途中で終了したなど。`MemoryTicket.canBecomeTicket` が false）は数えない
+    /// （数えると、空の表示もきっぷも出ず、見出しだけのセクションになる）。上限なしで読み直している間は空にしない
     var isMemoriesEmpty: Bool {
-        memoriesState == .loaded && closedRooms.isEmpty
+        memoriesState == .loaded && !isReadingAllClosedRooms && ticketRoomCount == 0
     }
 
     /// 思い出のきっぷを読み込み中の形で出すか（一覧がまだ届いていない・きっぷが 1 枚も無く、当選した候補をまだ待っているルームがある）。
     ///
     /// 当選した候補の購読が失敗した・候補が無かったルームは待たない（読み込み中のまま止めない。購読は裏で読み直し続ける）
     var isMemoriesLoading: Bool {
-        if memoriesState == .loading {
+        if memoriesState == .loading || (isReadingAllClosedRooms && ticketRoomCount == 0) {
             return true
         }
         let watched = MemoryTicket.watchedRooms(closedRooms, showsAll: showsAllMemories)
@@ -215,6 +226,7 @@ final class HomeModel {
         showAllListeners[listenerID] = { continuation.yield(.showAll) }
         var winnerTasks: [String: Task<Void, Never>] = [:]
         var feed = followClosedRooms(limit: showsAllMemories ? nil : MemoryTicket.queryLimit, into: continuation)
+        var readsAll = showsAllMemories
         defer {
             showAllListeners[listenerID] = nil
             feed.cancel()
@@ -227,8 +239,23 @@ final class HomeModel {
         for await event in events {
             switch event {
             case let .rooms(value):
+                isReadingAllClosedRooms = false
                 applyClosed(value, winnerTasks: &winnerTasks)
+                // きっぷにならないルームが混ざっていたら、「すべて見る」を出すかを決めるために上限なしで読み直す
+                let ticketCount = value.count { MemoryTicket.canBecomeTicket($0.value) }
+                if !readsAll, MemoryTicket.needsAllRooms(roomCount: value.count, ticketRoomCount: ticketCount) {
+                    readsAll = true
+                    isReadingAllClosedRooms = true
+                    feed.cancel()
+                    feed = followClosedRooms(limit: nil, into: continuation)
+                }
             case .showAll:
+                guard !readsAll else {
+                    // もう上限なしで読んでいるので、残りのルームの当選した候補を購読し始めるだけ
+                    applyClosed(closedRooms, winnerTasks: &winnerTasks)
+                    continue
+                }
+                readsAll = true
                 feed.cancel()
                 feed = followClosedRooms(limit: nil, into: continuation)
                 // 上限なしの一覧が届く前に、読んである 6 つ目のルームの当選した候補も購読し始める
@@ -262,7 +289,10 @@ final class HomeModel {
         memoriesState = .loaded
         let watched = MemoryTicket.watchedRooms(value, showsAll: showsAllMemories)
         let winners = Dictionary(
-            watched.compactMap { room in room.winnerCandidateId.map { (room.id, $0) } },
+            // きっぷにならないルーム（行き先が決まらないまま終了した）の当選した候補は読まない
+            watched
+                .filter { MemoryTicket.canBecomeTicket($0.value) }
+                .compactMap { room in room.winnerCandidateId.map { (room.id, $0) } },
             uniquingKeysWith: { first, _ in first }
         )
         for (roomID, task) in winnerTasks where winners[roomID] == nil {

@@ -24,6 +24,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// UI テストは 1 台の端末しか操作できないので、06 の §2 の通しのシナリオで使う。`-uiTesting` のときだけ効く
     static let autoMembersArgument = "-ui-auto-members"
 
+    /// UI テストで、ほかの人が作ったルームで自分が準備OKになっていたら、その作成者がルームを途中で終了したことにする起動引数（`InMemoryOwnerEndsRoom`）。
+    /// 開いている間に終了したときの画面を確かめる。`-uiTesting` のときだけ効く
+    static let ownerEndsRoomArgument = "-ui-owner-ends-room"
+
     /// UI テスト・撮影モードで、端末がオフラインのことにする起動引数（`NetworkStatus`。「オフラインです」のバナーと、
     /// オンライン必須の操作を止めることを確かめる。Simulator の回線はテストから切れないため）
     static let networkOfflineArgument = "-network-offline"
@@ -57,6 +61,8 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let openNotification: [String: String]?
     /// ほかのメンバーの操作を擬似のサーバーが自動で返すか（`-ui-auto-members`。`-uiTesting` のときだけ true になりうる）
     let autoMembers: Bool
+    /// ほかの人が作ったルームを、準備OKにしたら作成者が途中で終了するか（`-ui-owner-ends-room`。`-uiTesting` のときだけ true になりうる）
+    let ownerEndsRoom: Bool
     /// オフラインのことにするか（`-network-offline`。`-uiTesting`・撮影モードのときだけ true になりうる）
     let networkOffline: Bool
     /// S-14 の演出（`-result-animation <演出>`。`-uiTesting`・撮影モードのときだけ読み、指定が無い・知らない値なら nil）
@@ -71,6 +77,7 @@ nonisolated struct LaunchContext: Equatable, Sendable {
         isScreenshotDemo = arguments.contains(ScreenshotDemo.argument)
         showsAdPlaceholder = isScreenshotDemo && arguments.contains(ScreenshotDemo.adPlaceholderArgument)
         autoMembers = isUITesting && arguments.contains(Self.autoMembersArgument)
+        ownerEndsRoom = isUITesting && arguments.contains(Self.ownerEndsRoomArgument)
         networkOffline = (isUITesting || isScreenshotDemo) && arguments.contains(Self.networkOfflineArgument)
         reducesRevealMotion = isUITesting && arguments.contains(Self.reduceMotionArgument)
         // 撮影モード（App Store の画面）は、シナリオを指定しなければルームが並んだ状態で撮る

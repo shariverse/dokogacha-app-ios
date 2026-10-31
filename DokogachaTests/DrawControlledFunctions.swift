@@ -108,7 +108,7 @@ final class DrawControlledFunctions: FunctionsClient {
         try await server.voteReroll(request)
     }
 
-    func closeRoom(_ request: RoomRequest) async throws {
+    func closeRoom(_ request: CloseRoomRequest) async throws {
         try await server.closeRoom(request)
     }
 

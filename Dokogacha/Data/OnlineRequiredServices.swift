@@ -82,7 +82,7 @@ struct OnlineRequiredFunctionsClient: FunctionsClient {
         try await base.voteReroll(request)
     }
 
-    func closeRoom(_ request: RoomRequest) async throws {
+    func closeRoom(_ request: CloseRoomRequest) async throws {
         try network.requireOnline()
         try await base.closeRoom(request)
     }

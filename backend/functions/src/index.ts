@@ -94,7 +94,7 @@ export const updateRoomSettings = onCall((request) =>
   runCallable("updateRoomSettings", request, (uid, data) => settings.updateRoomSettings(deps(), uid, data)),
 );
 
-/** ルームの終了（02 の F-44）: closeRoom（作成者の決定）・autoCloseRooms（抽選から 7 日）・onRoomClosed（過去のアイデアの登録） */
+/** ルームの終了（02 の F-44）: closeRoom（作成者の決定・途中の終了）・autoCloseRooms（抽選から 7 日）・onRoomClosed（過去のアイデアの登録） */
 export { autoCloseRooms, closeRoom, onRoomClosed } from "./close/functions";
 
 /** 前回のメンバーへの招待（02 の F-04）: inviteLastMembers */

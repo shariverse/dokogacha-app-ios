@@ -13,10 +13,11 @@ extension InMemoryServer {
     /// ルームを終了する（backend の `closeRoom`）。呼んだ人の uid を `callerID` で受け取る（ほかのメンバーの端末 `Device` からも呼ぶ）。
     ///
     /// 入力の検証 → ルーム（無ければ `room-not-found`）→ メンバーか（`not-room-member`）→ 作成者か（`not-room-owner`）
-    /// → 状態（`drawn` なら終了・`closed` なら何もしない・`open`・`unlocked` は `room-not-drawn`）の順に確かめる。
+    /// → 状態と意図（`RoomClosing.decision`。`closed` なら何もしない・`decide` は `drawn` だけ（違えば `room-not-drawn`）・
+    /// `endEarly` は `open`・`unlocked` だけ（`drawn` は `room-already-decided`））の順に確かめる。
     /// 引き直しの投票中なら、終了と同時に否決にする（backend の `rerollUpdateOnClose`。投票中のまま残すと `expireRerolls` が
     /// 終了したルームを後から書き換える）。終了したら、当選しなかった候補を各メンバーの過去のアイデアに登録する
-    func closeRoom(_ request: RoomRequest, by callerID: String?) throws {
+    func closeRoom(_ request: CloseRoomRequest, by callerID: String?) throws {
         let userID = try Self.requireCaller(callerID)
         let roomID = try Self.documentID(request.roomId)
         guard var record = rooms[roomID] else {
@@ -28,13 +29,13 @@ extension InMemoryServer {
         guard record.room.ownerId == userID else {
             throw Self.error(.notRoomOwner)
         }
-        switch record.room.status {
-        case .drawn:
+        switch RoomClosing.decision(status: record.room.status, reason: request.reason) {
+        case .close:
             break
-        case .closed:
+        case .alreadyClosed:
             return
-        case .open, .unlocked:
-            throw Self.error(.roomNotDrawn)
+        case .reject(let reason):
+            throw Self.error(reason)
         }
         record.room.status = .closed
         record.room.closedAt = clock()

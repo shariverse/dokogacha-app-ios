@@ -32,7 +32,8 @@ nonisolated enum DrawReplay {
     ///   - previous: 出していたルームの状態（まだ届いていなければ nil）
     ///   - room: 届いたルーム
     static func resultDrawID(previous: RoomStatus?, room: Room) -> String? {
-        guard previous == nil, room.status == .drawn || room.status == .closed,
+        // 行き先が決まらないまま終了したルーム（引き直しの可決の後に終了した）は、前の当選の抽選の ID が残っていても開かない
+        guard previous == nil, room.status == .drawn || room.status == .closed, !RoomClosing.endedWithoutResult(room),
               let drawID = room.currentDrawId, !drawID.isEmpty else {
             return nil
         }

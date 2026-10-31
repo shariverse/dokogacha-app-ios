@@ -286,7 +286,8 @@ struct MainNavigationView: View {
         )
     }
 
-    /// S-12 ルーム設定（シート）。保存できたら、シートを閉じてトーストで知らせる
+    /// S-12 ルーム設定（シート）。保存できたら、シートを閉じてトーストで知らせる。
+    /// ルームを終了できたら、シートを閉じてホームに戻り、トーストで知らせる（S-11 の退出と同じ戻り方）
     private func roomSettings(roomID: String) -> some View {
         let sheetToasts = DGToastCenter()
         let model = RoomSettingsModel(
@@ -294,12 +295,22 @@ struct MainNavigationView: View {
             userID: userID,
             repository: services.rooms,
             functions: services.functions,
-            toasts: sheetToasts
+            toasts: sheetToasts,
+            analytics: services.analytics
         )
-        return RoomSettingsView(model: model, toasts: sheetToasts) {
-            presentation.closeSheet()
-            toasts.show("設定を保存しました")
-        }
+        return RoomSettingsView(
+            model: model,
+            toasts: sheetToasts,
+            onEnded: {
+                presentation.closeSheet()
+                presentation.path = []
+                toasts.show("ルームを終了しました")
+            },
+            onSaved: {
+                presentation.closeSheet()
+                toasts.show("設定を保存しました")
+            }
+        )
     }
 
     /// S-13 ガチャ（フルスクリーンカバー）。トーストはカバーの中に重ねるので、カバー用の窓口を作って渡す。

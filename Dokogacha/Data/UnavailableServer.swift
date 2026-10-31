@@ -169,7 +169,7 @@ final class UnavailableServer: AuthService, RoomRepository, FunctionsClient {
         throw error
     }
 
-    func closeRoom(_ request: RoomRequest) async throws {
+    func closeRoom(_ request: CloseRoomRequest) async throws {
         throw error
     }
 

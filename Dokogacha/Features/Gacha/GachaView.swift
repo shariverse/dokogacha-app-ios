@@ -158,6 +158,7 @@ extension GachaCaption {
     var title: LocalizedStringResource {
         switch self {
         case .ready, .noCandidates, .locked: "レバーを回してね"
+        case .ended: "このルームは終了しています"
         case .spinning: "ガラガラ…"
         case let .drawnByOther(name): "\(name)さんが回しました！"
         case .landed: "ころん！"
@@ -172,6 +173,7 @@ extension GachaCaption {
         case .locked: "まだガチャは解禁されていません"
         case .spinning, .drawnByOther: "どこに決まるかな"
         case .landed: "行き先を発表します"
+        case .ended: "ガチャは回せません"
         }
     }
 }

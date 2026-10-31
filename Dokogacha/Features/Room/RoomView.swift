@@ -424,20 +424,24 @@ extension RoomView {
         .accessibilityIdentifier(Identifier.candidate(row.id))
     }
 
-    /// 候補が 0 件のとき（カプセルのイラスト・案内・「候補を追加」）
+    /// 候補が 0 件のとき（カプセルのイラスト・案内・「候補を追加」）。
+    /// 作成者が抽選の前に途中で終了したルームでは、もう投稿できないので「候補はありません」だけを出す（Discussion #155）
     private var emptyState: some View {
         let shape = RoundedRectangle(cornerRadius: DGRadius.lg)
+        let isEnded = model.gachaButtonState == .ended
         return VStack(spacing: DGSpacing.s12) {
             CapsuleBall(color: .dgCapsule(at: 0))
                 .frame(width: Self.emptyCapsuleSize, height: Self.emptyCapsuleSize)
                 .accessibilityHidden(true)
-            Text("まだ候補がありません。行きたい場所を投稿しよう！")
+            Text(isEnded ? "候補はありません" : "まだ候補がありません。行きたい場所を投稿しよう！")
                 .font(.dg(.bodyRegular))
                 .foregroundStyle(Color.dgTextSecondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier(Identifier.empty)
-            addCandidateButton(identifier: Identifier.emptyAddCandidate)
+            if !isEnded {
+                addCandidateButton(identifier: Identifier.emptyAddCandidate)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(DGSpacing.s24)

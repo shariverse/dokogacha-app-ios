@@ -229,7 +229,7 @@ service cloud.firestore {
 | `checkDeadlines` | スケジュール（5分ごと） | 締切を過ぎた `open` ルームを `unlocked` に。24時間を過ぎた引き直しの投票も否決にする（`expireRerolls` の処理。Cloud Scheduler の無料枠の 3 ジョブに収めるため同じスケジュールで動かす） |
 | `drawGacha` | callable | 下記 |
 | `proposeReroll` / `voteReroll` | callable | F-43。可決で除外リストに追加し `unlocked` に戻す |
-| `closeRoom` | callable | 作成者のみ。`closed` にし、各メンバーの `pastIdeas` を作成 |
+| `closeRoom` | callable | 作成者のみ。入力 `{ roomId, reason }`。`reason` が `decide`（「この行き先で決定」。省略時も）なら `drawn`、`endEarly`（S-12 の「ルームを終了する」）なら `open`・`unlocked` のときだけ `closed` にする（状態が合わなければ `room-not-drawn`・`room-already-decided`。もう `closed` なら何もしない）。`endEarly` で終了したら、作成者以外にプッシュ通知を送る。`pastIdeas` は `onRoomClosed` が作る（行き先が決まらないまま終了したルームは作らない） |
 | `autoCloseRooms` | スケジュール（1日1回） | 抽選から7日経過した `drawn` を `closed` に（`closeRoom` と同じ処理） |
 | `inviteLastMembers` | callable | 前回ルームのメンバーに招待通知 |
 | `notifyNewCandidates` | スケジュール（1日1回、20:00 JST） | 新しい候補のまとめ通知 |
@@ -317,5 +317,5 @@ func shouldShowAds(screen: Screen, me: UserProfile, room: Room?) -> Bool {
 | `gacha_draw` | `candidate_count`, `is_reroll`, `rare` |
 | `ticket_share` | |
 | `reroll_propose` / `reroll_result` | `passed` |
-| `room_close` | `auto` |
+| `room_close` | `auto`, `early` |
 | `purchase_remove_ads` | |

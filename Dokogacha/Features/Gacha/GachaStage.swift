@@ -53,6 +53,8 @@ nonisolated enum GachaCaption: Equatable, Sendable {
     case drawnByOther(name: String)
     /// 取り出し（「ころん！」／「行き先を発表します」。カプセルが落ちてから結果の画面に替わるまで）
     case landed
+    /// 待機中に、作成者がルームを途中で終了した（「このルームは終了しています」／「ガチャは回せません」。Discussion #155）
+    case ended
 
     /// 段階とルームの状態から、出す文言を選ぶ
     /// - Parameters:
@@ -61,9 +63,20 @@ nonisolated enum GachaCaption: Equatable, Sendable {
     ///   - status: ルームの状態（読み込む前は nil）
     ///   - isReroll: 引き直しの抽選か（除外した候補がある）
     ///   - capsuleCount: 抽選の対象の候補の数
-    static func make(phase: GachaPhase, drawnByName: String?, status: RoomStatus?, isReroll: Bool, capsuleCount: Int) -> Self {
+    ///   - endedWithoutResult: 行き先が決まらないまま終了したか（`RoomClosing.endedWithoutResult`）
+    static func make(
+        phase: GachaPhase,
+        drawnByName: String?,
+        status: RoomStatus?,
+        isReroll: Bool,
+        capsuleCount: Int,
+        endedWithoutResult: Bool = false
+    ) -> Self {
         switch phase {
         case .idle:
+            if endedWithoutResult {
+                return .ended
+            }
             if status == .drawn || status == .closed {
                 // ほかの人が回した直後（回した人の名前を読んでいる間）。03 の S-13 の表の「他の人が回した」（名前が分からなければ回転中）
                 return drawnByName.map(Self.drawnByOther(name:)) ?? .spinning

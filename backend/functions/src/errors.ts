@@ -26,7 +26,8 @@ export const APP_ERRORS = {
   /**
    * ルームが `drawn`・`closed` で参加できない（02 の F-04 の AC）。
    * 候補の追加・削除（02 の §2.1「投稿・削除は open・unlocked のときだけ」）・強制解禁（02 の F-32「未解禁のとき」）を
-   * `drawn`・`closed` で呼んだときにも使う
+   * `drawn`・`closed` で呼んだときにも使う。
+   * 作成者が S-12 の「ルームを終了する」（`closeRoom` の `endEarly`）を送ったときに、ほかの人がガチャを回して `drawn` になっていたときにも使う
    */
   "room-already-decided": { code: "failed-precondition", message: "このルームはもう行き先が決まっています" },
   /** ルームが存在しない */
@@ -78,7 +79,7 @@ export const APP_ERRORS = {
   "candidate-drawn": { code: "failed-precondition", message: "ガチャで当選した候補は削除できません" },
   /**
    * 行き先が決まる前（`open`・`unlocked`）に、引き直しを提案した（02 の §6.4「drawn のとき、メンバーの誰かが提案」）か、
-   * 「この行き先で決定」（`closeRoom`）を呼んだ（02 の §6.5「drawn → closed」）
+   * 「この行き先で決定」（`closeRoom` の `decide`）を呼んだ（02 の §6.5「drawn → closed」）
    */
   "room-not-drawn": { code: "failed-precondition", message: "まだ行き先が決まっていません" },
   /**

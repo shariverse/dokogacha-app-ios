@@ -7,6 +7,7 @@ import { APP_ERRORS } from "../errors";
 import {
   autoCloseCutoffMs,
   decideClose,
+  hasDecidedWinner,
   isAutoCloseDue,
   pastIdeaId,
   planPastIdeas,
@@ -35,33 +36,59 @@ function room(status: RoomStatus) {
   return { status, ownerId: "alice", memberIds: ["alice", "bob"] };
 }
 
-describe("decideClose（02 の §6.3「この行き先で決定」・F-44）", () => {
-  it("作成者は drawn のルームを終了できる", () => {
-    expect(decideClose(room("drawn"), "alice")).toBe("close");
+describe("decideClose（02 の §6.3「この行き先で決定」・F-44・03 の S-12「ルームを終了する」）", () => {
+  describe("decide（S-14 の「この行き先で決定」）", () => {
+    it("作成者は drawn のルームを終了できる", () => {
+      expect(decideClose(room("drawn"), "alice", "decide")).toBe("close");
+    });
+
+    it("行き先が決まる前（open・unlocked。引き直しの可決で戻った unlocked を含む）は room-not-drawn", () => {
+      expectReason(() => decideClose(room("open"), "alice", "decide"), "room-not-drawn");
+      expectReason(() => decideClose(room("unlocked"), "alice", "decide"), "room-not-drawn");
+    });
   });
 
-  it("もう closed なら何もしない（自動の終了と重なった・二度押し）", () => {
-    expect(decideClose(room("closed"), "alice")).toBe("alreadyClosed");
+  describe("endEarly（S-12 の「ルームを終了する」。抽選の前に途中で終了する）", () => {
+    it("作成者は open・unlocked のルームを終了できる", () => {
+      expect(decideClose(room("open"), "alice", "endEarly")).toBe("close");
+      expect(decideClose(room("unlocked"), "alice", "endEarly")).toBe("close");
+    });
+
+    it("drawn（確認の間にほかの人がガチャを回した）は room-already-decided で、決定と同じ終了にしない", () => {
+      expectReason(() => decideClose(room("drawn"), "alice", "endEarly"), "room-already-decided");
+    });
   });
 
-  it("作成者以外は not-room-owner（状態によらない）", () => {
+  it("もう closed なら、どちらの意図でも何もしない（自動の終了と重なった・二度押し）", () => {
+    expect(decideClose(room("closed"), "alice", "decide")).toBe("alreadyClosed");
+    expect(decideClose(room("closed"), "alice", "endEarly")).toBe("alreadyClosed");
+  });
+
+  it("作成者以外は not-room-owner（状態・意図によらない）", () => {
     for (const status of ["open", "unlocked", "drawn", "closed"] as const) {
-      expectReason(() => decideClose(room(status), "bob"), "not-room-owner");
+      for (const reason of ["decide", "endEarly"] as const) {
+        expectReason(() => decideClose(room(status), "bob", reason), "not-room-owner");
+      }
     }
   });
 
   it("メンバーでなければ not-room-member（作成者の確認より先）", () => {
-    expectReason(() => decideClose(room("drawn"), "carol"), "not-room-member");
-    expectReason(() => decideClose({ status: "drawn", ownerId: "alice" }, "alice"), "not-room-member");
-  });
-
-  it("行き先が決まる前（open・unlocked。引き直しの可決で戻った unlocked を含む）は room-not-drawn", () => {
-    expectReason(() => decideClose(room("open"), "alice"), "room-not-drawn");
-    expectReason(() => decideClose(room("unlocked"), "alice"), "room-not-drawn");
+    for (const reason of ["decide", "endEarly"] as const) {
+      expectReason(() => decideClose(room("drawn"), "carol", reason), "not-room-member");
+      expectReason(() => decideClose(room("open"), "carol", reason), "not-room-member");
+      expectReason(() => decideClose({ status: "open", ownerId: "alice" }, "alice", reason), "not-room-member");
+    }
   });
 
   it("room-not-drawn は failed-precondition で「まだ行き先が決まっていません」", () => {
     expect(APP_ERRORS["room-not-drawn"]).toEqual({ code: "failed-precondition", message: "まだ行き先が決まっていません" });
+  });
+
+  it("room-already-decided は failed-precondition で「このルームはもう行き先が決まっています」", () => {
+    expect(APP_ERRORS["room-already-decided"]).toEqual({
+      code: "failed-precondition",
+      message: "このルームはもう行き先が決まっています",
+    });
   });
 });
 
@@ -117,6 +144,19 @@ describe("roomClosedBy（onRoomClosed が過去のアイデアを登録するか
   });
 });
 
+describe("hasDecidedWinner（終了したルームに行き先があるか。Discussion #155 の Q4）", () => {
+  it("当選があり、引き直しで外していなければ true（この行き先で決定・抽選から 7 日の自動の終了）", () => {
+    expect(hasDecidedWinner({ winnerCandidateId: "c1", excludedCandidateIds: [] })).toBe(true);
+    expect(hasDecidedWinner({ winnerCandidateId: "c2", excludedCandidateIds: ["c1"] })).toBe(true);
+  });
+
+  it("当選が無い（抽選の前に終了した）・前の当選を引き直しで外した（可決の後に終了した）なら false", () => {
+    expect(hasDecidedWinner({ winnerCandidateId: null, excludedCandidateIds: [] })).toBe(false);
+    expect(hasDecidedWinner({ winnerCandidateId: "", excludedCandidateIds: [] })).toBe(false);
+    expect(hasDecidedWinner({ winnerCandidateId: "c1", excludedCandidateIds: ["c1"] })).toBe(false);
+  });
+});
+
 describe("planPastIdeas（02 の §6.5・§3.4 F-13）", () => {
   const closedAt = Timestamp.fromMillis(NOW_MS);
 
@@ -137,6 +177,7 @@ describe("planPastIdeas（02 の §6.5・§3.4 F-13）", () => {
       roomId: "room1",
       name: "年末の旅行",
       winnerCandidateId: "c1",
+      excludedCandidateIds: ["c3"],
       memberIds: ["alice", "bob"],
       closedAt,
       ...overrides,
@@ -195,13 +236,24 @@ describe("planPastIdeas（02 の §6.5・§3.4 F-13）", () => {
     expect(writes[0]?.doc.prevLikeCount).toBe(0);
   });
 
-  it("当選の候補が見つからなければ、当選の名前は空のまま、すべての候補を登録する", () => {
-    const writes = planPastIdeas(source({ winnerCandidateId: null, memberIds: ["alice"] }), [
+  it("当選の候補のドキュメントが見つからなければ、当選の名前は空のまま、すべての候補を登録する", () => {
+    const writes = planPastIdeas(source({ winnerCandidateId: "c9", memberIds: ["alice"] }), [
       { id: "c1", data: candidate("城ヶ島") },
       { id: "c2", data: candidate("江の島") },
     ]);
     expect(writes.map((write) => write.ideaId)).toEqual(["room1_c1", "room1_c2"]);
     expect(writes[0]?.doc.sourceWinnerName).toBe("");
+  });
+
+  it("行き先が決まらないまま終了したルーム（抽選の前に途中で終了した・引き直しの可決の後に終了した）は何も登録しない", () => {
+    const candidates = [
+      { id: "c1", data: candidate("城ヶ島") },
+      { id: "c2", data: candidate("江の島") },
+    ];
+    // 抽選の前に終了した open・unlocked（S-12 の「ルームを終了する」・アカウントの削除）
+    expect(planPastIdeas(source({ winnerCandidateId: null, excludedCandidateIds: [] }), candidates)).toEqual([]);
+    // 引き直しが可決して unlocked に戻ったまま終了した（前の当選 c1 は外した候補に入っている）
+    expect(planPastIdeas(source({ winnerCandidateId: "c1", excludedCandidateIds: ["c1"] }), candidates)).toEqual([]);
   });
 
   it("同じ入力なら同じ ID と値（やり直しても重ねて作らない）", () => {

@@ -50,7 +50,7 @@ struct ResultCloseModelTests {
         #expect(await model.close() == false)
         functions.finish()
         #expect(await AsyncTestSupport.eventually { wentHome == 1 && !model.isClosing })
-        #expect(functions.closeRoomRequests == [RoomRequest(roomId: Self.roomID)])
+        #expect(functions.closeRoomRequests == [CloseRoomRequest(roomId: Self.roomID, reason: .decide)])
     }
 
     /// 失敗したら AppError の文言のトーストを出し、ホームへは戻らない（もう一度押せる）
@@ -79,7 +79,7 @@ struct ResultCloseModelTests {
 final class SuspendedCloseFunctions: FunctionsClient {
     let server: InMemoryServer
     /// 送られた `closeRoom` の入力（送られた順）
-    private(set) var closeRoomRequests: [RoomRequest] = []
+    private(set) var closeRoomRequests: [CloseRoomRequest] = []
     private var pending: CheckedContinuation<Void, Never>?
 
     init(server: InMemoryServer) {
@@ -97,7 +97,7 @@ final class SuspendedCloseFunctions: FunctionsClient {
         pending = nil
     }
 
-    func closeRoom(_ request: RoomRequest) async throws {
+    func closeRoom(_ request: CloseRoomRequest) async throws {
         closeRoomRequests.append(request)
         await withCheckedContinuation { pending = $0 }
         try await server.closeRoom(request)

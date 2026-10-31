@@ -35,6 +35,33 @@ const newCandidates: PushEvent = {
   onlyPosterId: null,
 };
 
+const roomEnded: PushEvent = { kind: "roomEnded", roomId: "r1", roomName: "年末の旅行", endedBy: "alice", ownerName: "ありす" };
+
+describe("作成者がルームを途中で終了した通知（Discussion #155 の Q5）", () => {
+  test("文面は「{作成者}さんが「{ルーム名}」を終了しました」", () => {
+    expect(pushBody(roomEnded)).toBe("ありすさんが「年末の旅行」を終了しました");
+  });
+
+  test("開くのは終了したルーム（S-07）。抽選の ID は付けない", () => {
+    expect(pushTarget(roomEnded)).toBe("room");
+    expect(pushData(roomEnded)).toEqual({ type: "roomEnded", roomId: "r1", target: "room" });
+  });
+
+  test("宛先はメンバーから作成者を外した人たち", () => {
+    expect(audienceOf(roomEnded, ["alice", "bob", "carol"])).toEqual(["alice", "bob", "carol"]);
+    expect(excludedRecipient(roomEnded)).toBe("alice");
+    const recipients = selectRecipients(["alice", "bob"], excludedRecipient(roomEnded), [
+      { uid: "alice", fcmTokens: ["alice-token"] },
+      { uid: "bob", fcmTokens: ["bob-token"] },
+    ]);
+    expect(recipients).toEqual([{ uid: "bob", token: "bob-token" }]);
+  });
+
+  test("ルームにつき 1 回だけ送る（二度押し・やり直しで 2 回送らない）", () => {
+    expect(notificationLogKey(roomEnded)).toBe("roomEnded");
+  });
+});
+
 describe("前回のメンバーへの招待と新しい候補のまとめ（02 の §8）", () => {
   test("文面", () => {
     expect(pushBody(invited)).toBe("ありすさんから「年末の旅行」に招待されました");

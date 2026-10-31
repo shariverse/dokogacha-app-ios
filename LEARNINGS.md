@@ -46,6 +46,7 @@
 - 根元のビューに `.safeAreaInset(edge: .top)` でバナーを付けても、`NavigationStack` に積んだ画面（ヘッダーを自前で置く S-07 など）は上を空けず、ヘッダーがバナーの下に隠れた（iOS 26.5 の Simulator）。画面の上に帯を出すときは `VStack` で縦に並べる（`OfflineBannerModifier`）（2026-10-23）
 - 撮影モードで画面を続けて撮るとき、Mac が混んでいる（load average 400 以上）と起動に 10 秒以上かかり、起動画面だけが写る（どの scene でも同じ大きさの PNG になる）。撮ったファイルの大きさがそろっていたら、待ち時間を延ばして撮り直す（2026-10-23）
 - VoiceOver で読ませたくない「押せない状態」を、無効の `DGButton` で描くと「淡色表示、ボタン」と読まれる。ボタンの形の状態の表示は `DGButtonShapedStatus`（`Button` ではない）を使う。UI テストでは `app.staticTexts[...]` で探す（2026-10-23）
+- iOS 26.5 の Simulator では、`confirmationDialog` の `role: .cancel` のボタンが UI テストの要素に出ない（ダイアログは外を押すと閉じる）。UI テストで `app.buttons["キャンセル"]` を押そうとすると見つからずに落ちるので、確認のボタン（「終了する」など）だけを押す（2026-10-31）
 - iPadOS 26.5 の Simulator で iPhone 専用だったときのアプリ（互換表示。ウィンドウで開く）を動かした後に、iPad に対応したアプリを入れ直すと、互換表示のときの狭いウィンドウの大きさで開いた（iPad mini で確かめた。互換表示を動かしていない Simulator では全画面で開く）。iPad の全画面の After は、互換表示を動かす前に撮るか、`simctl erase` した Simulator で撮る（2026-11-01）
 - `simctl` には向きを変える命令が無い。iPad の横向きは、一時的な UI テストで `XCUIDevice.shared.orientation = .landscapeLeft` にしてから `simctl launch` で撮影モードを起動すると撮れる（テストの後も横向きのまま残る）。`test-without-building` の途中で同じ DerivedData にビルドし直すと、テストが進まなくなる（2026-10-31）
 - iPad の Simulator のステータスバーは、時刻の横に日付（「11月1日(日)」）も出す。書き方は Simulator の言語で決まり、アプリに渡す `-AppleLanguages` は効かない。

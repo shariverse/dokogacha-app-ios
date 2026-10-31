@@ -89,7 +89,7 @@ final class CallableFunctionsClient: FunctionsClient {
         try await callWithoutResult(.voteReroll, request)
     }
 
-    func closeRoom(_ request: RoomRequest) async throws {
+    func closeRoom(_ request: CloseRoomRequest) async throws {
         try await callWithoutResult(.closeRoom, request)
     }
 

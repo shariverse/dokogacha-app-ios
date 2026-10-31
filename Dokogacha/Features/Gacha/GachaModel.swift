@@ -140,17 +140,6 @@ final class GachaModel {
         !(room?.excludedCandidateIds.isEmpty ?? true)
     }
 
-    /// タイトルとサブ文言
-    var caption: GachaCaption {
-        GachaCaption.make(
-            phase: phase,
-            drawnByName: drawnByName,
-            status: room?.status,
-            isReroll: isReroll,
-            capsuleCount: capsuleCount
-        )
-    }
-
     /// レバーを回せるか（待機中・`unlocked`・候補がある・まだ抽選していない・送っている途中でない）
     var canTurnLever: Bool {
         phase == .idle && !isDrawing && drawID == nil && room?.status == .unlocked && capsuleCount > 0
@@ -427,5 +416,20 @@ final class GachaModel {
         cueSequence += 1
         cue = GachaCueEvent(sequence: cueSequence, cue: value)
         cueHandler?(value)
+    }
+}
+
+// クラスの本体が SwiftLint の `type_body_length` を超えないよう、読むだけの計算を分ける
+extension GachaModel {
+    /// タイトルとサブ文言。作成者が抽選の前に途中で終了したら「このルームは終了しています」（Discussion #155）
+    var caption: GachaCaption {
+        GachaCaption.make(
+            phase: phase,
+            drawnByName: drawnByName,
+            status: room?.status,
+            isReroll: isReroll,
+            capsuleCount: capsuleCount,
+            endedWithoutResult: room.map(RoomClosing.endedWithoutResult) ?? false
+        )
     }
 }

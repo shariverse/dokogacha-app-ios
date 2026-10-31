@@ -3,7 +3,7 @@
  * （Firestore に触れない純粋な関数）。Firestore の読み書きは `service.ts` が行う。
  * 擬似のサーバー（`Dokogacha/Data/InMemory/InMemoryServer+Close.swift`）も同じ順で判定する。
  *
- * 終了は 2 つの道（作成者の「この行き先で決定」・抽選から 7 日）があり、どちらもルームを `closed` にするだけにする。
+ * 終了は 3 つの道（作成者の「この行き先で決定」・作成者が抽選の前に途中で終了する（S-12）・抽選から 7 日）があり、どれもルームを `closed` にするだけにする。
  * 過去のアイデアの登録は、`closed` になったことを受けた Firestore のトリガー（`onRoomClosed`）がまとめて行う
  * （同じ処理を両方から使う。登録は冪等なので、トリガーのやり直しで重ねて作らない）。
  */
@@ -13,6 +13,7 @@ import { FALLBACK_PLACE_CATEGORY, isPlaceCategory } from "../domain/category";
 import { AUTO_CLOSE_AFTER_DRAW_MS } from "../domain/constants";
 import type { CandidateDoc, PastIdeaDoc, Place, RoomDoc } from "../domain/models";
 import { appError } from "../errors";
+import type { CloseReason } from "./input";
 
 /**
  * 抽選から 7 日たったルームを終了するスケジュール（05 の §5「1日1回」）。
@@ -27,20 +28,25 @@ export type CloseDecision = "close" | "alreadyClosed";
 export type ClosableRoom = Pick<RoomDoc, "status" | "ownerId"> & Partial<Pick<RoomDoc, "memberIds">>;
 
 /**
- * 作成者が「この行き先で決定」でルームを終了できるか確かめる（02 の §6.3・§6.5）。順に確かめる:
+ * 作成者がルームを終了できるか、終了の意図（`reason`）と今の状態を突き合わせて確かめる（02 の §6.3・§6.5・Discussion #155）。順に確かめる:
  * 1. 呼んだ人がメンバー（`memberIds` にいる。いなければ `not-room-member`）
- * 2. 呼んだ人が作成者（違えば `not-room-owner`。02 の §6.3「作成者のみ」）
- * 3. 状態が `drawn`（`open`・`unlocked` は `room-not-drawn`。引き直しが可決して `unlocked` に戻ったルームも決定できない）
+ * 2. 呼んだ人が作成者（違えば `not-room-owner`。02 の §6.3「作成者のみ」・03 の S-12「作成者のみ」）
+ * 3. 状態が意図に合う:
+ *    - `decide`（S-14 の「この行き先で決定」）: `drawn` だけ。`open`・`unlocked` は `room-not-drawn`
+ *      （引き直しが可決して `unlocked` に戻ったルームも決定できない）
+ *    - `endEarly`（S-12 の「ルームを終了する」）: `open`・`unlocked` だけ。`drawn` は `room-already-decided`
+ *      （確認のダイアログを出している間にほかの人がガチャを回したとき。抽選の後は「この行き先で決定」と抽選から 7 日の自動の終了に任せる。Q3）
  *
- * もう `closed` なら失敗にせず、何もしない（`alreadyClosed`）。作成者が確認のダイアログを出している間に、
+ * もう `closed` なら、どちらの意図でも失敗にせず、何もしない（`alreadyClosed`）。作成者が確認のダイアログを出している間に、
  * 抽選から 7 日たって自動で終了したとき・二度押しで、トーストを出さずにホームへ戻せるようにする。
- * 引き直しの投票中（`reroll.status` が `voting`）でも終了できる（作成者が行き先を決める。投票は終了とともに意味を失う。
+ * 引き直しの投票中（`reroll.status` が `voting`）でも決定できる（作成者が行き先を決める。投票は終了とともに意味を失う。
  * 終了するときに否決にする（`rerollUpdateOnClose`））。
  * @param room ルーム
  * @param uid 呼んだ人
- * @throws `not-room-member`・`not-room-owner`・`room-not-drawn`
+ * @param reason 終了の意図
+ * @throws `not-room-member`・`not-room-owner`・`room-not-drawn`・`room-already-decided`
  */
-export function decideClose(room: ClosableRoom, uid: string): CloseDecision {
+export function decideClose(room: ClosableRoom, uid: string, reason: CloseReason): CloseDecision {
   if (!Array.isArray(room.memberIds) || !room.memberIds.includes(uid)) {
     throw appError("not-room-member");
   }
@@ -48,13 +54,19 @@ export function decideClose(room: ClosableRoom, uid: string): CloseDecision {
     throw appError("not-room-owner");
   }
   switch (room.status) {
-    case "drawn":
-      return "close";
     case "closed":
       return "alreadyClosed";
+    case "drawn":
+      if (reason === "endEarly") {
+        throw appError("room-already-decided");
+      }
+      return "close";
     case "open":
     case "unlocked":
-      throw appError("room-not-drawn");
+      if (reason === "decide") {
+        throw appError("room-not-drawn");
+      }
+      return "close";
   }
 }
 
@@ -134,6 +146,8 @@ export interface ClosedRoomSource {
   name: string;
   /** 当選した候補の ID（無ければ null） */
   winnerCandidateId: string | null;
+  /** 引き直しで外した候補の ID（前の当選。`hasDecidedWinner` で使う） */
+  excludedCandidateIds: readonly string[];
   /** 終了したときのメンバーの uid */
   memberIds: readonly string[];
   /** 終了の日時（並び替え用。`sourceClosedAt`） */
@@ -162,7 +176,27 @@ function placeOf(place: unknown): Place | null {
 }
 
 /**
+ * 終了したルームに、行き先（今の当選）があるか（過去のアイデアを登録するか。Discussion #155 の Q4）。
+ *
+ * 当選の ID があり、引き直しで外した候補（`excludedCandidateIds`）に入っていなければ true。
+ * - 「この行き先で決定」・抽選から 7 日の自動の終了（`drawn` から終了）: true
+ * - 抽選の前に途中で終了した（S-12 の「ルームを終了する」）・アカウントの削除で終了した `open`・`unlocked` のルーム: 当選が無いので false
+ * - 引き直しが可決して `unlocked` に戻ったまま終了したルーム: 前の当選は外した候補に入っている（`excludedAfterPass`）ので false
+ *   （まだ引き直していない＝行き先が決まっていない。途中でやめたルームと同じく登録しない）
+ * @param room 終了したルームの当選と、引き直しで外した候補
+ */
+export function hasDecidedWinner(room: Pick<ClosedRoomSource, "winnerCandidateId" | "excludedCandidateIds">): boolean {
+  return (
+    typeof room.winnerCandidateId === "string" &&
+    room.winnerCandidateId !== "" &&
+    !room.excludedCandidateIds.includes(room.winnerCandidateId)
+  );
+}
+
+/**
  * 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデアにする（02 の §6.5・§3.4 F-13）。
+ *
+ * 行き先が決まらないまま終了したルーム（`hasDecidedWinner` が false。抽選の前に途中で終了したなど）は、何も登録しない（Discussion #155 の Q4）。
  *
  * - 対象は当選した候補（`winnerCandidateId`）以外のすべて。引き直しで除外された前の当選も入れる（02 の §3.4）。
  *   自分以外の投稿も入れる（02 の §3.4「自分以外の投稿も含む」）
@@ -178,6 +212,9 @@ export function planPastIdeas(
   room: ClosedRoomSource,
   candidates: readonly { id: string; data: Partial<CandidateDoc> }[],
 ): PastIdeaWrite[] {
+  if (!hasDecidedWinner(room)) {
+    return [];
+  }
   const winner = candidates.find((candidate) => candidate.id === room.winnerCandidateId);
   const winnerName = placeOf(winner?.data.place)?.name ?? "";
   const ideas = [...candidates]

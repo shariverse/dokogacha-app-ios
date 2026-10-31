@@ -1,6 +1,6 @@
 /**
  * ルームの終了（05 の §5 の `closeRoom`・`autoCloseRooms`・02 の §6.5 F-44）と、終了したときの過去のアイデア（F-13）を Emulator で確かめる。
- * - `closeRoom`・自動の終了（`closeOverdueRooms`。スケジュールの中身）を Admin SDK で直接呼ぶこと
+ * - `closeRoom`（「この行き先で決定」の `decide`・途中の終了の `endEarly`）・自動の終了（`closeOverdueRooms`。スケジュールの中身）を Admin SDK で直接呼ぶこと
  * - Functions の Emulator で動くトリガー（`onRoomClosed`）が、`closed` になったルームの当選以外の候補を各メンバーの過去のアイデアにすること
  *   （トリガーは非同期に動くので、条件を満たすまで短い間隔で読み直し、上限の時間で打ち切る）
  *
@@ -46,7 +46,14 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
    */
   async function addRoom(
     roomId: string,
-    options: { status?: string; drawnAt?: Timestamp | null; members?: string[]; reroll?: Record<string, unknown> } = {},
+    options: {
+      status?: string;
+      drawnAt?: Timestamp | null;
+      members?: string[];
+      reroll?: Record<string, unknown>;
+      winner?: string | null;
+      excluded?: string[];
+    } = {},
   ): Promise<void> {
     const status = options.status ?? "drawn";
     // 過去のアイデアは users/{uid} がある人にだけ登録する（アカウントを削除した人を飛ばす）ので、メンバーのプロフィールを置く
@@ -65,9 +72,9 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
       readyCount: 3,
       candidateCount: 3,
       adFreeSponsor: null,
-      currentDrawId: status === "open" ? null : "d2",
-      winnerCandidateId: status === "open" ? null : "c1",
-      excludedCandidateIds: ["c3"],
+      currentDrawId: options.winner === null || status === "open" ? null : "d2",
+      winnerCandidateId: options.winner !== undefined ? options.winner : status === "open" ? null : "c1",
+      excludedCandidateIds: options.excluded ?? ["c3"],
       reroll: options.reroll ?? { used: true, votesFor: ["alice", "bob"], votesAgainst: [], status: "passed" },
       createdAt: Timestamp.fromMillis(Date.now() - 10 * DAY_MS),
       drawnAt: options.drawnAt === undefined ? Timestamp.now() : options.drawnAt,
@@ -220,6 +227,105 @@ describe("ルームの終了（closeRoom・autoCloseRooms・onRoomClosed）", ()
       expect((await roomData("close-open")).status).toBe("open");
       await expectReason(closeRoom(deps(), "alice", { roomId: "close-missing" }), "not-found", "room-not-found");
       await expectReason(closeRoom(deps(), "alice", { roomId: "a/b" }), "invalid-argument", "invalid-argument");
+    });
+  });
+
+  describe("closeRoom の endEarly（S-12 の「ルームを終了する」。抽選の前に途中で終了する）", () => {
+    it("作成者が open・unlocked のルームを closed にする", async () => {
+      await addRoom("close-early-open", { status: "open", drawnAt: null, reroll: { used: false, votesFor: [], votesAgainst: [], status: "none" } });
+      await addRoom("close-early-unlocked", { status: "unlocked", drawnAt: null });
+      for (const roomId of ["close-early-open", "close-early-unlocked"]) {
+        await expect(closeRoom(deps(), "alice", { roomId, reason: "endEarly" })).resolves.toEqual({});
+        const room = await roomData(roomId);
+        expect(room.status).toBe("closed");
+        expect(room.closedAt).toBeInstanceOf(Timestamp);
+      }
+    });
+
+    it("確認の間にほかの人がガチャを回して drawn になっていたら room-already-decided（drawn のまま。決定と同じ終了にしない）", async () => {
+      await addRoom("close-early-drawn");
+      await expectReason(
+        closeRoom(deps(), "alice", { roomId: "close-early-drawn", reason: "endEarly" }),
+        "failed-precondition",
+        "room-already-decided",
+      );
+      const room = await roomData("close-early-drawn");
+      expect(room.status).toBe("drawn");
+      expect(room.closedAt).toBeNull();
+    });
+
+    it("もう closed なら何も書かずに成功する（closedAt を書き換えない）", async () => {
+      await addRoom("close-early-twice", { status: "open", drawnAt: null });
+      await closeRoom(deps(), "alice", { roomId: "close-early-twice", reason: "endEarly" });
+      const first = (await roomData("close-early-twice")).closedAt as Timestamp;
+      await expect(closeRoom(deps(), "alice", { roomId: "close-early-twice", reason: "endEarly" })).resolves.toEqual({});
+      await expect(closeRoom(deps(), "alice", { roomId: "close-early-twice", reason: "decide" })).resolves.toEqual({});
+      expect(((await roomData("close-early-twice")).closedAt as Timestamp).isEqual(first)).toBe(true);
+    });
+
+    it("作成者以外は not-room-owner・メンバー以外は not-room-member・意図が知らない値なら invalid-argument（ルームは open のまま）", async () => {
+      await addRoom("close-early-denied", { status: "open", drawnAt: null });
+      await expectReason(
+        closeRoom(deps(), "bob", { roomId: "close-early-denied", reason: "endEarly" }),
+        "permission-denied",
+        "not-room-owner",
+      );
+      await expectReason(
+        closeRoom(deps(), "dave", { roomId: "close-early-denied", reason: "endEarly" }),
+        "permission-denied",
+        "not-room-member",
+      );
+      await expectReason(
+        closeRoom(deps(), "alice", { roomId: "close-early-denied", reason: "abandon" }),
+        "invalid-argument",
+        "invalid-argument",
+      );
+      expect((await roomData("close-early-denied")).status).toBe("open");
+    });
+
+    it("意図が decide なら open は room-not-drawn のまま（意図を送らない前の版のアプリと同じ）", async () => {
+      await addRoom("close-early-decide", { status: "open", drawnAt: null });
+      await expectReason(
+        closeRoom(deps(), "alice", { roomId: "close-early-decide", reason: "decide" }),
+        "failed-precondition",
+        "room-not-drawn",
+      );
+      expect((await roomData("close-early-decide")).status).toBe("open");
+    });
+  });
+
+  describe("抽選の前に終了したルームの過去のアイデア（Discussion #155 の Q4）", () => {
+    it("「この行き先で決定」（reason: decide）で終了したルームは、今までどおり当選以外の候補を登録する", async () => {
+      await addRoom("close-ideas-decide");
+      await expect(closeRoom(deps(), "alice", { roomId: "close-ideas-decide", reason: "decide" })).resolves.toEqual({});
+      await waitForPastIdeas("bob", "close-ideas-decide", ["close-ideas-decide_c2", "close-ideas-decide_c3"]);
+    });
+
+    it("抽選の前に途中で終了した open・unlocked のルームは、誰にも登録しない", async () => {
+      await addRoom("close-ideas-open", { status: "open", drawnAt: null, winner: null, excluded: [] });
+      await addRoom("close-ideas-unlocked", { status: "unlocked", drawnAt: null, winner: null, excluded: [] });
+      for (const roomId of ["close-ideas-open", "close-ideas-unlocked"]) {
+        await closeRoom(deps(), "alice", { roomId, reason: "endEarly" });
+        expect((await roomData(roomId)).status).toBe("closed");
+        // トリガーの中身を直接呼んで、書く数が 0 であることを確かめる（トリガーも同じ判定で何も書かない）
+        await expect(registerPastIdeas(db, roomId)).resolves.toBe(0);
+        for (const uid of ["alice", "bob", "carol"]) {
+          expect(await pastIdeas(uid, roomId)).toEqual({});
+        }
+      }
+    });
+
+    it("引き直しが可決して unlocked に戻ったまま終了したルーム（前の当選は外した候補）も登録しない", async () => {
+      await addRoom("close-ideas-rerolled", {
+        status: "unlocked",
+        winner: "c1",
+        excluded: ["c3", "c1"],
+        reroll: { used: true, votesFor: ["alice", "bob"], votesAgainst: [], status: "passed" },
+      });
+      await closeRoom(deps(), "alice", { roomId: "close-ideas-rerolled", reason: "endEarly" });
+      expect((await roomData("close-ideas-rerolled")).status).toBe("closed");
+      await expect(registerPastIdeas(db, "close-ideas-rerolled")).resolves.toBe(0);
+      expect(await pastIdeas("bob", "close-ideas-rerolled")).toEqual({});
     });
   });
 

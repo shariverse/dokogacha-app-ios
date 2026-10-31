@@ -25,6 +25,13 @@ struct GachaStageTests {
         #expect(make(.idle, nil, .drawn) == .spinning)
         #expect(make(.idle, "はるか", .drawn) == .drawnByOther(name: "はるか"))
         #expect(make(.idle, nil, .closed) == .spinning)
+        // 待機中に作成者が抽選の前に途中で終了した（行き先が決まらないまま終了）は「このルームは終了しています」（Discussion #155）
+        let ended = GachaCaption.make(
+            phase: .idle, drawnByName: nil, status: .closed, isReroll: false, capsuleCount: 3, endedWithoutResult: true
+        )
+        #expect(ended == .ended)
+        #expect(String(localized: GachaCaption.ended.title) == "このルームは終了しています")
+        #expect(String(localized: GachaCaption.ended.subtitle) == "ガチャは回せません")
         #expect(make(.spinning) == .spinning)
         #expect(make(.spinning, "はるか", .drawn) == .drawnByOther(name: "はるか"))
         for phase in [GachaPhase.dropping, .opening, .opened] {
