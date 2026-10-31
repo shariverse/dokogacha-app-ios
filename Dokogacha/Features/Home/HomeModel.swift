@@ -105,9 +105,12 @@ final class HomeModel {
         MemoryTicket.hasMore(roomCount: closedRooms.count, showsAll: showsAllMemories)
     }
 
-    /// 終了したルームが 1 つも無いと分かったか（空の表示を出す）
+    /// きっぷになりうる終了したルームが 1 つも無いと分かったか（空の表示を出す）。
+    ///
+    /// 行き先が決まらないまま終了したルーム（抽選の前に途中で終了したなど。`MemoryTicket.canBecomeTicket` が false）は数えない
+    /// （数えると、空の表示もきっぷも出ず、見出しだけのセクションになる）。読んだ数より多くある（「すべて見る」を出す）ときは空にしない
     var isMemoriesEmpty: Bool {
-        memoriesState == .loaded && closedRooms.isEmpty
+        memoriesState == .loaded && !hasMoreMemories && !closedRooms.contains { MemoryTicket.canBecomeTicket($0.value) }
     }
 
     /// 思い出のきっぷを読み込み中の形で出すか（一覧がまだ届いていない・きっぷが 1 枚も無く、当選した候補をまだ待っているルームがある）。
@@ -262,7 +265,10 @@ final class HomeModel {
         memoriesState = .loaded
         let watched = MemoryTicket.watchedRooms(value, showsAll: showsAllMemories)
         let winners = Dictionary(
-            watched.compactMap { room in room.winnerCandidateId.map { (room.id, $0) } },
+            // きっぷにならないルーム（行き先が決まらないまま終了した）の当選した候補は読まない
+            watched
+                .filter { MemoryTicket.canBecomeTicket($0.value) }
+                .compactMap { room in room.winnerCandidateId.map { (room.id, $0) } },
             uniquingKeysWith: { first, _ in first }
         )
         for (roomID, task) in winnerTasks where winners[roomID] == nil {
