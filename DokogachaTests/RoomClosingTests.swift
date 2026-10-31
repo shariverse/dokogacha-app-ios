@@ -62,6 +62,17 @@ struct RoomClosingTests {
         }
     }
 
+    /// S-12 の「ルームを終了する」は、作成者で open・unlocked のときだけ（decision の endEarly で終了する状態と同じ）
+    @Test
+    func canEndEarlyOnlyOwnerBeforeDraw() {
+        for status in RoomStatus.allCases {
+            let endable = status == .open || status == .unlocked
+            #expect(RoomClosing.canEndEarly(Self.room(status), userID: "alice") == endable)
+            #expect(!RoomClosing.canEndEarly(Self.room(status), userID: "bob"))
+            #expect((RoomClosing.decision(status: status, reason: .endEarly) == .close) == endable)
+        }
+    }
+
     /// closeRoom の状態と意図の突き合わせ（backend の `close/logic.test.ts` の `decideClose` と同じケース）
     @Test
     func decisionMatchesStatusAndReason() {
