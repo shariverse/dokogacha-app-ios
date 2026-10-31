@@ -79,7 +79,20 @@ nonisolated enum RoomClosing {
         "\(roomID)_\(candidateID)"
     }
 
+    /// 終了したルームに、行き先（今の当選）があるか（backend の `hasDecidedWinner`。過去のアイデアを登録するか。Discussion #155 の Q4）。
+    ///
+    /// 当選の ID があり、引き直しで外した候補に入っていなければ true。抽選の前に途中で終了した・アカウントの削除で終了した
+    /// `open`・`unlocked` のルーム（当選が無い）と、引き直しが可決して `unlocked` に戻ったまま終了したルーム（前の当選は外した候補）は false
+    static func hasDecidedWinner(_ room: Room) -> Bool {
+        guard let winner = room.winnerCandidateId, !winner.isEmpty else {
+            return false
+        }
+        return !room.excludedCandidateIds.contains(winner)
+    }
+
     /// 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデアにする（backend の `planPastIdeas`）。
+    /// 行き先が決まらないまま終了したルーム（`hasDecidedWinner` が false）は、何も登録しない。
+    ///
     ///
     /// 当選（`winnerCandidateId`）以外のすべて（引き直しで外れた前の当選・自分以外の投稿を含む。02 の §3.4）を、
     /// `memberIds`（重なりは 1 回）の各メンバーに登録する。並び順は「メンバー（`memberIds` の順）→ 候補の ID」。
@@ -89,6 +102,9 @@ nonisolated enum RoomClosing {
     ///   - candidates: ルームの候補（鍵は候補の ID）
     ///   - closedAt: 終了の日時
     static func pastIdeas(roomID: String, room: Room, candidates: [String: Candidate], closedAt: Date) -> [PastIdeaWrite] {
+        guard hasDecidedWinner(room) else {
+            return []
+        }
         let winnerName = room.winnerCandidateId.flatMap { candidates[$0]?.place.name } ?? ""
         let ideas = candidates
             .filter { $0.key != room.winnerCandidateId }
