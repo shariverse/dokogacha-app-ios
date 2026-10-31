@@ -141,33 +141,31 @@ struct GachaModelTests {
         // 最後の 0.2 秒で回転が終わり、結果は返っているので落とし始める
         fixture.clock.advance()
         #expect(await AsyncTestSupport.eventually { model.phase == .dropping && fixture.clock.isWaiting })
-        #expect(model.caption == .dispensed)
-        #expect(!model.isCapsuleEnabled)
+        #expect(model.caption == .landed)
         #expect(fixture.cues.cues.last == .spinTick)
 
-        // 底に当たったら合図を出し、見終えた抽選として覚える。まだ押せない
+        // 底に当たったら合図を出し、見終えた抽選として覚える
         fixture.clock.advance()
         #expect(await AsyncTestSupport.eventually { fixture.cues.cues.last == .capsuleLanded && fixture.clock.isWaiting })
         let drawID = try #require(model.drawID)
         #expect(fixture.seenDraws.hasSeen(drawID: drawID))
         #expect(model.phase == .dropping)
-        fixture.clock.advance()
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
-        #expect(model.isCapsuleEnabled)
-        #expect(model.canClose)
+        #expect(!model.canClose)
         #expect(model.winnerCandidateID == fixture.server.rooms[Self.roomID]?.room.winnerCandidateId)
         #expect(model.drawnByName == nil)
 
-        model.capsuleTapped()
+        // 跳ね終えて少し見せたら、押さなくても開ける（Issue #158）
+        fixture.clock.advance()
         #expect(await AsyncTestSupport.eventually { model.phase == .opening && fixture.clock.isWaiting })
-        #expect(!model.isCapsuleEnabled)
+        #expect(model.caption == .landed)
         #expect(!model.canClose)
         fixture.clock.advance()
         #expect(await AsyncTestSupport.eventually { model.phase == .opened })
+        #expect(model.canClose)
 
         let ticks = Array(repeating: GachaCue.spinTick, count: GachaTimeline.tickCount)
         #expect(fixture.cues.cues == [.leverPulled] + ticks + [.capsuleLanded, .capsuleOpened])
-        let expectedSeconds = Array(repeating: 0.2, count: GachaTimeline.tickCount + 1) + [0.385, 0.415, 0.5]
+        let expectedSeconds = Array(repeating: 0.2, count: GachaTimeline.tickCount + 1) + [0.385, 0.715, 0.5]
         #expect(fixture.clock.requestedSeconds.count == expectedSeconds.count)
         for (actual, expected) in zip(fixture.clock.requestedSeconds, expectedSeconds) {
             #expect(abs(actual - expected) < 1e-9)
@@ -196,7 +194,7 @@ struct GachaModelTests {
         #expect(model.isDrawing)
 
         fixture.functions.finish()
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
         #expect(!model.isDrawing)
         #expect(fixture.server.rooms[Self.roomID]?.draws.count == 1)
     }
@@ -224,7 +222,7 @@ struct GachaModelTests {
         fixture.functions.drawBehavior = .pass
         fixture.clock.holds = false
         await model.turnLever()
-        #expect(model.phase == .dispensed)
+        #expect(model.phase == .opened)
     }
 
     /// 回せない理由が分かるもの（解禁していない・候補が無い）は、`AppError` の文言を出す
@@ -278,7 +276,7 @@ struct GachaModelTests {
         #expect(model.drawID == nil)
 
         fixture.functions.finish()
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
         #expect(model.drawID == first.drawId)
         #expect(model.winnerCandidateID == first.candidateId)
         #expect(model.drawnByName == "はるか")

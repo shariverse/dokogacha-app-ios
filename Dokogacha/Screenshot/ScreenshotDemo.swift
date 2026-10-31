@@ -38,6 +38,7 @@ enum ScreenshotDemo {
         case settingsAppleLinked
         case settingsAdFree
         case settingsDeleteAccount
+        case resultRevealSetting
         case licenses
     }
 

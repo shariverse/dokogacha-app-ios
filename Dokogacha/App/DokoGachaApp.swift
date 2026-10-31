@@ -23,6 +23,7 @@ struct DokoGachaApp: App {
                 .environment(appDelegate.ads)
                 .environment(appDelegate.purchases)
                 .environment(appDelegate.network)
+                .environment(appDelegate.resultReveal)
                 .onOpenURL { url in
                     appDelegate.deepLinks.handle(url)
                 }
@@ -77,6 +78,11 @@ struct DokoGachaApp: App {
             ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, adFree: true)
         case .settingsDeleteAccount:
             ScreenshotDemo.SettingsScene(services: appDelegate.serverSession.services, confirmingDeletion: true)
+        case .resultRevealSetting:
+            // S-16 結果の演出（演出は起動引数 `-result-animation` で選んでおける）
+            NavigationStack {
+                ResultRevealSettingView(setting: appDelegate.resultReveal)
+            }
         case .licenses:
             NavigationStack {
                 LicensesView()

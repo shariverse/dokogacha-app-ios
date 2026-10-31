@@ -36,11 +36,12 @@ struct GachaModelReplayTests {
 
         fixture.clock.holds = false
         fixture.clock.advance()
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        // 押さなくても、落ちてから開けて開け終える（Issue #158）
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
         #expect(model.winnerCandidateID == response.candidateId)
         #expect(fixture.seenDraws.hasSeen(drawID: response.drawId))
         let ticks = Array(repeating: GachaCue.spinTick, count: GachaTimeline.tickCount)
-        #expect(fixture.cues.cues == ticks + [.capsuleLanded])
+        #expect(fixture.cues.cues == ticks + [.capsuleLanded, .capsuleOpened])
         #expect(fixture.functions.drawRequests.isEmpty)
     }
 
@@ -53,13 +54,13 @@ struct GachaModelReplayTests {
         let observing = Task { await model.observe() }
         defer { observing.cancel() }
 
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
         #expect(model.drawnByName == "はるか")
         #expect(model.drawID == response.drawId)
         #expect(fixture.cues.cues.contains(.capsuleLanded))
     }
 
-    /// 見終えた抽選は再生せず、初めから取り出し口にカプセルがある（同じ抽選を 2 回再生しない）
+    /// 見終えた抽選は揺れと落下を再生せず、取り出し口のカプセルを開けるところから始める（同じ抽選を 2 回再生しない）
     @Test
     func seenDrawIsNotReplayed() async throws {
         let setup = GachaModelTests.makeFixture()
@@ -69,25 +70,23 @@ struct GachaModelReplayTests {
         let observing = Task { await model.observe() }
         defer { observing.cancel() }
 
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        #expect(await AsyncTestSupport.eventually { model.phase == .opening && fixture.clock.isWaiting })
         #expect(model.drawID == response.drawId)
         #expect(model.winnerCandidateID == response.candidateId)
-        #expect(model.isCapsuleEnabled)
-        #expect(fixture.clock.requested.isEmpty)
         #expect(fixture.cues.cues.isEmpty)
 
-        // 開けると、開け終える
-        fixture.clock.holds = false
-        await model.openCapsule()
-        #expect(model.phase == .opened)
+        // 開け終える（待ったのは開ける 0.5 秒だけ）
+        fixture.clock.advance()
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
+        #expect(fixture.clock.requestedSeconds == [GachaTimeline.openDuration])
         #expect(fixture.cues.cues == [.capsuleOpened])
     }
 
     // MARK: - 視差効果を減らす
 
-    /// 「視差効果を減らす」では待たずに取り出しまで進み（回転中の刻みは鳴らさない）、開けるのもすぐに終わる
+    /// 「視差効果を減らす」では待たずに開け終えるまで進む（回転中の刻みは鳴らさない）
     @Test
-    func reduceMotionShowsCapsuleImmediately() async throws {
+    func reduceMotionOpensImmediately() async throws {
         let fixture = GachaModelTests.makeFixture()
         let model = fixture.model
         model.reducesMotion = true
@@ -96,15 +95,12 @@ struct GachaModelReplayTests {
         #expect(await GachaModelTests.waitUntilLoaded(model))
 
         await model.turnLever()
-        #expect(model.phase == .dispensed)
-        #expect(model.isCapsuleEnabled)
-        await model.openCapsule()
         #expect(model.phase == .opened)
         #expect(fixture.clock.requested.isEmpty)
         #expect(fixture.cues.cues == [.leverPulled, .capsuleLanded, .capsuleOpened])
     }
 
-    /// 「視差効果を減らす」では、ほかの人が回したときもすぐに取り出しにする
+    /// 「視差効果を減らす」では、ほかの人が回したときもすぐに開け終える
     @Test
     func reduceMotionReplayIsImmediate() async throws {
         let fixture = GachaModelTests.makeFixture()
@@ -115,7 +111,7 @@ struct GachaModelReplayTests {
         #expect(await GachaModelTests.waitUntilLoaded(model))
 
         _ = try await fixture.server.device(of: Self.haruka).drawGacha(RoomRequest(roomId: Self.roomID))
-        #expect(await AsyncTestSupport.eventually { model.phase == .dispensed })
+        #expect(await AsyncTestSupport.eventually { model.phase == .opened })
         #expect(fixture.clock.requested.isEmpty)
         #expect(model.drawnByName == "はるか")
     }

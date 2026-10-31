@@ -106,6 +106,25 @@ final class ResultModel {
         return room.rows.first { $0.id == draw.candidateId }
     }
 
+    /// 当選したカプセルの色の番号（S-13 の取り出し口のカプセルと同じ色。候補をまだ読めていなければ 0）
+    var winnerColorIndex: Int {
+        guard let draw else {
+            return 0
+        }
+        return room.candidates.first { $0.id == draw.candidateId }?.colorIndex ?? 0
+    }
+
+    /// 抽選の対象だった候補の名前（投稿の古い順。演出で行き先表示にめくって見せる。Issue #158）
+    var drawnCandidateNames: [String] {
+        guard let draw else {
+            return []
+        }
+        return room.candidates
+            .filter { draw.weights[$0.id] != nil }
+            .sorted { ($0.createdAt, $0.id) < ($1.createdAt, $1.id) }
+            .map(\.place.name)
+    }
+
     /// きっぷに出す値（そろうまでは nil）
     var ticket: ResultTicket? {
         guard let draw, let current = room.room, let winner else {

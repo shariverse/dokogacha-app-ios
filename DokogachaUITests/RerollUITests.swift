@@ -58,7 +58,7 @@ final class RerollUITests: XCTestCase {
         XCTAssertTrue(approve.isSelected)
     }
 
-    /// ホームから解禁済みのルームを開き、ガチャを回してカプセルを開け、S-14 を出す
+    /// ホームから解禁済みのルームを開き、ガチャを回して S-14 を出す（カプセルは押さなくても開く）
     @MainActor
     private func openResult(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let card = app.buttons[Self.unlockedRoomCard]
@@ -70,9 +70,6 @@ final class RerollUITests: XCTestCase {
         let lever = app.buttons["レバーを回す"]
         XCTAssertTrue(lever.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
         lever.tap()
-        let capsule = app.buttons["カプセルを開ける"]
-        XCTAssertTrue(capsule.waitForExistence(timeout: UITestID.timeout), file: file, line: line)
-        capsule.tap()
         XCTAssertTrue(
             app.otherElements[UITestID.resultScreen].waitForExistence(timeout: UITestID.timeout),
             file: file,

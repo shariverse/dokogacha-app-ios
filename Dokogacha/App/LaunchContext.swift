@@ -28,6 +28,14 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     /// オンライン必須の操作を止めることを確かめる。Simulator の回線はテストから切れないため）
     static let networkOfflineArgument = "-network-offline"
 
+    /// UI テストで、S-14 の結果の演出を「視差効果を減らす」の流れで動かす起動引数（`ResultView`。
+    /// SwiftUI の `accessibilityReduceMotion` は上書きできないため。S-13 は UI テストでいつも減らす）。`-uiTesting` のときだけ効く
+    static let reduceMotionArgument = "-ui-reduce-motion"
+
+    /// UI テスト・撮影モードで、S-14 で行き先きっぷを出す演出を選ぶ起動引数（`-result-animation <演出>`。`ResultRevealStyle` の rawValue）。
+    /// 設定（S-16）を開かずに演出を決める（`ResultRevealSetting`）
+    static let resultRevealStyleArgument = "-result-animation"
+
     /// Unit テスト（`DokogachaTests`）のホストとして起動されたとき、XCTest が設定する環境変数。
     /// Swift Testing だけのテストでも、xcodebuild は XCTest の仕組みでホストを起動するので設定される
     static let unitTestHostEnvironmentKeys = ["XCTestConfigurationFilePath", "XCTestBundlePath", "XCTestSessionIdentifier"]
@@ -51,6 +59,10 @@ nonisolated struct LaunchContext: Equatable, Sendable {
     let autoMembers: Bool
     /// オフラインのことにするか（`-network-offline`。`-uiTesting`・撮影モードのときだけ true になりうる）
     let networkOffline: Bool
+    /// S-14 の演出（`-result-animation <演出>`。`-uiTesting`・撮影モードのときだけ読み、指定が無い・知らない値なら nil）
+    let resultRevealStyle: ResultRevealStyle?
+    /// S-14 の結果の演出を「視差効果を減らす」の流れで動かすか（`-ui-reduce-motion`。`-uiTesting` のときだけ true になりうる）
+    let reducesRevealMotion: Bool
 
     /// 起動引数と環境変数から作る
     init(arguments: [String], environment: [String: String]) {
@@ -60,6 +72,7 @@ nonisolated struct LaunchContext: Equatable, Sendable {
         showsAdPlaceholder = isScreenshotDemo && arguments.contains(ScreenshotDemo.adPlaceholderArgument)
         autoMembers = isUITesting && arguments.contains(Self.autoMembersArgument)
         networkOffline = (isUITesting || isScreenshotDemo) && arguments.contains(Self.networkOfflineArgument)
+        reducesRevealMotion = isUITesting && arguments.contains(Self.reduceMotionArgument)
         // 撮影モード（App Store の画面）は、シナリオを指定しなければルームが並んだ状態で撮る
         demoScenario = DemoScenario.from(
             arguments: arguments,
@@ -68,9 +81,11 @@ nonisolated struct LaunchContext: Equatable, Sendable {
         if isUITesting || isScreenshotDemo {
             openURL = Self.value(after: Self.openURLArgument, in: arguments).flatMap { URL(string: $0) }
             openNotification = Self.value(after: Self.openNotificationArgument, in: arguments).flatMap(Self.payload(fromJSON:))
+            resultRevealStyle = Self.value(after: Self.resultRevealStyleArgument, in: arguments).flatMap(ResultRevealStyle.init(rawValue:))
         } else {
             openURL = nil
             openNotification = nil
+            resultRevealStyle = nil
         }
     }
 

@@ -28,7 +28,8 @@
 | S-11 | メンバー一覧 | `Members/` |
 | S-12 | ルーム設定（作成者のみ） | `RoomSettings/` |
 | S-13・S-14 | ガチャ・結果（行き先きっぷ・引き直し・決定） | `Gacha/` |
-| S-15 | 設定（表示名・Apple の連携・広告非表示・アカウントの削除・ライセンス） | `Settings/` |
+| S-15 | 設定（表示名・Apple の連携・広告非表示・結果の演出・アカウントの削除・ライセンス） | `Settings/` |
+| S-16 | 結果の演出（パタパタ行き先表示・カプセルぱかっ・発券から選ぶ。見本付き） | `Settings/` |
 
 起動の流れ・画面の積み方・通知と招待リンクから開く処理は `Root/`、画面をまたぐ部品は `Shared/` にあります。
 
@@ -167,7 +168,7 @@ xcrun simctl io <UDID> screenshot room.png
 | 起動引数 | 効く画面（scene） | 中身 |
 | --- | --- | --- |
 | `-screenshot-demo` | すべて | 撮影モードにする |
-| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`licenses`）。無ければホーム |
+| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`resultRevealSetting`・`licenses`）。無ければホーム |
 | `-demo-scenario <名前>` | すべて | デモのデータ（`DemoScenario`）。撮影モードの既定は `several-rooms` |
 | `-screenshot-ad-placeholder` | 広告のある画面 | バナー広告の場所に固定の枠を出す（App Store の撮影では付けない） |
 | `-network-offline` | すべて | オフラインのことにする（「オフラインです」の帯） |
@@ -183,7 +184,8 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
 | `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings`・`roomInvite` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態（`roomInvite` は S-07 の上に招待のシートを出す） |
 | `-screenshot-confirm-leave`・`-screenshot-confirm-remove <uid>` | `members` | 退出の確認のダイアログ（`-screenshot-not-owner` と一緒に付ける）・そのメンバーの削除の確認のダイアログ |
-| `-screenshot-gacha <状態>` | `gacha` | `ready`（既定）・`dispensed`・`others`・`others-live`・`play` |
+| `-screenshot-gacha <状態>`・`-screenshot-gacha-winner <候補の ID>` | `gacha` | `ready`（既定）・`others`・`others-live`・`play`・自分が回したときに当てる候補（`demo-candidate-1` など） |
+| `-result-animation <演出>` | `gacha`・`resultRevealSetting` | S-14 の結果の演出（`flap`（既定）・`capsule`・`issue`。UI テストと共通） |
 | `-screenshot-result <状態>`・`-screenshot-reroll <状態>`・`-screenshot-result-animate`・`-screenshot-confirm-decide` | `result` | 当選（`normal`・`rare`）・引き直し（`voting`・`passed`・`used`）・きっぷを動かす・「この行き先で決定」の確認のダイアログ |
 | `-screenshot-result-closed` | `resultMember` | 終了したルームの閲覧のみ |
 | `-screenshot-memories-only` | `homeMemories` | 進行中のルームを足さない |
@@ -277,6 +279,10 @@ body=$(gh pr view <番号> --json body -q .body) &&
   開発言語が日本語なので、足したローカライズは `en`。pbxproj を編集しないため、`knownRegions` は `ja`・`Base` のまま（足さなくても `en.lproj` はアプリに入る）。
   `en` が入ったので、英語の端末ではアプリの言語が英語として扱われ、システムが出す部品（日時の選択・地図の表記・共有シートなど）と締切の曜日が英語になる。アプリの文言は日本語のまま。
   日本語・英語のどちらでもない端末（フランス語など）も `en` が選ばれ、ホーム画面は「Dokogacha」になる。`Info.plist` には `CFBundleDisplayName` を書いていない（無くても言語ごとの値が出る。どの言語の値も無いときは `PRODUCT_NAME`）
+- **ガチャの結果の演出**（Issue #158）: 資料は S-13 でカプセルを押して開け、S-14 できっぷがポップインするとしていたが、レバーを押したら結果まで止まらずに進むようにし
+  （カプセルは落ちてから 0.4 秒見せて自動で開く。タップを促す `pulse` は外した）、S-14 は選んだ結果の演出（パタパタ行き先表示（標準）・カプセルぱかっ・発券）で出すようにした。
+  演出は S-16（設定の「結果の演出」）で選び、端末に覚える。行き先が決まった `.success` の触覚は、S-13 でカプセルが開いた瞬間から S-14 の決まる瞬間に移した。
+  ルーム・通知から S-14 を直接開いたときは、見終えた結果を開き直すことが多いので、これまでのポップインのままにしている
 
 ## 同梱のデータ（市区町村の一覧）
 
