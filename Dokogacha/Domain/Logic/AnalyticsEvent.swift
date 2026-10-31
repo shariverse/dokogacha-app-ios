@@ -33,8 +33,8 @@ nonisolated enum AnalyticsEvent: Equatable, Sendable {
     case rerollPropose
     /// 引き直しの投票の結果が出た（F-43）
     case rerollResult(passed: Bool)
-    /// ルームを終了した（F-44。作成者が決めたら `auto` は false）
-    case roomClose(auto: Bool)
+    /// ルームを終了した（F-44。作成者が決めたら `auto` は false。S-12 の「ルームを終了する」で抽選の前に途中で終了したら `early` は true）
+    case roomClose(auto: Bool, early: Bool)
     /// 広告非表示を買った（F-51）
     case purchaseRemoveAds
 
@@ -73,8 +73,8 @@ nonisolated enum AnalyticsEvent: Equatable, Sendable {
             ["candidate_count": .int(candidateCount), "is_reroll": .bool(isReroll), "rare": .bool(rare)]
         case let .rerollResult(passed):
             ["passed": .bool(passed)]
-        case let .roomClose(auto):
-            ["auto": .bool(auto)]
+        case let .roomClose(auto, early):
+            ["auto": .bool(auto), "early": .bool(early)]
         case .ticketShare, .rerollPropose, .purchaseRemoveAds:
             [:]
         }

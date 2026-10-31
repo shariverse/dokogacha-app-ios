@@ -80,7 +80,7 @@ final class ResultCloseModel {
         do {
             try await functions.closeRoom(CloseRoomRequest(roomId: roomID, reason: .decide))
             // 自動の終了（抽選の 7 日後）は Functions が行い、アプリからは分からないので、ここで送るのは作成者が決めたときだけ
-            analytics.log(.roomClose(auto: false))
+            analytics.log(.roomClose(auto: false, early: false))
             return true
         } catch {
             toasts.showFailure(error)
