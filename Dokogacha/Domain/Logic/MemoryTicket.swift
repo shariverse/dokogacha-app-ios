@@ -31,7 +31,7 @@ nonisolated extension MemoryTicket {
 
     /// 終了したルームと当選した候補から、新しい順のきっぷを作る。
     ///
-    /// - `closed` で、抽選の ID と当選した候補の ID があり、当選した候補が届いているルームだけを出す
+    /// - きっぷになりうるルーム（`canBecomeTicket`）で、当選した候補が届いているものだけを出す
     ///   （候補は購読で後から届くので、届いたものから出す）
     /// - 新しい順は終了の日時（無ければ抽選の日時・作成日時）の降順。同じならルームの ID の降順（並びが揺れないように）
     /// - 外れた候補の数は「候補の数 − 当選の 1 件」（引き直しで外れた前の当選も過去のアイデアに入るので含める。02 の §3.4）
@@ -41,8 +41,8 @@ nonisolated extension MemoryTicket {
     static func tickets(rooms: [Identified<Room>], winners: [String: Candidate]) -> [Self] {
         rooms
             .compactMap { room -> Self? in
-                guard room.status == .closed, let drawID = room.currentDrawId, !drawID.isEmpty,
-                      room.winnerCandidateId != nil, let winner = winners[room.id] else {
+                guard canBecomeTicket(room.value), let drawID = room.currentDrawId,
+                      let winner = winners[room.id] else {
                     return nil
                 }
                 return Self(
@@ -85,15 +85,23 @@ nonisolated extension MemoryTicket {
 
     /// 当選した候補をまだ待っているルームがあるか（きっぷが 1 枚も無いときに、読み込み中の形を出し続けるか）。
     ///
-    /// きっぷになりうる（`closed` で抽選の ID と当選した候補の ID がある）ルームのうち、当選した候補の購読がまだ値も失敗も
+    /// きっぷになりうる（`canBecomeTicket`）ルームのうち、当選した候補の購読がまだ値も失敗も
     /// 受け取っていないものがあれば true。購読が失敗した・候補が無かったルームは待たない（読み込み中のまま止めないため）
     /// - Parameters:
     ///   - watched: 当選した候補を購読しているルーム（`watchedRooms`）
     ///   - settledRoomIDs: 当選した候補の購読が、値（無いことを含む）か失敗を受け取ったルームの ID
     static func isWaitingForWinners(watched: [Identified<Room>], settledRoomIDs: Set<String>) -> Bool {
         watched.contains { room in
-            room.status == .closed && !(room.currentDrawId ?? "").isEmpty && room.winnerCandidateId != nil
-                && !settledRoomIDs.contains(room.id)
+            canBecomeTicket(room.value) && !settledRoomIDs.contains(room.id)
         }
+    }
+
+    /// きっぷになりうるルームか（`closed` で、抽選の ID があり、行き先が決まったまま終了した）。
+    ///
+    /// 行き先が決まらないまま終了したルーム（`RoomClosing.hasDecidedWinner` が false。抽選の前に途中で終了した・
+    /// 引き直しが可決して `unlocked` に戻ったまま終了した）は出さない。過去のアイデアも登録しないので、
+    /// 「外れた候補 N件は次のルームで使えます」が事実と合わなくなるため（Discussion #155 の Q4 の注記）
+    static func canBecomeTicket(_ room: Room) -> Bool {
+        room.status == .closed && !(room.currentDrawId ?? "").isEmpty && RoomClosing.hasDecidedWinner(room)
     }
 }
