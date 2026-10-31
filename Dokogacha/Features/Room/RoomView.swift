@@ -22,6 +22,8 @@ struct RoomView: View {
         static let settings = "room.settings"
         /// ルームパネルのメンバー（押すとメンバー一覧）
         static let members = "room.members"
+        /// ルームパネルのアバターの並びの招待の「＋」（満員のときは押せない「満員」の表示）
+        static let invite = "room.invite"
         /// 「準備OK n/m」の人数
         static let readyCount = "room.readyCount"
         /// ルームパネルのヒント文言（「全員OKで解禁 · あと N人」など）
@@ -226,7 +228,8 @@ struct RoomView: View {
                         isForceUnlocking: model.isSendingForceUnlock,
                         onToggleReady: { model.readyTapped() },
                         onForceUnlock: { model.forceUnlockTapped() }
-                    )
+                    ),
+                    invite: memberInvite
                 ) {
                     navigate(.members(roomID: model.roomID))
                 }
@@ -306,6 +309,24 @@ struct RoomView: View {
 }
 
 extension RoomView {
+    // MARK: - 招待
+
+    /// アバターの並びの招待の「＋」（02 の F-04。`drawn`・`closed` では出さず、満員なら押せない「満員」）。押すと招待のシート（S-04）
+    private var memberInvite: RoomMemberAvatars.Invite? {
+        switch model.inviteAvailability {
+        case .available:
+            RoomMemberAvatars.Invite(status: .available) {
+                if let room = model.inviteDestination {
+                    navigate(.inviteMembers(room))
+                }
+            }
+        case .full:
+            RoomMemberAvatars.Invite(status: .full)
+        case .unavailable:
+            nil
+        }
+    }
+
     // MARK: - 候補
 
     /// 「候補」「N件 · 新しい順」と右端の「＋ 候補を追加」。入らなければボタンを下の行に回す

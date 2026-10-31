@@ -23,6 +23,9 @@
 - Firebase Auth で匿名のユーザーに Apple を `link(with:)` して、その Apple ID が既に別のユーザーに使われていると `credentialAlreadyInUse`（17025）になる。Apple の ID トークンは 1 回しか使えないので、サインインし直すときはエラーの `userInfo[AuthErrors.userInfoUpdatedCredentialKey]` の資格情報を使う（`FirebaseAuthService.pendingAppleCredential`）（2026-10-22）
 - Sign in with Apple に連携したアカウントを削除するときは、Apple の認証をし直して `authorizationCode` を受け取り、サーバーで消す**前に** `Auth.auth().revokeToken(withAuthorizationCode:)` を呼ぶ（審査 5.1.1(v)。消した後は ID トークンが取れない）。SDK 13 の `revokeToken` は `currentUser` が nil だと完了を呼ばない（`_currentUser?.` で何もしない）ので、先に確かめる。サーバーで消された Auth のユーザーは `currentUser.reload()` が `userNotFound`（17011）で失敗するので、削除の応答が届かなかったときの確かめに使える（2026-10-23）
 - SPM の checkouts（`SourcePackages/checkouts/…`）のファイルは読み取り専用（`r--r--r--`）なので、ライセンスの全文などを `cp` で `Dokogacha/` に持ってくると、そのままでは書き換えられない（`chmod 644` してから直す）（2026-10-22）
+- `xcode-select` が Xcode 27 を指す Mac では、develop は `DGDashedLine.swift` の `Shape` への準拠が `#ConformanceIsolation` のエラーになってビルドできない（前提は Xcode 26.6）。`DEVELOPER_DIR` に Xcode 26.6 の `Contents/Developer` を渡す。
+  Xcode 27 の `simctl` で Simulator を起動した後、Xcode 26.6 の `xcodebuild` から Simulator が 1 台も見えなくなった（`-destination id=…` が `Unable to find a device`。`simctl list` には出る）。
+  ビルドは `-destination 'generic/platform=iOS Simulator'`（x86_64 も作るので初回は遅い）で行い、できた `Build/Products/*.xctestrun` を Xcode 27 の `xcodebuild test-without-building -xctestrun … -destination id=…` で流すと Unit・UI テストとも通った（2026-11-01）
 - `Localizable.xcstrings` に文字列を足すのは Xcode の画面のビルドだけで、`xcodebuild` は足さない。コマンドで足すときは、`xcodebuild build` の後に `xcrun xcstringstool sync Dokogacha/Resources/Localizable.xcstrings --stringsdata "$DD"/Build/Intermediates.noindex/Dokogacha.build/Debug-iphonesimulator/Dokogacha.build/Objects-normal/arm64/*.stringsdata` を流す（`--stringsdata` は 1 回だけ書いて後ろにファイルを並べる）。カタログに無い文字列もキーの日本語がそのまま出るので、足し忘れても表示は変わらない（2026-10-23）
 
 ## テスト
