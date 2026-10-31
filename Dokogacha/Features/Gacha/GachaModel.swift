@@ -27,6 +27,8 @@ import Observation
 final class GachaModel {
     /// 待つ処理（秒数の `Duration` を受け取る）
     typealias Sleep = @Sendable (Duration) async throws -> Void
+    /// 今の時刻（秒。起動からの経過など、差だけを使う。テストでは待った時間を足した仮の時刻を返す）
+    typealias Now = () -> TimeInterval
 
     /// 通信のエラーで回せなかったときのトースト（02 の §6.2「通信できませんでした。もう一度回してください」）
     static let drawFailureMessage: LocalizedStringResource = "通信できませんでした。もう一度回してください"
@@ -62,6 +64,7 @@ final class GachaModel {
     @ObservationIgnored private let toasts: DGToastCenter
     @ObservationIgnored private let seenDraws: any SeenDrawStore
     @ObservationIgnored private let sleep: Sleep
+    @ObservationIgnored private let now: Now
     @ObservationIgnored private let resubscribeDelay: ResubscribeDelay
     /// 自分が回せたら `gacha_draw` を送る窓口
     @ObservationIgnored private let analytics: any AnalyticsService
@@ -86,6 +89,7 @@ final class GachaModel {
     ///   - toasts: エラーを出すトーストの窓口（フルスクリーンカバーの中に重ねるもの）
     ///   - seenDraws: 演出を見終えた抽選を覚える窓口
     ///   - sleep: 演出の時間を待つ処理（テストでは待たないものを渡す）
+    ///   - now: 今の時刻（回転中の刻みを、回し始めからの時刻に合わせるのに使う。テストでは仮の時刻を渡す）
     ///   - resubscribeDelay: 購読が失敗したとき、やり直すまでの待ち方
     ///   - analytics: Analytics のイベント（05 の §9）を送る窓口
     init(
@@ -96,6 +100,7 @@ final class GachaModel {
         toasts: DGToastCenter,
         seenDraws: any SeenDrawStore,
         sleep: @escaping Sleep = { try await Task.sleep(for: $0) },
+        now: @escaping Now = { ProcessInfo.processInfo.systemUptime },
         resubscribeDelay: ResubscribeDelay = .standard,
         analytics: any AnalyticsService = DisabledAnalyticsService()
     ) {
@@ -106,6 +111,7 @@ final class GachaModel {
         self.toasts = toasts
         self.seenDraws = seenDraws
         self.sleep = sleep
+        self.now = now
         self.resubscribeDelay = resubscribeDelay
         self.analytics = analytics
     }
@@ -366,18 +372,21 @@ final class GachaModel {
 
     // MARK: - 演出
 
-    /// 回転中の時間を待ち、0.2 秒ごとに刻みの合図を出す（視差効果を減らすなら待たない）。cancel されたら途中で終わる
+    /// 回転中の時間を待ち、0.2 秒ごとに刻みの合図を出す（視差効果を減らすなら待たない）。cancel されたら途中で終わる。
+    ///
+    /// k 回目の刻みは「回し始めから k × 0.2 秒」まで待つ（待つたびの遅れを積み重ねず、レバーがカチッと止まる見た目と合わせる。`GachaMotion.leverAngle`）
     private func playSpin() async {
         guard !reducesMotion else {
             return
         }
-        for _ in 0..<GachaTimeline.tickCount {
-            guard await wait(GachaTimeline.tickInterval) else {
+        let start = now()
+        for tick in 1...GachaTimeline.tickCount {
+            guard await wait(until: start + GachaTimeline.tickInterval * Double(tick)) else {
                 return
             }
             emit(.spinTick)
         }
-        _ = await wait(GachaTimeline.tickInterval)
+        _ = await wait(until: start + GachaTimeline.spinDuration)
     }
 
     /// 当選のカプセルをドームの底から抜いて取り出し口に落とし、底に当たったら合図を出して見終えた抽選として覚え、少し見せてから開ける
@@ -418,9 +427,11 @@ final class GachaModel {
         emit(.capsuleOpened)
         phase = .opened
     }
+}
 
-    // MARK: - 道具
+// MARK: - 道具
 
+extension GachaModel {
     /// 秒数だけ待つ。cancel されたら false
     private func wait(_ seconds: Double) async -> Bool {
         do {
@@ -429,6 +440,11 @@ final class GachaModel {
             return false
         }
         return !Task.isCancelled
+    }
+
+    /// 時刻 `deadline`（`now` の値）まで待つ。過ぎていれば待たない。cancel されたら false
+    private func wait(until deadline: TimeInterval) async -> Bool {
+        await wait(max(deadline - now(), 0))
     }
 
     /// 合図を出す

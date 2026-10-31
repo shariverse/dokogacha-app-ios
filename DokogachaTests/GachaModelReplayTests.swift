@@ -132,6 +132,7 @@ struct GachaModelReplayTests {
             toasts: toasts,
             seenDraws: seenDraws,
             sleep: clock.sleep,
+            now: clock.now,
             resubscribeDelay: RoomModelTests.immediateResubscribe
         )
         let recorder = GachaModelTests.CueRecorder()

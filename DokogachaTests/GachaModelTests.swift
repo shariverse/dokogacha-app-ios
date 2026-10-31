@@ -7,10 +7,13 @@
 import Foundation
 import Testing
 
-/// 演出の時間を待つ処理の代わり。待つように頼まれた時間を覚え、`holds` なら `advance()` を呼ぶまで（または cancel まで）止まる（固定の時間で待たない）
+/// 演出の時間を待つ処理の代わり。待つように頼まれた時間を覚え、`holds` なら `advance()` を呼ぶまで（または cancel まで）止まる（固定の時間で待たない）。
+/// 待ち終えるたびに、待った時間を仮の時刻（`now`）に足す
 final class GachaStepClock {
     /// 待つように頼まれた時間（頼まれた順）
     private(set) var requested: [Duration] = []
+    /// 仮の時刻（秒。待ち終えた時間の合計）
+    private(set) var elapsed: TimeInterval = 0
     /// true なら、`advance()` を呼ぶまで返さない。false ならすぐに返す
     var holds: Bool
     private var waiting: CheckedContinuation<Void, Never>?
@@ -36,6 +39,11 @@ final class GachaStepClock {
         }
     }
 
+    /// `GachaModel` に渡す今の時刻（仮の時刻）
+    var now: GachaModel.Now {
+        { [self] in elapsed }
+    }
+
     /// 止まっている待ちを 1 つ進める
     func advance() {
         let continuation = waiting
@@ -53,6 +61,7 @@ final class GachaStepClock {
                 Task { @MainActor in advance() }
             }
         }
+        elapsed += Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
         try Task.checkCancellation()
     }
 }
@@ -95,6 +104,7 @@ struct GachaModelTests {
             toasts: toasts,
             seenDraws: seenDraws,
             sleep: clock.sleep,
+            now: clock.now,
             resubscribeDelay: RoomModelTests.immediateResubscribe
         )
         let recorder = CueRecorder()
