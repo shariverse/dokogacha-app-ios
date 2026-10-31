@@ -151,11 +151,6 @@ extension InMemoryServer {
         if scenario == .adFreeRoom {
             addAdFreeDemo(to: server)
         }
-        if scenario == .endedRoom {
-            // はるかが 1 時間前に途中で終了した（抽選していないので、抽選の ID・当選は無い）
-            server.rooms[DemoScenario.othersRoomID]?.room.status = .closed
-            server.rooms[DemoScenario.othersRoomID]?.room.closedAt = now.addingTimeInterval(-3_600)
-        }
         return server
     }
 

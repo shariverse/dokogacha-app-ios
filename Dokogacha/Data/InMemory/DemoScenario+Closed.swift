@@ -3,7 +3,7 @@
 //  Dokogacha
 //
 //  行き先が決まったルーム（`drawn`）と終了したルーム（`closed`）のデモのデータ（F-44 の UI テスト・撮影・プレビュー用）。
-//  `drawn-rooms`・`memories` のシナリオで `InMemoryServer.demo(_:)` から入れる。撮影モードの scene からも足す。
+//  `drawn-rooms`・`memories`・`ended-room` のシナリオで `InMemoryServer.demo(_:)` から入れる。撮影モードの scene からも足す。
 //
 
 import Foundation
@@ -114,8 +114,16 @@ extension InMemoryServer {
         )
     ]
 
-    /// `drawn-rooms`・`memories` のルームを入れる（ほかのシナリオでは何もしない）
+    /// `drawn-rooms`・`memories` のルームを入れ、`ended-room` のルームを終了する（ほかのシナリオでは何もしない）。
+    ///
+    /// `ended-room` は、`several-rooms` と同じルームを入れた後に呼ぶ（はるかが作ったルーム（春のお花見）を終了する）
     static func addClosingDemoRooms(_ scenario: DemoScenario, to server: InMemoryServer, now: Date) {
+        if scenario == .endedRoom {
+            // はるかが 1 時間前に途中で終了した（抽選していないので、抽選の ID・当選は無い）
+            server.rooms[DemoScenario.othersRoomID]?.room.status = .closed
+            server.rooms[DemoScenario.othersRoomID]?.room.closedAt = now.addingTimeInterval(-3_600)
+            return
+        }
         guard scenario == .drawnRooms || scenario == .memories else {
             return
         }
