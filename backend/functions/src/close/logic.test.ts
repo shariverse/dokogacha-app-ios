@@ -35,33 +35,59 @@ function room(status: RoomStatus) {
   return { status, ownerId: "alice", memberIds: ["alice", "bob"] };
 }
 
-describe("decideClose（02 の §6.3「この行き先で決定」・F-44）", () => {
-  it("作成者は drawn のルームを終了できる", () => {
-    expect(decideClose(room("drawn"), "alice")).toBe("close");
+describe("decideClose（02 の §6.3「この行き先で決定」・F-44・03 の S-12「ルームを終了する」）", () => {
+  describe("decide（S-14 の「この行き先で決定」）", () => {
+    it("作成者は drawn のルームを終了できる", () => {
+      expect(decideClose(room("drawn"), "alice", "decide")).toBe("close");
+    });
+
+    it("行き先が決まる前（open・unlocked。引き直しの可決で戻った unlocked を含む）は room-not-drawn", () => {
+      expectReason(() => decideClose(room("open"), "alice", "decide"), "room-not-drawn");
+      expectReason(() => decideClose(room("unlocked"), "alice", "decide"), "room-not-drawn");
+    });
   });
 
-  it("もう closed なら何もしない（自動の終了と重なった・二度押し）", () => {
-    expect(decideClose(room("closed"), "alice")).toBe("alreadyClosed");
+  describe("endEarly（S-12 の「ルームを終了する」。抽選の前に途中で終了する）", () => {
+    it("作成者は open・unlocked のルームを終了できる", () => {
+      expect(decideClose(room("open"), "alice", "endEarly")).toBe("close");
+      expect(decideClose(room("unlocked"), "alice", "endEarly")).toBe("close");
+    });
+
+    it("drawn（確認の間にほかの人がガチャを回した）は room-already-decided で、決定と同じ終了にしない", () => {
+      expectReason(() => decideClose(room("drawn"), "alice", "endEarly"), "room-already-decided");
+    });
   });
 
-  it("作成者以外は not-room-owner（状態によらない）", () => {
+  it("もう closed なら、どちらの意図でも何もしない（自動の終了と重なった・二度押し）", () => {
+    expect(decideClose(room("closed"), "alice", "decide")).toBe("alreadyClosed");
+    expect(decideClose(room("closed"), "alice", "endEarly")).toBe("alreadyClosed");
+  });
+
+  it("作成者以外は not-room-owner（状態・意図によらない）", () => {
     for (const status of ["open", "unlocked", "drawn", "closed"] as const) {
-      expectReason(() => decideClose(room(status), "bob"), "not-room-owner");
+      for (const reason of ["decide", "endEarly"] as const) {
+        expectReason(() => decideClose(room(status), "bob", reason), "not-room-owner");
+      }
     }
   });
 
   it("メンバーでなければ not-room-member（作成者の確認より先）", () => {
-    expectReason(() => decideClose(room("drawn"), "carol"), "not-room-member");
-    expectReason(() => decideClose({ status: "drawn", ownerId: "alice" }, "alice"), "not-room-member");
-  });
-
-  it("行き先が決まる前（open・unlocked。引き直しの可決で戻った unlocked を含む）は room-not-drawn", () => {
-    expectReason(() => decideClose(room("open"), "alice"), "room-not-drawn");
-    expectReason(() => decideClose(room("unlocked"), "alice"), "room-not-drawn");
+    for (const reason of ["decide", "endEarly"] as const) {
+      expectReason(() => decideClose(room("drawn"), "carol", reason), "not-room-member");
+      expectReason(() => decideClose(room("open"), "carol", reason), "not-room-member");
+      expectReason(() => decideClose({ status: "open", ownerId: "alice" }, "alice", reason), "not-room-member");
+    }
   });
 
   it("room-not-drawn は failed-precondition で「まだ行き先が決まっていません」", () => {
     expect(APP_ERRORS["room-not-drawn"]).toEqual({ code: "failed-precondition", message: "まだ行き先が決まっていません" });
+  });
+
+  it("room-already-decided は failed-precondition で「このルームはもう行き先が決まっています」", () => {
+    expect(APP_ERRORS["room-already-decided"]).toEqual({
+      code: "failed-precondition",
+      message: "このルームはもう行き先が決まっています",
+    });
   });
 });
 
