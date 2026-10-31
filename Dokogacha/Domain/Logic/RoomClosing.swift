@@ -93,7 +93,6 @@ nonisolated enum RoomClosing {
     /// 終了したルームの、当選しなかった候補を、終了したときの各メンバーの過去のアイデアにする（backend の `planPastIdeas`）。
     /// 行き先が決まらないまま終了したルーム（`hasDecidedWinner` が false）は、何も登録しない。
     ///
-    ///
     /// 当選（`winnerCandidateId`）以外のすべて（引き直しで外れた前の当選・自分以外の投稿を含む。02 の §3.4）を、
     /// `memberIds`（重なりは 1 回）の各メンバーに登録する。並び順は「メンバー（`memberIds` の順）→ 候補の ID」。
     /// - Parameters:
