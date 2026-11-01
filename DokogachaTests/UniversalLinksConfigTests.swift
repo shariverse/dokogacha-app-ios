@@ -21,7 +21,12 @@ struct UniversalLinksConfigTests {
 
     /// `Configs/Project.xcconfig` の `名前 = 値` の行を辞書にする（コメントの行は読まない）
     static func projectSettings() throws -> [String: String] {
-        let text = try String(contentsOf: repositoryRoot.appending(path: "Configs/Project.xcconfig"), encoding: .utf8)
+        try xcconfigSettings(named: "Project")
+    }
+
+    /// `Configs/<名前>.xcconfig` の `名前 = 値` の行を辞書にする（コメントと `#include` の行は読まない。読み込んだ側の値は入らない）
+    static func xcconfigSettings(named name: String) throws -> [String: String] {
+        let text = try String(contentsOf: repositoryRoot.appending(path: "Configs/\(name).xcconfig"), encoding: .utf8)
         var settings: [String: String] = [:]
         for line in text.split(separator: "\n") where !line.hasPrefix("//") {
             let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
@@ -48,6 +53,16 @@ struct UniversalLinksConfigTests {
         let plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         let domains = try #require(plist["com.apple.developer.associated-domains"] as? [String])
         #expect(domains == ["applinks:$(DG_WEB_DOMAIN)"])
+    }
+
+    /// Stg（TestFlight）は、本番の Bundle ID に `.stg` を付けた別のアプリ（Issue #189）。Debug と Release は本番の Bundle ID のまま
+    @Test
+    func stgUsesSeparateBundleID() throws {
+        let bundleID = try #require(try Self.projectSettings()["APP_BUNDLE_IDENTIFIER"])
+        #expect(bundleID == "jp.shilokuma.Dokogacha")
+        #expect(try Self.xcconfigSettings(named: "Stg")["APP_BUNDLE_IDENTIFIER"] == bundleID + ".stg")
+        #expect(try Self.xcconfigSettings(named: "Debug")["APP_BUNDLE_IDENTIFIER"] == nil)
+        #expect(try Self.xcconfigSettings(named: "Release")["APP_BUNDLE_IDENTIFIER"] == nil)
     }
 
     /// Hosting の apple-app-site-association は、Team ID と Bundle ID のアプリに、招待リンクのパスを渡す

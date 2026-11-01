@@ -9,6 +9,10 @@
 
 #include "Project.xcconfig"
 
+// アプリの Bundle ID。Stg は App Store Connect で本番（Project.xcconfig の jp.shilokuma.Dokogacha）とは別のアプリにする（Issue #189）。
+// TestFlight で本番のビルドと混ざらず、同じ端末に並べて入れられる。ホーム画面の名前は本番と同じで、アイコン（DG_APP_ICON_NAME）で見分ける。
+// Universal Links の apple-app-site-association にも並べる。App Store の掲載情報のツール（Tools/app_store_config.py）は Project.xcconfig の本番の値を読む
+APP_BUNDLE_IDENTIFIER = jp.shilokuma.Dokogacha.stg
 // Firebase の接続先（Info.plist の DGFirebaseEnvironment）。Stg は dev プロジェクト
 DG_FIREBASE_ENVIRONMENT = dev
 // 読む GoogleService-Info の名前（拡張子なし）。CI が Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist に書き出す
