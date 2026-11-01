@@ -35,12 +35,12 @@ function read(path: string): string {
   return readFileSync(path, "utf8");
 }
 
-/** Configs/Project.xcconfig の `名前 = 値` を読む */
-function xcconfigValue(name: string): string {
-  const text = read(join(REPOSITORY_DIR, "Configs", "Project.xcconfig"));
+/** Configs/<file>.xcconfig（既定は Project.xcconfig）の `名前 = 値` を読む */
+function xcconfigValue(name: string, file = "Project"): string {
+  const text = read(join(REPOSITORY_DIR, "Configs", `${file}.xcconfig`));
   const line = text.split("\n").find((candidate) => candidate.startsWith(`${name} =`));
   if (line === undefined) {
-    throw new Error(`Configs/Project.xcconfig に ${name} がありません`);
+    throw new Error(`Configs/${file}.xcconfig に ${name} がありません`);
   }
   return line.slice(line.indexOf("=") + 1).trim();
 }
@@ -97,12 +97,16 @@ describe("apple-app-site-association", () => {
     applinks: { details: { appIDs: string[]; components: Record<string, string>[] }[] };
   };
 
-  it("Team ID と Bundle ID のアプリに、招待リンクのパス（/r/*）だけを渡す", () => {
-    const appID = `${xcconfigValue("DEVELOPMENT_TEAM")}.${xcconfigValue("APP_BUNDLE_IDENTIFIER")}`;
+  it("Team ID と Bundle ID のアプリ（本番・Stg の順）に、招待リンクのパス（/r/*）だけを渡す", () => {
+    const teamID = xcconfigValue("DEVELOPMENT_TEAM");
+    const appID = `${teamID}.${xcconfigValue("APP_BUNDLE_IDENTIFIER")}`;
+    // Stg（TestFlight）は App Store Connect で別のアプリ（Configs/Stg.xcconfig。Issue #189）
+    const stgAppID = `${teamID}.${xcconfigValue("APP_BUNDLE_IDENTIFIER", "Stg")}`;
     expect(appID).toBe("XU74X3434S.jp.shilokuma.Dokogacha");
+    expect(stgAppID).toBe("XU74X3434S.jp.shilokuma.Dokogacha.stg");
     expect(aasa.applinks.details).toHaveLength(1);
     const [detail] = aasa.applinks.details;
-    expect(detail?.appIDs).toEqual([appID]);
+    expect(detail?.appIDs).toEqual([appID, stgAppID]);
     expect(detail?.components.map((component) => component["/"])).toEqual([`${INVITE_LINK_PATH_PREFIX}*`]);
   });
 

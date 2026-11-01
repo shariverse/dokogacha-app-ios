@@ -65,19 +65,20 @@ struct UniversalLinksConfigTests {
         #expect(try Self.xcconfigSettings(named: "Release")["APP_BUNDLE_IDENTIFIER"] == nil)
     }
 
-    /// Hosting の apple-app-site-association は、Team ID と Bundle ID のアプリに、招待リンクのパスを渡す
+    /// Hosting の apple-app-site-association は、Team ID と Bundle ID のアプリ（本番・Stg の順）に、招待リンクのパスを渡す
     @Test
     func appSiteAssociationMatchesApp() throws {
         let settings = try Self.projectSettings()
         let teamID = try #require(settings["DEVELOPMENT_TEAM"])
         let bundleID = try #require(settings["APP_BUNDLE_IDENTIFIER"])
+        let stgBundleID = try #require(try Self.xcconfigSettings(named: "Stg")["APP_BUNDLE_IDENTIFIER"])
         let url = Self.repositoryRoot.appending(path: "backend/hosting/public/.well-known/apple-app-site-association")
         let json = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let applinks = try #require(json["applinks"] as? [String: Any])
         let details = try #require(applinks["details"] as? [[String: Any]])
         #expect(details.count == 1)
         let detail = try #require(details.first)
-        #expect(detail["appIDs"] as? [String] == ["\(teamID).\(bundleID)"])
+        #expect(detail["appIDs"] as? [String] == ["\(teamID).\(bundleID)", "\(teamID).\(stgBundleID)"])
         let components = try #require(detail["components"] as? [[String: Any]])
         #expect(components.compactMap { $0["/"] as? String } == [DomainConstants.Web.inviteLinkPathPrefix + "*"])
     }
