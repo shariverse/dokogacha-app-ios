@@ -256,6 +256,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 2. 表示された DNS のレコード（`A`・所有権の確認の `TXT` など。表示されたものをすべて）を、Cloudflare の `shilokuma.jp` のゾーンに登録する
    - 名前は `dokogacha`（Cloudflare はゾーンの名前 `shilokuma.jp` を後ろに足す）
    - プロキシの状態は **DNS only（灰色の雲）** にする。プロキシ（オレンジの雲）が有効だと、名前を引いたときに Firebase ではなく Cloudflare のアドレスが返るので、証明書の発行や Apple の AASA の確認が通らないことがある
+   - 足すのは `dokogacha` のレコードだけ。ほかのレコード（ルートの `shilokuma.jp` など）とそのプロキシの設定は変えない
    - `dokogacha` に、表示されたもの以外の `A`・`AAAA`・`CNAME` を残さない（あると Firebase が証明書を発行できない）。`TXT` は消さずに残す（証明書の更新にも使われる）
    - Firebase の画面が「接続済み」になり、証明書の発行が終わるまで待つ（最大で数時間）
 3. 手順 2 の Apple ID で、App Store の URL（仮の `id0000000000`）を **3 か所とも** 差し替えてコミットする。食い違うと `UniversalLinksConfigTests`（Swift）と `hosting.test.ts`（Jest）が失敗する
