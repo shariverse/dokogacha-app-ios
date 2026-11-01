@@ -49,7 +49,7 @@ struct InviteModelTests {
 
     /// 招待リンクは `https://dokogacha.shilokuma.jp/r/{ハイフンなしのコード}`
     @Test
-    func inviteLinkUsesProvisionalDomain() throws {
+    func inviteLinkUsesWebDomain() throws {
         let model = try Self.make().model
         #expect(model.inviteURL.absoluteString == "https://dokogacha.shilokuma.jp/r/DK729Q")
     }
