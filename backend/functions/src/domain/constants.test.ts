@@ -36,7 +36,7 @@ describe("06 の §4 の仮決め", () => {
   it("資料どおり", () => {
     expect(constants.REMOVE_ADS_PRODUCT_ID).toBe("remove_ads");
     expect(constants.REMOVE_ADS_PRICE_YEN).toBe(480);
-    expect(constants.WEB_DOMAIN).toBe("dokogacha.app");
+    expect(constants.WEB_DOMAIN).toBe("dokogacha.shilokuma.jp");
     expect(constants.INVITE_LINK_PATH_PREFIX).toBe("/r/");
     expect(constants.OGP_TITLE).toBe("ドコガチャに招待されました");
     expect(constants.REROLL_VOTING_DURATION_MS).toBe(24 * 3_600_000);

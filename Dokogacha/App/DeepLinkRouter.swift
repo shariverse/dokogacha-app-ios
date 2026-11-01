@@ -6,7 +6,7 @@
 import Foundation
 import Observation
 
-/// Universal Links（招待リンク `https://dokogacha.app/r/{招待コード}`）で開かれたときの行き先を覚えておく窓口（02 の §2.4・05 の §7）。
+/// Universal Links（招待リンク `https://dokogacha.shilokuma.jp/r/{招待コード}`）で開かれたときの行き先を覚えておく窓口（02 の §2.4・05 の §7）。
 ///
 /// アプリの根元（`DokoGachaApp` の `onOpenURL`・`onContinueUserActivity`）が `handle` に URL を渡し、
 /// 招待リンクなら招待コードを `pendingInviteCode` に入れる。表示名を登録した後の画面（`MainNavigationView`）が

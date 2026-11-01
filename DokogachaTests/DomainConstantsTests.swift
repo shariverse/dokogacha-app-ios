@@ -41,7 +41,7 @@ struct DomainConstantsTests {
         #expect(DomainConstants.RemoveAds.productID == "remove_ads")
         #expect(DomainConstants.RemoveAds.priceYen == 480)
         #expect(DomainConstants.Web.scheme == "https")
-        #expect(DomainConstants.Web.domain == "dokogacha.app")
+        #expect(DomainConstants.Web.domain == "dokogacha.shilokuma.jp")
         #expect(DomainConstants.Web.inviteLinkPathPrefix == "/r/")
         #expect(DomainConstants.Web.ogpTitle == "ドコガチャに招待されました")
         #expect(DomainConstants.Schedule.rerollVotingDuration == 24 * 3_600)

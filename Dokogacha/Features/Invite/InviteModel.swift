@@ -42,7 +42,7 @@ final class InviteModel {
         destination.inviteCode.displayText
     }
 
-    /// 招待リンク（`https://dokogacha.app/r/DK729Q`）
+    /// 招待リンク（`https://dokogacha.shilokuma.jp/r/DK729Q`）
     var inviteURL: URL {
         InviteLink.url(for: destination.inviteCode)
     }

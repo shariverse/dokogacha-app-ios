@@ -47,18 +47,18 @@ struct InviteModelTests {
         #expect(model.maxMembers == 20)
     }
 
-    /// 招待リンクは `https://dokogacha.app/r/{ハイフンなしのコード}`
+    /// 招待リンクは `https://dokogacha.shilokuma.jp/r/{ハイフンなしのコード}`
     @Test
-    func inviteLinkUsesProvisionalDomain() throws {
+    func inviteLinkUsesWebDomain() throws {
         let model = try Self.make().model
-        #expect(model.inviteURL.absoluteString == "https://dokogacha.app/r/DK729Q")
+        #expect(model.inviteURL.absoluteString == "https://dokogacha.shilokuma.jp/r/DK729Q")
     }
 
     /// 共有の文面は 03 の S-04 の 3 のとおり（1 行目が誘いの文、2 行目が招待リンク）
     @Test
     func shareMessageFollowsSpec() throws {
         let model = try Self.make().model
-        #expect(model.shareMessage == "「年末の旅行」で行き先ガチャやろう！行きたい場所を投稿してね\nhttps://dokogacha.app/r/DK729Q")
+        #expect(model.shareMessage == "「年末の旅行」で行き先ガチャやろう！行きたい場所を投稿してね\nhttps://dokogacha.shilokuma.jp/r/DK729Q")
     }
 
     /// コピーすると、表示と同じハイフン付きのコードを書き、トーストで知らせる

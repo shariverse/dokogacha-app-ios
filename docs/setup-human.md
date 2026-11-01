@@ -20,7 +20,7 @@
 7. [投稿の報告のメール（SMTP と Trigger Email 拡張）](#7-投稿の報告のメールsmtp-と-trigger-email-拡張)
 8. [広告非表示の課金（remove_ads）](#8-広告非表示の課金remove_ads)
 9. [AdMob（広告）](#9-admob広告)
-10. [ドメイン（dokogacha.app）と Hosting、App Store の URL](#10-ドメインdokogachaappと-hostingapp-store-の-url)
+10. [ドメイン（dokogacha.shilokuma.jp）と Hosting、App Store の URL](#10-ドメインdokogachashilokumajpと-hostingapp-store-の-url)
 11. [利用規約・プライバシーポリシー・サポートのページ](#11-利用規約プライバシーポリシーサポートのページ)
 12. [App Store の申請（掲載情報・プライバシーの申告・審査）](#12-app-store-の申請掲載情報プライバシーの申告審査)
 13. [実機での確認](#13-実機での確認)
@@ -45,7 +45,7 @@ Team ID は `Configs/Project.xcconfig` の `DEVELOPMENT_TEAM`（`XU74X3434S`）�
 1. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list) の Identifiers で `jp.shilokuma.Dokogacha` を開く（無ければ App IDs で作る。Upload の `-allowProvisioningUpdates` でも作られる）
 2. Capabilities で次の 3 つを有効にする（`Configs/Dokogacha.entitlements` と同じ）
    - Push Notifications（`aps-environment`）
-   - Associated Domains（`applinks:dokogacha.app`）
+   - Associated Domains（`applinks:dokogacha.shilokuma.jp`）。ドメインは App ID ではなく entitlements の値なので、capability を有効にした後にドメインを変えても、ここは変えない
    - Sign in with Apple（Primary App ID として）
 3. Keys で鍵（`.p8`）を作る。**APNs** と **Sign in with Apple** を有効にした鍵を作り（1 つの鍵で両方を有効にしてよい）、Key ID を控える。`.p8` は 1 回しかダウンロードできないので、パスワードマネージャーなどの安全な場所に保管する（リポジトリに置かない）
 
@@ -223,9 +223,9 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
 ## 9. AdMob（広告）
 
-今は Google のテスト用の ID です（`Configs/Project.xcconfig`。Q6）。
+今は Google のテスト用の ID です（`Configs/Project.xcconfig`。Q6）。AdMob は、運営者のサイト `shilokuma.jp` と同じアカウントを使います。
 
-1. [AdMob](https://admob.google.com/) で iOS のアプリを追加し（App Store に公開した後なら App Store から選ぶ）、**App ID** を控える
+1. `shilokuma.jp` と同じ [AdMob](https://admob.google.com/) のアカウントで iOS のアプリを追加し（App Store に公開した後なら App Store から選ぶ）、**App ID** を控える
 2. 広告ユニットを **バナー**（アンカー型アダプティブバナーとして使う）で作り、**広告ユニット ID** を控える
 3. 本番の値を xcconfig に書く。`Project.xcconfig` の値を、構成ごとの xcconfig で上書きする
 
@@ -237,17 +237,28 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
    - 値は Info.plist の `GADApplicationIdentifier`・`DGBannerAdUnitID` に入る。アプリの中に入って配られる値で、秘密情報ではない（`Project.xcconfig` のコメントの「コミットしない」は、ループが本番の値を書かないという意味）。コミットするかどうかはチームで決める（コミットしないなら、CI で書き出す仕組みが別に要る）
    - Stg（TestFlight）はテスト用の ID のままにするのを勧める。本番の ID にするなら、テスターの端末を AdMob のテスト端末に登録して、自分の広告を押さないようにする
-4. Hosting に `app-ads.txt` を置く: AdMob の「アプリ」→「app-ads.txt」に出る 1 行を `backend/hosting/public/app-ads.txt` に書いてコミットし、prod の Hosting をデプロイする（`https://dokogacha.app/app-ads.txt` で開ける）。AdMob が確かめる開発者の Web サイトは App Store の掲載情報から読まれるので、AdMob のヘルプの手順でどの URL を見るかを確かめ、そのドメインを `dokogacha.app` にする
+4. app-ads.txt は、既存の `https://shilokuma.jp/app-ads.txt` をそのまま使う
+   - App Store の開発者の Web サイト（**マーケティング URL**。App Store の「デベロッパWebサイト」）を `https://shilokuma.jp/` にする。AdMob はこの URL のドメインの app-ads.txt を読む。
+     値は `AppStore/metadata/shared.json` の `marketingUrl` で、Actions の `Metadata/App Store` で反映する（手順 12）
+   - AdMob の管理画面の publisher ID と、`https://shilokuma.jp/app-ads.txt` の行の publisher ID が同じことを確かめる（値はこの手順書にもコードにも書かない）
+   - このリポジトリの Hosting（`backend/hosting/public/`）には app-ads.txt を置かない。マーケティング URL が `shilokuma.jp` なので AdMob は `dokogacha.shilokuma.jp` を読まず、置くと同じ内容を 2 か所で直すことになる
 5. EEA・英国に配信する場合は、AdMob の「プライバシーとメッセージ」で同意のメッセージ（UMP）を作り、アプリに UMP の処理を足す（今回の範囲外。05 の §8）
 
 **確かめ方**: Release のアプリで本番の広告が出て、ATT を拒否すると非パーソナライズ広告になる（#90）。AdMob の app-ads.txt の状態が「確認済み」になる。
 
-## 10. ドメイン（dokogacha.app）と Hosting、App Store の URL
+## 10. ドメイン（dokogacha.shilokuma.jp）と Hosting、App Store の URL
 
-ドメインは 06 の §4 の仮決め `dokogacha.app` です。
+ドメインは、運営者が持つ `shilokuma.jp` のドコガチャ専用のサブドメイン `dokogacha.shilokuma.jp` です（06 の §4）。
+招待リンク `/r/{招待コード}`（Universal Links）・`/terms`・`/privacy`・`/support`・`/.well-known/apple-app-site-association` を、すべて prod の Hosting で配信します。
+`shilokuma.jp` の DNS は Cloudflare にあります。ルートの `shilokuma.jp` は別のサイト（shilokuma-web）で、このリポジトリからは触りません。
 
-1. `dokogacha.app` を取得する
-2. prod の Firebase の Hosting で「カスタム ドメインを追加」から `dokogacha.app` を繋ぎ、表示された DNS のレコードを登録する（証明書の発行まで最大で数時間）
+1. prod の Firebase の Hosting で「カスタム ドメインを追加」から `dokogacha.shilokuma.jp` を足す（ほかのドメインへの転送は選ばない）
+2. 表示された DNS のレコード（`A`・所有権の確認の `TXT` など。表示されたものをすべて）を、Cloudflare の `shilokuma.jp` のゾーンに登録する
+   - 名前は `dokogacha`（Cloudflare はゾーンの名前 `shilokuma.jp` を後ろに足す）
+   - プロキシの状態は **DNS only（灰色の雲）** にする。プロキシ（オレンジの雲）が有効だと、名前を引いたときに Firebase ではなく Cloudflare のアドレスが返るので、証明書の発行や Apple の AASA の確認が通らないことがある
+   - 足すのは `dokogacha` のレコードだけ。ほかのレコード（ルートの `shilokuma.jp` など）とそのプロキシの設定は変えない
+   - `dokogacha` に、表示されたもの以外の `A`・`AAAA`・`CNAME` を残さない（あると Firebase が証明書を発行できない）。`TXT` は消さずに残す（証明書の更新にも使われる）
+   - Firebase の画面が「接続済み」になり、証明書の発行が終わるまで待つ（最大で数時間）
 3. 手順 2 の Apple ID で、App Store の URL（仮の `id0000000000`）を **3 か所とも** 差し替えてコミットする。食い違うと `UniversalLinksConfigTests`（Swift）と `hosting.test.ts`（Jest）が失敗する
 
    | ファイル | 場所 |
@@ -257,13 +268,23 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
    | `backend/hosting/public/invite.html` | `<a id="app-store-link" … href="…">` |
 
 4. prod の Hosting をデプロイし直す（`npx firebase deploy --only hosting --project <prod のプロジェクト ID>`）
-5. ドメインを `dokogacha.app` から変えるときは、`Configs/Project.xcconfig` の `DG_WEB_DOMAIN`・`DomainConstants.Web.domain`・`backend/functions/src/domain/constants.ts` の `WEB_DOMAIN`・`AppStore/metadata/shared.json` の URL・`backend/hosting/public/invite.html` の `og:url`・`og:image` を同時に変える（`DomainConstantsTests`・`AppStoreMetadataTests` が突き合わせる）
+5. ドメインを `dokogacha.shilokuma.jp` から変えるときは、`Configs/Project.xcconfig` の `DG_WEB_DOMAIN`（entitlements の `applinks:` はこの値を使う）・`DomainConstants.Web.domain`・`backend/functions/src/domain/constants.ts` の `WEB_DOMAIN`・`AppStore/metadata/shared.json` の URL・`backend/hosting/public/invite.html` の `og:url`・`og:image` を同時に変える（`DomainConstantsTests`・`AppStoreMetadataTests`・`UniversalLinksConfigTests`・`hosting.test.ts` が突き合わせる）。
+   テスト・コメント・資料にもドメインを書いているので、`git grep -n '<古いドメイン>'` で残りが無いことを確かめる
+
+### Universal Links をほかのアプリと干渉させない決まり
+
+`shilokuma.jp` には、同じ運営者のほかのアプリもあります。Universal Links と AASA はホスト名ごとに働くので、次を守れば干渉しません。
+
+- アプリごとに専用のサブドメインを使う（ドコガチャは `dokogacha.shilokuma.jp`。ほかのアプリとホストを分け合わない）
+- ルートの `shilokuma.jp` やワイルドカードの `*.shilokuma.jp` を applinks（Associated Domains）に使わない（ほかのアプリのホストまで、このアプリの対象になる）
+- AASA の `components` は、そのアプリのパス（ドコガチャは `/r/*`）だけにする
 
 **確かめ方**:
 
-- `curl -sI https://dokogacha.app/.well-known/apple-app-site-association` が `200` と `content-type: application/json` を返し、転送しない。中身の `appIDs` が `XU74X3434S.jp.shilokuma.Dokogacha`
-- `https://dokogacha.app/r/<招待コード>` がランディングページ（招待コードと「App Store でダウンロード」）を出し、アプリが入った iPhone ではアプリの S-06 が開く（#71）
-- `https://dokogacha.app/terms`・`/privacy`・`/support` が開く（App Store の審査で開かれる）
+- `curl -sI https://dokogacha.shilokuma.jp/.well-known/apple-app-site-association` が `200` と `content-type: application/json` を返し、転送しない（`location` が無い）。中身の `appIDs` が `XU74X3434S.jp.shilokuma.Dokogacha`
+- Apple の CDN が読んだ AASA は `curl -s https://app-site-association.cdn-apple.com/a/v1/dokogacha.shilokuma.jp` で見られる（反映まで時間がかかる）
+- `https://dokogacha.shilokuma.jp/r/<招待コード>` がランディングページ（招待コードと「App Store でダウンロード」）を出し、アプリが入った iPhone ではアプリの S-06 が開く（#71）
+- `https://dokogacha.shilokuma.jp/terms`・`/privacy`・`/support` が開く（App Store の審査で開かれる）
 
 ## 11. 利用規約・プライバシーポリシー・サポートのページ
 
@@ -280,14 +301,16 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
    食い違って見えないよう、たとえば「広告の配信事業者が、IP アドレスからおおよその地域を推定することがあります」を「広告データ」の説明か位置情報の段落に足すかを決める
 5. SMTP の事業者名とポリシーへのリンクを「投稿の報告のメール」に足す（手順 7）
 6. 問い合わせ先は Google フォーム（Q8。`DomainConstants.Web` と各ページにあり、公開してよい）のまま
+7. 運営者のサイトのプライバシーポリシーの一覧（`https://shilokuma.jp/privacy/`）に、ドコガチャのプライバシーポリシー `https://dokogacha.shilokuma.jp/privacy` へのリンクを足す（shilokuma-web 側の作業。このリポジトリでは触らない）。
+   ほかのアプリは `shilokuma.jp/privacy/<アプリ名>/` に本文を置いているが、ドコガチャはアプリと App Store が開く Hosting の `privacy.html` を正にし、一覧からはリンクだけにする（同じ文面を 2 か所で直さない）
 
-**確かめ方**: Hosting の Jest（`cd backend && npm test`）と Emulator のテスト（`npm run test:emulator`）が通り、`https://dokogacha.app/terms` などで直した文面が出る。
+**確かめ方**: Hosting の Jest（`cd backend && npm test`）と Emulator のテスト（`npm run test:emulator`）が通り、`https://dokogacha.shilokuma.jp/terms` などで直した文面が出る。
 
 ## 12. App Store の申請（掲載情報・プライバシーの申告・審査）
 
 掲載情報の元は `AppStore/` にあり、手動実行のワークフローで App Store Connect に反映します（README の「App Store の掲載情報」）。
 
-1. App Store Connect の「App 情報」に、名前「ドコガチャ」・サブタイトル「友達旅行・おでかけの行き先ガチャ」・プライバシーポリシーの URL `https://dokogacha.app/privacy` を入れる（「App 情報」の項目なのでワークフローは書き込まない。`upload_metadata.py --check` が形だけ確かめる）
+1. App Store Connect の「App 情報」に、名前「ドコガチャ」・サブタイトル「友達旅行・おでかけの行き先ガチャ」・プライバシーポリシーの URL `https://dokogacha.shilokuma.jp/privacy` を入れる（「App 情報」の項目なのでワークフローは書き込まない。`upload_metadata.py --check` が形だけ確かめる）
    - 名前はホーム画面の日本語の名前「ドコガチャ」とそろえる（手順 2 の 1）。アプリを先に別の名前（「Dokogacha」など）で作っていたときは、「App 情報」の「ローカライズ可能な情報」で言語を「日本語」にして「名前」を「ドコガチャ」に変え、保存する。名前は審査に出す前（「提出準備中」の間）なら変えられ、出した後に変えるときは新しいバージョンと一緒に審査に出す。App Store 全体で重複している名前は保存できない
    - アプリに英語のローカライズ（`en.lproj`。英語の端末のホーム画面の名前「Dokogacha」のため）が入っているので、App Store の「言語」の欄に「英語」も出る見込み。アプリの文言は日本語だけで、英語の掲載情報は出さない（`AppStore/languages.json` は `ja` だけ）
 2. 説明文・キーワード・プロモーションテキストを見直す（`AppStore/metadata/ja.json`）
@@ -346,6 +369,7 @@ Simulator で確かめられないことは、実機確認の Issue（ラベル 
 | SMTP のパスワード | Secret Manager の `firestore-send-email-SMTP_PASSWORD` | しない |
 | App Store の URL | `DomainConstants.Web.appStoreURL`・`landing.js`・`invite.html` | する |
 | AdMob の App ID・広告ユニット ID | `Configs/Release.xcconfig`（`Stg.xcconfig`）の `DG_GAD_APPLICATION_IDENTIFIER`・`DG_BANNER_AD_UNIT_ID` | チームで決める（手順 9） |
-| `app-ads.txt` | `backend/hosting/public/app-ads.txt` | する |
+| `app-ads.txt` | 既存の `https://shilokuma.jp/app-ads.txt`（shilokuma-web。同じ AdMob のアカウントのアプリで共有。手順 9） | このリポジトリにはしない |
+| マーケティング URL（AdMob が読む開発者の Web サイト） | `AppStore/metadata/shared.json` の `marketingUrl`（`https://shilokuma.jp/`） | する |
 | 運営者名・施行日・管轄裁判所 | `backend/hosting/public/terms.html`・`privacy.html`・`support.html` | する |
 | 内部テスター | 変数 `TESTFLIGHT_INTERNAL_TESTERS` | しない |

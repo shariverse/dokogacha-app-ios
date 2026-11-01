@@ -76,7 +76,7 @@ struct MembersModelTests {
         model.leaveTapped()
         #expect(!model.isConfirmingLeave)
         // 招待の文面は S-04 と同じ
-        #expect(model.shareMessage == "「年末の旅行」で行き先ガチャやろう！行きたい場所を投稿してね\nhttps://dokogacha.app/r/DK729Q")
+        #expect(model.shareMessage == "「年末の旅行」で行き先ガチャやろう！行きたい場所を投稿してね\nhttps://dokogacha.shilokuma.jp/r/DK729Q")
     }
 
     /// 準備OKにしたメンバーは準備OKとして出る（購読の値）

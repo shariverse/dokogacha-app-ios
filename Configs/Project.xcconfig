@@ -47,9 +47,10 @@ DG_GAD_APPLICATION_IDENTIFIER = ca-app-pub-3940256099942544~1458002511
 // アダプティブバナーの ID を使う（Q6）。本番の ID は App ID と一緒に、公開前に人間が差し替える（コミットしない）
 DG_BANNER_AD_UNIT_ID = ca-app-pub-3940256099942544/2435281174
 
-// Web のドメイン（06 の §4 の仮決め dokogacha.app）。Universal Links の Associated Domains（Configs/Dokogacha.entitlements の
-// applinks:）に使う。Swift の DomainConstants.Web.domain・TypeScript の WEB_DOMAIN と同じ値にする（DomainConstantsTests で確かめる）
-DG_WEB_DOMAIN = dokogacha.app
+// Web のドメイン（06 の §4。shilokuma.jp のドコガチャ専用のサブドメイン）。Universal Links の Associated Domains（Configs/Dokogacha.entitlements の
+// applinks:）に使う。ほかのアプリと干渉しないよう、ルートの shilokuma.jp やワイルドカード（*.shilokuma.jp）にしない（docs/setup-human.md の §10）。
+// Swift の DomainConstants.Web.domain・TypeScript の WEB_DOMAIN と同じ値にする（DomainConstantsTests で確かめる）
+DG_WEB_DOMAIN = dokogacha.shilokuma.jp
 
 // アプリ本体の entitlements。xcconfig はプロジェクトのすべてのターゲットに効くので、アプリのターゲット
 // （PRODUCT_TYPE が com.apple.product-type.application）だけに付け、Unit・UI テストのターゲットには付けない

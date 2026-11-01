@@ -14,7 +14,7 @@ struct DeepLinkRouterTests {
     @Test
     func remembersInviteCodeUntilTaken() throws {
         let router = DeepLinkRouter()
-        let url = try #require(URL(string: "https://dokogacha.app/r/qw5-8rt"))
+        let url = try #require(URL(string: "https://dokogacha.shilokuma.jp/r/qw5-8rt"))
         #expect(router.handle(url))
         #expect(router.pendingInviteCode?.value == "QW58RT")
 
@@ -27,8 +27,8 @@ struct DeepLinkRouterTests {
     @Test
     func ignoresOtherURLsAndKeepsPendingCode() throws {
         let router = DeepLinkRouter()
-        router.handle(try #require(URL(string: "https://dokogacha.app/r/QW58RT")))
-        for link in ["https://example.com/r/DK729Q", "https://dokogacha.app/terms", "https://dokogacha.app/r/OOOOOO"] {
+        router.handle(try #require(URL(string: "https://dokogacha.shilokuma.jp/r/QW58RT")))
+        for link in ["https://example.com/r/DK729Q", "https://dokogacha.shilokuma.jp/terms", "https://dokogacha.shilokuma.jp/r/OOOOOO"] {
             #expect(!router.handle(try #require(URL(string: link))))
         }
         #expect(router.pendingInviteCode?.value == "QW58RT")
@@ -38,8 +38,8 @@ struct DeepLinkRouterTests {
     @Test
     func replacesPendingCodeWithNewerLink() throws {
         let router = DeepLinkRouter()
-        router.handle(try #require(URL(string: "https://dokogacha.app/r/QW58RT")))
-        router.handle(try #require(URL(string: "https://dokogacha.app/r/DK729Q")))
+        router.handle(try #require(URL(string: "https://dokogacha.shilokuma.jp/r/QW58RT")))
+        router.handle(try #require(URL(string: "https://dokogacha.shilokuma.jp/r/DK729Q")))
         #expect(router.takePendingInviteCode()?.value == "DK729Q")
     }
 
@@ -48,13 +48,13 @@ struct DeepLinkRouterTests {
     func readsBrowsingWebActivity() throws {
         let router = DeepLinkRouter()
         let other = NSUserActivity(activityType: "jp.shilokuma.Dokogacha.other")
-        other.webpageURL = URL(string: "https://dokogacha.app/r/QW58RT")
+        other.webpageURL = URL(string: "https://dokogacha.shilokuma.jp/r/QW58RT")
         #expect(!router.handle(other))
         #expect(router.pendingInviteCode == nil)
 
         let browsing = NSUserActivity(activityType: NSUserActivityTypeBrowsingWeb)
         #expect(!router.handle(browsing))
-        browsing.webpageURL = URL(string: "https://dokogacha.app/r/QW58RT")
+        browsing.webpageURL = URL(string: "https://dokogacha.shilokuma.jp/r/QW58RT")
         #expect(router.handle(browsing))
         #expect(router.pendingInviteCode?.value == "QW58RT")
     }
@@ -62,7 +62,7 @@ struct DeepLinkRouterTests {
     /// UI テスト・撮影モードでは、起動引数 `-open-url` の URL を起動の直後に開いたことにする（ほかの起動では読まない）
     @Test
     func readsOpenURLArgumentOnlyForUITestingAndScreenshots() {
-        let link = "https://dokogacha.app/r/QW58RT"
+        let link = "https://dokogacha.shilokuma.jp/r/QW58RT"
         let uiTesting = LaunchContext(arguments: ["Dokogacha", "-uiTesting", "-open-url", link], environment: [:])
         #expect(uiTesting.openURL?.absoluteString == link)
         let screenshot = LaunchContext(arguments: ["-screenshot-demo", "-open-url", link], environment: [:])

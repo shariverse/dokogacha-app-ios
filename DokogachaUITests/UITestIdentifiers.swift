@@ -62,7 +62,7 @@ enum UITestID {
     /// 招待リンクで開かれたことにする起動引数（`LaunchContext.openURLArgument`）
     static let openURLArgument = "-open-url"
     /// デモの参加できるルームの招待リンク（`DemoScenario.joinableInviteCode` を小文字・ハイフン付きで）
-    static let joinableInviteLink = "https://dokogacha.app/r/qw5-8rt"
+    static let joinableInviteLink = "https://dokogacha.shilokuma.jp/r/qw5-8rt"
     /// デモの参加できるルームの ID（`DemoScenario.joinableRoomID`）
     static let joinableRoomID = "demo-room-joinable"
     /// デモの自分の候補（`room-with-candidates` の江の島）
