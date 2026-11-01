@@ -47,6 +47,9 @@ struct InviteLinkTests {
         "https://www.dokogacha.shilokuma.jp/r/QW58RT",
         "https://dokogacha.example/r/QW58RT",
         "https://dokogacha.shilokuma.jp.example.com/r/QW58RT",
+        // 運営者のルートのドメインと、同じ運営者のほかのアプリのサブドメイン（Universal Links をアプリごとのサブドメインに分ける）
+        "https://shilokuma.jp/r/QW58RT",
+        "https://other.shilokuma.jp/r/QW58RT",
         // スキーム違い（Universal Links は https だけ）
         "http://dokogacha.shilokuma.jp/r/QW58RT",
         "dokogacha://r/QW58RT",
