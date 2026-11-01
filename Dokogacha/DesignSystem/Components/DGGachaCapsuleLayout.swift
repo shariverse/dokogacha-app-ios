@@ -60,6 +60,14 @@ nonisolated enum DGGachaCapsuleLayout {
         (0..<visibleCount(for: count)).map(placement(at:))
     }
 
+    /// `index` 番目のカプセルの中心（描かない番号（50 個を超えた分）なら nil。当選のカプセルをドームから抜く動きに使う）
+    static func center(at index: Int) -> CGPoint? {
+        guard (0..<maxVisibleCount).contains(index) else {
+            return nil
+        }
+        return placement(at: index).center
+    }
+
     /// `index` 番目のカプセルの置き場所
     private static func placement(at index: Int) -> DGGachaCapsulePlacement {
         // プロトタイプの位置はドームの線の内側を原点にした左上なので、線の太さと半径を足して外形の左上からの中心にする

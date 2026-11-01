@@ -7,10 +7,15 @@
 import Foundation
 import Testing
 
-/// 演出の時間を待つ処理の代わり。待つように頼まれた時間を覚え、`holds` なら `advance()` を呼ぶまで（または cancel まで）止まる（固定の時間で待たない）
+/// 演出の時間を待つ処理の代わり。待つように頼まれた時間を覚え、`holds` なら `advance()` を呼ぶまで（または cancel まで）止まる（固定の時間で待たない）。
+/// 待ち終えるたびに、待った時間を仮の時刻（`now`）に足す
 final class GachaStepClock {
     /// 待つように頼まれた時間（頼まれた順）
     private(set) var requested: [Duration] = []
+    /// 仮の時刻（秒。待ち終えた時間の合計）
+    private(set) var elapsed: TimeInterval = 0
+    /// 待つたびに、頼まれた時間より余計にかかったことにする時間（秒。待ちの遅れを再現する）
+    var lagPerWait: TimeInterval = 0
     /// true なら、`advance()` を呼ぶまで返さない。false ならすぐに返す
     var holds: Bool
     private var waiting: CheckedContinuation<Void, Never>?
@@ -36,6 +41,11 @@ final class GachaStepClock {
         }
     }
 
+    /// `GachaModel` に渡す今の時刻（仮の時刻）
+    var now: GachaModel.Now {
+        { [self] in elapsed }
+    }
+
     /// 止まっている待ちを 1 つ進める
     func advance() {
         let continuation = waiting
@@ -53,6 +63,7 @@ final class GachaStepClock {
                 Task { @MainActor in advance() }
             }
         }
+        elapsed += Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18 + lagPerWait
         try Task.checkCancellation()
     }
 }
@@ -95,6 +106,7 @@ struct GachaModelTests {
             toasts: toasts,
             seenDraws: seenDraws,
             sleep: clock.sleep,
+            now: clock.now,
             resubscribeDelay: RoomModelTests.immediateResubscribe
         )
         let recorder = CueRecorder()
@@ -142,7 +154,8 @@ struct GachaModelTests {
         fixture.clock.advance()
         #expect(await AsyncTestSupport.eventually { model.phase == .dropping && fixture.clock.isWaiting })
         #expect(model.caption == .landed)
-        #expect(fixture.cues.cues.last == .spinTick)
+        // 当選のカプセルがドームから抜けた合図（Issue #178）
+        #expect(fixture.cues.cues.last == .capsuleReleased)
 
         // 底に当たったら合図を出し、見終えた抽選として覚える
         fixture.clock.advance()
@@ -164,8 +177,8 @@ struct GachaModelTests {
         #expect(model.canClose)
 
         let ticks = Array(repeating: GachaCue.spinTick, count: GachaTimeline.tickCount)
-        #expect(fixture.cues.cues == [.leverPulled] + ticks + [.capsuleLanded, .capsuleOpened])
-        let expectedSeconds = Array(repeating: 0.2, count: GachaTimeline.tickCount + 1) + [0.385, 0.715, 0.5]
+        #expect(fixture.cues.cues == [.leverPulled] + ticks + [.capsuleReleased, .capsuleLanded, .capsuleOpened])
+        let expectedSeconds = Array(repeating: 0.2, count: GachaTimeline.tickCount + 1) + [0.735, 0.715, 0.5]
         #expect(fixture.clock.requestedSeconds.count == expectedSeconds.count)
         for (actual, expected) in zip(fixture.clock.requestedSeconds, expectedSeconds) {
             #expect(abs(actual - expected) < 1e-9)
@@ -281,6 +294,48 @@ struct GachaModelTests {
         #expect(model.winnerCandidateID == first.candidateId)
         #expect(model.drawnByName == "はるか")
         #expect(fixture.server.rooms[Self.roomID]?.draws.count == 1)
+    }
+
+    /// 回転中の刻みは、待つたびに遅れても積み重ねない（k 回目は回し始めから k × 0.2 秒まで待つので、遅れた分だけ次の待ちが短くなる）
+    @Test
+    func spinTicksDoNotAccumulateDelay() async throws {
+        let fixture = Self.makeFixture(holdsClock: false)
+        fixture.clock.lagPerWait = 0.05
+        let model = fixture.model
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+
+        await model.turnLever()
+        let spinWaits = Array(fixture.clock.requestedSeconds.prefix(GachaTimeline.tickCount + 1))
+        let expected = [GachaTimeline.tickInterval] + Array(repeating: GachaTimeline.tickInterval - 0.05, count: GachaTimeline.tickCount)
+        #expect(spinWaits.count == expected.count)
+        for (actual, wanted) in zip(spinWaits, expected) {
+            #expect(abs(actual - wanted) < 1e-6)
+        }
+    }
+
+    // MARK: - ドームの中の当選のカプセル
+
+    /// ドームから抜くカプセル（`winnerCapsuleIndex`）は、ドームに並べたカプセルのうち当選の色のもの。
+    /// 引き直しで除外した候補があっても（ドームに並べない）、番号がずれない（Issue #178）
+    @Test(arguments: [[String](), ["demo-candidate-1"]])
+    func winnerCapsuleIndexMatchesWinnerColor(excluded: [String]) async throws {
+        let fixture = Self.makeFixture(holdsClock: false)
+        fixture.server.rooms[Self.roomID]?.room.excludedCandidateIds = excluded
+        let model = fixture.model
+        #expect(model.winnerCapsuleIndex == nil)
+        let observing = Task { await model.observe() }
+        defer { observing.cancel() }
+        #expect(await Self.waitUntilLoaded(model))
+        #expect(model.capsuleCount == 3 - excluded.count)
+
+        await model.turnLever()
+        let index = try #require(model.winnerCapsuleIndex)
+        #expect(model.capsuleColorIndexes.indices.contains(index))
+        #expect(model.capsuleColorIndexes[index] == model.winnerColorIndex)
+        #expect(model.drawableCandidates[index].id == model.winnerCandidateID)
+        #expect(!excluded.contains(model.winnerCandidateID ?? ""))
     }
 
     // MARK: - 止める

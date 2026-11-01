@@ -53,6 +53,7 @@ struct GachaModelRecoveryTests {
             toasts: fixture.toasts,
             seenDraws: fixture.seenDraws,
             sleep: fixture.clock.sleep,
+            now: fixture.clock.now,
             resubscribeDelay: RoomModelTests.immediateResubscribe
         )
         fixture.functions.failureAfterWriting = AppError(.network, code: .deadlineExceeded)

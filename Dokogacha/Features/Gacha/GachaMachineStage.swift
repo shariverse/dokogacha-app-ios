@@ -5,144 +5,82 @@
 
 import SwiftUI
 
-/// S-13 の筐体（`DGGachaMachine`）に、演出の段階に合わせた動きを付ける（04 の §5 の `shake`・`turn`・`drop`・`open`）。
+/// S-13 の筐体（`DGGachaMachine`）に、演出の段階に合わせた動きを付ける（04 の §5 の `shake`・`turn`・`tumble`・`exit`・`drop`・`open`。Issue #178）。
 ///
-/// - `shake`（ドーム）: 0 → −4° → 4° → −3° → 3° → 0 の 1 回（0.4 秒）を、回転中だけ繰り返す（`KeyframeAnimator` の `repeating`。
-///   行って戻るだけの `repeatCount(autoreverses:)` では作れない）。回転中の 1.6 秒でちょうど 4 回
-/// - `turn`（レバーのバー）: 回転中に入ったら 720° 回す（1.6 秒）
-/// - `drop`（出てくるカプセル）: 落ち始めたら、上 −90 から落ちて +6 → −8 → 0 と跳ねる（0.7 秒。不透明になるのは底に当たるまで）
-/// - `open`（カプセル）: 落ちて少し見せた後に、1.6 倍に拡大しながら消える（0.5 秒。カプセルを押す操作は無い。Issue #158）
+/// 段階が変わった時刻を覚え、`TimelineView` の時刻から `GachaMotion.machinePose` の形を読んで描く（動いている間だけ時刻を進める）。
+/// - 回転中: ドームが揺れ（`shake`）、レバーが 0.2 秒ごとに 90° ずつカチッと回り（`turn`。刻みの触覚と同じ時刻）、
+///   ドームの中のカプセルがかき混ぜられて跳ねる（`tumble`）。抽選の結果が 1.6 秒より遅く返っても、揺れとかき混ぜは落ち始めるまで続ける
+/// - 落ち始め: 揺れとかき混ぜを 0.35 秒で収め、当選のカプセルがドームの底へ吸い込まれて消え（`exit` 0.35 秒）、取り出し口の上から落ちて跳ね、
+///   底に当たった瞬間につぶれ、跳ね返りで少し転がって戻る（`drop` 0.7 秒）
+/// - 開ける: 1.6 倍に拡大しながら消える（`open` 0.5 秒）
 ///
-/// 回転中でなくなったら（通信エラーで止めたときを含む）、揺れとレバーの角度は 0 に戻す。
-/// 「視差効果を減らす」がオンのときは揺れ・回転・落下・拡大をせず、カプセルの出入りをフェード 0.2 秒だけにする（04 の §5）。
+/// 回転中でなくなったら（通信エラーで止めたときを含む）、待機の形に戻す。
+/// 「視差効果を減らす」がオンのときは筐体を動かさず、取り出し口にもカプセルを出さない（Model は待たずに開け終えるので、
+/// レバーを押したら S-14 へのフェード 0.2 秒だけで替わる。04 の §5「すべて即時切り替え」）。
 struct GachaMachineStage: View {
-    /// 落ちるカプセルの値（縦のずれ・不透明度）
-    private struct DropValue {
-        var offset: Double = 0
-        var opacity: Double = 1
-    }
-
     /// 画面の状態
     let model: GachaModel
     /// 「視差効果を減らす」か
     let reduceMotion: Bool
 
-    /// レバーのバーの角度（回転中に入ったら 720 にする）
-    @State private var leverDegrees: Double = 0
-    /// 落下の演出の回数（変わるたびに `drop` を始める）
-    @State private var dropCount = 0
-    /// 取り出し口にカプセルを出しているか（視差効果を減らすときはフェードで出し入れする）
-    @State private var showsCapsule = false
-    /// カプセルを開けているか（`open`）
-    @State private var isOpening = false
+    /// 回し始めた時刻（回してから開け終えるまで）
+    @State private var spinStart: Date?
+    /// 落ち始めた時刻（落ちている途中から後）
+    @State private var dropStart: Date?
+    /// 開け始めた時刻（開けている途中から後）
+    @State private var openStart: Date?
 
     var body: some View {
-        KeyframeAnimator(initialValue: 0.0, repeating: isShaking) { domeDegrees in
-            KeyframeAnimator(initialValue: DropValue(), trigger: dropCount) { drop in
-                machine(domeDegrees: domeDegrees, drop: drop)
-            } keyframes: { _ in
-                dropKeyframes
-            }
-        } keyframes: { _ in
-            shakeKeyframes
+        // 毎フレーム変わらない値は、時刻を進める前に 1 回だけ求める（候補の並べ直しをフレームごとにしない）
+        let colors = model.capsuleColorIndexes.map(Color.dgCapsule(at:))
+        let winnerIndex = model.winnerCapsuleIndex
+        let winnerColor = Color.dgCapsule(at: model.winnerColorIndex)
+        let isLeverEnabled = model.canTurnLever
+        // 「視差効果を減らす」では筐体を動かさないので、時刻を進めない（止まった絵を毎フレーム描き直さない）
+        TimelineView(.animation(minimumInterval: nil, paused: !model.phase.isAnimating || reduceMotion)) { context in
+            let spinTime = spinStart.map { context.date.timeIntervalSince($0) }
+            let dropTime = dropStart.map { context.date.timeIntervalSince($0) }
+            let openTime = openStart.map { context.date.timeIntervalSince($0) }
+            DGGachaMachine(
+                capsuleColors: colors,
+                dispensedColor: dropTime == nil || reduceMotion ? nil : winnerColor,
+                isLeverEnabled: isLeverEnabled,
+                pose: GachaMotion.machinePose(
+                    times: GachaMotion.StageTimes(spin: spinTime, drop: dropTime, open: openTime),
+                    capsuleCount: colors.count,
+                    winnerIndex: winnerIndex,
+                    reduceMotion: reduceMotion
+                ),
+                onTurnLever: { model.leverTapped() }
+            )
         }
         .onAppear {
-            // 見終えた抽選で開いたときは、初めから取り出し口にカプセルがある
-            showsCapsule = model.phase.showsCapsule
+            // 見終えた抽選で開いたときは、初めから開けるところから始まることがある
+            start(model.phase, at: .now)
         }
-        .onChange(of: model.phase) { oldPhase, phase in
-            update(from: oldPhase, to: phase)
-        }
-    }
-
-    /// ドームを揺らしているか（回転中だけ）
-    private var isShaking: Bool {
-        model.phase == .spinning && !reduceMotion
-    }
-
-    /// いまの動きの値を入れた筐体
-    private func machine(domeDegrees: Double, drop: DropValue) -> DGGachaMachine {
-        let isSpinning = model.phase == .spinning
-        let openScale = isOpening && !reduceMotion ? GachaTimeline.openScale : 1
-        return DGGachaMachine(
-            capsuleColors: model.capsuleColorIndexes.map(Color.dgCapsule(at:)),
-            dispensedColor: showsCapsule ? Color.dgCapsule(at: model.winnerColorIndex) : nil,
-            isLeverEnabled: model.canTurnLever,
-            pose: DGGachaMachine.Pose(
-                domeRotationDegrees: isSpinning ? domeDegrees : 0,
-                leverRotationDegrees: isSpinning ? leverDegrees : 0,
-                dispensedOffsetY: drop.offset,
-                dispensedScale: openScale,
-                dispensedOpacity: isOpening ? 0 : drop.opacity
-            ),
-            onTurnLever: { model.leverTapped() }
-        )
-    }
-
-    /// 段階が変わったときに、動きを始める
-    private func update(from oldPhase: GachaPhase, to phase: GachaPhase) {
-        if phase == .spinning, !reduceMotion {
-            leverDegrees = 0
-            withAnimation(DGMotion.turn.animation) {
-                leverDegrees = GachaTimeline.turnDegrees
-            }
-        } else if oldPhase == .spinning {
-            leverDegrees = 0
-        }
-        if phase == .dropping, !reduceMotion {
-            dropCount += 1
-        }
-        if reduceMotion {
-            withAnimation(DGMotion.reducedFade) {
-                showsCapsule = phase.showsCapsule
-                isOpening = phase == .opening || phase == .opened
-            }
-        } else {
-            showsCapsule = phase.showsCapsule
-            if phase == .opening {
-                withAnimation(DGMotion.open.animation) {
-                    isOpening = true
-                }
-            } else if !phase.showsCapsule {
-                isOpening = false
-            }
+        .onChange(of: model.phase) { _, phase in
+            start(phase, at: .now)
         }
     }
 
-    // MARK: - キーフレーム
-
-    /// ドームの揺れ 1 回分（0.4 秒を 5 つに分け、それぞれ easeInOut。プロトタイプの `dgShake`）
-    private var shakeKeyframes: some Keyframes<Double> {
-        let segment = DGMotion.shake.duration / Double(GachaTimeline.shakeAngles.count)
-        let angles = GachaTimeline.shakeAngles
-        return KeyframeTrack {
-            LinearKeyframe(angles[0], duration: segment, timingCurve: .easeInOut)
-            LinearKeyframe(angles[1], duration: segment, timingCurve: .easeInOut)
-            LinearKeyframe(angles[2], duration: segment, timingCurve: .easeInOut)
-            LinearKeyframe(angles[3], duration: segment, timingCurve: .easeInOut)
-            LinearKeyframe(angles[4], duration: segment, timingCurve: .easeInOut)
-        }
-    }
-
-    /// 落ちるカプセルが底に当たるまでの時間
-    private static let landingDuration = DGMotion.drop.duration * GachaTimeline.DropKeyframes.landingFraction
-    /// 底から跳ね返りの頂点までの時間
-    private static let bounceDuration = DGMotion.drop.duration
-        * (GachaTimeline.DropKeyframes.bounceFraction - GachaTimeline.DropKeyframes.landingFraction)
-    /// 跳ね返りの頂点から止まるまでの時間
-    private static let settleDuration = DGMotion.drop.duration * (1 - GachaTimeline.DropKeyframes.bounceFraction)
-
-    /// 落ちるカプセル（プロトタイプの `dgDrop`。区間ごとに easeOut）
-    @KeyframesBuilder<DropValue> private var dropKeyframes: some Keyframes<DropValue> {
-        KeyframeTrack(\.offset) {
-            MoveKeyframe(GachaTimeline.DropKeyframes.startOffset)
-            LinearKeyframe(GachaTimeline.DropKeyframes.landingOffset, duration: Self.landingDuration, timingCurve: .easeOut)
-            LinearKeyframe(GachaTimeline.DropKeyframes.bounceOffset, duration: Self.bounceDuration, timingCurve: .easeOut)
-            LinearKeyframe(0, duration: Self.settleDuration, timingCurve: .easeOut)
-        }
-        KeyframeTrack(\.opacity) {
-            MoveKeyframe(0)
-            LinearKeyframe(1, duration: Self.landingDuration, timingCurve: .easeOut)
+    /// 段階に入った時刻を覚える（待機に戻ったら忘れる）
+    private func start(_ phase: GachaPhase, at date: Date) {
+        switch phase {
+        case .idle:
+            spinStart = nil
+            dropStart = nil
+            openStart = nil
+        case .spinning:
+            spinStart = date
+            dropStart = nil
+            openStart = nil
+        case .dropping:
+            // 回し始めた時刻は残す（落ち始めから揺れとかき混ぜを収めるのに使う）
+            dropStart = dropStart ?? date
+        case .opening, .opened:
+            // 落とさずに開けるところから始めたとき（見終えた抽選）は、落ち終えたことにする
+            dropStart = dropStart ?? .distantPast
+            openStart = openStart ?? date
         }
     }
 }

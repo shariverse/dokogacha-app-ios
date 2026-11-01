@@ -179,14 +179,18 @@ extension GachaCaption {
 }
 
 extension GachaCue {
+    /// 落ち始めの触覚の強さ（落ちた瞬間の `.impact(.medium)` より控えめにする）
+    static let releasedIntensity = 0.6
+
     /// 合図の触覚（03 の S-13「レバーを押した瞬間 .impact(.heavy)、回転中は0.2秒ごとに .impact(.light)、
-    /// カプセルが落ちた瞬間 .impact(.medium)、開いた瞬間 .impact(.soft)」）。
+    /// 落ち始め（レバーが回りきった瞬間）.impact(.rigid)、カプセルが落ちた瞬間 .impact(.medium)、開いた瞬間 .impact(.soft)」）。
     ///
     /// 行き先が決まった `.success` は、S-14 の結果の演出の決まる瞬間に鳴らす（決まる前に「決まった」を鳴らさない。Issue #158）
     var feedback: SensoryFeedback {
         switch self {
         case .leverPulled: .impact(weight: .heavy)
         case .spinTick: .impact(weight: .light)
+        case .capsuleReleased: .impact(flexibility: .rigid, intensity: Self.releasedIntensity)
         case .capsuleLanded: .impact(weight: .medium)
         case .capsuleOpened: .impact(flexibility: .soft)
         }
