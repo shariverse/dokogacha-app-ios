@@ -15,6 +15,7 @@ import SwiftUI
 /// 標準のナビゲーションバーは使わず、ヘッダー（タイトルと右端の閉じる）を置く（03 の §3）。
 /// トーストの窓口はシートの中で持ち、シートの根元に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）。
 /// 削除・報告を送っている間は、閉じるボタンと下スワイプで閉じられないようにする。
+/// 確認のダイアログは押したボタン（「この候補を削除」・「…」）に付ける（iPad と iOS 26 以降の iPhone では、ボタンを指して出る）。
 struct CandidateDetailView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -85,23 +86,6 @@ struct CandidateDetailView: View {
         .onChange(of: model.canDelete) {
             model.closeUnavailableConfirmation()
         }
-        .candidateReportDialog(model)
-        .confirmationDialog(
-            Text("この候補を削除しますか？"),
-            isPresented: $model.isConfirmingDelete,
-            titleVisibility: .visible
-        ) {
-            Button(role: .destructive) {
-                model.confirmDeleteTapped()
-            } label: {
-                Text("削除する")
-            }
-            Button(role: .cancel) {} label: {
-                Text("キャンセル")
-            }
-        } message: {
-            Text("いいねも一緒に消えます。元に戻せません。")
-        }
         .task {
             await model.observe()
         }
@@ -153,6 +137,7 @@ struct CandidateDetailView: View {
         .disabled(model.isSending)
         .accessibilityLabel(Text("その他の操作"))
         .accessibilityIdentifier(Identifier.more)
+        .candidateReportDialog(model)
     }
 
     // MARK: - 中身
@@ -310,6 +295,22 @@ struct CandidateDetailView: View {
         .buttonStyle(.dgBare)
         .disabled(model.isDeleting)
         .accessibilityIdentifier(Identifier.delete)
+        .confirmationDialog(
+            Text("この候補を削除しますか？"),
+            isPresented: $model.isConfirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button(role: .destructive) {
+                model.confirmDeleteTapped()
+            } label: {
+                Text("削除する")
+            }
+            Button(role: .cancel) {} label: {
+                Text("キャンセル")
+            }
+        } message: {
+            Text("いいねも一緒に消えます。元に戻せません。")
+        }
     }
 }
 

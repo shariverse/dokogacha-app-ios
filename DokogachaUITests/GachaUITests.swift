@@ -79,6 +79,38 @@ final class GachaUITests: XCTestCase {
         assertResultShown(app)
     }
 
+    /// S-14 の「きっぷを共有」で共有シートが出る。閉じた後にもう一度押しても出る（閉じたら共有する画像を戻す。`activityShareSheet(item:)`）
+    @MainActor
+    func testShareTicketOpensShareSheet() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "several-rooms"]
+        app.launch()
+
+        let card = app.buttons[Self.unlockedRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
+        card.tap()
+        let gachaButton = app.buttons[UITestID.roomGacha]
+        XCTAssertTrue(gachaButton.waitForExistence(timeout: UITestID.timeout))
+        gachaButton.tap()
+        let lever = app.buttons["レバーを回す"]
+        XCTAssertTrue(lever.waitForExistence(timeout: UITestID.timeout))
+        lever.tap()
+        assertResultShown(app)
+
+        let share = app.buttons[UITestID.resultShare]
+        // 共有シート（`UIActivityViewController`）の一覧と、右上の閉じるボタン（システムの ID）
+        let shareSheet = app.otherElements["ActivityListView"]
+        let close = app.buttons["header.closeButton"]
+        for _ in 0..<2 {
+            share.tap()
+            XCTAssertTrue(shareSheet.waitForExistence(timeout: UITestID.timeout))
+            XCTAssertTrue(close.waitForExistence(timeout: UITestID.timeout))
+            close.tap()
+            XCTAssertTrue(shareSheet.waitForNonExistence(timeout: UITestID.timeout))
+            XCTAssertTrue(share.waitForExistence(timeout: UITestID.timeout))
+        }
+    }
+
     /// 結果の演出ごとに、レバーを回したら演出の後に S-14 の見出し・きっぷ・ボタンが出そろう（演出の途中で止まらない。Issue #158）。
     /// S-13 は UI テストではいつも「視差効果を減らす」で動く
     @MainActor

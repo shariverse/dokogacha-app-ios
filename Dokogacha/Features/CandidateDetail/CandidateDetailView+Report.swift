@@ -20,7 +20,8 @@ extension ReportReason {
 }
 
 extension View {
-    /// S-10 の「この投稿を報告」で出す、理由を選ぶダイアログ（F-14）。理由を選ぶと報告を送る（選ぶことを確認とし、取り消しは「キャンセル」）
+    /// S-10 の「この投稿を報告」で出す、理由を選ぶダイアログ（F-14）。理由を選ぶと報告を送る（選ぶことを確認とし、取り消しは「キャンセル」）。
+    /// 「…」のメニューに付ける（iPad と iOS 26 以降の iPhone では、「…」を指して出る）
     func candidateReportDialog(_ model: CandidateDetailModel) -> some View {
         modifier(CandidateReportDialog(model: model))
     }
@@ -28,7 +29,8 @@ extension View {
 
 /// 報告の理由を選ぶダイアログ（02 の §3.5「理由（不適切な内容／スパム／その他）を選んで送信」）。
 ///
-/// 削除の確認と同じ `confirmationDialog`（アクションシート）にし、何が起きるか（運営に届く・自分の画面で隠れる）を本文に書く
+/// 削除の確認と同じ `confirmationDialog` にし（「…」を指して出る。iOS 18 までの iPhone では下からのアクションシート）、
+/// 何が起きるか（運営に届く・自分の画面で隠れる）を本文に書く
 private struct CandidateReportDialog: ViewModifier {
     @Bindable var model: CandidateDetailModel
 

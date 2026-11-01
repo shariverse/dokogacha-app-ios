@@ -17,6 +17,8 @@ extension ScreenshotDemo {
     /// - `passed`: はるかが提案し、そうたが賛成して可決した後（「過半数が賛成。もう一度引けます」）
     /// - `used`: 可決の後に、はるかがもう一度回して明治神宮が当たった結果（「引き直しは使用済みです」）
     ///
+    /// 起動引数 `-screenshot-confirm-decide` を付けると、「この行き先で決定」の確認のダイアログを出した状態で開く。
+    ///
     /// 静止画で撮るため、きっぷとハンコは動かさない（起動引数 `-screenshot-result-animate` を付けると動かす）。
     /// 文字を最大にした画面は `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL` を付けて撮る
     struct ResultScene: View {
@@ -26,6 +28,8 @@ extension ScreenshotDemo {
         static let animateArgument = "-screenshot-result-animate"
         /// 引き直しの欄の状態の起動引数
         static let rerollArgument = "-screenshot-reroll"
+        /// 「この行き先で決定」の確認のダイアログを出しておく起動引数
+        static let confirmDecideArgument = "-screenshot-confirm-decide"
         /// 引き直しに賛成するほかの人（そうた）
         static let approver = "demo-sota"
         /// 回すほかの人（はるか）
@@ -49,14 +53,16 @@ extension ScreenshotDemo {
                 }
             } ?? ""
             let toasts = DGToastCenter()
-            _model = State(initialValue: ResultModel(
+            let model = ResultModel(
                 roomID: roomID,
                 drawID: drawID,
                 userID: services.auth.currentUserID ?? DemoScenario.myUserID,
                 repository: services.rooms,
                 functions: services.functions,
                 toasts: toasts
-            ))
+            )
+            model.closing.isConfirming = ProcessInfo.processInfo.arguments.contains(Self.confirmDecideArgument)
+            _model = State(initialValue: model)
             _toasts = State(initialValue: toasts)
             animatesIn = ProcessInfo.processInfo.arguments.contains(Self.animateArgument)
         }

@@ -197,6 +197,18 @@ final class MembersModel {
         memberPendingRemoval = row
     }
 
+    /// 削除の確認を出しているメンバーが一覧から消えた（退出した・ほかの端末で削除した）・削除できなくなったら、確認を閉じる。
+    ///
+    /// ダイアログはそのメンバーの行に付くので、行が消えるとダイアログも消える。確認中のメンバーを残さない。画面が一覧の変化で呼ぶ
+    func closeUnavailableRemoval() {
+        guard let pending = memberPendingRemoval else {
+            return
+        }
+        if !rows.contains(where: { $0.id == pending.id && $0.canRemove }) {
+            memberPendingRemoval = nil
+        }
+    }
+
     /// 確認のダイアログで「削除する」が押された。そのメンバーの削除を始める（始めた Task が残っている間は受け付けない）
     /// - Parameter row: 確認のダイアログに出していたメンバー（ダイアログが閉じて `memberPendingRemoval` が消えた後でも使えるように受け取る）
     func confirmRemoveTapped(_ row: Row) {

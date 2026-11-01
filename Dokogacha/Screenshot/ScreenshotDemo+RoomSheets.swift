@@ -39,11 +39,22 @@ extension ScreenshotDemo {
         }
     }
 
-    /// S-11 メンバー一覧を、デモのルームの S-07 の上にシートで開く（起動引数は `RoomSheetState`）
+    /// S-11 メンバー一覧を、デモのルームの S-07 の上にシートで開く（起動引数は `RoomSheetState`）。
+    ///
+    /// 確認のダイアログを出した状態も起動引数で選ぶ:
+    /// - `-screenshot-confirm-leave`: 退出の確認のダイアログ（「ルームから退出」が出る `-screenshot-not-owner` と一緒に付ける）
+    /// - `-screenshot-confirm-remove <uid>`: そのメンバーの削除の確認のダイアログ（作成者の画面。一覧が届いてから出す）
     struct MembersScene: View {
+        /// 退出の確認のダイアログを出しておく起動引数
+        static let confirmLeaveArgument = "-screenshot-confirm-leave"
+        /// 削除の確認のダイアログを出しておくメンバーの起動引数
+        static let confirmRemoveArgument = "-screenshot-confirm-remove"
+
         @State private var roomToasts = DGToastCenter()
         @State private var sheetToasts: DGToastCenter
         @State private var isPresented = true
+        /// 削除の確認のダイアログを出したか（閉じた後に出し直さない）
+        @State private var hasConfirmedRemoval = false
         private let roomModel: RoomModel
         private let membersModel: MembersModel
 
@@ -68,6 +79,7 @@ extension ScreenshotDemo {
                 functions: services.functions,
                 toasts: sheetToasts
             )
+            membersModel.isConfirmingLeave = ProcessInfo.processInfo.arguments.contains(Self.confirmLeaveArgument)
             _sheetToasts = State(initialValue: sheetToasts)
         }
 
@@ -78,6 +90,16 @@ extension ScreenshotDemo {
             .dgToast(roomToasts)
             .sheet(isPresented: $isPresented) {
                 MembersView(model: membersModel, toasts: sheetToasts) {}
+            }
+            // 削除の確認に出す行は一覧から作るので、メンバーが届いてから出す
+            .onChange(of: membersModel.rows, initial: true) { _, rows in
+                guard !hasConfirmedRemoval,
+                      let memberID = ScreenshotDemo.value(after: Self.confirmRemoveArgument),
+                      let row = rows.first(where: { $0.id == memberID }) else {
+                    return
+                }
+                hasConfirmedRemoval = true
+                membersModel.removeTapped(row)
             }
         }
     }

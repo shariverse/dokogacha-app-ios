@@ -51,11 +51,7 @@ struct ResultCloseSection: View {
         }
         .disabled(closing.isClosing)
         .accessibilityIdentifier(Identifier.decide)
-        .padding(.horizontal, DGSpacing.screenX)
-        .padding(.top, DGSpacing.s10)
-        .padding(.bottom, DGSpacing.s16)
-        .dgContentColumn()
-        .background(Color.dgBgBase)
+        // 下部の欄ではなくボタンに付ける（iPad と iOS 26 以降の iPhone では、ボタンを指して出る）
         .confirmationDialog(
             Text("この行き先で決定しますか？"),
             isPresented: $closing.isConfirming,
@@ -68,6 +64,11 @@ struct ResultCloseSection: View {
         } message: {
             Text("ルームが終了し、外れた候補は次のルームで使えるようになります")
         }
+        .padding(.horizontal, DGSpacing.screenX)
+        .padding(.top, DGSpacing.s10)
+        .padding(.bottom, DGSpacing.s16)
+        .dgContentColumn()
+        .background(Color.dgBgBase)
     }
 
     /// 作成者以外への説明（ボタンの代わり）
