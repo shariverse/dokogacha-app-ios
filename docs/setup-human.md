@@ -300,6 +300,8 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
    食い違って見えないよう、たとえば「広告の配信事業者が、IP アドレスからおおよその地域を推定することがあります」を「広告データ」の説明か位置情報の段落に足すかを決める
 5. SMTP の事業者名とポリシーへのリンクを「投稿の報告のメール」に足す（手順 7）
 6. 問い合わせ先は Google フォーム（Q8。`DomainConstants.Web` と各ページにあり、公開してよい）のまま
+7. 運営者のサイトのプライバシーポリシーの一覧（`https://shilokuma.jp/privacy/`）に、ドコガチャのプライバシーポリシー `https://dokogacha.shilokuma.jp/privacy` へのリンクを足す（shilokuma-web 側の作業。このリポジトリでは触らない）。
+   ほかのアプリは `shilokuma.jp/privacy/<アプリ名>/` に本文を置いているが、ドコガチャはアプリと App Store が開く Hosting の `privacy.html` を正にし、一覧からはリンクだけにする（同じ文面を 2 か所で直さない）
 
 **確かめ方**: Hosting の Jest（`cd backend && npm test`）と Emulator のテスト（`npm run test:emulator`）が通り、`https://dokogacha.shilokuma.jp/terms` などで直した文面が出る。
 
