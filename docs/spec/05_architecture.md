@@ -281,8 +281,8 @@ const weightOf = (likes: number, mode: 'boost' | 'equal') => (mode === 'equal' ?
 
 ## 7. ディープリンク
 
-- ドメイン（仮決め）：`dokogacha.app`。Firebase Hosting で配信
-- `https://dokogacha.app/.well-known/apple-app-site-association` に `/r/*` を登録し、Associated Domains（`applinks:dokogacha.app`）を設定
+- ドメイン：`dokogacha.shilokuma.jp`（06 の §4。運営者の `shilokuma.jp` のドコガチャ専用のサブドメイン）。prod の Firebase Hosting で配信
+- `https://dokogacha.shilokuma.jp/.well-known/apple-app-site-association` に `/r/*` を登録し、Associated Domains（`applinks:dokogacha.shilokuma.jp`）を設定。同じ運営者のほかのアプリと干渉しないよう、ルートの `shilokuma.jp` やワイルドカード（`*.shilokuma.jp`）は applinks に使わない
 - `/r/{code}`：アプリがあれば S-06 参加確認へ。なければランディングページ（アプリの紹介、App Store ボタン、招待コードを大きく表示）
 - OGP：タイトル「{ルーム名} に招待されました｜ドコガチャ」、画像はアプリの汎用 OGP 画像（ルーム名は Hosting の Functions 経由で動的に差し込む。仮決め：MVP は固定の OGP 画像＋固定タイトル「ドコガチャに招待されました」）
 - 通知のペイロードに `roomId` と遷移先（`room` / `result`）を入れる
