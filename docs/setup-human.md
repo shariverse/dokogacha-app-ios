@@ -237,7 +237,11 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
    - 値は Info.plist の `GADApplicationIdentifier`・`DGBannerAdUnitID` に入る。アプリの中に入って配られる値で、秘密情報ではない（`Project.xcconfig` のコメントの「コミットしない」は、ループが本番の値を書かないという意味）。コミットするかどうかはチームで決める（コミットしないなら、CI で書き出す仕組みが別に要る）
    - Stg（TestFlight）はテスト用の ID のままにするのを勧める。本番の ID にするなら、テスターの端末を AdMob のテスト端末に登録して、自分の広告を押さないようにする
-4. Hosting に `app-ads.txt` を置く: AdMob の「アプリ」→「app-ads.txt」に出る 1 行を `backend/hosting/public/app-ads.txt` に書いてコミットし、prod の Hosting をデプロイする（`https://dokogacha.app/app-ads.txt` で開ける）。AdMob が確かめる開発者の Web サイトは App Store の掲載情報から読まれるので、AdMob のヘルプの手順でどの URL を見るかを確かめ、そのドメインを `dokogacha.app` にする
+4. app-ads.txt は、運営者のサイトの `https://shilokuma.jp/app-ads.txt` を同じ運営者のアプリで共有する（ドコガチャの Hosting には置かない）
+   - AdMob は、App Store の掲載情報の **マーケティング URL**（App Store の「デベロッパWebサイト」）のドメインの app-ads.txt を読む。マーケティング URL は `AppStore/metadata/shared.json` の `marketingUrl`（`https://shilokuma.jp/`）で、Actions の `Metadata/App Store` で反映する（手順 12）
+   - **同じ AdMob のアカウント**（パブリッシャー ID）なら、`shilokuma.jp/app-ads.txt` に行がもうあるので、何も足さない
+   - **別のアカウント**にするときだけ、AdMob の「アプリ」→「app-ads.txt」に出る 1 行を `shilokuma.jp/app-ads.txt` に足す（shilokuma-web 側の作業。このリポジトリでは触らない）
+   - `backend/hosting/public/` には app-ads.txt を置かない。マーケティング URL が `shilokuma.jp` なので AdMob は `dokogacha.shilokuma.jp` を読まず、置くと同じ内容を 2 か所で直すことになる
 5. EEA・英国に配信する場合は、AdMob の「プライバシーとメッセージ」で同意のメッセージ（UMP）を作り、アプリに UMP の処理を足す（今回の範囲外。05 の §8）
 
 **確かめ方**: Release のアプリで本番の広告が出て、ATT を拒否すると非パーソナライズ広告になる（#90）。AdMob の app-ads.txt の状態が「確認済み」になる。
@@ -362,6 +366,7 @@ Simulator で確かめられないことは、実機確認の Issue（ラベル 
 | SMTP のパスワード | Secret Manager の `firestore-send-email-SMTP_PASSWORD` | しない |
 | App Store の URL | `DomainConstants.Web.appStoreURL`・`landing.js`・`invite.html` | する |
 | AdMob の App ID・広告ユニット ID | `Configs/Release.xcconfig`（`Stg.xcconfig`）の `DG_GAD_APPLICATION_IDENTIFIER`・`DG_BANNER_AD_UNIT_ID` | チームで決める（手順 9） |
-| `app-ads.txt` | `backend/hosting/public/app-ads.txt` | する |
+| `app-ads.txt` | `https://shilokuma.jp/app-ads.txt`（shilokuma-web。同じ運営者のアプリで共有。手順 9） | このリポジトリにはしない |
+| マーケティング URL（AdMob が読む開発者の Web サイト） | `AppStore/metadata/shared.json` の `marketingUrl`（`https://shilokuma.jp/`） | する |
 | 運営者名・施行日・管轄裁判所 | `backend/hosting/public/terms.html`・`privacy.html`・`support.html` | する |
 | 内部テスター | 変数 `TESTFLIGHT_INTERNAL_TESTERS` | しない |
