@@ -2,7 +2,7 @@
 //  InviteLink.swift
 //  Dokogacha
 //
-//  招待リンク（02 の §2.4「`https://dokogacha.app/r/{招待コード}`（ドメインは仮決め）」）。
+//  招待リンク（02 の §2.4「`https://dokogacha.shilokuma.jp/r/{招待コード}`（ドメインは 06 の §4）」）。
 //
 
 import Foundation
@@ -28,7 +28,7 @@ nonisolated enum InviteLink {
 
     /// Universal Links で開かれた URL から招待コードを取り出す（`DeepLinkRouter` が使う。05 の §7）。
     ///
-    /// 招待リンク（`https://dokogacha.app/r/{招待コード}`）の形でなければ nil を返し、アプリは何もしない。
+    /// 招待リンク（`https://dokogacha.shilokuma.jp/r/{招待コード}`）の形でなければ nil を返し、アプリは何もしない。
     /// - スキームは `https` だけ（Universal Links は https でしか届かない）。ホストは大文字・小文字を区別せず `DomainConstants.Web.domain` と比べる。
     ///   ユーザー名・パスワード・ポートが付いたものは受けない
     /// - パスは `/r/` で始まり、その後ろが 1 つの区切りだけ（末尾のスラッシュは 1 つまで許す）。`/R/` は受けない

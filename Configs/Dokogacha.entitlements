@@ -10,7 +10,7 @@
 	<!-- プッシュ通知（02 の §8 F-60）。APNs の環境は Configs/*.xcconfig の DG_APS_ENVIRONMENT（Debug は development・Stg / Release は production） -->
 	<key>aps-environment</key>
 	<string>$(DG_APS_ENVIRONMENT)</string>
-	<!-- Universal Links（招待リンク https://dokogacha.app/r/{招待コード}）。ドメインは Configs/Project.xcconfig の DG_WEB_DOMAIN -->
+	<!-- Universal Links（招待リンク https://dokogacha.shilokuma.jp/r/{招待コード}）。ドメインは Configs/Project.xcconfig の DG_WEB_DOMAIN -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:$(DG_WEB_DOMAIN)</string>

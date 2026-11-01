@@ -5,8 +5,8 @@
     "marketingUrl は任意。書かなければ App Store Connect 側の値をそのまま残す（いまは紹介ページが無いので書かない）。",
     "privacyPolicyUrl は App 情報の項目なので、Tools/upload_metadata.py は書き込まない（--check で形だけ確かめる）。App Store Connect で同じ値を入れる。",
     "URL は DomainConstants.Web（supportURL・privacyPolicyURL）と同じ値にする（DokogachaTests の AppStoreMetadataTests が突き合わせる）。",
-    "ドメインは 06 の §4 の仮決め（dokogacha.app）。ドメインを取って Hosting につなぐまで開けないので、審査に出す前に開けることを確かめる。"
+    "ドメインは 06 の §4 の dokogacha.shilokuma.jp。prod の Hosting につなぐまで開けないので、審査に出す前に開けることを確かめる（docs/setup-human.md の §10）。"
   ],
-  "supportUrl": "https://dokogacha.app/support",
-  "privacyPolicyUrl": "https://dokogacha.app/privacy"
+  "supportUrl": "https://dokogacha.shilokuma.jp/support",
+  "privacyPolicyUrl": "https://dokogacha.shilokuma.jp/privacy"
 }

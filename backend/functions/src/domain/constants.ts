@@ -72,9 +72,9 @@ export const REMOVE_ADS_PRODUCT_ID = "remove_ads";
 /** 広告非表示の価格（円。06 の §4 の仮決め ¥480） */
 export const REMOVE_ADS_PRICE_YEN = 480;
 
-/** Web のドメイン（06 の §4 の仮決め `dokogacha.app`） */
-export const WEB_DOMAIN = "dokogacha.app";
-/** 招待リンクのパスの前置き（`https://dokogacha.app/r/{招待コード}`。02 の §2.4） */
+/** Web のドメイン（06 の §4。`shilokuma.jp` のドコガチャ専用のサブドメイン） */
+export const WEB_DOMAIN = "dokogacha.shilokuma.jp";
+/** 招待リンクのパスの前置き（`https://dokogacha.shilokuma.jp/r/{招待コード}`。02 の §2.4） */
 export const INVITE_LINK_PATH_PREFIX = "/r/";
 /** 招待リンクの OGP のタイトル（06 の §4 の仮決め「固定画像・固定タイトル」。05 の §7） */
 export const OGP_TITLE = "ドコガチャに招待されました";

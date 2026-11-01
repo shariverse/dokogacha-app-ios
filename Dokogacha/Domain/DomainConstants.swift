@@ -89,9 +89,9 @@ nonisolated enum DomainConstants {
     nonisolated enum Web {
         /// 招待リンクのスキーム（Universal Links は https だけ）
         static let scheme = "https"
-        /// Web のドメイン（06 の §4 の仮決め `dokogacha.app`）
-        static let domain = "dokogacha.app"
-        /// 招待リンクのパスの前置き（`https://dokogacha.app/r/{招待コード}`。02 の §2.4）
+        /// Web のドメイン（06 の §4。`shilokuma.jp` のドコガチャ専用のサブドメイン）
+        static let domain = "dokogacha.shilokuma.jp"
+        /// 招待リンクのパスの前置き（`https://dokogacha.shilokuma.jp/r/{招待コード}`。02 の §2.4）
         static let inviteLinkPathPrefix = "/r/"
         /// 招待リンクの OGP のタイトル（06 の §4 の仮決め「固定画像・固定タイトル」。05 の §7。アプリの画面には出さない）
         static let ogpTitle = "ドコガチャに招待されました"

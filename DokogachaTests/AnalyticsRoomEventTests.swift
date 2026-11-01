@@ -92,7 +92,7 @@ struct AnalyticsRoomEventTests {
 
         router.handle(PushDestination(kind: .invited, roomID: "demo-room", target: .join, inviteCode: code))
         #expect(router.pendingInviteVia == .push)
-        router.handle(try #require(URL(string: "https://dokogacha.app/r/\(code.value)")))
+        router.handle(try #require(URL(string: "https://dokogacha.shilokuma.jp/r/\(code.value)")))
         #expect(router.pendingInviteVia == .link)
 
         #expect(AppRoute.joinByInviteLink(code).joinVia == .link)
