@@ -106,6 +106,7 @@ backend/
 - plist が無い・読めないときも落ちずに起動し、「サーバーに接続できません」の状態になります。構成に合わない plist は `EXCLUDED_SOURCE_FILE_NAMES` でアプリに入りません
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化せず、メモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動きます
 - 署名・バージョンは `Configs/Project.xcconfig`（`DEVELOPMENT_TEAM`・`APP_BUNDLE_IDENTIFIER`・`MARKETING_VERSION`）。ビルド番号は Upload のときに Xcode が App Store Connect の最新を見て増やします
+- Stg の Bundle ID は `jp.shilokuma.Dokogacha.stg`（`Configs/Stg.xcconfig` で上書き。Issue #189）で、App Store Connect では本番（`jp.shilokuma.Dokogacha`）と別のアプリです。TestFlight で本番のビルドと混ざらず、同じ端末に並べて入れられます。ホーム画面の名前は同じで、アイコンで見分けます
 
 ## テスト
 
