@@ -40,6 +40,7 @@ enum ScreenshotDemo {
         case settingsDeleteAccount
         case resultRevealSetting
         case licenses
+        case placeMap
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）

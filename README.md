@@ -168,7 +168,7 @@ xcrun simctl io <UDID> screenshot room.png
 | 起動引数 | 効く画面（scene） | 中身 |
 | --- | --- | --- |
 | `-screenshot-demo` | すべて | 撮影モードにする |
-| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`resultRevealSetting`・`licenses`）。無ければホーム |
+| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`resultRevealSetting`・`licenses`・`placeMap`）。無ければホーム |
 | `-demo-scenario <名前>` | すべて | デモのデータ（`DemoScenario`）。撮影モードの既定は `several-rooms` |
 | `-screenshot-ad-placeholder` | 広告のある画面 | バナー広告の場所に固定の枠を出す（App Store の撮影では付けない） |
 | `-network-offline` | すべて | オフラインのことにする（「オフラインです」の帯） |
