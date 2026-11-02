@@ -12,6 +12,9 @@ import SwiftUI
 /// 右上の「…」のメニューには、他人の投稿でまだ報告していなければ「この投稿を報告」（F-14）を置き、理由を選ばせて送る
 /// （`CandidateDetailView+Report.swift`）。報告した候補は、ひとことと参考 URL を出さない（02 の §3.5）。
 ///
+/// 地図を押すと、シートの中で S-17 場所の地図へ進む（Discussion #193。S-09 と同じく、シートの中に `NavigationStack` を持つ）。
+/// 購読・閉じる判定・送っている途中の取り消しはスタックの外で持つ（S-17 を積んでいる間も候補の削除などに気づいて閉じるため）。
+///
 /// 標準のナビゲーションバーは使わず、ヘッダー（タイトルと右端の閉じる）を置く（03 の §3）。
 /// トーストの窓口はシートの中で持ち、シートの根元に重ねる（アプリの根元のトーストはシートの後ろに隠れるため）。
 /// 削除・報告を送っている間は、閉じるボタンと下スワイプで閉じられないようにする。
@@ -23,7 +26,7 @@ struct CandidateDetailView: View {
         static let screen = "candidateDetail.screen"
         /// 候補カード
         static let card = "candidateDetail.card"
-        /// 地図
+        /// 地図（押すと S-17 へ進む）
         static let map = "candidateDetail.map"
         /// 参考 URL
         static let url = "candidateDetail.url"
@@ -43,8 +46,6 @@ struct CandidateDetailView: View {
 
     /// 地図の高さ（03 の S-10「地図（高さ200pt）」）
     private static let mapHeight: CGFloat = 200
-    /// 地図に出す範囲（中心から上下・左右のメートル）
-    private static let mapSpanMeters: CLLocationDistance = 1_200
     /// 「この候補を削除」の文字の大きさ（S-06 の「やめる」と同じテキストボタン）
     private static let deleteSize: CGFloat = 15
     /// 「…」のアイコンの大きさ
@@ -52,6 +53,10 @@ struct CandidateDetailView: View {
 
     @State private var model: CandidateDetailModel
     @State private var toasts: DGToastCenter
+    /// 積んでいる S-17 の行き先
+    @State private var mapPath: [PlaceMapDestination] = []
+    /// 送っている途中なら、端からのスワイプで S-17 から戻るのも止める
+    @State private var navigationLock = NavigationLock()
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.calendar) private var calendar
@@ -66,6 +71,31 @@ struct CandidateDetailView: View {
     }
 
     var body: some View {
+        NavigationStack(path: $mapPath) {
+            detail
+                // ナビゲーションバーを隠しても、S-17 から端のスワイプで S-10 に戻れるようにする
+                .background(InteractivePopGesture(lock: navigationLock))
+                .navigationDestination(for: PlaceMapDestination.self) { destination in
+                    PlaceMapView(place: destination.place, category: destination.category)
+                }
+        }
+        .environment(\.navigationLock, navigationLock)
+        .dgToast(toasts)
+        .task {
+            await model.observe()
+        }
+        // 削除できた・候補が消えた・ルームが無くなったら、S-17 を積んでいてもシートを閉じて S-07 に戻る
+        .onChange(of: model.shouldClose, initial: true) { _, shouldClose in
+            if shouldClose {
+                dismiss()
+            }
+        }
+        // 閉じたら、送っている途中の削除・報告を止める（Task が Model を持ち続けないように）
+        .onDisappear { model.cancelSending() }
+    }
+
+    /// S-10 の中身（スタックの根元）
+    private var detail: some View {
         VStack(spacing: 0) {
             header
             ScrollView {
@@ -80,23 +110,11 @@ struct CandidateDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
-        .dgToast(toasts)
         // 削除・報告を送っている間は、下スワイプで閉じさせない（申し送り「送信中は戻る・シートの下スワイプを止める」）
         .lockNavigation(while: model.isSending)
         .onChange(of: model.canDelete) {
             model.closeUnavailableConfirmation()
         }
-        .task {
-            await model.observe()
-        }
-        // 削除できた・候補が消えた・ルームが無くなったら、シートを閉じて S-07 に戻る
-        .onChange(of: model.shouldClose, initial: true) { _, shouldClose in
-            if shouldClose {
-                dismiss()
-            }
-        }
-        // 閉じたら、送っている途中の削除・報告を止める（Task が Model を持ち続けないように）
-        .onDisappear { model.cancelSending() }
     }
 
     // MARK: - ヘッダー
@@ -149,7 +167,7 @@ struct CandidateDetailView: View {
                 TimelineView(.everyMinute) { context in
                     card(row, now: context.date)
                 }
-                map(place)
+                mapButton(place, category: row.category)
                 if let url = model.referenceURL {
                     referenceLink(url)
                 }
@@ -218,25 +236,40 @@ struct CandidateDetailView: View {
         .accessibilityIdentifier(Identifier.card)
     }
 
-    /// 場所に 1 本のピンを立てた地図（高さ 200pt。スクロールの邪魔をしないよう、地図は動かせない）
+    /// 場所に 1 本のピンを立てた地図（高さ 200pt。スクロールの邪魔をしないよう、地図そのものは動かせない）のボタン。
+    /// 押すとシートの中で S-17 へ進む。S-09 と同じく、右上に拡大のアイコンを重ねて押せることを示す。
+    /// 削除・報告を送っている間は押せない（送った結果を見せる S-10 を隠さないため）
+    private func mapButton(_ place: Place, category: PlaceCategory) -> some View {
+        let shape = RoundedRectangle(cornerRadius: DGRadius.md)
+        return Button {
+            mapPath.append(PlaceMapDestination(place: place, category: category))
+        } label: {
+            map(place)
+                .frame(maxWidth: .infinity)
+                .frame(height: Self.mapHeight)
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular))
+                .overlay(alignment: .topTrailing) {
+                    PlaceMapExpandBadge()
+                        .padding(DGSpacing.s8)
+                }
+                .contentShape(shape)
+        }
+        .buttonStyle(.dgBare)
+        .disabled(model.isSending)
+        .accessibilityLabel(Text("\(place.name)の地図を開く"))
+        .accessibilityIdentifier(Identifier.map)
+    }
+
+    /// ピン 1 つの地図（最初の範囲は S-17 と同じ。押すのはボタンが受ける）
     private func map(_ place: Place) -> some View {
         let coordinate = CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)
-        let shape = RoundedRectangle(cornerRadius: DGRadius.md)
-        let region = MKCoordinateRegion(
-            center: coordinate,
-            latitudinalMeters: Self.mapSpanMeters,
-            longitudinalMeters: Self.mapSpanMeters
-        )
-        return Map(initialPosition: .region(region), interactionModes: []) {
+        return Map(initialPosition: .region(PlaceMapCamera.initialRegion(for: place)), interactionModes: []) {
             Marker(place.name, coordinate: coordinate)
                 .tint(Color.dgAccentPrimary)
         }
-        .frame(height: Self.mapHeight)
-        .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(place.name)の地図"))
-        .accessibilityIdentifier(Identifier.map)
+        // 地図の上のタップも、地図ではなくボタンに渡す
+        .allowsHitTesting(false)
     }
 
     /// 参考 URL（タップで Safari が開く）
