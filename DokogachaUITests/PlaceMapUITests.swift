@@ -69,9 +69,7 @@ final class PlaceMapUITests: XCTestCase {
         let placeMap = app.otherElements[UITestID.placeMapScreen]
         XCTAssertTrue(placeMap.waitForExistence(timeout: UITestID.timeout))
 
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
-        start.press(forDuration: 0.05, thenDragTo: end)
+        swipeFromLeftEdge(of: placeMap)
 
         XCTAssertTrue(placeMap.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(sheet.buttons[UITestID.postCandidateMap].waitForExistence(timeout: UITestID.timeout))
@@ -116,11 +114,54 @@ final class PlaceMapUITests: XCTestCase {
         // もう一度開き、端からのスワイプでも S-10 に戻る
         mapButton.tap()
         XCTAssertTrue(placeMap.waitForExistence(timeout: UITestID.timeout))
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
-        start.press(forDuration: 0.05, thenDragTo: end)
+        swipeFromLeftEdge(of: placeMap)
         XCTAssertTrue(placeMap.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(detail.waitForExistence(timeout: UITestID.timeout))
+    }
+
+    /// S-10 の上に S-17 を積んだまま、シートを下へのスワイプで閉じると S-07 に戻る。同じ候補を開き直すと、
+    /// S-17 を残さずに S-10 から始まる（購読・閉じる判定はスタックの外で持つので、S-17 を積んでいても閉じられる）
+    @MainActor
+    func testDismissCandidateDetailSheetWhilePlaceMapIsStacked() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting", "-demo-scenario", "room-with-candidates"]
+        app.launch()
+
+        let card = app.buttons[UITestID.demoRoomCard]
+        XCTAssertTrue(card.waitForExistence(timeout: UITestID.timeout))
+        card.tap()
+        let room = app.otherElements[UITestID.roomScreen]
+        XCTAssertTrue(room.waitForExistence(timeout: UITestID.timeout))
+        let mine = app.otherElements[UITestID.candidateCard(UITestID.myCandidateID)]
+        XCTAssertTrue(mine.waitForExistence(timeout: UITestID.timeout))
+        mine.buttons.matching(NSPredicate(format: "label CONTAINS %@", "江の島")).firstMatch.tap()
+        let detail = app.otherElements[UITestID.candidateDetailScreen]
+        XCTAssertTrue(detail.waitForExistence(timeout: UITestID.timeout))
+        app.buttons[UITestID.candidateDetailMap].tap()
+        let placeMap = app.otherElements[UITestID.placeMapScreen]
+        XCTAssertTrue(placeMap.waitForExistence(timeout: UITestID.timeout))
+
+        // S-17 のヘッダーのあたりから下へスワイプして、シートごと閉じる
+        let top = placeMap.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02))
+        let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98))
+        top.press(forDuration: 0.05, thenDragTo: bottom)
+        XCTAssertTrue(placeMap.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(detail.waitForNonExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(room.waitForExistence(timeout: UITestID.timeout))
+
+        // 開き直すと S-10 から始まる
+        mine.buttons.matching(NSPredicate(format: "label CONTAINS %@", "江の島")).firstMatch.tap()
+        XCTAssertTrue(detail.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(app.buttons[UITestID.candidateDetailMap].waitForExistence(timeout: UITestID.timeout))
+        XCTAssertFalse(placeMap.exists)
+    }
+
+    /// 画面（シート）の左端から右へスワイプする（端からの戻る操作）。iPad の中央に出るシートでも届くよう、画面ではなく要素の左端から動かす
+    @MainActor
+    private func swipeFromLeftEdge(of element: XCUIElement) {
+        let start = element.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
+        let end = element.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
     }
 
     /// ルーム（S-07）の「候補を追加」から S-08 で「水族館」を検索し、すみだ水族館の「追加」で S-09 を出す
