@@ -14,25 +14,31 @@ final class PlaceMapUITests: XCTestCase {
     }
 
     /// S-09 の小さな地図を押すと、シートの中で S-17 へ進み、場所名のヘッダー・場所のカード・「元の位置に戻す」が出る。
-    /// 「戻る」で S-09 に戻ると、入れたひとことと選び直したカテゴリが残っている
+    /// 「戻る」で S-09 に戻ると、入れたひとこと・参考 URL と選び直したカテゴリが残っている
     @MainActor
     func testOpenPlaceMapFromPostCandidateAndGoBack() throws {
         let app = launchToPostCandidate()
         let sheet = app.otherElements[UITestID.postCandidateScreen]
 
-        // ひとことを入れ、カテゴリを街歩きに選び直しておく
-        let note = sheet.textFields[UITestID.postCandidateNote]
-        note.tap()
-        note.typeText("クラゲが見たい")
+        // カテゴリを街歩きに選び直し（キーボードを出す前に選ぶ）、ひとことと参考 URL を入れておく
         sheet.buttons[UITestID.postCandidateCategory].tap()
         let town = sheet.buttons["postCandidate.category.town"]
         XCTAssertTrue(town.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(town.scrollIntoView(in: app, above: sheet.buttons[UITestID.postCandidateSubmit]))
         town.tap()
         XCTAssertTrue(sheet.buttons[UITestID.postCandidateCategory].waitForValue("街歩き"))
+        let note = sheet.textFields[UITestID.postCandidateNote]
+        XCTAssertTrue(note.scrollIntoView(in: app, above: sheet.buttons[UITestID.postCandidateSubmit]))
+        note.tap()
+        note.typeText("クラゲが見たい")
+        let url = sheet.textFields[UITestID.postCandidateURL]
+        XCTAssertTrue(url.scrollIntoView(in: app, above: sheet.buttons[UITestID.postCandidateSubmit]))
+        url.tap()
+        url.typeText("https://example.com/kurage")
 
         // 地図のボタン（VoiceOver のラベル付き）を押すと S-17 へ進む
         let mapButton = sheet.buttons[UITestID.postCandidateMap]
-        XCTAssertTrue(mapButton.waitForExistence(timeout: UITestID.timeout))
+        XCTAssertTrue(mapButton.scrollIntoView(in: app, towardTop: true))
         XCTAssertEqual(mapButton.label, "すみだ水族館の地図を開く")
         mapButton.tap()
 
@@ -50,6 +56,7 @@ final class PlaceMapUITests: XCTestCase {
         XCTAssertTrue(placeMap.waitForNonExistence(timeout: UITestID.timeout))
         XCTAssertTrue(sheet.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(sheet.textFields[UITestID.postCandidateNote].value as? String, "クラゲが見たい")
+        XCTAssertEqual(sheet.textFields[UITestID.postCandidateURL].value as? String, "https://example.com/kurage")
         XCTAssertEqual(sheet.buttons[UITestID.postCandidateCategory].value as? String, "街歩き")
         XCTAssertTrue(sheet.buttons[UITestID.postCandidateSubmit].isEnabled)
     }
