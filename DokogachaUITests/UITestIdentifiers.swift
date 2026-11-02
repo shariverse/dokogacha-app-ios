@@ -81,6 +81,10 @@ enum UITestID {
     static let candidateDetailClose = "candidateDetail.close"
     /// S-10 の参考 URL（`CandidateDetailView.Identifier.url`）
     static let candidateDetailURL = "candidateDetail.url"
+    /// S-10 の地図（押すと S-17 へ進む。`CandidateDetailView.Identifier.map`）
+    static let candidateDetailMap = "candidateDetail.map"
+    /// S-10 の「マップで開く」（`CandidateDetailView.Identifier.openInMaps`）
+    static let candidateDetailOpenInMaps = "candidateDetail.openInMaps"
     /// デモのルームの、はるかが投稿したサンシャイン水族館（ひとこと・参考 URL あり。`DemoScenario` の `demo-candidate-1`）
     static let othersCandidateID = "demo-candidate-1"
     /// S-07 の見出し行の「候補を追加」（`RoomView.Identifier.addCandidate`）
