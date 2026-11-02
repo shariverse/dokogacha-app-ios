@@ -50,6 +50,8 @@ struct CandidateDetailView: View {
     private static let deleteSize: CGFloat = 15
     /// 「…」のアイコンの大きさ
     private static let moreIconSize: CGFloat = 20
+    /// UI テスト（`-uiTesting`）では地図のタイルを出さない（地図のタイルを読みにネットワークへ出ないように。押せる面は同じ大きさで出す。S-09 と同じ）
+    private static let showsMap = !LaunchContext.current.isUITesting
 
     @State private var model: CandidateDetailModel
     @State private var toasts: DGToastCenter
@@ -244,16 +246,22 @@ struct CandidateDetailView: View {
         return Button {
             mapPath.append(PlaceMapDestination(place: place, category: category))
         } label: {
-            map(place)
-                .frame(maxWidth: .infinity)
-                .frame(height: Self.mapHeight)
-                .clipShape(shape)
-                .overlay(shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular))
-                .overlay(alignment: .topTrailing) {
-                    PlaceMapExpandBadge()
-                        .padding(DGSpacing.s8)
+            Group {
+                if Self.showsMap {
+                    map(place)
+                } else {
+                    shape.fill(Color.dgSurfaceCard)
                 }
-                .contentShape(shape)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.mapHeight)
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular))
+            .overlay(alignment: .topTrailing) {
+                PlaceMapExpandBadge()
+                    .padding(DGSpacing.s8)
+            }
+            .contentShape(shape)
         }
         .buttonStyle(.dgBare)
         .disabled(model.isSending)
