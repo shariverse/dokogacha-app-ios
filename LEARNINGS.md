@@ -58,6 +58,8 @@
 - 押す操作が要る画面（共有シートなど）の Before を撮るときは、今のブランチで `build-for-testing` した xctestrun の写しを作り、`UITargetAppPath`・`DependentProductPaths` の `Dokogacha.app` を変更前のビルドの .app のパスに書き換えて `test-without-building -xctestrun` に渡すと、同じ一時的な UI テストで変更前のアプリを動かせる。UI テストの `XCUIScreen.main.screenshot()` は、Simulator からホストの絶対パスに書き出せる（2026-11-01）
 - `List` の `swipeActions` のボタンを `role: .destructive` にすると、押した時点で行を消す動きが入り、その行に付けた `confirmationDialog` が出ない（iOS 26.5 の iPhone・iPad の Simulator）。確認してから消すときは role を付けず、色だけ `.tint` で付ける。iOS 26 の `confirmationDialog` は押したところを指して出て「キャンセル」のボタンが無いので、UI テストではダイアログの外を押して取り消す（画面の上端はステータスバーに取られて閉じない）（2026-11-01）
 - develop を取り込んだ後、取り込む前と同じ DerivedData に差分でビルドしたアプリでは `DeleteAccountUITests` が毎回落ちた（アカウントを削除した後のサインインで止まる）。同じコードを新しい DerivedData でビルドすると通った。取り込みの後に関係の無い UI テストが落ちたら、まず DerivedData を作り直して確かめる（2026-11-01）
+- シートの中に `NavigationStack` を置いて画面を積むと、根元の画面の `.onDisappear` が走り、`.task` も取り消される（積んだ画面から戻ると `.task` は最初からやり直す）。購読・閉じる判定（`dismiss()`）・送っている途中の取り消しは、スタックの外（シートの根元の View の `body`）に付ける。`@Environment(\.dismiss)` もスタックの外で読めば、積んだ画面があってもシートそのものを閉じる（S-10 の `CandidateDetailView`）（2026-11-03）
+- `scrollIntoView`（`app.swipeUp`）は画面の真ん中から送るので、ミディアムのシートではシートの外（後ろの画面）を送って空振りする。シートの中の要素は、先に `sheet.swipeUp()` でラージに広げるか、`tap()` の自動スクロールに任せる（`PlaceMapUITests`）。端からのスワイプで戻る操作も、iPad の中央のシートに届くよう、画面ではなくシートの中の要素の左端から動かす（2026-11-03）
 
 ## 場所検索（MapKit）
 
