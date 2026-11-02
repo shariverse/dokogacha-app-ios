@@ -20,25 +20,24 @@ final class PlaceMapUITests: XCTestCase {
         let app = launchToPostCandidate()
         let sheet = app.otherElements[UITestID.postCandidateScreen]
 
-        // カテゴリを街歩きに選び直し（キーボードを出す前に選ぶ）、ひとことと参考 URL を入れておく
+        // シートをラージに広げてから（ミディアムでは画面の真ん中がシートの外になるため）、カテゴリを街歩きに選び直し
+        // （キーボードを出す前に選ぶ）、ひとことと参考 URL を入れておく。押す要素は tap() が見える位置まで送る
+        sheet.swipeUp()
         sheet.buttons[UITestID.postCandidateCategory].tap()
         let town = sheet.buttons["postCandidate.category.town"]
         XCTAssertTrue(town.waitForExistence(timeout: UITestID.timeout))
-        XCTAssertTrue(town.scrollIntoView(in: app, above: sheet.buttons[UITestID.postCandidateSubmit]))
         town.tap()
         XCTAssertTrue(sheet.buttons[UITestID.postCandidateCategory].waitForValue("街歩き"))
         let note = sheet.textFields[UITestID.postCandidateNote]
-        XCTAssertTrue(note.scrollIntoView(in: app, above: sheet.buttons[UITestID.postCandidateSubmit]))
         note.tap()
         note.typeText("クラゲが見たい")
         let url = sheet.textFields[UITestID.postCandidateURL]
-        XCTAssertTrue(url.scrollIntoView(in: app, above: sheet.buttons[UITestID.postCandidateSubmit]))
         url.tap()
         url.typeText("https://example.com/kurage")
 
         // 地図のボタン（VoiceOver のラベル付き）を押すと S-17 へ進む
         let mapButton = sheet.buttons[UITestID.postCandidateMap]
-        XCTAssertTrue(mapButton.scrollIntoView(in: app, towardTop: true))
+        XCTAssertTrue(mapButton.waitForExistence(timeout: UITestID.timeout))
         XCTAssertEqual(mapButton.label, "すみだ水族館の地図を開く")
         mapButton.tap()
 
