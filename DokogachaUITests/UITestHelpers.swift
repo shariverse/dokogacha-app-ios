@@ -81,6 +81,25 @@ extension XCUIElement {
         return exists && isHittable
     }
 
+    /// `container`（シートなど）の上の方からゆっくり上へ送り、この要素が `bottomLimit`（下に固定したバー）より上に来たら止める。来れば true。
+    ///
+    /// `tap()` は要素の真ん中を押すので、要素がバーの裏にあるとバーのボタンが押される（S-09 の入力欄なら「候補に追加」で投稿してしまう）。
+    /// `scrollIntoView(in:)` は画面の真ん中から送るので、ミディアムのシートではシートの外を、キーボードが出ているときは下のバーを送ってしまう。
+    /// ここでは `container` の上から 30% の位置から送る。ミディアムのシートは、この送り方ではラージに広がらなかった（iOS 26.5 の Simulator）ので、
+    /// 先に `sheet.swipeUp()` でラージに広げてから呼ぶ
+    func scrollIntoView(within container: XCUIElement, above bottomLimit: XCUIElement, maxSwipes: Int = 6) -> Bool {
+        for _ in 0..<maxSwipes {
+            if exists, isHittable, frame.maxY <= bottomLimit.frame.minY {
+                return true
+            }
+            let start = container.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+            let end = container.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+            // 送り終えたところで止めてから離す（慣性で動いている間に次の操作をしない）
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+        }
+        return exists && isHittable && frame.maxY <= bottomLimit.frame.minY
+    }
+
     /// 述語が満たされるまで待つ
     private func wait(for predicate: NSPredicate, timeout: TimeInterval) -> Bool {
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: self)

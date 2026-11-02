@@ -28,12 +28,18 @@ final class PlaceMapUITests: XCTestCase {
         XCTAssertTrue(town.waitForExistence(timeout: UITestID.timeout))
         town.tap()
         XCTAssertTrue(sheet.buttons[UITestID.postCandidateCategory].waitForValue("街歩き"))
+        // 入力欄は「候補に追加」のバーの裏に入りうる（キーボードが出るとバーが上がる）。真ん中を押すと投稿してしまうので、バーより上まで送ってから押す
+        let submit = sheet.buttons[UITestID.postCandidateSubmit]
         let note = sheet.textFields[UITestID.postCandidateNote]
+        XCTAssertTrue(note.scrollIntoView(within: sheet, above: submit))
         note.tap()
         note.typeText("クラゲが見たい")
+        XCTAssertTrue(note.waitForValue("クラゲが見たい"))
         let url = sheet.textFields[UITestID.postCandidateURL]
+        XCTAssertTrue(url.scrollIntoView(within: sheet, above: submit))
         url.tap()
         url.typeText("https://example.com/kurage")
+        XCTAssertTrue(url.waitForValue("https://example.com/kurage"))
 
         // 地図のボタン（VoiceOver のラベル付き）を押すと S-17 へ進む
         let mapButton = sheet.buttons[UITestID.postCandidateMap]
