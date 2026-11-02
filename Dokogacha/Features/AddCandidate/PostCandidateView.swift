@@ -43,10 +43,6 @@ struct PostCandidateView: View {
     private static let mapHeight: CGFloat = 140
     /// 地図に映す範囲（度。場所の周り 1km 前後）
     private static let mapSpan: CLLocationDegrees = 0.01
-    /// 地図の隅の拡大のアイコンの大きさ（飾りなので文字の大きさでは変えない。大きくすると高さ 140 の地図を覆うため）
-    private static let expandIconSize: CGFloat = 14
-    /// 地図の隅の拡大のアイコンの丸の一辺（同じ理由で固定）
-    private static let expandBadgeSide: CGFloat = 32
     /// 閉じるアイコンの大きさ
     private static let closeIconSize: CGFloat = 20
     /// 場所名の大きさ
@@ -214,7 +210,7 @@ struct PostCandidateView: View {
             .clipShape(shape)
             .overlay { shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
             .overlay(alignment: .topTrailing) {
-                expandBadge
+                PlaceMapExpandBadge()
                     .padding(DGSpacing.s8)
             }
             .contentShape(shape)
@@ -240,18 +236,6 @@ struct PostCandidateView: View {
         }
         // 地図の上のタップも、地図ではなくボタンに渡す
         .allowsHitTesting(false)
-    }
-
-    /// 地図の右上に重ねる拡大のアイコン（白い丸に墨色の縁）
-    private var expandBadge: some View {
-        Image(systemName: "arrow.up.left.and.arrow.down.right")
-            .font(.system(size: Self.expandIconSize))
-            .fontWeight(.bold)
-            .foregroundStyle(Color.dgInk)
-            .frame(width: Self.expandBadgeSide, height: Self.expandBadgeSide)
-            .background(Color.dgSurfaceCard, in: Circle())
-            .overlay { Circle().strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
-            .accessibilityHidden(true)
     }
 
     // MARK: - カテゴリ
