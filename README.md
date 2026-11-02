@@ -181,6 +181,7 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-search-area <エリア>` | `addCandidate` | 選んでおく地方（`SearchArea` の rawValue。`kanto`・`hokkaido` など。既定は全国） |
 | `-screenshot-search-prefecture <コード>`・`-screenshot-search-municipality <団体コード>` | `addCandidate` | 選んでおく都道府県（都道府県コード。`13` など）・市区町村（6 桁の団体コード。`131075`（墨田区）など）。いくつか付けたら市区町村・都道府県・地方の順に見る |
 | `-screenshot-municipality-picker`・`-screenshot-municipality-filter <語>` | `addCandidate` | 市区町村を選ぶシートを開いておく（都道府県を選んでいるときだけ）・シートの絞り込みの語 |
+| `-screenshot-post-draft` | `addCandidate` | すみだ水族館の S-09 投稿の確認のシートを開いておく |
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
 | `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings`・`roomInvite` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態（`roomInvite` は S-07 の上に招待のシートを出す） |
 | `-screenshot-confirm-leave`・`-screenshot-confirm-remove <uid>` | `members` | 退出の確認のダイアログ（`-screenshot-not-owner` と一緒に付ける）・そのメンバーの削除の確認のダイアログ |
