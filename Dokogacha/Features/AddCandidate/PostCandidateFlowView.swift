@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// シートの中に `NavigationStack` を持ち、根元に S-09、小さな地図を押したら上に S-17 場所の地図を積む
 /// （S-17 の「戻る」・端からのスワイプで S-09 に戻る。ひとこと・URL・カテゴリは `AddCandidateModel` が持つので残る）。
-/// S-17 へ進むときはシートをラージに広げ、戻ったら進む前の大きさに戻す。文字がとても大きいときはラージだけ。
+/// S-17 へ進むときはシートをラージに広げ（積んでいる間はラージだけ）、戻ったら進む前の大きさに戻す。文字がとても大きいときはラージだけ。
 /// 送っている途中は、端からのスワイプで戻らせない（`NavigationLock`。S-05・S-06 の `JoinRoomFlowView` と同じ）。
 /// トーストは S-17 を積んでいても見えるよう、スタックの外に重ねる（`AddCandidateModel.sheetToasts`）。
 struct PostCandidateFlowView: View {
@@ -44,7 +44,8 @@ struct PostCandidateFlowView: View {
         .dgToast(model.sheetToasts)
         .onChange(of: path) { _, path in
             if path.isEmpty, let detentBeforeMap {
-                detent = detentBeforeMap
+                // 積んでいる間に文字をとても大きくしたなどで、元の大きさが今は選べないならラージにする
+                detent = detents.contains(detentBeforeMap) ? detentBeforeMap : .large
                 self.detentBeforeMap = nil
             }
         }
@@ -55,9 +56,10 @@ struct PostCandidateFlowView: View {
         }
     }
 
-    /// シートの大きさの選択肢（文字がとても大きいときはラージだけ。03 の S-09）
+    /// シートの大きさの選択肢（文字がとても大きいときはラージだけ。03 の S-09）。
+    /// S-17 を積んでいる間もラージだけにする（ミディアムでは地図・カード・ボタンが収まらないため）
     private var detents: Set<PresentationDetent> {
-        dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large]
+        dynamicTypeSize.isAccessibilitySize || !path.isEmpty ? [.large] : [.medium, .large]
     }
 
     /// シートをラージに広げて、S-17 を積む

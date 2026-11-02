@@ -43,9 +43,9 @@ struct PostCandidateView: View {
     private static let mapHeight: CGFloat = 140
     /// 地図に映す範囲（度。場所の周り 1km 前後）
     private static let mapSpan: CLLocationDegrees = 0.01
-    /// 地図の隅の拡大のアイコンの大きさ
+    /// 地図の隅の拡大のアイコンの大きさ（飾りなので文字の大きさでは変えない。大きくすると高さ 140 の地図を覆うため）
     private static let expandIconSize: CGFloat = 14
-    /// 地図の隅の拡大のアイコンの丸の一辺
+    /// 地図の隅の拡大のアイコンの丸の一辺（同じ理由で固定）
     private static let expandBadgeSide: CGFloat = 32
     /// 閉じるアイコンの大きさ
     private static let closeIconSize: CGFloat = 20
@@ -65,8 +65,6 @@ struct PostCandidateView: View {
     @State private var isPickingCategory = false
 
     @ScaledMetric(relativeTo: .headline) private var closeIconSize = PostCandidateView.closeIconSize
-    @ScaledMetric(relativeTo: .caption) private var expandIconSize = PostCandidateView.expandIconSize
-    @ScaledMetric(relativeTo: .caption) private var expandBadgeSide = PostCandidateView.expandBadgeSide
 
     var body: some View {
         VStack(spacing: 0) {
@@ -222,6 +220,8 @@ struct PostCandidateView: View {
             .contentShape(shape)
         }
         .buttonStyle(.dgBare)
+        // 送っている途中（Task が動き出す前を含む）は進ませない（送った結果を見せる S-09 を隠さないため）
+        .disabled(model.locksNavigation)
         .accessibilityLabel(Text("\(place.name)の地図を開く"))
         .accessibilityIdentifier(Identifier.map)
     }
@@ -245,10 +245,10 @@ struct PostCandidateView: View {
     /// 地図の右上に重ねる拡大のアイコン（白い丸に墨色の縁）
     private var expandBadge: some View {
         Image(systemName: "arrow.up.left.and.arrow.down.right")
-            .font(.system(size: expandIconSize))
+            .font(.system(size: Self.expandIconSize))
             .fontWeight(.bold)
             .foregroundStyle(Color.dgInk)
-            .frame(width: expandBadgeSide, height: expandBadgeSide)
+            .frame(width: Self.expandBadgeSide, height: Self.expandBadgeSide)
             .background(Color.dgSurfaceCard, in: Circle())
             .overlay { Circle().strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
             .accessibilityHidden(true)
