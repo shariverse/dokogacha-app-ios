@@ -56,14 +56,14 @@ struct PlaceMapView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            DGHeader(Text(verbatim: place.name), onBack: { dismiss() })
-                .dgContentColumn()
+        Group {
             if dynamicTypeSize.isAccessibilitySize {
-                // 文字がとても大きいときは、地図を最小の高さにしてカード・ボタンと一緒にスクロールする
-                // （小さい端末ではカードとボタンだけで画面の高さを超え、下が切れるため）
+                // 文字がとても大きいときは、ヘッダー・地図（最小の高さ）・カード・ボタンをまとめてスクロールする
+                // （小さい端末ではヘッダーとカードだけで画面の高さを超え、下が切れるため。地図の上のドラッグは地図が受けるので、
+                // ヘッダーも中に入れて、文字の上からもスクロールできるようにする）
                 ScrollView {
                     VStack(spacing: 0) {
+                        header
                         mapArea
                             .frame(height: Self.mapMinHeight)
                             .padding(.horizontal, DGSpacing.screenX)
@@ -71,18 +71,27 @@ struct PlaceMapView: View {
                     }
                 }
             } else {
-                mapArea
-                    .frame(minHeight: Self.mapMinHeight, maxHeight: .infinity)
-                    .padding(.horizontal, DGSpacing.screenX)
-                bottomPanel
-                    // 地図より下のカードとボタンを先に収める（地図は残りの高さいっぱいに広がる）
-                    .layoutPriority(1)
+                VStack(spacing: 0) {
+                    header
+                    mapArea
+                        .frame(minHeight: Self.mapMinHeight, maxHeight: .infinity)
+                        .padding(.horizontal, DGSpacing.screenX)
+                    bottomPanel
+                        // 地図より下のカードとボタンを先に収める（地図は残りの高さいっぱいに広がる）
+                        .layoutPriority(1)
+                }
             }
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
+    }
+
+    /// 上部のヘッダー（戻る＋場所名）
+    private var header: some View {
+        DGHeader(Text(verbatim: place.name), onBack: { dismiss() })
+            .dgContentColumn()
     }
 
     /// 下部の場所のカードと「元の位置に戻す」

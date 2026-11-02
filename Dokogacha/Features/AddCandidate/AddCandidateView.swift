@@ -137,7 +137,7 @@ struct AddCandidateView: View {
             }
         }
         .sheet(item: $model.draft, onDismiss: sheetDismissed) { _ in
-            PostCandidateView(model: model)
+            PostCandidateFlowView(model: model)
                 .offlineBanner()
         }
         .alert(
