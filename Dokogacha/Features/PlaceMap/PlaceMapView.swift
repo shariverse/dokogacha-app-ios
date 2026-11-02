@@ -27,7 +27,7 @@ struct PlaceMapView: View {
         static let recenter = "placeMap.recenter"
     }
 
-    /// 地図の最小の高さ（文字を大きくして下のカードが伸びても、地図はこれだけ残す）
+    /// 地図の最小の高さ（文字を大きくして下のカードが伸びても、地図はこれだけ残す。文字がとても大きいときはこの高さに固定する）
     private static let mapMinHeight: CGFloat = 200
     /// 場所名の大きさ（S-09 の場所名と同じ）
     private static let placeNameSize: CGFloat = 18
@@ -44,6 +44,7 @@ struct PlaceMapView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// - Parameters:
     ///   - place: 映す場所
@@ -58,27 +59,46 @@ struct PlaceMapView: View {
         VStack(spacing: 0) {
             DGHeader(Text(verbatim: place.name), onBack: { dismiss() })
                 .dgContentColumn()
-            mapArea
-                .padding(.horizontal, DGSpacing.screenX)
-            VStack(spacing: DGSpacing.s12) {
-                placeCard
-                DGButton("元の位置に戻す", icon: "ui-pin", kind: .secondary) {
-                    recenter()
+            if dynamicTypeSize.isAccessibilitySize {
+                // 文字がとても大きいときは、地図を最小の高さにしてカード・ボタンと一緒にスクロールする
+                // （小さい端末ではカードとボタンだけで画面の高さを超え、下が切れるため）
+                ScrollView {
+                    VStack(spacing: 0) {
+                        mapArea
+                            .frame(height: Self.mapMinHeight)
+                            .padding(.horizontal, DGSpacing.screenX)
+                        bottomPanel
+                    }
                 }
-                .accessibilityHint(Text("地図を場所が真ん中に来る位置に戻します"))
-                .accessibilityIdentifier(Identifier.recenter)
+            } else {
+                mapArea
+                    .frame(minHeight: Self.mapMinHeight, maxHeight: .infinity)
+                    .padding(.horizontal, DGSpacing.screenX)
+                bottomPanel
+                    // 地図より下のカードとボタンを先に収める（地図は残りの高さいっぱいに広がる）
+                    .layoutPriority(1)
             }
-            .padding(.horizontal, DGSpacing.screenX)
-            .padding(.top, DGSpacing.s12)
-            .padding(.bottom, DGSpacing.s14)
-            .dgContentColumn()
-            // 文字を大きくしたときは、地図より下のカードとボタンを先に収める（地図は最小の高さまで縮む）
-            .layoutPriority(1)
         }
         .background(Color.dgBgBase.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
+    }
+
+    /// 下部の場所のカードと「元の位置に戻す」
+    private var bottomPanel: some View {
+        VStack(spacing: DGSpacing.s12) {
+            placeCard
+            DGButton("元の位置に戻す", icon: "ui-pin", kind: .secondary) {
+                recenter()
+            }
+            .accessibilityHint(Text("地図を場所が真ん中に来る位置に戻します"))
+            .accessibilityIdentifier(Identifier.recenter)
+        }
+        .padding(.horizontal, DGSpacing.screenX)
+        .padding(.top, DGSpacing.s12)
+        .padding(.bottom, DGSpacing.s14)
+        .dgContentColumn()
     }
 
     // MARK: - 地図
@@ -93,7 +113,7 @@ struct PlaceMapView: View {
                 shape.fill(Color.dgSurfaceCard)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: Self.mapMinHeight, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
         .clipShape(shape)
         .overlay { shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
         .accessibilityElement(children: .ignore)
@@ -183,6 +203,22 @@ nonisolated enum PlaceMapCamera {
         PlaceMapView(
             place: Place(name: "サンシャイン水族館", area: "東京・豊島区", latitude: 35.728_9, longitude: 139.719_7, mapItemId: nil),
             category: .aquarium
+        )
+    }
+    .dynamicTypeSize(.accessibility5)
+}
+
+#Preview("S-17 長い名前・文字を最大（iPhone SE）", traits: .fixedLayout(width: 375, height: 667)) {
+    NavigationStack {
+        PlaceMapView(
+            place: Place(
+                name: "国営昭和記念公園 こどもの森と日本庭園と花木園",
+                area: "東京・立川市",
+                latitude: 35.7056,
+                longitude: 139.3985,
+                mapItemId: nil
+            ),
+            category: .park
         )
     }
     .dynamicTypeSize(.accessibility5)
