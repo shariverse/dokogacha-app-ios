@@ -40,6 +40,7 @@ enum ScreenshotDemo {
         case settingsDeleteAccount
         case resultRevealSetting
         case licenses
+        case placeMap
     }
 
     /// 撮影モードで起動するときの起動引数（`LaunchContext` からも読むので nonisolated）
@@ -271,7 +272,8 @@ extension ScreenshotDemo {
     /// - `-screenshot-search-municipality <団体コード>`（`131075`（墨田区）など）
     ///
     /// `-screenshot-municipality-picker` を付けると、市区町村を選ぶシートを開いた状態にする（都道府県を選んでいるときだけ）。
-    /// `-screenshot-municipality-filter <語>` で、シートの絞り込みの語を入れておく
+    /// `-screenshot-municipality-filter <語>` で、シートの絞り込みの語を入れておく。
+    /// `-screenshot-post-draft` を付けると、すみだ水族館の S-09 投稿の確認のシートを開いた状態にする（小さな地図を撮るため）
     struct AddCandidateScene: View {
         /// 検索しておく語の起動引数
         static let queryArgument = "-screenshot-query"
@@ -285,6 +287,8 @@ extension ScreenshotDemo {
         static let municipalityPickerArgument = "-screenshot-municipality-picker"
         /// 市区町村を選ぶシートに入れておく絞り込みの語の起動引数
         static let municipalityFilterArgument = "-screenshot-municipality-filter"
+        /// S-09 投稿の確認を開いておく起動引数
+        static let postDraftArgument = "-screenshot-post-draft"
         /// 起動引数が無いときに検索しておく語
         static let defaultQuery = "水族館"
 
@@ -308,6 +312,10 @@ extension ScreenshotDemo {
                 toasts: toasts
             )
             model.search.searchNow(ScreenshotDemo.value(after: Self.queryArgument) ?? Self.defaultQuery)
+            if ProcessInfo.processInfo.arguments.contains(Self.postDraftArgument),
+               let place = DemoPlaceSearchService.entries.first.flatMap({ SearchedPlace.make($0.hit) }) {
+                model.draft = AddCandidateModel.Draft(place: place, category: place.category, pastIdeaID: nil)
+            }
             _toasts = State(initialValue: toasts)
         }
 

@@ -116,10 +116,16 @@ final class RoomUITests: XCTestCase {
         // 場所名は VoiceOver 用にエリアとまとめた要素にも同じ ID が付くので、最初のものを見る
         XCTAssertTrue(sheet.staticTexts[UITestID.postCandidatePlaceName].firstMatch.label.contains("すみだ水族館"))
         XCTAssertEqual(sheet.buttons[UITestID.postCandidateCategory].value as? String, "水族館")
+        // ミディアムのシートでは、ひとことの入力欄が「候補に追加」のバーの裏にある（真ん中を押すと投稿してしまう）。
+        // ラージに広げ、バーより上まで送ってから押す
+        let submit = sheet.buttons[UITestID.postCandidateSubmit]
         let note = sheet.textFields[UITestID.postCandidateNote]
+        sheet.swipeUp()
+        XCTAssertTrue(note.scrollIntoView(within: sheet, above: submit))
         note.tap()
         note.typeText("クラゲが見たい")
-        sheet.buttons[UITestID.postCandidateSubmit].tap()
+        XCTAssertTrue(note.waitForValue("クラゲが見たい"))
+        submit.tap()
 
         // S-07 に戻り、投稿した候補が一覧に増えている
         let room = app.otherElements[UITestID.roomScreen]

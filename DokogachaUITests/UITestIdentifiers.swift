@@ -81,6 +81,10 @@ enum UITestID {
     static let candidateDetailClose = "candidateDetail.close"
     /// S-10 の参考 URL（`CandidateDetailView.Identifier.url`）
     static let candidateDetailURL = "candidateDetail.url"
+    /// S-10 の地図（押すと S-17 へ進む。`CandidateDetailView.Identifier.map`）
+    static let candidateDetailMap = "candidateDetail.map"
+    /// S-10 の「マップで開く」（`CandidateDetailView.Identifier.openInMaps`）
+    static let candidateDetailOpenInMaps = "candidateDetail.openInMaps"
     /// デモのルームの、はるかが投稿したサンシャイン水族館（ひとこと・参考 URL あり。`DemoScenario` の `demo-candidate-1`）
     static let othersCandidateID = "demo-candidate-1"
     /// S-07 の見出し行の「候補を追加」（`RoomView.Identifier.addCandidate`）
@@ -137,6 +141,18 @@ enum UITestID {
     static let postCandidateNote = "postCandidate.note"
     /// S-09 の「候補に追加」（`PostCandidateView.Identifier.submit`）
     static let postCandidateSubmit = "postCandidate.submit"
+    /// S-09 の参考 URL の入力欄（`PostCandidateView.Identifier.url`）
+    static let postCandidateURL = "postCandidate.url"
+    /// S-09 の小さな地図（押すと S-17 へ進む。`PostCandidateView.Identifier.map`）
+    static let postCandidateMap = "postCandidate.map"
+    /// S-17 場所の地図（`PlaceMapView.Identifier.screen`）
+    static let placeMapScreen = "placeMap.screen"
+    /// S-17 の地図（UI テストでは同じ大きさの面。`PlaceMapView.Identifier.map`）
+    static let placeMapMap = "placeMap.map"
+    /// S-17 の場所のカード（`PlaceMapView.Identifier.placeCard`）
+    static let placeMapCard = "placeMap.placeCard"
+    /// S-17 の「元の位置に戻す」（`PlaceMapView.Identifier.recenter`）
+    static let placeMapRecenter = "placeMap.recenter"
     /// 「オフラインです」のバナー（`DGOfflineBanner.identifier`）
     static let offlineBanner = "offline.banner"
     /// 端末がオフラインのことにする起動引数（`LaunchContext.networkOfflineArgument`）

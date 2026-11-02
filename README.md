@@ -30,6 +30,7 @@
 | S-13・S-14 | ガチャ・結果（行き先きっぷ・引き直し・決定） | `Gacha/` |
 | S-15 | 設定（表示名・Apple の連携・広告非表示・結果の演出・アカウントの削除・ライセンス） | `Settings/` |
 | S-16 | 結果の演出（パタパタ行き先表示・カプセルぱかっ・発券から選ぶ。見本付き） | `Settings/` |
+| S-17 | 場所の地図（S-09・S-10 の地図から、シートの中で開く） | `PlaceMap/` |
 
 起動の流れ・画面の積み方・通知と招待リンクから開く処理は `Root/`、画面をまたぐ部品は `Shared/` にあります。
 
@@ -168,7 +169,7 @@ xcrun simctl io <UDID> screenshot room.png
 | 起動引数 | 効く画面（scene） | 中身 |
 | --- | --- | --- |
 | `-screenshot-demo` | すべて | 撮影モードにする |
-| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`resultRevealSetting`・`licenses`）。無ければホーム |
+| `-screenshot-scene <名前>` | すべて | 開く画面。`ScreenshotDemo.Scene` の case（`home`・`onboarding`・`createRoom`・`invite`・`settings`・`room`・`candidateDetail`・`addCandidate`・`members`・`roomSettings`・`gacha`・`result`・`resultMember`・`homeMemories`・`pastIdeas`・`inviteLastMembers`・`roomInvite`・`roomAdFree`・`settingsAppleLinked`・`settingsAdFree`・`settingsDeleteAccount`・`resultRevealSetting`・`licenses`・`placeMap`）。無ければホーム |
 | `-demo-scenario <名前>` | すべて | デモのデータ（`DemoScenario`）。撮影モードの既定は `several-rooms` |
 | `-screenshot-ad-placeholder` | 広告のある画面 | バナー広告の場所に固定の枠を出す（App Store の撮影では付けない） |
 | `-network-offline` | すべて | オフラインのことにする（「オフラインです」の帯） |
@@ -181,6 +182,7 @@ xcrun simctl io <UDID> screenshot room.png
 | `-screenshot-search-area <エリア>` | `addCandidate` | 選んでおく地方（`SearchArea` の rawValue。`kanto`・`hokkaido` など。既定は全国） |
 | `-screenshot-search-prefecture <コード>`・`-screenshot-search-municipality <団体コード>` | `addCandidate` | 選んでおく都道府県（都道府県コード。`13` など）・市区町村（6 桁の団体コード。`131075`（墨田区）など）。いくつか付けたら市区町村・都道府県・地方の順に見る |
 | `-screenshot-municipality-picker`・`-screenshot-municipality-filter <語>` | `addCandidate` | 市区町村を選ぶシートを開いておく（都道府県を選んでいるときだけ）・シートの絞り込みの語 |
+| `-screenshot-post-draft` | `addCandidate` | すみだ水族館の S-09 投稿の確認のシートを開いておく |
 | `-screenshot-past-ideas-empty` | `pastIdeas` | 過去のアイデアが無い状態 |
 | `-screenshot-not-owner`・`-screenshot-ready <uid,…>`・`-screenshot-unlocked`・`-screenshot-post-limit <数>` | `members`・`roomSettings`・`roomInvite` | 作成者以外・準備OK・強制解禁した後・投稿数を変えた状態（`roomInvite` は S-07 の上に招待のシートを出す） |
 | `-screenshot-confirm-leave`・`-screenshot-confirm-remove <uid>` | `members` | 退出の確認のダイアログ（`-screenshot-not-owner` と一緒に付ける）・そのメンバーの削除の確認のダイアログ |
@@ -291,6 +293,10 @@ body=$(gh pr view <番号> --json body -q .body) &&
   （カプセルは落ちてから 0.4 秒見せて自動で開く。タップを促す `pulse` は外した）、S-14 は選んだ結果の演出（パタパタ行き先表示（標準）・カプセルぱかっ・発券）で出すようにした。
   演出は S-16（設定の「結果の演出」）で選び、端末に覚える。行き先が決まった `.success` の触覚は、S-13 でカプセルが開いた瞬間から S-14 の決まる瞬間に移した。
   ルーム・通知から S-14 を直接開いたときは、見終えた結果を開き直すことが多いので、これまでのポップインのままにしている
+- **場所の地図**（Discussion #193・判断ログ #196）: 資料に無い画面 S-17「場所の地図」を足した（03 の §1・§2・S-09・S-10・S-17 に追記）。
+  S-09・S-10 の小さな地図を押すと、シートの中に `NavigationStack` を置いて S-17 を積む（Apple のマップへ移ると戻ってこないことがあるため、アプリの外へは移らない）。
+  S-09 のシートは S-17 を出している間はラージにし、戻ったら進む前の大きさに戻す。S-10 は閉じる判定と購読をスタックの外で持ち、S-17 を出している間に候補が消えても閉じる。
+  現在地は出さない（位置情報の許可・`Info.plist`・プライバシーの申告は変えない）。S-14 の「マップで開く」と S-10 の「マップで開く」は Apple のマップのまま
 - **Web のドメイン**（Issue #185）: 06 の §4 の仮決めは `.app` のドメインだったが、取得していないので、運営者が持つ `shilokuma.jp` のドコガチャ専用のサブドメイン `dokogacha.shilokuma.jp` にした（prod の Firebase Hosting に繋ぐ）。
   招待リンク（Universal Links）・利用規約・プライバシーポリシー・サポート・AASA をすべてここに置く。Universal Links と AASA はホスト名ごとに働くので、アプリごとにサブドメインを分ければ、同じ運営者のほかのアプリと干渉しない（決まりは [docs/setup-human.md](docs/setup-human.md) の 10）。
   App Store の開発者の Web サイト（マーケティング URL）はルートの `https://shilokuma.jp/` にし、そこの `app-ads.txt` をほかのアプリと共有する（ドコガチャの Hosting には置かない。同じ 9）

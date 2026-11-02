@@ -8,10 +8,11 @@ import SwiftUI
 
 /// S-09 投稿の確認（シート・ハーフ。F-10）。03 の S-09 のとおり、場所名・エリア・カテゴリタイル・小さな地図（1 ピン・高さ 140）、
 /// カテゴリ（自動判定済み・タップで 9 種から選び直し）、「ひとこと（任意）」（40 文字まで）、「参考URL（任意）」、「候補に追加」を並べる。
+/// 小さな地図を押すと、シートの中で S-17 場所の地図へ進む（Discussion #193）。
 ///
-/// 状態は S-08 と同じ `AddCandidateModel` を見る（S-08 が `draft` をシートの行き先にして出す）。
+/// 状態は S-08 と同じ `AddCandidateModel` を見る（S-08 が `draft` をシートの行き先にして `PostCandidateFlowView` を出す）。
 /// 送っている途中は、下へのスワイプ・閉じるボタンで閉じさせない（`interactiveDismissDisabled`）。
-/// トーストはシートの中に重ねる（`AddCandidateModel.sheetToasts`）。
+/// シートの大きさとトーストは、シートの根元の `PostCandidateFlowView` が持つ。
 struct PostCandidateView: View {
     /// UI テストが探す ID
     enum Identifier {
@@ -21,6 +22,8 @@ struct PostCandidateView: View {
         static let close = "postCandidate.close"
         /// 場所名
         static let placeName = "postCandidate.placeName"
+        /// 小さな地図（押すと S-17 へ進む）
+        static let map = "postCandidate.map"
         /// カテゴリ（押すと選び直し）
         static let category = "postCandidate.category"
         /// ひとことの入力欄
@@ -46,16 +49,17 @@ struct PostCandidateView: View {
     private static let placeNameSize: CGFloat = 18
     /// カテゴリの選択肢の最小の幅
     private static let categoryOptionMinWidth: CGFloat = 96
-    /// UI テスト（`-uiTesting`）では地図を出さない（地図のタイルを読みにネットワークへ出ないように。場所は文字で出ている）
+    /// UI テスト（`-uiTesting`）では地図のタイルを出さない（地図のタイルを読みにネットワークへ出ないように。押せる面は同じ大きさで出す）
     private static let showsMap = !LaunchContext.current.isUITesting
 
     /// 画面の状態（S-08 と同じもの）
     @Bindable var model: AddCandidateModel
+    /// 小さな地図を押したときの処理（シートの中で S-17 を積む）
+    let onOpenMap: (PlaceMapDestination) -> Void
 
     /// カテゴリの選択肢を開いているか
     @State private var isPickingCategory = false
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .headline) private var closeIconSize = PostCandidateView.closeIconSize
 
     var body: some View {
@@ -90,8 +94,7 @@ struct PostCandidateView: View {
         .background(Color.dgBgBase.ignoresSafeArea())
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(Identifier.screen)
-        .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
-        .presentationDragIndicator(.visible)
+        .toolbar(.hidden, for: .navigationBar)
         // 送っている途中は閉じさせない（送った結果を見せる相手がいなくなるため）
         .lockNavigation(while: model.locksNavigation)
         .alert(
@@ -101,7 +104,6 @@ struct PostCandidateView: View {
         ) { prompt in
             DuplicatePromptActions(model: model, prompt: prompt)
         }
-        .dgToast(model.sheetToasts)
     }
 
     /// シートの上で重複の確認を出すか
@@ -138,9 +140,7 @@ struct PostCandidateView: View {
     private func form(_ draft: AddCandidateModel.Draft) -> some View {
         VStack(alignment: .leading, spacing: DGSpacing.s16) {
             placeSummary(draft)
-            if Self.showsMap {
-                map(draft.place.place)
-            }
+            mapButton(draft)
             categorySection(draft.category)
             DGTextField(
                 label: "ひとこと（任意）",
@@ -190,10 +190,41 @@ struct PostCandidateView: View {
         }
     }
 
-    /// 小さな地図（1 ピン・動かせない）。場所は文字で読むので、VoiceOver では読まない
+    /// 小さな地図（1 ピン・地図そのものは動かせない）のボタン。押すとシートの中で S-17 へ進む。
+    /// 隅に拡大のアイコンを重ねて、押せることを示す
+    private func mapButton(_ draft: AddCandidateModel.Draft) -> some View {
+        let place = draft.place.place
+        let shape = RoundedRectangle(cornerRadius: DGRadius.md)
+        return Button {
+            onOpenMap(PlaceMapDestination(place: place, category: draft.category))
+        } label: {
+            Group {
+                if Self.showsMap {
+                    map(place)
+                } else {
+                    shape.fill(Color.dgSurfaceCard)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.mapHeight)
+            .clipShape(shape)
+            .overlay { shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
+            .overlay(alignment: .topTrailing) {
+                PlaceMapExpandBadge()
+                    .padding(DGSpacing.s8)
+            }
+            .contentShape(shape)
+        }
+        .buttonStyle(.dgBare)
+        // 送っている途中（Task が動き出す前を含む）は進ませない（送った結果を見せる S-09 を隠さないため）
+        .disabled(model.locksNavigation)
+        .accessibilityLabel(Text("\(place.name)の地図を開く"))
+        .accessibilityIdentifier(Identifier.map)
+    }
+
+    /// ピン 1 つの地図（動かせない。押すのはボタンが受ける）
     private func map(_ place: Place) -> some View {
         let coordinate = CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)
-        let shape = RoundedRectangle(cornerRadius: DGRadius.md)
         return Map(
             initialPosition: .region(
                 MKCoordinateRegion(center: coordinate, span: MKCoordinateSpan(latitudeDelta: Self.mapSpan, longitudeDelta: Self.mapSpan))
@@ -203,10 +234,8 @@ struct PostCandidateView: View {
             Marker(place.name, coordinate: coordinate)
                 .tint(Color.dgAccentPrimary)
         }
-        .frame(height: Self.mapHeight)
-        .clipShape(shape)
-        .overlay { shape.strokeBorder(Color.dgInk, lineWidth: DGBorder.regular) }
-        .accessibilityHidden(true)
+        // 地図の上のタップも、地図ではなくボタンに渡す
+        .allowsHitTesting(false)
     }
 
     // MARK: - カテゴリ

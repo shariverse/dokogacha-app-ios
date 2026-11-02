@@ -87,6 +87,8 @@ struct DokoGachaApp: App {
             NavigationStack {
                 LicensesView()
             }
+        case .placeMap:
+            ScreenshotDemo.PlaceMapScene()
         }
     }
 }
