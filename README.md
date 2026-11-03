@@ -69,17 +69,15 @@
 
 ```
 backend/
-├── firebase.json              # Firestore・Functions・Hosting・拡張（Trigger Email）・Emulator のポート
+├── firebase.json              # Firestore・Functions・拡張（Trigger Email）・Emulator のポート
 ├── .firebaserc                # 既定のプロジェクトは Emulator 専用の demo-dokogacha
 ├── firestore.rules            # セキュリティルール（05 の §4）
 ├── firestore.indexes.json     # 複合インデックス
 ├── functions/                 # Cloud Functions（TypeScript・Node 22・2nd gen・asia-northeast1）
 │   └── src/                   # index.ts で包み、処理は rooms/・candidates/・unlock/・draw/・reroll/・close/ などの service.ts・logic.ts・input.ts
 ├── extensions/                # Trigger Email 拡張の共通の設定（プロジェクトごとの値は git 管理外）
-├── hosting/public/            # 招待リンクのランディングページ（/r/{code}）・AASA・利用規約・プライバシーポリシー・サポート・favicon・apple-touch-icon
-├── hosting/test/              # Hosting のページの Jest
 ├── test/emulator/             # ルールと Functions の Emulator のテスト
-└── scripts/                   # Emulator のポートをずらす設定の書き出し（emulator-config.cjs）とテストの起動（test-emulator.sh）・OGP 画像と favicon の書き出し
+└── scripts/                   # Emulator のポートをずらす設定の書き出し（emulator-config.cjs）とテストの起動（test-emulator.sh）
 ```
 
 - `backend/` は npm workspaces（`functions/` を含む）で、`package-lock.json` は 1 つだけです。`firebase-tools` は devDependencies にあり、`npx firebase` で使います（グローバルに入れない）
@@ -103,6 +101,7 @@ backend/
 | Stg | TestFlight（`develop` の Upload） | `dev` | `Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist` | `AppIcon-Stg`（下端に黄色の帯の「STG」） |
 | Release | App Store（`release/**` の Upload・`main` の Archive） | `prod` | `Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist` | `AppIcon`（目印なし。App Store に出すもの） |
 
+- `dev`・`prod` はアプリの中の構成の名前で、Firebase のプロジェクトはどちらも `dokogacha-dev` の 1 つです（Stg は Stg の iOS アプリ、Release は本番の iOS アプリの plist を読む。Cloud Scheduler の無料の枠に収めるため。Issue #206）
 - plist はコミットしません（public リポジトリ）。CI が Secrets から書き出し、手元では各自 Firebase のコンソールから落として上の名前で置きます（手順は [docs/setup-human.md](docs/setup-human.md) の 3・4）
 - plist が無い・読めないときも落ちずに起動し、「サーバーに接続できません」の状態になります。構成に合わない plist は `EXCLUDED_SOURCE_FILE_NAMES` でアプリに入りません
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化せず、メモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動きます
@@ -133,12 +132,12 @@ cd backend
 npm ci                  # 依存を lock ファイルどおりに入れる（functions/ の分も）
 npm run typecheck       # tsc --noEmit
 npm run lint            # ESLint（警告も失敗）
-npm test                # Jest（Functions のロジック・Hosting のページ・scripts/。Emulator を使わない）
+npm test                # Jest（Functions のロジック・scripts/。Emulator を使わない）
 npm run test:emulator   # Emulator を起動して、ルールと Functions のテストを流す（Functions をビルドしてから）
 npm run build           # Functions を functions/lib/ にビルドする
 ```
 
-- Emulator のポートは `firebase.json`（auth 9099・firestore 8080（WebSocket 9150）・functions 5001・hosting 5002・hub 4400・logging 4600・eventarc 9299・tasks 9499。UI は無効）
+- Emulator のポートは `firebase.json`（auth 9099・firestore 8080（WebSocket 9150）・functions 5001・hub 4400・logging 4600・eventarc 9299・tasks 9499。UI は無効）
 - **ポートのずらし**: 環境変数 `DG_EMULATOR_PORT_OFFSET`（既定 0）を付けると、各ポートに足して起動します（例: `DG_EMULATOR_PORT_OFFSET=100 npm run test:emulator`）。2 つの作業場所で同時に流すときにずらします。ずらした設定は git 管理外の `backend/firebase.emulators.local.json` に書き出されます
 
 ## Emulator でアプリを動かす
@@ -155,7 +154,6 @@ npx --no firebase emulators:start --only auth,firestore,functions --project demo
 
 - Auth のユーザーは `curl -s -X POST -H 'Authorization: Bearer owner' -H 'Content-Type: application/json' -d '{}' http://localhost:9099/identitytoolkit.googleapis.com/v1/projects/demo-dokogacha/accounts:query` で見られます
 - Emulator には FCM が無いので、通知は送らずに Firestore の `emulatorPushOutbox` に書きます
-- 招待リンクのランディングページ・規約のページは `npx --no firebase emulators:start --only hosting --project demo-dokogacha` で `http://localhost:5002/r/ABC234` などを開けます
 
 ## 撮影モード
 
@@ -240,7 +238,7 @@ Tools/render_app_icon.sh candidates  # 案を作り直すとき: docs/design/app
 - 書き出しは macOS の NSImage（`Tools/render_svg.swift`）なので、SVG は図形だけで描きます（`<text>`・フィルター・CSS は描けないことがある）。色は `docs/spec/design/tokens.json` の値だけを使います（ティントだけは、トークンの色をその明るさの灰色に置き換えた `#FFFFFF`・`#CACACA`（`accent.secondary`）・`#222222`（`ink`）を使う）
 - `AppStore/app.json` の `appIcon` が `AppIcon.png` を指しているので、App Store のクリエイティブアセットも同じ絵になります
 - 書き出しの作業ファイル・候補を `Dokogacha/` に置かないでください（フォルダ同期でアプリに入ります）
-- Hosting の favicon（`backend/hosting/public/favicon.ico`。16・32・48px の PNG を入れた ICO）と apple-touch-icon（`apple-touch-icon.png`。180px・透過なし）も、同じ `light.svg` から `backend/` で `bash scripts/render-favicons.sh` で書き出します（ICO は `scripts/ico.cjs` で作る）。アイコンを変えたら書き出し直してください
+- 招待リンクのランディングページ（shilokuma-web）の favicon・apple-touch-icon・OGP 画像も、同じ `light.svg` の絵です。アイコンを変えたら、shilokuma-web 側の画像も作り直してください（このリポジトリにあった書き出しのスクリプトは、Firebase Hosting と一緒に外した。Issue #206）
 
 ## PR 本文のスクリーンショット
 
@@ -298,9 +296,13 @@ body=$(gh pr view <番号> --json body -q .body) &&
   S-09・S-10 の小さな地図を押すと、シートの中に `NavigationStack` を置いて S-17 を積む（Apple のマップへ移ると戻ってこないことがあるため、アプリの外へは移らない）。
   S-09 のシートは S-17 を出している間はラージにし、戻ったら進む前の大きさに戻す。S-10 は閉じる判定と購読をスタックの外で持ち、S-17 を出している間に候補が消えても閉じる。
   現在地は出さない（位置情報の許可・`Info.plist`・プライバシーの申告は変えない）。S-14 の「マップで開く」と S-10 の「マップで開く」は Apple のマップのまま
-- **Web のドメイン**（Issue #185）: 06 の §4 の仮決めは `.app` のドメインだったが、取得していないので、運営者が持つ `shilokuma.jp` のドコガチャ専用のサブドメイン `dokogacha.shilokuma.jp` にした（prod の Firebase Hosting に繋ぐ）。
-  招待リンク（Universal Links）・利用規約・プライバシーポリシー・サポート・AASA をすべてここに置く。Universal Links と AASA はホスト名ごとに働くので、アプリごとにサブドメインを分ければ、同じ運営者のほかのアプリと干渉しない（決まりは [docs/setup-human.md](docs/setup-human.md) の 10）。
-  App Store の開発者の Web サイト（マーケティング URL）はルートの `https://shilokuma.jp/` にし、そこの `app-ads.txt` をほかのアプリと共有する（ドコガチャの Hosting には置かない。同じ 9）
+- **Web のドメイン**（Issue #185）: 06 の §4 の仮決めは `.app` のドメインだったが、取得していないので、運営者が持つ `shilokuma.jp` のドコガチャ専用のサブドメイン `dokogacha.shilokuma.jp` にした。
+  招待リンク（Universal Links）と AASA をここに置く（規約・ポリシー・サポートは、下の「Web のページの置き場所」で `shilokuma.jp` に移した）。Universal Links と AASA はホスト名ごとに働くので、アプリごとにサブドメインを分ければ、同じ運営者のほかのアプリと干渉しない（決まりは [docs/setup-human.md](docs/setup-human.md) の 10）。
+  App Store の開発者の Web サイト（マーケティング URL）はルートの `https://shilokuma.jp/` にし、そこの `app-ads.txt` をほかのアプリと共有する（`dokogacha.shilokuma.jp` には置かない。同じ 9）
+- **Web のページの置き場所**（Issue #206）: 費用を 0 円に保つため、Firebase Hosting をやめ、招待リンクのランディングページ・AASA・利用規約・プライバシーポリシー・サポートを、運営者のほかのアプリと同じ shilokuma-inc/shilokuma-web（Cloudflare Pages）で配信する。
+  規約は `https://shilokuma.jp/terms/dokogacha/`、ポリシーは `https://shilokuma.jp/privacy/dokogacha/`、サポートは運営者の `https://shilokuma.jp/about/`（ドコガチャ専用のページは作らない）。招待リンクと AASA は `dokogacha.shilokuma.jp` のまま。
+  AASA の中身の正は [docs/setup-human.md](docs/setup-human.md) の 10 に置き、shilokuma-web とそろえる値（AASA・招待コードの規則・App Store の URL）も同じ 10 にまとめた。
+  Firebase は `dokogacha-dev` の 1 つのプロジェクトを Stg と Release の両方が使う（スケジュールの関数 3 つを、Cloud Scheduler の無料の枠の 3 ジョブに収めるため。prod のプロジェクトは作らない）
 
 ## 同梱のデータ（市区町村の一覧）
 

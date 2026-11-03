@@ -313,6 +313,7 @@ AASA・招待ページ・規約とポリシーの正本は shilokuma-web にあ�
 | App Store の URL | `DomainConstants.Web.appStoreURL` | 招待ページ（`landing.js` の `APP_STORE_URL`・HTML のリンク） |
 | 規約・ポリシー・サポートの URL | `DomainConstants.Web` の `termsURL`・`privacyPolicyURL`・`supportURL`、`AppStore/metadata/shared.json` | ページの置き場所（手順 11） |
 | 収集するデータ | `Dokogacha/PrivacyInfo.xcprivacy`・App Store Connect の「App のプライバシー」（手順 12） | プライバシーポリシー |
+| アプリアイコンの絵 | `docs/design/app-icon/` の `light.svg`（README の「アプリアイコン」） | 招待ページの favicon・apple-touch-icon・OGP 画像 |
 
 ### Universal Links をほかのアプリと干渉させない決まり
 
