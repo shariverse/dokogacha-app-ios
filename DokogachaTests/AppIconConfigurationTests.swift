@@ -32,18 +32,8 @@ struct AppIconConfigurationTests {
 
     /// `Configs/<構成>.xcconfig` の `DG_APP_ICON_NAME`。構成の xcconfig に無ければ、include している `Project.xcconfig` の既定を使う
     static func iconName(configuration: String) throws -> String? {
-        let text = try String(
-            contentsOf: HostingPagesConfigTests.repositoryRoot.appending(path: "Configs/\(configuration).xcconfig"),
-            encoding: .utf8
-        )
-        var value: String?
-        for line in text.split(separator: "\n") where !line.hasPrefix("//") {
-            let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
-            if parts.count == 2, parts[0] == "DG_APP_ICON_NAME" {
-                value = parts[1]
-            }
-        }
-        return try value ?? UniversalLinksConfigTests.projectSettings()["DG_APP_ICON_NAME"]
+        try UniversalLinksConfigTests.xcconfigSettings(named: configuration)["DG_APP_ICON_NAME"]
+            ?? UniversalLinksConfigTests.projectSettings()["DG_APP_ICON_NAME"]
     }
 
     /// 構成ごとに、決めた名前のアイコンセットを使う

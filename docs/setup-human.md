@@ -41,12 +41,13 @@
 ## 1. Apple Developer の App ID と鍵
 
 Team ID は `Configs/Project.xcconfig` の `DEVELOPMENT_TEAM`（`XU74X3434S`）、Bundle ID は `APP_BUNDLE_IDENTIFIER`（`jp.shilokuma.Dokogacha`）です。
+Stg（TestFlight）は App Store Connect で本番とは別のアプリにしているので、Bundle ID が違います（`Configs/Stg.xcconfig` の `jp.shilokuma.Dokogacha.stg`。Issue #189）。手順 1・2 は、2 つの App ID のそれぞれで行います。
 
-1. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list) の Identifiers で `jp.shilokuma.Dokogacha` を開く（無ければ App IDs で作る。Upload の `-allowProvisioningUpdates` でも作られる）
+1. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list) の Identifiers で `jp.shilokuma.Dokogacha`（と Stg の `jp.shilokuma.Dokogacha.stg`）を開く（無ければ App IDs で作る。Upload の `-allowProvisioningUpdates` でも作られる。Stg は `develop` の Upload、本番は `release/**` の Upload）
 2. Capabilities で次の 3 つを有効にする（`Configs/Dokogacha.entitlements` と同じ）
    - Push Notifications（`aps-environment`）
    - Associated Domains（`applinks:dokogacha.shilokuma.jp`）。ドメインは App ID ではなく entitlements の値なので、capability を有効にした後にドメインを変えても、ここは変えない
-   - Sign in with Apple（Primary App ID として）
+   - Sign in with Apple（本番の `jp.shilokuma.Dokogacha` を Primary App ID にし、Stg の App ID はそれとグループにする）
 3. Keys で鍵（`.p8`）を作る。**APNs** と **Sign in with Apple** を有効にした鍵を作り（1 つの鍵で両方を有効にしてよい）、Key ID を控える。`.p8` は 1 回しかダウンロードできないので、パスワードマネージャーなどの安全な場所に保管する（リポジトリに置かない）
 
 **確かめ方**: 手順 4 の後の develop の Upload が、署名のエラーなく TestFlight まで通る（#22）。
@@ -55,6 +56,8 @@ Team ID は `Configs/Project.xcconfig` の `DEVELOPMENT_TEAM`（`XU74X3434S`）�
 
 1. [App Store Connect](https://appstoreconnect.apple.com/) の「アプリ」→「新規アプリ」で作る。値は Upload ワークフローの Job Summary に出る（アプリが無いと止まって表示する。`.github/scripts/check-app-store-app.rb`）
    - 名前「ドコガチャ」・プライマリ言語「日本語」・バンドル ID `jp.shilokuma.Dokogacha`・SKU は Bundle ID と同じ値
+   - Stg（TestFlight）のアプリも別に作る: 名前は App Store 全体で重ならないもの（Job Summary の案は「Dokogacha STG」。端末のホーム画面の名前は本番と同じ「ドコガチャ」で、アイコンの「STG」の帯で見分ける）・バンドル ID `jp.shilokuma.Dokogacha.stg`・SKU は Bundle ID と同じ値。
+     バンドル ID は最初の `develop` の Upload の Export で登録されて選べるようになり、ワークフローはアプリが無いので「Check app exists in App Store Connect」で止まる。作ったら Upload を再実行する。Stg のアプリは審査に出さない
    - 名前「ドコガチャ」は、ホーム画面のアイコンの下の日本語の名前（`Dokogacha/InfoPlist.xcstrings` の `ja`）とそろえた値（Discussion #147。`AppStoreMetadataTests` が `AppStore/metadata/ja.json` の `name` と突き合わせる）。App Store 全体で同じ名前のアプリが既にあると使えないので、そのときは名前を決め直し、`ja.json` と `InfoPlist.xcstrings` の両方を直す
 2. 「App 情報」の **Apple ID**（数字）を控える。手順 6（`APP_STORE_APP_APPLE_ID`）と手順 10（App Store の URL）で使う
 3. 「App 内課金」で **非消耗型** のアイテムを作る
@@ -80,6 +83,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
    - **Apple**（設定画面からの連携。F-01・S-15）。アカウントの削除（F-06）でトークンを取り消す（`revokeToken`）ため、Apple のプロバイダの「OAuth コード フローの構成」に Apple の Team ID と、手順 1 の鍵の Key ID・秘密鍵（`.p8` の中身）を入れる。iOS のアプリだけなので、Web 用の Services ID は使わない（コンソールで必須かどうかを確かめて入れる）
 5. 「プロジェクトの設定」→「マイアプリ」で iOS アプリを追加する
    - バンドル ID `jp.shilokuma.Dokogacha`・App Store ID（手順 2 の Apple ID）
+   - Stg（TestFlight）が繋ぐプロジェクトには、Stg のバンドル ID `jp.shilokuma.Dokogacha.stg` の iOS アプリも追加する（dev と prod を同じプロジェクトにしているときは、そのプロジェクトに 2 つの iOS アプリが並ぶ）。Stg の Secret（手順 4 の `_DEV`）には、この iOS アプリの plist を入れる
    - `GoogleService-Info.plist` をダウンロードする（コードの追加などの手順は飛ばす。SDK は SPM で導入済み）。ファイルは手順 4 で Secret にし、リポジトリに置かない
 6. Crashlytics のページを開いて有効にする（dSYM は Upload のときにワークフローが上げる）
 
@@ -98,7 +102,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
 | 種類 | 名前 | 値 | 使うワークフロー |
 | --- | --- | --- | --- |
-| Secret | `GOOGLE_SERVICE_INFO_PLIST_DEV` | dev の `GoogleService-Info.plist` を `base64 -i GoogleService-Info.plist` にした文字列 | `_archive.yml`（Stg。`develop` の Upload） |
+| Secret | `GOOGLE_SERVICE_INFO_PLIST_DEV` | dev の Stg の iOS アプリ（`jp.shilokuma.Dokogacha.stg`）の `GoogleService-Info.plist` を `base64 -i GoogleService-Info.plist` にした文字列 | `_archive.yml`（Stg。`develop` の Upload） |
 | Secret | `GOOGLE_SERVICE_INFO_PLIST_PROD` | prod の plist を base64 にした文字列 | `_archive.yml`（Release。`release/**` の Upload・`main` の Archive） |
 | Secret | `EXPORT_OPTIONS` | `docs/ExportOptions.sample.plist` の `teamID` を書き換えた中身 | `_archive.yml` |
 | Secret | `APPLE_API_KEY_BASE64`・`APPLE_API_KEY_ID`・`APPLE_API_ISSUER_ID` | App Store Connect API の鍵（App Manager 以上）を base64 にしたものと、Key ID・Issuer ID | `_archive.yml`・`app-store-*.yml` |
@@ -113,7 +117,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
 ## 5. APNs の認証キーを Firebase に登録する
 
-1. dev と prod のそれぞれで、Firebase の「プロジェクトの設定」→「Cloud Messaging」→「Apple アプリの構成」の「APNs 認証キー」に、手順 1 の `.p8`・Key ID・Team ID を登録する
+1. dev と prod のそれぞれで、Firebase の「プロジェクトの設定」→「Cloud Messaging」→「Apple アプリの構成」の「APNs 認証キー」に、手順 1 の `.p8`・Key ID・Team ID を登録する。APNs の設定は iOS アプリごとなので、Stg の iOS アプリ（`jp.shilokuma.Dokogacha.stg`）にも同じ鍵を登録する
 2. 認証キーは開発用と本番用の両方の APNs に使える。アプリの APNs の環境は xcconfig の `DG_APS_ENVIRONMENT`（Debug は `development`、Stg・Release は `production`）
 
 **確かめ方**: TestFlight のアプリで、解禁・抽選の結果・引き直しの提案の通知が届き、通知から該当の画面が開く（#81）。
@@ -281,7 +285,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 
 **確かめ方**:
 
-- `curl -sI https://dokogacha.shilokuma.jp/.well-known/apple-app-site-association` が `200` と `content-type: application/json` を返し、転送しない（`location` が無い）。中身の `appIDs` が `XU74X3434S.jp.shilokuma.Dokogacha`
+- `curl -sI https://dokogacha.shilokuma.jp/.well-known/apple-app-site-association` が `200` と `content-type: application/json` を返し、転送しない（`location` が無い）。中身の `appIDs` が `XU74X3434S.jp.shilokuma.Dokogacha` と `XU74X3434S.jp.shilokuma.Dokogacha.stg`（Stg の TestFlight のアプリでも招待リンクで開く）
 - Apple の CDN が読んだ AASA は `curl -s https://app-site-association.cdn-apple.com/a/v1/dokogacha.shilokuma.jp` で見られる（反映まで時間がかかる）
 - `https://dokogacha.shilokuma.jp/r/<招待コード>` がランディングページ（招待コードと「App Store でダウンロード」）を出し、アプリが入った iPhone ではアプリの S-06 が開く（#71）
 - `https://dokogacha.shilokuma.jp/terms`・`/privacy`・`/support` が開く（App Store の審査で開かれる）
@@ -341,6 +345,7 @@ dev（TestFlight 用の Stg 構成が繋ぐ）と prod（App Store 用の Releas
 ## 13. 実機での確認
 
 Simulator で確かめられないことは、実機確認の Issue（ラベル `needs-verify`）にあります。上の手順が終わったら、TestFlight（Stg・dev）と、審査の前に Release（prod）で確かめて閉じます。
+Stg と Release は App Store Connect で別のアプリ（Bundle ID が違う）なので、同じ端末に並べて入れられます。ただし両方を入れた端末で招待リンク（#71）がどちらで開くかは Apple の資料に書かれていないので、招待リンクは片方だけを入れた端末で確かめます。
 
 | Issue | 確かめること | 前提の手順 |
 | --- | --- | --- |

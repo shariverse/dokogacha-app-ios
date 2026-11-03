@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["XU74X3434S.jp.shilokuma.Dokogacha"],
+        "appIDs": ["XU74X3434S.jp.shilokuma.Dokogacha", "XU74X3434S.jp.shilokuma.Dokogacha.stg"],
         "components": [
           {
             "/": "/r/*",

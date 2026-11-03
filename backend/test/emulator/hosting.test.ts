@@ -37,7 +37,10 @@ describe("Hosting", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toMatch(/^application\/json/);
     const body = (await response.json()) as { applinks: { details: { appIDs: string[] }[] } };
-    expect(body.applinks.details[0]?.appIDs).toEqual(["XU74X3434S.jp.shilokuma.Dokogacha"]);
+    expect(body.applinks.details[0]?.appIDs).toEqual([
+      "XU74X3434S.jp.shilokuma.Dokogacha",
+      "XU74X3434S.jp.shilokuma.Dokogacha.stg",
+    ]);
   });
 
   it.each(["/r/QW58RT", "/r/qw5-8rt/", "/r/not-a-code"])("%s はランディングページを返す", async (path) => {
