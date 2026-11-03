@@ -7,10 +7,11 @@
 import Foundation
 import Testing
 
-/// Universal Links の設定（xcconfig のドメイン・entitlements・Hosting の apple-app-site-association）が、
-/// アプリの招待リンクの定数（`DomainConstants.Web`）と食い違っていないこと、ランディングページの App Store のリンクが
-/// アプリの `DomainConstants.Web.appStoreURL` と同じであることを確かめる（タスク 34）。
+/// Universal Links の設定（xcconfig のドメイン・entitlements・Bundle ID）が、アプリの招待リンクの定数（`DomainConstants.Web`）と、
+/// 手順書（`docs/setup-human.md` の 10）に載せた apple-app-site-association と食い違っていないことを確かめる（タスク 34）。
 ///
+/// AASA と招待リンクのランディングページは運営者のサイト（shilokuma-inc/shilokuma-web）が配信し、このリポジトリには無い（Issue #206）。
+/// 手順書の AASA を shilokuma-web に置く中身の正にして、ここでアプリの設定と突き合わせる。
 /// どれもリポジトリのファイルを `#filePath` から読む（テストのバンドルに複製しない。`DesignTokensTests` と同じ）。
 /// Simulator では Universal Links でアプリを開けないので、設定の食い違いはここで見つける
 struct UniversalLinksConfigTests {
@@ -65,15 +66,15 @@ struct UniversalLinksConfigTests {
         #expect(try Self.xcconfigSettings(named: "Release")["APP_BUNDLE_IDENTIFIER"] == nil)
     }
 
-    /// Hosting の apple-app-site-association は、Team ID と Bundle ID のアプリ（本番・Stg の順）に、招待リンクのパスを渡す
+    /// 手順書の apple-app-site-association は、Team ID と Bundle ID のアプリ（本番・Stg の順）に、招待リンクのパスだけを渡す
     @Test
-    func appSiteAssociationMatchesApp() throws {
+    func documentedAppSiteAssociationMatchesApp() throws {
         let settings = try Self.projectSettings()
         let teamID = try #require(settings["DEVELOPMENT_TEAM"])
         let bundleID = try #require(settings["APP_BUNDLE_IDENTIFIER"])
         let stgBundleID = try #require(try Self.xcconfigSettings(named: "Stg")["APP_BUNDLE_IDENTIFIER"])
-        let url = Self.repositoryRoot.appending(path: "backend/hosting/public/.well-known/apple-app-site-association")
-        let json = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let data = try #require(try Self.documentedAppSiteAssociation().data(using: .utf8))
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let applinks = try #require(json["applinks"] as? [String: Any])
         let details = try #require(applinks["details"] as? [[String: Any]])
         #expect(details.count == 1)
@@ -83,12 +84,13 @@ struct UniversalLinksConfigTests {
         #expect(components.compactMap { $0["/"] as? String } == [DomainConstants.Web.inviteLinkPathPrefix + "*"])
     }
 
-    /// ランディングページ（アプリが入っていない端末で開く招待リンク）の App Store のリンクは、アプリの行き先きっぷに入れる URL と同じ
-    @Test
-    func landingAppStoreURLMatchesApp() throws {
-        let url = Self.repositoryRoot.appending(path: "backend/hosting/public/assets/landing.js")
-        let script = try String(contentsOf: url, encoding: .utf8)
-        let match = try #require(script.firstMatch(of: /var APP_STORE_URL = "([^"]+)";/))
-        #expect(String(match.output.1) == DomainConstants.Web.appStoreURL)
+    /// 手順書（`docs/setup-human.md`）の JSON のコードブロックのうち、`applinks` を持つもの（1 つだけ置く）。リストの中で字下げしたブロックも読む
+    static func documentedAppSiteAssociation() throws -> String {
+        let blocks = try String(contentsOf: repositoryRoot.appending(path: "docs/setup-human.md"), encoding: .utf8)
+            .matches(of: /```json\n([\s\S]*?)\n[ ]*```/)
+            .map { String($0.output.1) }
+            .filter { $0.contains("\"applinks\"") }
+        try #require(blocks.count == 1)
+        return try #require(blocks.first)
     }
 }
