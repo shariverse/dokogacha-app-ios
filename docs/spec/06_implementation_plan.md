@@ -12,7 +12,7 @@
 | M3 | 候補といいね | F-10〜F-13（過去のアイデアは M5 で中身が入る）、F-20〜F-23。S-07〜S-10。Functions：`addCandidate` `deleteCandidate` |
 | M4 | 準備OKと解禁 | F-30〜F-32。S-11、S-12。Functions：`onMemberWrite` `forceUnlock` `checkDeadlines` `updateRoomSettings` |
 | M5 | ガチャ・結果・引き直し・終了 | F-40〜F-44。S-13、S-14。Functions：`drawGacha` `proposeReroll` `voteReroll` `expireRerolls` `closeRoom` `autoCloseRooms`。触覚フィードバックと全アニメーション |
-| M6 | 通知・ディープリンク | F-60、Universal Links、ランディングページ（Hosting）、`inviteLastMembers` `notifyNewCandidates` |
+| M6 | 通知・ディープリンク | F-60、Universal Links、ランディングページ（Issue #206 で shilokuma-web に移した）、`inviteLastMembers` `notifyNewCandidates` |
 | M7 | 広告・課金・設定 | F-50〜F-51、ATT、S-15 の残り。`verifyPurchase` |
 | M8 | 仕上げ | アクセシビリティ（VoiceOver、Dynamic Type、視差効果を減らす）、オフライン表示、エラー文言、Analytics、Crashlytics、prod 環境、App Store 申請素材 |
 

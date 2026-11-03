@@ -17,7 +17,7 @@ describe("Emulator", () => {
     running = (await response.json()) as RunningEmulators;
   });
 
-  it.each(["hub", "logging", "auth", "firestore", "functions", "hosting", "eventarc", "tasks"])(
+  it.each(["hub", "logging", "auth", "firestore", "functions", "eventarc", "tasks"])(
     "%s が firebase.json のポート＋ずらしで起動している",
     (name) => {
       expect(running[name]?.port).toBe(expectedPort(name));

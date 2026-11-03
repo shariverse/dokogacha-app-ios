@@ -13,6 +13,8 @@
 - 見た目は `04_design_system.md` と `design/tokens.json` の値だけを使う（色・フォント・寸法を直接書かない）
 - ユーザーに見える文言は日本語で、`03_screens.md` の表記に合わせる
 - 人間向けの説明（画面の一覧・構成・CI・撮影モードの起動引数の一覧）は `README.md`、公開までに人間が用意するもの（Firebase・Apple・AdMob・ドメイン・規約・申請）と値の置き場所は `docs/setup-human.md`。
+  Web のページ（招待リンクのランディングページ・AASA・利用規約・プライバシーポリシー・サポート）は運営者のサイトのリポジトリ shilokuma-inc/shilokuma-web（Cloudflare Pages）が配信し、このリポジトリには無い（Firebase Hosting は使わない。Issue #206）。
+  アプリと shilokuma-web でそろえる値（AASA・招待コードの規則・App Store の URL・規約とポリシーの URL）は `docs/setup-human.md` の 10 の表にあり、片方を変えたら両方を変える。
   資料と実装で違うところは README の「実装で決めたこと」と判断ログ（Issue #11）にある
 
 ## 環境
@@ -53,6 +55,7 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - 文字列を足したら `Dokogacha/Resources/Localizable.xcstrings` にも入れる（`xcodebuild` は足さない。`xcodebuild build` の後に `xcrun xcstringstool sync`。手順は `LEARNINGS.md`）
 - 画面の見た目は撮影モードで確かめる（`-screenshot-demo -screenshot-scene <名前>`。起動引数の一覧は README の「撮影モード」）。画面を足したら、要るなら scene を足す
 - ビルド構成は 3 つ: **Debug**（開発・テスト。Firebase は Emulator）/ **Stg**（TestFlight 用。`develop` の Upload。Firebase は dev。Bundle ID は `jp.shilokuma.Dokogacha.stg` で、App Store Connect では本番と別のアプリ）/ **Release**（App Store 用。Firebase は prod）。
+  `dev`・`prod` はアプリの構成の名前で、Firebase のプロジェクトはどちらも `dokogacha-dev` の 1 つ（Stg と本番の iOS アプリの plist を読む。prod のプロジェクトは作らない。`docs/setup-human.md` の 3）。
   Stg は Release と同じ最適化。構成ごとの値は `Configs/<構成>.xcconfig` に書く
 
 ### Firebase の接続先（アプリ）
@@ -101,7 +104,7 @@ npm run test:emulator   # Emulator を起動してルールと Functions のテ�
 npm run build           # Functions を functions/lib/ にビルドする
 ```
 
-- Emulator のポートは `firebase.json`（auth 9099・firestore 8080（WebSocket 9150）・functions 5001・hosting 5002・hub 4400・logging 4600・eventarc 9299・tasks 9499。UI は無効）。
+- Emulator のポートは `firebase.json`（auth 9099・firestore 8080（WebSocket 9150）・functions 5001・hub 4400・logging 4600・eventarc 9299・tasks 9499。UI は無効）。
   `DG_EMULATOR_PORT_OFFSET`（既定 0）を付けると各ポートに足して起動する（例: `DG_EMULATOR_PORT_OFFSET=100 npm run test:emulator`）。2 つの作業スロットで同時に流すときにずらす（スロット b は 100）。
   ずらした後のポートが、ずらし 0 のどれかのポートと重なると設定の書き出しで失敗する。ポートを足すときは、100 ずらしても重ならない値にする（logging を既定の 4500 にしないのは、100 ずらした hub と重なるため）
 - ずらした設定は `scripts/emulator-config.cjs` が `backend/firebase.emulators.local.json`（git 管理外）に書き出し、`scripts/test-emulator.sh` がそれを `emulators:exec --config` に渡す。
@@ -120,8 +123,9 @@ npm run build           # Functions を functions/lib/ にビルドする
 - Functions のパラメータ（`REPORT_MAIL_TO`・`APP_STORE_APP_APPLE_ID`）は `defineString`。Emulator は `functions/.env.demo-dokogacha` の目印の値を読む（値が無いと Emulator が対話で聞いて止まる）。
   実プロジェクトの `functions/.env`・`.env.<プロジェクト ID>` と `extensions/*.env.<プロジェクト ID>` は git の管理外で、人間が書く（`docs/setup-human.md`）
 - `firebase.json` の `extensions`（Trigger Email）は、Emulator の設定を書き出すときに外している（`scripts/emulator-config.cjs`）
-- Hosting（`hosting/public/`）のページは Jest（`hosting/test/`）と Emulator（`test/emulator/hosting.test.ts`）で確かめる。アプリと同じ値（App Store の URL・ドメイン・規約の URL）は
-  Swift のテスト（`UniversalLinksConfigTests`・`HostingPagesConfigTests`・`DomainConstantsTests`・`AppStoreMetadataTests`）が突き合わせるので、片方を変えたら両方を変える
+- `firebase.json` に `hosting` は無い（Web のページは shilokuma-web）。アプリの中で確かめられる値は Swift のテストが突き合わせる:
+  AASA は `docs/setup-human.md` の 10 の JSON を正にしてアプリの Team ID・Bundle ID・招待リンクのパスと（`UniversalLinksConfigTests`）、規約・ポリシー・サポートの URL は `DomainConstants.Web` と `AppStore/metadata/shared.json` を（`WebPagesTests`・`AppStoreMetadataTests`）。
+  shilokuma-web の中身はテストが読まないので、そろえる値を変えたら shilokuma-web も同じに変える
 
 ## プロジェクトの決まり
 
@@ -132,8 +136,8 @@ npm run build           # Functions を functions/lib/ にビルドする
 - `GoogleService-Info.plist` はコミットしない（public リポジトリ。CI が GitHub Secrets から書き出す）。鍵・トークン・メールアドレスもコミットしない
 - 本番の値（AdMob の ID・App Store の URL・`app-ads.txt`・規約の運営者名など）はテスト用の値・目印のまま実装し、入れるのは人間（`docs/setup-human.md`）
 - xcconfig はプロジェクトの階層に付いていて Unit・UI テストのターゲットにも効く。アプリのターゲットだけに付ける設定は `X = $(DG_X_$(PRODUCT_TYPE:identifier))` の形で分ける（`CODE_SIGN_ENTITLEMENTS`）
-- 収集するデータ・理由の申告が要る API を足したら、`Dokogacha/PrivacyInfo.xcprivacy`（`PrivacyManifestTests`）と `backend/hosting/public/privacy.html` も直す
-- Firebase の Cloud Functions・セキュリティルール・Hosting はリポジトリ直下の `backend/` に置く（`05_architecture.md` の §2）
+- 収集するデータ・理由の申告が要る API を足したら、`Dokogacha/PrivacyInfo.xcprivacy`（`PrivacyManifestTests`）と shilokuma-web のプライバシーポリシー（`https://shilokuma.jp/privacy/dokogacha/`）も直す
+- Firebase の Cloud Functions・セキュリティルールはリポジトリ直下の `backend/` に置く（`05_architecture.md` の §2）
 
 ## コードレビュー観点
 

@@ -76,8 +76,6 @@ export const REMOVE_ADS_PRICE_YEN = 480;
 export const WEB_DOMAIN = "dokogacha.shilokuma.jp";
 /** 招待リンクのパスの前置き（`https://dokogacha.shilokuma.jp/r/{招待コード}`。02 の §2.4） */
 export const INVITE_LINK_PATH_PREFIX = "/r/";
-/** 招待リンクの OGP のタイトル（06 の §4 の仮決め「固定画像・固定タイトル」。05 の §7） */
-export const OGP_TITLE = "ドコガチャに招待されました";
 
 /** 引き直しの投票の期限（06 の §4 の仮決め 24 時間。ミリ秒） */
 export const REROLL_VOTING_DURATION_MS = 24 * HOUR_MS;

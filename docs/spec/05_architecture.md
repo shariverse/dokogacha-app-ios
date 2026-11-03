@@ -7,20 +7,20 @@
 | クライアント | Swift 6（言語モード 6 / Strict Concurrency）/ SwiftUI / iOS 17+（iPhone・iPad） | 状態管理は `@Observable`。並行処理は async/await。テストは Swift Testing（Unit）と XCTest（UI）。iPad の画面の分け方は `horizontalSizeClass` と使える幅で決める（03 の §3「iPad」） |
 | 地図・場所検索 | MapKit（`MKLocalSearch`、`Map`、`MKMapItem.openInMaps`） | 位置情報の許可は取らない |
 | 演出 | SwiftUI のアニメーション＋`PhaseAnimator`/`KeyframeAnimator`、Core Haptics（`sensoryFeedback`） | 物理演算が必要になったら SpriteKit を検討（MVP では不要） |
-| バックエンド | Firebase（Auth / Cloud Firestore / Cloud Functions 2nd gen（TypeScript）/ Cloud Messaging / Hosting / Analytics / Crashlytics） | Swift Package Manager で `firebase-ios-sdk` を導入 |
+| バックエンド | Firebase（Auth / Cloud Firestore / Cloud Functions 2nd gen（TypeScript）/ Cloud Messaging / Analytics / Crashlytics） | Swift Package Manager で `firebase-ios-sdk` を導入 |
 | 広告 | Google Mobile Ads SDK（AdMob）アダプティブバナー | ATT 対応 |
 | 課金 | StoreKit 2（非消耗型 `remove_ads`） | サーバー検証は App Store Server Library（Node） |
-| Web | Firebase Hosting | 招待リンクのランディングページ、`apple-app-site-association`、利用規約、プライバシーポリシー |
+| Web | 運営者のサイト shilokuma-inc/shilokuma-web（Cloudflare Pages。このリポジトリの外） | 招待リンクのランディングページ、`apple-app-site-association`（`dokogacha.shilokuma.jp`）、利用規約・プライバシーポリシー・サポート（`shilokuma.jp`）。Firebase Hosting は使わない（費用を 0 円に保つため。Issue #206） |
 
 Bundle ID は `jp.shilokuma.Dokogacha`（`Configs/Project.xcconfig` の `APP_BUNDLE_IDENTIFIER` に設定済み）。Firebase の iOS アプリ登録、App Store Connect、AdMob、Associated Domains（`apple-app-site-association` の `appID` は `<TeamID>.jp.shilokuma.Dokogacha`）でこの ID を使う。
 
-環境は **dev** と **prod** の2つの Firebase プロジェクトに分け、Xcode のビルド構成（Debug / Release）で `GoogleService-Info.plist` を切り替える。
+Xcode のビルド構成（Stg / Release）で `GoogleService-Info.plist` を切り替える。Firebase のプロジェクトは `dokogacha-dev` の 1 つで、Stg と Release の両方が繋ぐ（Cloud Scheduler の無料の枠に収めるため。`docs/setup-human.md` の 3）。
 
 ---
 
 ## 2. クライアントの構成
 
-リポジトリのテンプレートに合わせ、アプリ本体は `Dokogacha/`（フォルダ同期グループなので、ファイルを足しても pbxproj は変わらない）、Unit テストは `DokogachaTests/`、UI テストは `DokogachaUITests/` に置く。Firebase の Cloud Functions・ルール・Hosting はリポジトリ直下の `backend/`（`firebase.json`、`firestore.rules`、`functions/`、`hosting/`）に置く。
+リポジトリのテンプレートに合わせ、アプリ本体は `Dokogacha/`（フォルダ同期グループなので、ファイルを足しても pbxproj は変わらない）、Unit テストは `DokogachaTests/`、UI テストは `DokogachaUITests/` に置く。Firebase の Cloud Functions・ルールはリポジトリ直下の `backend/`（`firebase.json`、`firestore.rules`、`functions/`）に置く。Web のページは shilokuma-web にあり、このリポジトリには置かない。
 
 ```
 Dokogacha/
@@ -281,10 +281,10 @@ const weightOf = (likes: number, mode: 'boost' | 'equal') => (mode === 'equal' ?
 
 ## 7. ディープリンク
 
-- ドメイン：`dokogacha.shilokuma.jp`（06 の §4。運営者の `shilokuma.jp` のドコガチャ専用のサブドメイン）。prod の Firebase Hosting で配信
+- ドメイン：`dokogacha.shilokuma.jp`（06 の §4。運営者の `shilokuma.jp` のドコガチャ専用のサブドメイン）。運営者のサイトの shilokuma-web（Cloudflare Pages）で配信
 - `https://dokogacha.shilokuma.jp/.well-known/apple-app-site-association` に `/r/*` を登録し、Associated Domains（`applinks:dokogacha.shilokuma.jp`）を設定。同じ運営者のほかのアプリと干渉しないよう、ルートの `shilokuma.jp` やワイルドカード（`*.shilokuma.jp`）は applinks に使わない
 - `/r/{code}`：アプリがあれば S-06 参加確認へ。なければランディングページ（アプリの紹介、App Store ボタン、招待コードを大きく表示）
-- OGP：タイトル「{ルーム名} に招待されました｜ドコガチャ」、画像はアプリの汎用 OGP 画像（ルーム名は Hosting の Functions 経由で動的に差し込む。仮決め：MVP は固定の OGP 画像＋固定タイトル「ドコガチャに招待されました」）
+- OGP：タイトル「{ルーム名} に招待されました｜ドコガチャ」、画像はアプリの汎用 OGP 画像（ルーム名は招待ページを配信する側で動的に差し込む。仮決め：MVP は固定の OGP 画像＋固定タイトル「ドコガチャに招待されました」）
 - 通知のペイロードに `roomId` と遷移先（`room` / `result`）を入れる
 
 ## 8. 課金と広告

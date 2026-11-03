@@ -11,10 +11,10 @@ import Testing
 ///
 /// アイコンセットの名前は `Configs/<構成>.xcconfig` の `DG_APP_ICON_NAME` で決まり、名前を間違えても
 /// 外観の PNG が欠けても、ビルドは警告だけで通ってしまうので、ここで突き合わせる。
-/// どれもリポジトリのファイルを `#filePath` から読む（`HostingPagesConfigTests` と同じ）
+/// どれもリポジトリのファイルを `#filePath` から読む（`UniversalLinksConfigTests` と同じ）
 struct AppIconConfigurationTests {
     /// アセットカタログ
-    nonisolated static let assetsDirectory = HostingPagesConfigTests.repositoryRoot.appending(path: "Dokogacha/Assets.xcassets")
+    nonisolated static let assetsDirectory = UniversalLinksConfigTests.repositoryRoot.appending(path: "Dokogacha/Assets.xcassets")
 
     /// 構成ごとのアイコンセットの名前（Release は App Store に出すもので、`AppStore/app.json` の `appIcon` も同じセットを指す）
     nonisolated static let expectedIconNames = [
@@ -74,7 +74,7 @@ struct AppIconConfigurationTests {
     /// App Store のクリエイティブアセットのアイコン（`AppStore/app.json` の `appIcon`）は、Release のアイコンセットのライトの PNG
     @Test
     func appStoreIconIsReleaseLightIcon() throws {
-        let url = HostingPagesConfigTests.repositoryRoot.appending(path: "AppStore/app.json")
+        let url = UniversalLinksConfigTests.repositoryRoot.appending(path: "AppStore/app.json")
         let json = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let release = try #require(try Self.iconName(configuration: "Release"))
         #expect(json["appIcon"] as? String == "Dokogacha/Assets.xcassets/\(release).appiconset/AppIcon.png")

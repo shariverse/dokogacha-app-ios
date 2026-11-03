@@ -11,7 +11,7 @@
 	     ここに書くと、拒否した人に広告が出なくなるので書かない（アプリ自身のコードはトラッキングの通信をしない） -->
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
-	<!-- 収集するデータ。App Store Connect の「App のプライバシー」と揃える（06 の §5・backend/hosting/public/privacy.html の「1. 取得する情報」）。
+	<!-- 収集するデータ。App Store Connect の「App のプライバシー」と揃える（06 の §5・shilokuma-web のプライバシーポリシー https://shilokuma.jp/privacy/dokogacha/ の「取得する情報」）。
 	     Linked は、アカウント（ユーザー ID）に紐付けて保存するか。Analytics・Crashlytics にはユーザー ID を渡さない（FirebaseAnalyticsService・FirebaseTelemetry）ので、
 	     診断データは紐付けない。SDK（Firebase・Google Mobile Ads）も自分のマニフェストで申告するが、アプリとして集めるものはここにもすべて書く。
 	     Tracking は、ATT で許可した人の広告 ID（IDFA）を第三者の広告に使う DeviceID だけ -->

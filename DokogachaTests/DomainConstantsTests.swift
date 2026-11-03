@@ -43,7 +43,6 @@ struct DomainConstantsTests {
         #expect(DomainConstants.Web.scheme == "https")
         #expect(DomainConstants.Web.domain == "dokogacha.shilokuma.jp")
         #expect(DomainConstants.Web.inviteLinkPathPrefix == "/r/")
-        #expect(DomainConstants.Web.ogpTitle == "ドコガチャに招待されました")
         #expect(DomainConstants.Schedule.rerollVotingDuration == 24 * 3_600)
         #expect(DomainConstants.Schedule.autoCloseAfterDraw == 7 * 86_400)
         #expect(DomainConstants.Schedule.deadlineCheckInterval == 5 * 60)
