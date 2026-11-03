@@ -85,11 +85,12 @@ nonisolated enum DomainConstants {
         static let priceYen = 480
     }
 
-    /// Web（Hosting）と招待リンク（05 の §7）。
+    /// 招待リンク（05 の §7）と、アプリ・App Store の掲載情報が開く Web のページ。
+    /// どのページも運営者のサイト（shilokuma-inc/shilokuma-web）が配信する（このリポジトリには置かない。Issue #206）
     nonisolated enum Web {
-        /// 招待リンクのスキーム（Universal Links は https だけ）
+        /// 招待リンクと Web のページのスキーム（Universal Links は https だけ）
         static let scheme = "https"
-        /// Web のドメイン（06 の §4。`shilokuma.jp` のドコガチャ専用のサブドメイン）
+        /// 招待リンクと AASA（Universal Links）のドメイン（06 の §4。`shilokuma.jp` のドコガチャ専用のサブドメイン。`Configs/Project.xcconfig` の `DG_WEB_DOMAIN` と同じ）
         static let domain = "dokogacha.shilokuma.jp"
         /// 招待リンクのパスの前置き（`https://dokogacha.shilokuma.jp/r/{招待コード}`。02 の §2.4）
         static let inviteLinkPathPrefix = "/r/"
@@ -97,17 +98,20 @@ nonisolated enum DomainConstants {
         static let ogpTitle = "ドコガチャに招待されました"
         /// App Store のアプリのページ（02 の §6.3「App Store のURL（仮）」。行き先きっぷの共有画像に入れる。
         /// アプリの ID は App Store Connect でアプリを登録するまで決まらないので仮の値。登録したら差し替える）。
-        /// 招待リンクのランディングページ（`backend/hosting/public/assets/landing.js` の `APP_STORE_URL`）も同じ値にする
+        /// 招待リンクのランディングページ（shilokuma-web の招待ページの App Store のリンク）も同じ値にする（`docs/setup-human.md` の 10）
         static let appStoreURL = "https://apps.apple.com/jp/app/id0000000000"
-        /// 利用規約のページ（`backend/hosting/public/terms.html`。`firebase.json` の `cleanUrls` で拡張子なしの URL で開く）。
+        /// 運営者のサイトのドメイン。規約・ポリシー・サポートのページは、招待リンクのドメイン（`domain`）ではなくここに置く。
+        /// App Store の開発者の Web サイト（`AppStore/metadata/shared.json` の `marketingUrl`）もこのドメインのルート
+        static let operatorSiteDomain = "shilokuma.jp"
+        /// 利用規約のページ（運営者のほかのアプリと同じ `/terms/<アプリ名>/` の形。末尾のスラッシュまで含める）。
         /// 設定画面（S-15）の「利用規約」から開く
-        static let termsURL = "\(scheme)://\(domain)/terms"
-        /// プライバシーポリシーのページ（`backend/hosting/public/privacy.html`。`termsURL` と同じく拡張子なし）。
-        /// 設定画面（S-15）の「プライバシーポリシー」から開く
-        static let privacyPolicyURL = "\(scheme)://\(domain)/privacy"
-        /// サポートのページ（`backend/hosting/public/support.html`。`termsURL` と同じく拡張子なし）。
-        /// App Store の「サポート URL」（`AppStore/metadata/shared.json` の `supportUrl`）に同じ値を入れる。アプリの画面からは開かない
-        static let supportURL = "\(scheme)://\(domain)/support"
+        static let termsURL = "\(scheme)://\(operatorSiteDomain)/terms/dokogacha/"
+        /// プライバシーポリシーのページ（`/privacy/<アプリ名>/` の形。末尾のスラッシュまで含める）。
+        /// 設定画面（S-15）の「プライバシーポリシー」から開く。App Store の「プライバシーポリシー URL」（`shared.json` の `privacyPolicyUrl`）にも同じ値を入れる
+        static let privacyPolicyURL = "\(scheme)://\(operatorSiteDomain)/privacy/dokogacha/"
+        /// サポートのページ（運営者のサイトの「about」。ドコガチャ専用のページは作らない）。
+        /// App Store の「サポート URL」（`shared.json` の `supportUrl`）に同じ値を入れる。アプリの画面からは開かない
+        static let supportURL = "\(scheme)://\(operatorSiteDomain)/about/"
     }
 
     /// サーバーの時間の決まり（Functions のスケジュール・期限）。

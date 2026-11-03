@@ -5,9 +5,9 @@
     "marketingUrl は任意（書かなければ App Store Connect 側の値をそのまま残す）。AdMob が app-ads.txt を探す開発者の Web サイトなので、運営者のサイト shilokuma.jp にする（shilokuma.jp/app-ads.txt を同じ運営者のアプリで共有する。docs/setup-human.md の §9）。",
     "privacyPolicyUrl は App 情報の項目なので、Tools/upload_metadata.py は書き込まない（--check で形だけ確かめる）。App Store Connect で同じ値を入れる。",
     "URL は DomainConstants.Web（supportURL・privacyPolicyURL）と同じ値にする（DokogachaTests の AppStoreMetadataTests が突き合わせる）。",
-    "ドメインは 06 の §4 の dokogacha.shilokuma.jp。prod の Hosting につなぐまで開けないので、審査に出す前に開けることを確かめる（docs/setup-human.md の §10）。"
+    "どのページも運営者のサイト shilokuma.jp（shilokuma-inc/shilokuma-web）が配信する。審査に出す前に開けることを確かめる（docs/setup-human.md の §11）。"
   ],
-  "supportUrl": "https://dokogacha.shilokuma.jp/support",
+  "supportUrl": "https://shilokuma.jp/about/",
   "marketingUrl": "https://shilokuma.jp/",
-  "privacyPolicyUrl": "https://dokogacha.shilokuma.jp/privacy"
+  "privacyPolicyUrl": "https://shilokuma.jp/privacy/dokogacha/"
 }

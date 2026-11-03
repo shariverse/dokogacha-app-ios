@@ -10,10 +10,10 @@ import Testing
 /// App Store の掲載情報（`AppStore/`）が、アプリの値と 06 の §5 に合っていることを確かめる（タスク 45）。
 ///
 /// 掲載情報の JSON は App Store Connect に反映するワークフロー（手動実行）でしか使われず、アプリの値と食い違っても
-/// ビルドもテストも通るので、ここで突き合わせる。どれもリポジトリのファイルを `#filePath` から読む（`HostingPagesConfigTests` と同じ）
+/// ビルドもテストも通るので、ここで突き合わせる。どれもリポジトリのファイルを `#filePath` から読む（`UniversalLinksConfigTests` と同じ）
 struct AppStoreMetadataTests {
     /// `AppStore/` のディレクトリ
-    nonisolated static let appStoreDirectory = HostingPagesConfigTests.repositoryRoot.appending(path: "AppStore")
+    nonisolated static let appStoreDirectory = UniversalLinksConfigTests.repositoryRoot.appending(path: "AppStore")
 
     /// `AppStore/` の下の JSON を読む
     private static func json(_ path: String) throws -> [String: Any] {
@@ -21,12 +21,14 @@ struct AppStoreMetadataTests {
         return try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
-    /// サポートとプライバシーポリシーの URL は、アプリの `DomainConstants.Web` と同じ
+    /// サポートとプライバシーポリシーの URL は、アプリの `DomainConstants.Web` と同じ。
+    /// 開発者の Web サイト（マーケティング URL）は、規約・ポリシーと同じ運営者のサイトのルート
     @Test
     func urlsMatchWebConstants() throws {
         let shared = try Self.json("metadata/shared.json")
         #expect(shared["supportUrl"] as? String == DomainConstants.Web.supportURL)
         #expect(shared["privacyPolicyUrl"] as? String == DomainConstants.Web.privacyPolicyURL)
+        #expect(shared["marketingUrl"] as? String == "\(DomainConstants.Web.scheme)://\(DomainConstants.Web.operatorSiteDomain)/")
     }
 
     /// 名前とサブタイトルは 06 の §5（01 の §8）のとおりで、App Store Connect の上限（30 字）に収まる
