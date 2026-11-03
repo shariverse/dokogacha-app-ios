@@ -38,7 +38,6 @@ describe("06 の §4 の仮決め", () => {
     expect(constants.REMOVE_ADS_PRICE_YEN).toBe(480);
     expect(constants.WEB_DOMAIN).toBe("dokogacha.shilokuma.jp");
     expect(constants.INVITE_LINK_PATH_PREFIX).toBe("/r/");
-    expect(constants.OGP_TITLE).toBe("ドコガチャに招待されました");
     expect(constants.REROLL_VOTING_DURATION_MS).toBe(24 * 3_600_000);
     expect(constants.AUTO_CLOSE_AFTER_DRAW_MS).toBe(7 * 86_400_000);
     expect(constants.DEADLINE_CHECK_INTERVAL_MINUTES).toBe(5);

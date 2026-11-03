@@ -94,8 +94,6 @@ nonisolated enum DomainConstants {
         static let domain = "dokogacha.shilokuma.jp"
         /// 招待リンクのパスの前置き（`https://dokogacha.shilokuma.jp/r/{招待コード}`。02 の §2.4）
         static let inviteLinkPathPrefix = "/r/"
-        /// 招待リンクの OGP のタイトル（06 の §4 の仮決め「固定画像・固定タイトル」。05 の §7。アプリの画面には出さない）
-        static let ogpTitle = "ドコガチャに招待されました"
         /// App Store のアプリのページ（02 の §6.3「App Store のURL（仮）」。行き先きっぷの共有画像に入れる。
         /// アプリの ID は App Store Connect でアプリを登録するまで決まらないので仮の値。登録したら差し替える）。
         /// 招待リンクのランディングページ（shilokuma-web の招待ページの App Store のリンク）も同じ値にする（`docs/setup-human.md` の 10）
