@@ -2,7 +2,7 @@
 // firebase.json の Emulator のポートに DG_EMULATOR_PORT_OFFSET（既定 0）を足した設定ファイルを書き出し、そのパスを出力する。
 // 2 つの作業スロットで同時に Emulator を起動してもポートがぶつからないようにするため（スロット a は 0、b は 100）。
 // Emulator で動かせない拡張（extensions）は外す（withoutExtensions）。
-// 書き出すファイルは firebase.json と同じディレクトリに置く（rules・functions・hosting の相対パスをそのまま使うため）。git の管理外。
+// 書き出すファイルは firebase.json と同じディレクトリに置く（rules・functions の相対パスをそのまま使うため）。git の管理外。
 "use strict";
 
 const { readFileSync, writeFileSync } = require("node:fs");

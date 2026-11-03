@@ -1,7 +1,7 @@
 {
   "name": "dokogacha-backend",
   "private": true,
-  "description": "ドコガチャの Firebase（Cloud Functions・Firestore のルール・Hosting）",
+  "description": "ドコガチャの Firebase（Cloud Functions・Firestore のルール）",
   "engines": {
     "node": "22"
   },

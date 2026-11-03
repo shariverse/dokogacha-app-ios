@@ -1,6 +1,6 @@
 name: Backend
 
-# backend/（Cloud Functions・Firestore のルール・Hosting）の型検査・lint・単体テスト・Emulator のテスト。
+# backend/（Cloud Functions・Firestore のルール）の型検査・lint・単体テスト・Emulator のテスト。
 # iOS の Build（macOS）とは分け、ubuntu で動かす（macOS の同時実行の枠を使わないため）。
 on:
   push:
