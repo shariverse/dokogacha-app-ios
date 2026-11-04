@@ -65,7 +65,7 @@ Stg（TestFlight）は App Store Connect で本番とは別のアプリにして
    - 製品 ID `remove_ads`（`DomainConstants.RemoveAds.productID`・`backend/functions/src/domain/constants.ts` の `REMOVE_ADS_PRODUCT_ID` と同じ）
    - 価格 ¥480（06 の §4 の仮決め。`StoreKit/Dokogacha.storekit` も 480）
    - 表示名・説明は「広告を非表示」など。審査用のスクリーンショット（設定画面の購入のボタン）を添える
-4. TestFlight の内部テスターにする人を、リポジトリか Organization の変数 `TESTFLIGHT_INTERNAL_TESTERS` に入れる（手順 4）
+4. TestFlight の内部テスターにする人を、リポジトリか Organization の Secret `TESTFLIGHT_INTERNAL_TESTERS` に入れる（手順 4。変数にはしない）
 
 **App Store Server API のキーについて**: 今の `verifyPurchase` は、StoreKit 2 の署名付きトランザクションを Apple の根の証明書だけで確かめる（`@apple/app-store-server-library` の `SignedDataVerifier`）ので、**App Store Server API のキー（In-App Purchase のキー）は要りません**。
 返金を `users.adFree` に反映する（App Store Server Notifications を受ける）・サーバーから購入の履歴を引く処理を足すときに、App Store Connect の「ユーザとアクセス → 統合 → App 内課金」で鍵を作り、Secret Manager に置きます（今回の範囲外）。
@@ -111,12 +111,15 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
 | Secret | `GOOGLE_SERVICE_INFO_PLIST_PROD` | `dokogacha-dev` の本番の iOS アプリ（`jp.shilokuma.Dokogacha`）の plist を base64 にした文字列 | `_archive.yml`（Release。`release/**` の Upload・`main` の Archive） |
 | Secret | `EXPORT_OPTIONS` | `docs/ExportOptions.sample.plist` の `teamID` を書き換えた中身 | `_archive.yml` |
 | Secret | `APPLE_API_KEY_BASE64`・`APPLE_API_KEY_ID`・`APPLE_API_ISSUER_ID` | App Store Connect API の鍵（App Manager 以上）を base64 にしたものと、Key ID・Issuer ID | `_archive.yml`・`app-store-*.yml` |
-| 変数 | `TESTFLIGHT_INTERNAL_TESTERS` | 内部テスターのメールアドレス（カンマ区切り） | `_archive.yml` |
+| Secret | `TESTFLIGHT_INTERNAL_TESTERS` | 内部テスターのメールアドレス（カンマ区切り） | `_archive.yml`（Upload） |
 | 変数 | `ENABLE_DELIVERY` | 設定しない（`false` にすると Upload と掲載情報の反映を止める） | `upload.yml`・`app-store-*.yml` |
 
 - plist の Secret が無いとき、Stg は警告を出して Firebase に繋がらないアプリを Archive し、`release/**` の Upload（Release）は止まる。読めない値を入れると Archive の前に止まる
 - Archive の後に、アプリの `Info.plist` の `DGFirebaseEnvironment`（Stg は `dev`・Release は `prod`）と、入った plist が構成どおりかを確かめる（「Verify Firebase settings in the app」）
 - plist があるときは、Upload のワークフローで Archive と「Verify Firebase settings in the app」の後（Export・Upload の前）に dSYM を Crashlytics に上げる（「Upload dSYMs to Crashlytics」）
+- 内部テスターのメールアドレスは、変数ではなく Secret に入れる。変数の値はステップの `env:` の表示で Actions のログにそのまま出る（public リポジトリのログは誰でも見られる。Issue #208）。
+  Upload のログ・注釈・Job Summary では、メールアドレスを伏せて「書いた順の何件目か（`t***@example.com`）」で示す。Secret は登録した後に値を見られないので、書いた順は控えておく
+- 以前は変数 `TESTFLIGHT_INTERNAL_TESTERS` で渡していた。変数が残っていて Secret が無いと、Upload は内部テスターの設定を省いて警告を出す。Secret に移したら、Organization のほかのリポジトリが変数を使っていないかを確かめてから変数を消す
 
 **確かめ方**: `develop` への push の Upload で「`GoogleService-Info-Dev.plist` がアプリに入っています」と「dSYM を Crashlytics に上げました（GoogleService-Info-Dev）」が出る。Crashlytics の dSYM の一覧に上がる（#95）。
 
@@ -423,4 +426,4 @@ Stg と Release は App Store Connect で別のアプリ（Bundle ID が違う�
 | AASA | shilokuma-web（中身の正はこの手順書の 10） | このリポジトリにはしない |
 | 規約・ポリシー・サポートの URL | `DomainConstants.Web`・`AppStore/metadata/shared.json` の `supportUrl`・`privacyPolicyUrl`（手順 11） | する |
 | 規約・ポリシーの文面（運営者名・施行日・管轄裁判所） | shilokuma-web の `/terms/dokogacha/`・`/privacy/dokogacha/`（手順 11） | このリポジトリにはしない |
-| 内部テスター | 変数 `TESTFLIGHT_INTERNAL_TESTERS` | しない |
+| 内部テスター | Secret `TESTFLIGHT_INTERNAL_TESTERS` | しない |

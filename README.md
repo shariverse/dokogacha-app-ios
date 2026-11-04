@@ -209,7 +209,7 @@ xcrun simctl io <UDID> screenshot room.png
 
 - PR での Build: 同じリポジトリのブランチは push で動いているので、PR では作成時など（`synchronize` 以外）にだけ UI テスト込みで動きます。`epic/**` 宛ての PR（ralph-loop の子 PR）では動かず、`epic/**` から `develop` などへの PR は更新のたびに UI テスト込みで動きます
 - **Fork からの PR** は push で動かないので、更新を含むすべてのイベントで UI テストまで動きます。Secrets は渡りませんが、Build（Debug）は plist を使わないので通ります。Archive・Upload は Fork の PR では動きません
-- Upload に要る Secrets（`EXPORT_OPTIONS`・`APPLE_API_KEY_*`・`GOOGLE_SERVICE_INFO_PLIST_DEV` / `_PROD`）と変数（`TESTFLIGHT_INTERNAL_TESTERS`・`ENABLE_DELIVERY`）は [docs/setup-human.md](docs/setup-human.md) の 4 にあります
+- Upload に要る Secrets（`EXPORT_OPTIONS`・`APPLE_API_KEY_*`・`GOOGLE_SERVICE_INFO_PLIST_DEV` / `_PROD`・`TESTFLIGHT_INTERNAL_TESTERS`）と変数（`ENABLE_DELIVERY`）は [docs/setup-human.md](docs/setup-human.md) の 4 にあります
 - App Store Connect にアプリが無いと、Upload はアップロードの前に「新規アプリ」に入れる値を Job Summary に出して止まります（`.github/scripts/check-app-store-app.rb`）
 
 ## App Store の掲載情報
