@@ -43,6 +43,7 @@
 
 Team ID は `Configs/Project.xcconfig` の `DEVELOPMENT_TEAM`（`XU74X3434S`）、Bundle ID は `APP_BUNDLE_IDENTIFIER`（`jp.shilokuma.Dokogacha`）です。
 Stg（TestFlight）は App Store Connect で本番とは別のアプリにしているので、Bundle ID が違います（`Configs/Stg.xcconfig` の `jp.shilokuma.Dokogacha.stg`。Issue #189）。手順 1・2 は、2 つの App ID のそれぞれで行います。
+Debug の Bundle ID（`Configs/Debug.xcconfig` の `jp.shilokuma.Dokogacha.dev`。Issue #210）は、Xcode から実機に入れたときに自動署名が App ID を作るので、ここでは何もしません（App Store Connect のアプリ・Firebase の iOS アプリ・AASA にも登録しない）。
 
 1. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list) の Identifiers で `jp.shilokuma.Dokogacha`（と Stg の `jp.shilokuma.Dokogacha.stg`）を開く（無ければ App IDs で作る。Upload の `-allowProvisioningUpdates` でも作られる。Stg は `develop` の Upload、本番は `release/**` の Upload）
 2. Capabilities で次の 3 つを有効にする（`Configs/Dokogacha.entitlements` と同じ）
@@ -151,7 +152,7 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
    | --- | --- | --- |
    | `REPORT_MAIL_TO` | `functions/src/reports/functions.ts` | 投稿の報告（F-14）のメールの宛先。空だと報告は保存されるがメールを書かない（ログにエラー） |
    | `APP_STORE_APP_APPLE_ID` | `functions/src/purchase/functions.ts` | 空のあいだは Sandbox の購入だけを受け付け、**App Store（Production）の購入を受け付けない**。Release も `dokogacha-dev` に繋ぐので、必ず入れる |
-   | `APP_STORE_BUNDLE_ID` | 同上 | 既定 `jp.shilokuma.Dokogacha` のままでよい（書かない） |
+   | `APP_STORE_BUNDLE_ID` | 同上 | 既定 `jp.shilokuma.Dokogacha` のままでよい（書かない）。Emulator は `.env.demo-dokogacha` で Debug の `jp.shilokuma.Dokogacha.dev` にしている |
 
 3. ルールとインデックス、Functions をデプロイする（Functions のビルドは `predeploy` が行う）
 
@@ -294,7 +295,7 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
    }
    ```
 
-   - `appIDs` は本番（`Configs/Project.xcconfig` の `DEVELOPMENT_TEAM`・`APP_BUNDLE_IDENTIFIER`）を先に、Stg（`Configs/Stg.xcconfig`）を後に並べる
+   - `appIDs` は本番（`Configs/Project.xcconfig` の `DEVELOPMENT_TEAM`・`APP_BUNDLE_IDENTIFIER`）を先に、Stg（`Configs/Stg.xcconfig`）を後に並べる。Debug（`.dev`）は実機では Emulator に繋がらないので並べない
    - 拡張子の無いパスで、`200`・`Content-Type: application/json`・転送なしで返す（Apple の CDN は転送を追わない）
 3. 手順 2 の Apple ID で、App Store の URL（仮の `id0000000000`）を差し替える。このリポジトリの `DomainConstants.Web.appStoreURL`（行き先きっぷの共有の画像にも出る）と、shilokuma-web の招待ページ（`landing.js` の `APP_STORE_URL` と、HTML の App Store のリンク）の両方を同じ値にする
 4. ドメインを `dokogacha.shilokuma.jp` から変えるときは、`Configs/Project.xcconfig` の `DG_WEB_DOMAIN`（entitlements の `applinks:` はこの値を使う）・`DomainConstants.Web.domain`・`backend/functions/src/domain/constants.ts` の `WEB_DOMAIN` を同時に変える（`DomainConstantsTests`・`UniversalLinksConfigTests` が突き合わせる）。

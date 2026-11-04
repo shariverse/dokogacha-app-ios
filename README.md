@@ -107,6 +107,7 @@ backend/
 - Unit テストのホストと、起動引数 `-uiTesting`（UI テスト）・`-screenshot-demo`（撮影モード）では Firebase を初期化せず、メモリ上の擬似のサーバー（`Dokogacha/Data/InMemory/`）で動きます
 - 署名・バージョンは `Configs/Project.xcconfig`（`DEVELOPMENT_TEAM`・`APP_BUNDLE_IDENTIFIER`・`MARKETING_VERSION`）。ビルド番号は Upload のときに Xcode が App Store Connect の最新を見て増やします
 - Stg の Bundle ID は `jp.shilokuma.Dokogacha.stg`（`Configs/Stg.xcconfig` で上書き。Issue #189）で、App Store Connect では本番（`jp.shilokuma.Dokogacha`）と別のアプリです。TestFlight で本番のビルドと混ざらず、同じ端末に並べて入れられます。ホーム画面の名前は同じで、アイコンで見分けます
+- Debug の Bundle ID は `jp.shilokuma.Dokogacha.dev`（`Configs/Debug.xcconfig` で上書き。Issue #210）です。Xcode から実機に入れても TestFlight の本番・Stg を上書きせず、3 つを並べて入れられます。App ID は Xcode の自動署名が作り、App Store Connect・Firebase には登録しません。実機の Debug は Emulator（`localhost`）に繋がらないので、招待リンクの AASA にも並べません
 
 ## テスト
 
@@ -161,7 +162,7 @@ npx --no firebase emulators:start --only auth,firestore,functions --project demo
 
 ```bash
 xcrun simctl install <UDID> <DerivedData>/Build/Products/Debug-iphonesimulator/Dokogacha.app
-xcrun simctl launch <UDID> jp.shilokuma.Dokogacha -screenshot-demo -screenshot-scene room -demo-scenario room-with-candidates
+xcrun simctl launch <UDID> jp.shilokuma.Dokogacha.dev -screenshot-demo -screenshot-scene room -demo-scenario room-with-candidates
 xcrun simctl io <UDID> screenshot room.png
 ```
 
