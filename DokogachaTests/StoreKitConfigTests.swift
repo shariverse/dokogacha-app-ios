@@ -48,7 +48,8 @@ struct StoreKitConfigTests {
         #expect(Bundle.main.url(forResource: "Dokogacha", withExtension: "storekit") == nil)
     }
 
-    /// backend の定数とパラメータの既定値（アイテムの ID・Bundle ID）が、アプリと同じ
+    /// backend の定数とパラメータの既定値（アイテムの ID・Bundle ID）が、アプリと同じ。
+    /// Bundle ID の既定は本番のもの。Emulator に繋ぐのは Debug だけなので、Emulator の値（`.env.demo-dokogacha`）は Debug のもの（Issue #210）
     @Test
     func backendUsesSameProductAndBundleID() throws {
         let root = UniversalLinksConfigTests.repositoryRoot
@@ -56,7 +57,10 @@ struct StoreKitConfigTests {
         #expect(constants.contains("export const REMOVE_ADS_PRODUCT_ID = \"\(DomainConstants.RemoveAds.productID)\";"))
         #expect(constants.contains("export const REMOVE_ADS_PRICE_YEN = \(DomainConstants.RemoveAds.priceYen);"))
         let functions = try String(contentsOf: root.appending(path: "backend/functions/src/purchase/functions.ts"), encoding: .utf8)
-        let bundleID = try #require(Bundle.main.bundleIdentifier)
+        let bundleID = try #require(try UniversalLinksConfigTests.projectSettings()["APP_BUNDLE_IDENTIFIER"])
         #expect(functions.contains("default: \"\(bundleID)\""))
+        let emulatorEnv = try String(contentsOf: root.appending(path: "backend/functions/.env.demo-dokogacha"), encoding: .utf8)
+        let debugBundleID = try #require(Bundle.main.bundleIdentifier)
+        #expect(emulatorEnv.split(separator: "\n").contains("APP_STORE_BUNDLE_ID=\(debugBundleID)"))
     }
 }

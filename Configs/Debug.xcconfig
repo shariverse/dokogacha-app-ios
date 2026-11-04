@@ -7,6 +7,11 @@
 
 #include "Project.xcconfig"
 
+// アプリの Bundle ID。Debug は本番（Project.xcconfig の jp.shilokuma.Dokogacha）に .dev を付けた別のアプリにする（Issue #210）。
+// Xcode から実機に入れても TestFlight の本番・Stg のアプリを上書きせず、同じ端末に並べて入れられる。アイコンの「DEV」の帯で見分ける。
+// App ID は Xcode の自動署名が作る。Emulator の購入の検証（backend/functions/.env.demo-dokogacha の APP_STORE_BUNDLE_ID）もこの値にする。
+// 実機の Debug は Emulator（localhost）に繋がらないので、招待リンクの AASA には並べない
+APP_BUNDLE_IDENTIFIER = jp.shilokuma.Dokogacha.dev
 // Firebase の接続先（Info.plist の DGFirebaseEnvironment。値は FirebaseEnvironment の rawValue）。
 // Debug は Emulator の demo プロジェクト（demo-dokogacha）に、コードで作った FirebaseOptions で接続するので plist を読まない
 DG_FIREBASE_ENVIRONMENT = emulator

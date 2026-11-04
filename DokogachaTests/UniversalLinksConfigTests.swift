@@ -56,14 +56,21 @@ struct UniversalLinksConfigTests {
         #expect(domains == ["applinks:$(DG_WEB_DOMAIN)"])
     }
 
-    /// Stg（TestFlight）は、本番の Bundle ID に `.stg` を付けた別のアプリ（Issue #189）。Debug と Release は本番の Bundle ID のまま
+    /// Stg（TestFlight）と Debug は、本番の Bundle ID に `.stg`・`.dev` を付けた別のアプリ（Issue #189・#210）。Release は本番の Bundle ID のまま
     @Test
-    func stgUsesSeparateBundleID() throws {
+    func stgAndDebugUseSeparateBundleIDs() throws {
         let bundleID = try #require(try Self.projectSettings()["APP_BUNDLE_IDENTIFIER"])
         #expect(bundleID == "jp.shilokuma.Dokogacha")
         #expect(try Self.xcconfigSettings(named: "Stg")["APP_BUNDLE_IDENTIFIER"] == bundleID + ".stg")
-        #expect(try Self.xcconfigSettings(named: "Debug")["APP_BUNDLE_IDENTIFIER"] == nil)
+        #expect(try Self.xcconfigSettings(named: "Debug")["APP_BUNDLE_IDENTIFIER"] == bundleID + ".dev")
         #expect(try Self.xcconfigSettings(named: "Release")["APP_BUNDLE_IDENTIFIER"] == nil)
+    }
+
+    /// テストのホストのアプリ（Debug）は、Debug の Bundle ID でビルドされている
+    @Test
+    func hostAppUsesDebugBundleID() throws {
+        let debugBundleID = try #require(try Self.xcconfigSettings(named: "Debug")["APP_BUNDLE_IDENTIFIER"])
+        #expect(Bundle.main.bundleIdentifier == debugBundleID)
     }
 
     /// 手順書の apple-app-site-association は、Team ID と Bundle ID のアプリ（本番・Stg の順）に、招待リンクのパスだけを渡す
