@@ -3,7 +3,7 @@
  * 処理の中身は `service.ts` にあり、ここでは Callable に包み、署名の検証（App Store Server Library）を作って渡すだけにする。
  *
  * 検証に使う値は Functions のパラメータで受け取る（鍵・秘密は要らない。署名の検証は公開のルート証明書だけで行う）:
- * - `APP_STORE_BUNDLE_ID`: アプリの Bundle ID（既定は `jp.shilokuma.Dokogacha`）
+ * - `APP_STORE_BUNDLE_ID`: アプリの Bundle ID（既定は本番の `jp.shilokuma.Dokogacha`。Emulator は Debug の `jp.shilokuma.Dokogacha.dev`）
  * - `APP_STORE_APP_APPLE_ID`: App Store Connect のアプリの ID（数字）。空のあいだは Production の検証をせず、Sandbox（審査・TestFlight）だけを受け付ける
  * 値は `functions/.env.<プロジェクト ID>`（git の管理外）に人間が書くか、`firebase deploy` のときに入れる。Emulator は `.env.demo-dokogacha`。
  *
@@ -22,7 +22,7 @@ import { parseAppAppleId } from "./logic";
 import * as purchase from "./service";
 import { appleTransactionVerifier, type TransactionVerifier } from "./verifier";
 
-/** アプリの Bundle ID（`Configs/Project.xcconfig` の `PRODUCT_BUNDLE_IDENTIFIER`） */
+/** アプリの Bundle ID（既定は `Configs/Project.xcconfig` の `APP_BUNDLE_IDENTIFIER`） */
 export const APP_STORE_BUNDLE_ID = defineString("APP_STORE_BUNDLE_ID", {
   description: "広告非表示の購入（F-51）の署名を確かめるアプリの Bundle ID",
   default: "jp.shilokuma.Dokogacha",
