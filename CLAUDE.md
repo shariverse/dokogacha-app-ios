@@ -54,7 +54,7 @@ xcodebuild test -project Dokogacha.xcodeproj -scheme Dokogacha \
 - `-skipPackagePluginValidation -skipMacroValidation` を付けないと、Xcode の GUI で信頼していない DerivedData では SwiftLint のプラグインで止まる
 - 文字列を足したら `Dokogacha/Resources/Localizable.xcstrings` にも入れる（`xcodebuild` は足さない。`xcodebuild build` の後に `xcrun xcstringstool sync`。手順は `LEARNINGS.md`）
 - 画面の見た目は撮影モードで確かめる（`-screenshot-demo -screenshot-scene <名前>`。起動引数の一覧は README の「撮影モード」）。画面を足したら、要るなら scene を足す
-- ビルド構成は 3 つ: **Debug**（開発・テスト。Firebase は Emulator）/ **Stg**（TestFlight 用。`develop` の Upload。Firebase は dev。Bundle ID は `jp.shilokuma.Dokogacha.stg` で、App Store Connect では本番と別のアプリ）/ **Release**（App Store 用。Firebase は prod）。
+- ビルド構成は 3 つ: **Debug**（開発・テスト。Firebase は Emulator。Bundle ID は `jp.shilokuma.Dokogacha.dev`）/ **Stg**（TestFlight 用。`develop` の Upload。Firebase は dev。Bundle ID は `jp.shilokuma.Dokogacha.stg` で、App Store Connect では本番と別のアプリ）/ **Release**（App Store 用。Firebase は prod）。
   `dev`・`prod` はアプリの構成の名前で、Firebase のプロジェクトはどちらも `dokogacha-dev` の 1 つ（Stg と本番の iOS アプリの plist を読む。prod のプロジェクトは作らない。`docs/setup-human.md` の 3）。
   Stg は Release と同じ最適化。構成ごとの値は `Configs/<構成>.xcconfig` に書く
 

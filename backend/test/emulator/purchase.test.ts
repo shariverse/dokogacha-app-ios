@@ -247,8 +247,9 @@ describe("広告非表示の購入（verifyPurchase。Emulator）", () => {
       return { uid, verify: httpsCallable<unknown, { adFree: boolean }>(functions, "verifyPurchase") };
     }
 
+    // Emulator に繋ぐのは Debug だけなので、Debug の Bundle ID（functions/.env.demo-dokogacha の APP_STORE_BUNDLE_ID）
     const xcodePurchase = {
-      bundleId: "jp.shilokuma.Dokogacha",
+      bundleId: "jp.shilokuma.Dokogacha.dev",
       productId: REMOVE_ADS_PRODUCT_ID,
       transactionId: "0",
       originalTransactionId: "0",
