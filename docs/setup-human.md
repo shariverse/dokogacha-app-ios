@@ -300,7 +300,7 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
 
    - `appIDs` は本番（`Configs/Project.xcconfig` の `DEVELOPMENT_TEAM`・`APP_BUNDLE_IDENTIFIER`）を先に、Stg（`Configs/Stg.xcconfig`）を後に並べる。Debug（`.dev`）は実機では Emulator に繋がらないので並べない
    - 拡張子の無いパスで、`200`・`Content-Type: application/json`・転送なしで返す（Apple の CDN は転送を追わない）
-3. 手順 2 の Apple ID で、App Store の URL（仮の `id0000000000`）を差し替える。このリポジトリの `DomainConstants.Web.appStoreURL`（行き先きっぷの共有の画像にも出る）と、shilokuma-web の招待ページ（`landing.js` の `APP_STORE_URL` と、HTML の App Store のリンク）の両方を同じ値にする
+3. 手順 2 の Apple ID で、App Store の URL を差し替える（差し替え済み: `https://apps.apple.com/jp/app/id6827967998`。Issue #216）。このリポジトリの `DomainConstants.Web.appStoreURL`（行き先きっぷの共有の画像にも出る）と、shilokuma-web の招待ページ（`landing.js` の `APP_STORE_URL` と、HTML の App Store のリンク）の両方を同じ値にする
 4. ドメインを `dokogacha.shilokuma.jp` から変えるときは、`Configs/Project.xcconfig` の `DG_WEB_DOMAIN`（entitlements の `applinks:` はこの値を使う）・`DomainConstants.Web.domain`・`backend/functions/src/domain/constants.ts` の `WEB_DOMAIN` を同時に変える（`DomainConstantsTests`・`UniversalLinksConfigTests` が突き合わせる）。
    shilokuma-web の配信先・招待ページの `og:url` も変える。テスト・コメント・資料にもドメインを書いているので、`git grep -n '<古いドメイン>'` で残りが無いことを確かめる
 
