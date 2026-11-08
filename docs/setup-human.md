@@ -50,7 +50,12 @@ Debug の Bundle ID（`Configs/Debug.xcconfig` の `jp.shilokuma.Dokogacha.dev`�
    - Push Notifications（`aps-environment`）
    - Associated Domains（`applinks:dokogacha.shilokuma.jp`）。ドメインは App ID ではなく entitlements の値なので、capability を有効にした後にドメインを変えても、ここは変えない
    - Sign in with Apple（本番の `jp.shilokuma.Dokogacha` を Primary App ID にし、Stg の App ID はそれとグループにする）
+     - 本番の App ID の Sign in with Apple の行の右の「Edit」で「Enable as a primary App ID」にする
+     - Stg の App ID の同じ行の「Edit」で「Group with an existing primary App ID」を選び、本番の App ID を選ぶ。「Edit」はチェックを入れて保存した後に出る
 3. Keys で鍵（`.p8`）を作る。**APNs** と **Sign in with Apple** を有効にした鍵を作り（1 つの鍵で両方を有効にしてよい）、Key ID を控える。`.p8` は 1 回しかダウンロードできないので、パスワードマネージャーなどの安全な場所に保管する（リポジトリに置かない）
+   - APNs の「Configure」では、環境を **Sandbox & Production**、種類を **Team Scoped (All Topics)** にする（1 本の鍵で TestFlight・App Store・開発用のすべてと、チームのほかのアプリにも使える）
+   - Sign in with Apple の「Configure」では、Primary App ID に本番の `jp.shilokuma.Dokogacha` を選ぶ
+   - チームにすでに APNs の鍵があれば、APNs はその鍵を使い回してよい（チームあたりの本数に上限がある）。その場合、新しい鍵は Sign in with Apple だけにする
 
 **確かめ方**: 手順 4 の後の develop の Upload が、署名のエラーなく TestFlight まで通る（#22）。
 
@@ -86,7 +91,9 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
    - 本番モードで作る（ルールは手順 6 でリポジトリの `backend/firestore.rules` をデプロイする）
 4. Authentication を始め、ログイン方法で次の 2 つを有効にする
    - **匿名**（F-01。起動時に `signInAnonymously`）
-   - **Apple**（設定画面からの連携。F-01・S-15）。アカウントの削除（F-06）でトークンを取り消す（`revokeToken`）ため、Apple のプロバイダの「OAuth コード フローの構成」に Apple の Team ID と、手順 1 の鍵の Key ID・秘密鍵（`.p8` の中身）を入れる。iOS のアプリだけなので、Web 用の Services ID は使わない（コンソールで必須かどうかを確かめて入れる）
+   - **Apple**（設定画面からの連携。F-01・S-15）。アカウントの削除（F-06）でトークンを取り消す（`revokeToken`）ため、Apple のプロバイダの「OAuth コード フローの構成」に Apple の Team ID と、手順 1 の鍵の Key ID・秘密鍵（`.p8` の中身）を入れる
+     - 「OAuth コード フローの構成」を入れると「**サービス ID**」が必須になる。本番の Bundle ID **`jp.shilokuma.Dokogacha`** を入れる（Issue #218）。iOS のアプリの authorization code は Bundle ID あてに発行され、Firebase はサービス ID を client_id にして Apple に送るため。Apple Developer で Web 用の Services ID を作る必要はない（作っても iOS のアプリのコードと一致しない）
+     - サービス ID は 1 つしか入れられないので、**Stg の版（`.stg`）で Apple に連携したアカウントは、削除のときのトークンの取り消しが通らず、削除が止まる見込み**（`SettingsModel` は取り消しに失敗すると削除を続けない）。アカウントの削除の実機確認（#105）は、本番のアプリの TestFlight の版で行う
 5. 「プロジェクトの設定」→「マイアプリ」で iOS アプリを追加する
    - バンドル ID `jp.shilokuma.Dokogacha`・App Store ID（手順 2 の Apple ID）
    - Stg のバンドル ID `jp.shilokuma.Dokogacha.stg` の iOS アプリも追加する（`dokogacha-dev` に 2 つの iOS アプリが並ぶ）。Stg の Secret（手順 4 の `_DEV`）にはこの iOS アプリの plist を、Release の Secret（`_PROD`）には本番の iOS アプリの plist を入れる
@@ -127,7 +134,9 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
 ## 5. APNs の認証キーを Firebase に登録する
 
 1. `dokogacha-dev` の「プロジェクトの設定」→「Cloud Messaging」→「Apple アプリの構成」の「APNs 認証キー」に、手順 1 の `.p8`・Key ID・Team ID を登録する。APNs の設定は iOS アプリごとなので、本番（`jp.shilokuma.Dokogacha`）と Stg（`jp.shilokuma.Dokogacha.stg`）の両方の iOS アプリに同じ鍵を登録する
-2. 認証キーは開発用と本番用の両方の APNs に使える。アプリの APNs の環境は xcconfig の `DG_APS_ENVIRONMENT`（Debug は `development`、Stg・Release は `production`）
+   - 左の「Apple アプリ」に Stg のアプリが無ければ、手順 3 の 5 で Firebase に追加し忘れている（App Store Connect にアプリがあっても、Firebase には別に追加が要る）。追加して、その plist を Secret `GOOGLE_SERVICE_INFO_PLIST_DEV` に入れ直す（`base64 -i <plist> | gh secret set GOOGLE_SERVICE_INFO_PLIST_DEV -R shariverse/dokogacha-app-ios`。先に `/usr/libexec/PlistBuddy -c 'Print :BUNDLE_ID' <plist>` が `jp.shilokuma.Dokogacha.stg` を出すことを確かめる）
+2. 各アプリの「APNs 認証キー」には「**開発用**」と「**本番環境用**」の 2 行がある。手順 1 で鍵を Sandbox & Production で作ったなら、同じ鍵を両方の行に入れる。
+   TestFlight と App Store の版が使うのは本番環境用（アプリの APNs の環境は xcconfig の `DG_APS_ENVIRONMENT`。Debug は `development`、Stg・Release は `production`。Debug は Emulator に繋ぐので、`dokogacha-dev` の開発用の行は今は使わない）
 
 **確かめ方**: TestFlight のアプリで、解禁・抽選の結果・引き直しの提案の通知が届き、通知から該当の画面が開く（#81）。
 
