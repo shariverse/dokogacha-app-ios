@@ -12,7 +12,8 @@ import Testing
 ///
 /// 鍵の書き間違い・xcconfig の変数の設定漏れがあってもビルドは通り、広告が出ない・ATT のダイアログで落ちるだけなので、ここで検出する
 struct AdInfoPlistTests {
-    /// Google のテスト用の広告ユニット ID（アダプティブバナー）。本番の ID は公開前に人間が差し替える
+    /// Google のテスト用の広告ユニット ID（アダプティブバナー）。テストは Debug で動くのでこの値になる
+    /// （本番の ID は App Store の版の Configs/Release.xcconfig だけにある）
     private static let testBannerAdUnitID = "ca-app-pub-3940256099942544/2435281174"
 
     private static var info: [String: Any] {
