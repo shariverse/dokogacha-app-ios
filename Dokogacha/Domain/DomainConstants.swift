@@ -94,10 +94,10 @@ nonisolated enum DomainConstants {
         static let domain = "dokogacha.shilokuma.jp"
         /// 招待リンクのパスの前置き（`https://dokogacha.shilokuma.jp/r/{招待コード}`。02 の §2.4）
         static let inviteLinkPathPrefix = "/r/"
-        /// App Store のアプリのページ（02 の §6.3「App Store のURL（仮）」。行き先きっぷの共有画像に入れる。
-        /// アプリの ID は App Store Connect でアプリを登録するまで決まらないので仮の値。登録したら差し替える）。
+        /// App Store のアプリのページ（02 の §6.3「App Store のURL」。行き先きっぷの共有画像に入れる。
+        /// ID は App Store Connect の本番のアプリ（`jp.shilokuma.Dokogacha`）の Apple ID。App Store で公開されるまでは開いても見つからない）。
         /// 招待リンクのランディングページ（shilokuma-web の招待ページの App Store のリンク）も同じ値にする（`docs/setup-human.md` の 10）
-        static let appStoreURL = "https://apps.apple.com/jp/app/id0000000000"
+        static let appStoreURL = "https://apps.apple.com/jp/app/id6827967998"
         /// 運営者のサイトのドメイン。規約・ポリシー・サポートのページは、招待リンクのドメイン（`domain`）ではなくここに置く。
         /// App Store の開発者の Web サイト（`AppStore/metadata/shared.json` の `marketingUrl`）もこのドメインのルート
         static let operatorSiteDomain = "shilokuma.jp"
