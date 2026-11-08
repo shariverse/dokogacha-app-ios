@@ -18,3 +18,8 @@ DG_APS_ENVIRONMENT = production
 // Analytics・Crashlytics の収集の既定（Info.plist の FIREBASE_ANALYTICS_COLLECTION_ENABLED・FirebaseCrashlyticsCollectionEnabled）。
 // App Store のアプリは prod に送る（起動ごとの判定は FirebaseCollectionPolicy）
 DG_FIREBASE_COLLECTION_ENABLED = YES
+// AdMob（docs/setup-human.md の手順 9。Issue #220）。App Store の版だけ本番の値で、Project.xcconfig のテスト用の値を上書きする。
+// Debug・Stg（TestFlight）はテスト用の値のまま（自分の本番の広告を押して無効なクリックにしないため）。
+// どちらもアプリの中に入って配られる値で、秘密情報ではない。パブリッシャー ID は https://shilokuma.jp/app-ads.txt の行と同じ
+DG_GAD_APPLICATION_IDENTIFIER = ca-app-pub-7683522872696760~4126078610
+DG_BANNER_AD_UNIT_ID = ca-app-pub-7683522872696760/7164586756

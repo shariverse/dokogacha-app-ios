@@ -5,7 +5,7 @@
 	<!-- AdMob の App ID。値は Configs/*.xcconfig の DG_GAD_APPLICATION_IDENTIFIER で構成ごとに決める（無いと Google Mobile Ads が起動時に落ちる） -->
 	<key>GADApplicationIdentifier</key>
 	<string>$(DG_GAD_APPLICATION_IDENTIFIER)</string>
-	<!-- バナー広告（F-50）の広告ユニット ID。値は Configs/Project.xcconfig の DG_BANNER_AD_UNIT_ID（いまは Google のテスト用の ID） -->
+	<!-- バナー広告（F-50）の広告ユニット ID。値は Configs/*.xcconfig の DG_BANNER_AD_UNIT_ID（Debug・Stg は Google のテスト用の ID、Release は本番の ID） -->
 	<key>DGBannerAdUnitID</key>
 	<string>$(DG_BANNER_AD_UNIT_ID)</string>
 	<!-- ATT の許可ダイアログの説明（06 の §5）。初めてルームに入った後に尋ねる（02 の F-50） -->

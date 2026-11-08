@@ -253,11 +253,12 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
 
 ## 9. AdMob（広告）
 
-今は Google のテスト用の ID です（`Configs/Project.xcconfig`。Q6）。AdMob は、運営者のサイト `shilokuma.jp` と同じアカウントを使います。
+Debug・Stg（TestFlight）は Google のテスト用の ID（`Configs/Project.xcconfig`。Q6）、App Store 用の Release は本番の ID（`Configs/Release.xcconfig`。Issue #220 で入れ済み）です。AdMob は、運営者のサイト `shilokuma.jp` と同じアカウントを使います。
 
 1. `shilokuma.jp` と同じ [AdMob](https://admob.google.com/) のアカウントで iOS のアプリを追加し（App Store に公開した後なら App Store から選ぶ）、**App ID** を控える
+   - 公開前は「アプリストアに登録されていますか？」に「いいえ」と答えて作る。App Store で公開した後に、AdMob のアプリの設定の「アプリストアの詳細を追加」で App Store のアプリ（`id6827967998`）と紐付ける（紐付けるまでは配信が少なめになることがある）
 2. 広告ユニットを **バナー**（アンカー型アダプティブバナーとして使う）で作り、**広告ユニット ID** を控える
-3. 本番の値を xcconfig に書く。`Project.xcconfig` の値を、構成ごとの xcconfig で上書きする
+3. 本番の値を xcconfig に書く。`Project.xcconfig` の値を、構成ごとの xcconfig で上書きする（入れ済み: App ID `ca-app-pub-7683522872696760~4126078610`・広告ユニット ID `ca-app-pub-7683522872696760/7164586756`）
 
    ```
    // Configs/Release.xcconfig（App Store 用）
@@ -265,7 +266,7 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
    DG_BANNER_AD_UNIT_ID = ca-app-pub-<パブリッシャー ID>/<広告ユニットの番号>
    ```
 
-   - 値は Info.plist の `GADApplicationIdentifier`・`DGBannerAdUnitID` に入る。アプリの中に入って配られる値で、秘密情報ではない（`Project.xcconfig` のコメントの「コミットしない」は、ループが本番の値を書かないという意味）。コミットするかどうかはチームで決める（コミットしないなら、CI で書き出す仕組みが別に要る）
+   - 値は Info.plist の `GADApplicationIdentifier`・`DGBannerAdUnitID` に入る。アプリの中に入って配られる値で、秘密情報ではない。Release は CI で作るので、リポジトリにコミットしている（Issue #220）
    - Stg（TestFlight）はテスト用の ID のままにするのを勧める。本番の ID にするなら、テスターの端末を AdMob のテスト端末に登録して、自分の広告を押さないようにする
 4. app-ads.txt は、既存の `https://shilokuma.jp/app-ads.txt` をそのまま使う
    - App Store の開発者の Web サイト（**マーケティング URL**。App Store の「デベロッパWebサイト」）を `https://shilokuma.jp/` にする。AdMob はこの URL のドメインの app-ads.txt を読む。
