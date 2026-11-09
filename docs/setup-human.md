@@ -241,6 +241,13 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
    - 2026-11 のデプロイではロケーションを聞かれず、関数（`ext-firestore-send-email-processqueue`）は既定の **`us-central1`** に置かれた。東京の Firestore の書き込みで動くので、動きに問題は無い（後から変えるには、拡張を外して入れ直す）
    - 拡張はスケジュールのジョブを作らない（Cloud Scheduler は Functions の 3 つのまま）
    - 確かめ方: `mail` に `{ to: <REPORT_MAIL_TO>, message: { subject, text } }` のドキュメントを 1 件書くと、拡張が送り、`delivery.state` が `SUCCESS` になる
+   - 送ったメールの記録（`mail` のドキュメント）は、**送ってから 30 日で消す**（`firestore-send-email.env` の `TTL_EXPIRE_TYPE=day`・`TTL_EXPIRE_VALUE=30`。プライバシーポリシーの保存期間）。拡張は `delivery.expireAt` に消す日時を書くだけなので、Firestore の TTL も設定する（設定済み）:
+
+     ```bash
+     gcloud firestore fields ttls update delivery.expireAt --collection-group=mail --enable-ttl --project dokogacha-dev --database='(default)'
+     ```
+
+     TTL は期限を過ぎたドキュメントを、おおむね 24 時間以内に消す（すぐには消えない）。設定の前に送ったメールの記録には `delivery.expireAt` が無いので消えない（要らなければ手で消す）
 
    ```bash
    npx firebase deploy --only extensions --project dokogacha-dev
