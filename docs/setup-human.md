@@ -211,13 +211,19 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
 
 `reportCandidate` は報告を `reports` に保存し、運営向けのメールを `mail` コレクションに書きます。メールは Trigger Email 拡張（`firebase/firestore-send-email@0.2.10`）が SMTP で送ります（Q7）。拡張の設定はリポジトリにあります（`backend/firebase.json` の `extensions`・`backend/extensions/firestore-send-email.env`）。
 
+メールは運営者（`REPORT_MAIL_TO`）にだけ送り、利用者には送りません。App Store の審査のガイドライン 1.2（ユーザー生成コンテンツ）の「報告にすみやかに対応する」ための、運営者への知らせです。送れなかったときも、報告そのものは `reports` に残ります。
+
 1. SMTP の事業者を決め、送信用のアカウントを用意する（送り主のアドレス・接続先・パスワード）
+   - **Gmail に決めた**（2026-11。Google は Firebase・AdMob でポリシーに載っているので、ポリシーへの書き足しが小さい。無料で 1 日 500 通ほどまで。超えると送信が一時的に止まるだけで、料金はかからない）。送り主は運営用に作った Gmail のアカウント（アドレスはこの手順書に書かず、git の管理外の設定のファイルにだけ書く）
+   - そのアカウントで 2 段階認証をオンにし、[アプリ パスワード](https://myaccount.google.com/apppasswords) を作る。16 文字は 4 文字ずつ空白で区切って表示されるが、**空白を入れずに**控える
 2. SMTP のパスワードを、`dokogacha-dev` の Secret Manager に `firestore-send-email-SMTP_PASSWORD` という名前で置く（拡張の設定はこの名前の `latest` を参照する）
+   - Secret Manager の API が無効なら先に有効にする（`gcloud services enable secretmanager.googleapis.com --project dokogacha-dev`）
+   - 表示どおり空白入りで貼ると、値が 19 文字になる。下のコマンドは `${SMTP_PASSWORD// /}` で空白を除いてから入れる
 
    `firebase functions:secrets:set` は使わない（firebase-tools 15 は大文字・アンダースコアでない名前を `FIRESTORE_SEND_EMAIL_SMTP_PASSWORD` に替えるか聞き、替えると拡張の設定の参照と食い違って拡張がパスワードを読めない）。gcloud で作る（シェルの履歴にパスワードを残さないよう、プロンプトで読む）:
 
    ```bash
-   read -rs SMTP_PASSWORD && printf '%s' "$SMTP_PASSWORD" | gcloud secrets create firestore-send-email-SMTP_PASSWORD --data-file=- --replication-policy=automatic --project dokogacha-dev; unset SMTP_PASSWORD
+   read -rs SMTP_PASSWORD && printf '%s' "${SMTP_PASSWORD// /}" | gcloud secrets create firestore-send-email-SMTP_PASSWORD --data-file=- --replication-policy=automatic --project dokogacha-dev; unset SMTP_PASSWORD
    ```
 
    作らずに手順 4 の `firebase deploy --only extensions` を対話のモードで実行しても、Secret が無ければ作るか聞かれる（その場合も名前を替えない）
@@ -229,15 +235,19 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
    DEFAULT_FROM=<送り主のアドレス>
    ```
 
-   パスワードは URI に入れない（手順 2 の Secret から読む）。`DATABASE_REGION`（asia-northeast1）などの共通の値は `firestore-send-email.env` にある
+   パスワードは URI に入れない（手順 2 の Secret から読む）。`DATABASE_REGION`（asia-northeast1）などの共通の値は `firestore-send-email.env` にある。
+   Gmail はユーザー名がメールアドレスなので、URI の中では `@` を `%40` にする（`smtps://<アカウント名>%40gmail.com@smtp.gmail.com:465`。`@` のままだとホストとの区切りと読まれる）
 4. 拡張をデプロイする。マニフェスト（`firebase.json` の `extensions`）がリポジトリにあるので、`ext:install` はせずに `deploy` で入れる。拡張の関数のロケーションなどをたずねられたら `asia-northeast1` を選ぶ
+   - 2026-11 のデプロイではロケーションを聞かれず、関数（`ext-firestore-send-email-processqueue`）は既定の **`us-central1`** に置かれた。東京の Firestore の書き込みで動くので、動きに問題は無い（後から変えるには、拡張を外して入れ直す）
+   - 拡張はスケジュールのジョブを作らない（Cloud Scheduler は Functions の 3 つのまま）
+   - 確かめ方: `mail` に `{ to: <REPORT_MAIL_TO>, message: { subject, text } }` のドキュメントを 1 件書くと、拡張が送り、`delivery.state` が `SUCCESS` になる
 
    ```bash
    npx firebase deploy --only extensions --project dokogacha-dev
    ```
 
 5. 手順 6 の `REPORT_MAIL_TO` が入っていることを確かめる（拡張ではなく Functions のパラメータ）
-6. 事業者を決めたら、shilokuma-web のドコガチャのプライバシーポリシーの「投稿の報告のメール」に、事業者名とポリシーへのリンクを足す（手順 11）
+6. 事業者を決めたら、shilokuma-web のドコガチャのプライバシーポリシーの「投稿の報告のメール」に、事業者名とポリシーへのリンクを足す（手順 11。済み: shilokuma-inc/shilokuma-web#35 で Gmail（Google LLC）のカードを足した）
 
 **確かめ方**: TestFlight のアプリで、ほかの人の候補を報告すると（S-10 の「この投稿を報告」）、`REPORT_MAIL_TO` にメールが届く。`mail` のドキュメントの `delivery.state` が `SUCCESS` になる。
 
