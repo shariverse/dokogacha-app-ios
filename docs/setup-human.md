@@ -389,7 +389,7 @@ URL は末尾のスラッシュまで含めて、`DomainConstants.Web` と `AppS
 
 掲載情報の元は `AppStore/` にあり、手動実行のワークフローで App Store Connect に反映します（README の「App Store の掲載情報」）。
 
-1. App Store Connect の「App 情報」に、名前「ドコガチャ」・サブタイトル「友達旅行・おでかけの行き先ガチャ」・プライバシーポリシーの URL `https://shilokuma.jp/privacy/dokogacha/` を入れる（「App 情報」の項目なのでワークフローは書き込まない。`upload_metadata.py --check` が形だけ確かめる）
+1. App Store Connect の「App 情報」に、名前「ドコガチャ」・サブタイトル「友達旅行・おでかけの行き先ガチャ」を入れる。プライバシーポリシーの URL `https://shilokuma.jp/privacy/dokogacha/` は「**App のプライバシー**」のページの「プライバシーポリシー」の欄に入れる（入れ済み。2026-11-11。ワークフローは書き込まない。`upload_metadata.py --check` が形だけ確かめる）
    - 名前はホーム画面の日本語の名前「ドコガチャ」とそろえる（手順 2 の 1）。アプリを先に別の名前（「Dokogacha」など）で作っていたときは、「App 情報」の「ローカライズ可能な情報」で言語を「日本語」にして「名前」を「ドコガチャ」に変え、保存する。名前は審査に出す前（「提出準備中」の間）なら変えられ、出した後に変えるときは新しいバージョンと一緒に審査に出す。App Store 全体で重複している名前は保存できない
    - アプリに英語のローカライズ（`en.lproj`。英語の端末のホーム画面の名前「Dokogacha」のため）が入っているので、App Store の「言語」の欄に「英語」も出る見込み。アプリの文言は日本語だけで、英語の掲載情報は出さない（`AppStore/languages.json` は `ja` だけ）
 2. 説明文・キーワード・プロモーションテキストを見直す（`AppStore/metadata/ja.json`）
@@ -398,18 +398,22 @@ URL は末尾のスラッシュまで含めて、`DomainConstants.Web` と `AppS
    - 直したら Actions の `Metadata/App Store` を dry-run → 本番の順に流す
 3. **App のプライバシーの申告は、Xcode の Privacy Report を正にする**。`PrivacyInfo.xcprivacy` はアプリの分だけで、SDK（Firebase・Google Mobile Ads）の申告は各 SDK の manifest にあるため
    - Xcode で Release を Archive し（Product → Archive）、Organizer でアーカイブを右クリック →「Generate Privacy Report」で PDF を作る
-   - PDF の収集データ（種類・ユーザーへの紐付け・トラッキング・目的）を App Store Connect の「App のプライバシー」に入れる。目安は下の表（PR #119。`PrivacyInfo.xcprivacy`）で、食い違ったら Privacy Report に従い、`PrivacyInfo.xcprivacy` と shilokuma-web のプライバシーポリシー（手順 11）も直す
+     - レポートのためだけなら署名は要らない。`xcodebuild archive -configuration Release -destination 'generic/platform=iOS' -archivePath ~/Library/Developer/Xcode/Archives/<日付>/<名前>.xcarchive CODE_SIGNING_ALLOWED=NO` で作れば Organizer に出る
+     - 保存のダイアログで名前に拡張子を付けないと、`.pdf` の無いファイルで保存される
+   - PDF の収集データ（種類・ユーザーへの紐付け・トラッキング・目的）を App Store Connect の「App のプライバシー」に入れる。**目的はアプリと SDK の申告をすべて合わせたものにする**（少なく申告しない）。食い違ったら Privacy Report に従い、`PrivacyInfo.xcprivacy` と shilokuma-web のプライバシーポリシー（手順 11）も直す
+   - 「App のプライバシー」は App Store Connect の公式の API で読み書きできない（2026-11 時点）。画面から入れる
+   - 2026-11-11 に、下の表のとおり入れて公開した（Privacy Report と `PrivacyInfo.xcprivacy` の突き合わせで、種類・紐付け・トラッキングは一致。目的は Google Mobile Ads の SDK が「デベロッパの広告またはマーケティング」「アナリティクス」を、UMP の SDK が「アプリの機能」を足していた。UMP はアプリでは使っていないが、広告の SDK と一緒に入っている）
 
    | 種類 | 紐付け | トラッキング | 目的 |
    | --- | --- | --- | --- |
-   | ユーザー ID・名前・その他のユーザーコンテンツ・購入履歴 | ○ | × | アプリの機能 |
-   | デバイス ID | ○ | ○ | アプリの機能・分析・第三者広告（IDFA は ATT で許可した人だけ） |
-   | 広告データ | ○ | × | 第三者広告 |
-   | 製品の操作 | ○ | × | 分析・第三者広告 |
-   | おおよその位置 | ○ | × | 第三者広告（AdMob。アプリは Core Location を使わない） |
-   | クラッシュデータ | × | × | アプリの機能 |
-   | その他の診断データ | × | × | アプリの機能・分析 |
-   | パフォーマンスデータ | × | × | 分析・第三者広告 |
+   | 名前（表示名）・その他のユーザコンテンツ・ユーザ ID・購入履歴 | ○ | × | アプリの機能 |
+   | デバイス ID | ○ | ○ | アプリの機能・アナリティクス・他社の広告・デベロッパの広告またはマーケティング（IDFA は ATT で許可した人だけ） |
+   | おおよその場所 | ○ | × | 他社の広告・デベロッパの広告またはマーケティング・アナリティクス・アプリの機能（AdMob が IP アドレスから推定。アプリは Core Location を使わない） |
+   | 製品の操作 | ○ | × | 他社の広告・デベロッパの広告またはマーケティング・アナリティクス・アプリの機能 |
+   | 広告データ | ○ | × | 他社の広告・デベロッパの広告またはマーケティング・アナリティクス |
+   | クラッシュデータ | × | × | アプリの機能・アナリティクス |
+   | パフォーマンスデータ | × | × | 他社の広告・デベロッパの広告またはマーケティング・アナリティクス・アプリの機能 |
+   | その他の診断データ | × | × | 他社の広告・デベロッパの広告またはマーケティング・アナリティクス・アプリの機能 |
 
 4. 年齢区分の質問に答える（ユーザーが投稿する内容がある・報告と削除の仕組みがある・広告がある）
 5. 審査メモに書く: 匿名で始まりログインは要らない／ガチャは課金の無い抽選（ルームの候補から行き先を決める）／投稿の報告は候補の詳細（S-10）の「この投稿を報告」、アカウントの削除は設定（S-15）の「アカウントを削除」にある
