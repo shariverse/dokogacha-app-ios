@@ -8,10 +8,10 @@
 
 ## Status
 
-| ブランチ | Build | Archive | Upload | Backend |
-| --- | --- | --- | --- | --- |
-| `main` | [![Build](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml?query=branch%3Amain) | [![Archive](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/archive.yml/badge.svg?branch=main)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/archive.yml?query=branch%3Amain) | | [![Backend](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml/badge.svg?branch=main)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml?query=branch%3Amain) |
-| `develop` | [![Build](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml/badge.svg?branch=develop)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml?query=branch%3Adevelop) | | [![Upload](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/upload.yml/badge.svg?branch=develop)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/upload.yml?query=branch%3Adevelop) | [![Backend](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml/badge.svg?branch=develop)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml?query=branch%3Adevelop) |
+| ブランチ | Build | Upload | Backend |
+| --- | --- | --- | --- |
+| `main` | [![Build](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml?query=branch%3Amain) | | [![Backend](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml/badge.svg?branch=main)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml?query=branch%3Amain) |
+| `develop` | [![Build](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml/badge.svg?branch=develop)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/build.yml?query=branch%3Adevelop) | [![Upload](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/upload.yml/badge.svg?branch=develop)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/upload.yml?query=branch%3Adevelop) | [![Backend](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml/badge.svg?branch=develop)](https://github.com/shariverse/dokogacha-app-ios/actions/workflows/backend.yml?query=branch%3Adevelop) |
 
 ## 画面
 
@@ -99,7 +99,7 @@ backend/
 | --- | --- | --- | --- | --- |
 | Debug | 開発・テスト | `emulator`（`demo-dokogacha`） | plist を読まず、コードで作った `FirebaseOptions`。接続先は `Dokogacha/Data/Firebase/FirebaseEmulator.swift`（`localhost`・auth 9099・firestore 8080・functions 5001） | `AppIcon-Debug`（下端に墨色の帯の「DEV」） |
 | Stg | TestFlight（`develop` の Upload） | `dev` | `Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist` | `AppIcon-Stg`（下端に黄色の帯の「STG」） |
-| Release | App Store（`release/**` の Upload・`main` の Archive） | `prod` | `Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist` | `AppIcon`（目印なし。App Store に出すもの） |
+| Release | App Store（`release/**` の Upload・手動実行の Archive） | `prod` | `Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist` | `AppIcon`（目印なし。App Store に出すもの） |
 
 - `dev`・`prod` はアプリの中の構成の名前で、Firebase のプロジェクトはどちらも `dokogacha-dev` の 1 つです（Stg は Stg の iOS アプリ、Release は本番の iOS アプリの plist を読む。Cloud Scheduler の無料の枠に収めるため。Issue #206）
 - plist はコミットしません（public リポジトリ）。CI が Secrets から書き出し、手元では各自 Firebase のコンソールから落として上の名前で置きます（手順は [docs/setup-human.md](docs/setup-human.md) の 3・4）
@@ -203,7 +203,7 @@ xcrun simctl io <UDID> screenshot room.png
 | `build.yml`（→ `_build.yml`） | すべてのブランチの push・PR の作成など（`**/*.md`・`docs/**`・`backend/**` だけの変更では動かない） | SwiftLint（`--strict`）・ビルド・Unit テスト・UI テスト（作業ブランチの push では Unit テストだけ） |
 | `backend.yml` | `backend/**` の変更の push・Fork からの PR | `npm ci`・型検査・lint・Jest・Emulator のテスト（ubuntu） |
 | `upload.yml`（→ `_archive.yml`） | `develop`・`release/**` の push・手動実行 | Archive → IPA → App Store Connect（`develop` は Stg、`release/**` は Release）・dSYM を Crashlytics に |
-| `archive.yml`（→ `_archive.yml`） | `main` の push・手動実行 | Release で Archive → IPA（アップロードしない） |
+| `archive.yml`（→ `_archive.yml`） | 手動実行（`main` の push では動かさない） | Release で Archive → IPA（アップロードしない） |
 | `verify-app-store-metadata.yml` | `AppStore/**`・`Tools/**`・撮影モードなどを変えた PR | 掲載情報の文字数・撮影の設定・撮影モードの scene の対応 |
 | `app-store-screenshots.yml`・`app-store-metadata.yml`・`app-store-creative-assets.yml` | 手動実行 | App Store のスクリーンショット・説明文・クリエイティブアセットの反映 |
 | `close-goal-discussion.yml` | `develop` 宛ての PR が閉じたとき | ralph-loop の epic の最終 PR がマージされたら、ゴールの Discussion を閉じる（ralph-kit が置く） |
