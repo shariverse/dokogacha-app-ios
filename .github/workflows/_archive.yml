@@ -201,7 +201,7 @@ jobs:
       - name: Upload dSYMs to Crashlytics
         # TestFlight・App Store に上げるビルドの dSYM を Crashlytics に上げ、クラッシュの記録を記号化できるようにする
         # （Xcode の Run Script のビルドフェーズは project.pbxproj を変えるので使わず、SPM が取ってきた firebase-ios-sdk の upload-symbols を Archive の後に呼ぶ）。
-        # アップロードしない Archive（main の確認）は配らないビルドなので上げない。
+        # アップロードしない Archive（手動実行の確認）は配らないビルドなので上げない。
         # 書き出した GoogleService-Info の plist が無い（Secret が無い Fork など）ときは上げずに進む。
         # 上げるのに失敗しても TestFlight・App Store へのアップロードは止めない（注釈と Job Summary で知らせる）
         if: ${{ inputs.upload }}
