@@ -116,7 +116,7 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
 | 種類 | 名前 | 値 | 使うワークフロー |
 | --- | --- | --- | --- |
 | Secret | `GOOGLE_SERVICE_INFO_PLIST_DEV` | `dokogacha-dev` の Stg の iOS アプリ（`jp.shilokuma.Dokogacha.stg`）の `GoogleService-Info.plist` を `base64 -i GoogleService-Info.plist` にした文字列 | `_archive.yml`（Stg。`develop` の Upload） |
-| Secret | `GOOGLE_SERVICE_INFO_PLIST_PROD` | `dokogacha-dev` の本番の iOS アプリ（`jp.shilokuma.Dokogacha`）の plist を base64 にした文字列 | `_archive.yml`（Release。`release/**` の Upload・`main` の Archive） |
+| Secret | `GOOGLE_SERVICE_INFO_PLIST_PROD` | `dokogacha-dev` の本番の iOS アプリ（`jp.shilokuma.Dokogacha`）の plist を base64 にした文字列 | `_archive.yml`（Release。`release/**` の Upload・手動実行の Archive） |
 | Secret | `EXPORT_OPTIONS` | `docs/ExportOptions.sample.plist` の `teamID` を書き換えた中身 | `_archive.yml` |
 | Secret | `APPLE_API_KEY_BASE64`・`APPLE_API_KEY_ID`・`APPLE_API_ISSUER_ID` | App Store Connect API の鍵（App Manager 以上）を base64 にしたものと、Key ID・Issuer ID | `_archive.yml`・`app-store-*.yml` |
 | Secret | `TESTFLIGHT_INTERNAL_TESTERS` | 内部テスターのメールアドレス（カンマ区切り） | `_archive.yml`（Upload） |
