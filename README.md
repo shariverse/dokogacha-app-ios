@@ -61,7 +61,7 @@
 ├── AppStore/                  # App Store の掲載情報（言語・撮る画面・説明文・クリエイティブアセット）
 ├── Tools/                     # スクリーンショットの撮影と App Store Connect への反映・市区町村の一覧の作成（make_municipalities.py）
 ├── docs/                      # spec/（企画・仕様・デザイン）・setup-human.md・ExportOptions.sample.plist
-├── scripts/                   # ralph-loop の中継（ralph-*.sh・askhub-manual.sh）。rename.sh はテンプレートの名残で使わない
+├── scripts/                   # rename.sh（テンプレートの名残で使わない）
 └── .github/                   # ワークフロー・Issue / PR のテンプレート・App Store Connect のスクリプト
 ```
 
@@ -206,9 +206,9 @@ xcrun simctl io <UDID> screenshot room.png
 | `archive.yml`（→ `_archive.yml`） | 手動実行（`main` の push では動かさない） | Release（入力で Stg も選べる）で Archive → entitlements を入れる → IPA → IPA の entitlements の確かめ（アップロードしない） |
 | `verify-app-store-metadata.yml` | `AppStore/**`・`Tools/**`・撮影モードなどを変えた PR | 掲載情報の文字数・撮影の設定・撮影モードの scene の対応 |
 | `app-store-screenshots.yml`・`app-store-metadata.yml`・`app-store-creative-assets.yml` | 手動実行 | App Store のスクリーンショット・説明文・クリエイティブアセットの反映 |
-| `close-goal-discussion.yml` | `develop` 宛ての PR が閉じたとき | ralph-loop の epic の最終 PR がマージされたら、ゴールの Discussion を閉じる（ralph-kit が置く） |
+| `close-goal-discussion.yml` | `develop` 宛ての PR が閉じたとき | 今の仕組み（ralph-loop）の名残。AskHub の対象に加えるときの準備の PR で外す |
 
-- PR での Build: 同じリポジトリのブランチは push で動いているので、PR では作成時など（`synchronize` 以外）にだけ UI テスト込みで動きます。`epic/**` 宛ての PR（ralph-loop の子 PR）では動かず、`epic/**` から `develop` などへの PR は更新のたびに UI テスト込みで動きます
+- PR での Build: 同じリポジトリのブランチは push で動いているので、PR では作成時など（`synchronize` 以外）にだけ UI テスト込みで動きます。AskHub の作業ブランチ（`askhub/**`）宛ての PR（子 PR）では動かず、`askhub/**` から `develop` などへの PR（最終 PR）は更新のたびに UI テスト込みで動きます
 - **Fork からの PR** は push で動かないので、更新を含むすべてのイベントで UI テストまで動きます。Secrets は渡りませんが、Build（Debug）は plist を使わないので通ります。Archive・Upload は Fork の PR では動きません
 - Upload に要る Secrets（`EXPORT_OPTIONS`・`APPLE_API_KEY_*`・`GOOGLE_SERVICE_INFO_PLIST_DEV` / `_PROD`・`TESTFLIGHT_INTERNAL_TESTERS`）と変数（`ENABLE_DELIVERY`）は [docs/setup-human.md](docs/setup-human.md) の 4 にあります
 - App Store Connect にアプリが無いと、Upload はアップロードの前に「新規アプリ」に入れる値を Job Summary に出して止まります（`.github/scripts/check-app-store-app.rb`）
