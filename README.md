@@ -202,8 +202,8 @@ xcrun simctl io <UDID> screenshot room.png
 | --- | --- | --- |
 | `build.yml`（→ `_build.yml`） | すべてのブランチの push・PR の作成など（`**/*.md`・`docs/**`・`backend/**` だけの変更では動かない） | SwiftLint（`--strict`）・ビルド・Unit テスト・UI テスト（作業ブランチの push では Unit テストだけ） |
 | `backend.yml` | `backend/**` の変更の push・Fork からの PR | `npm ci`・型検査・lint・Jest・Emulator のテスト（ubuntu） |
-| `upload.yml`（→ `_archive.yml`） | `develop`・`release/**` の push・手動実行 | Archive → IPA → App Store Connect（`develop` は Stg、`release/**` は Release）・dSYM を Crashlytics に |
-| `archive.yml`（→ `_archive.yml`） | 手動実行（`main` の push では動かさない） | Release で Archive → IPA（アップロードしない） |
+| `upload.yml`（→ `_archive.yml`） | `develop`・`release/**` の push・手動実行 | Archive → entitlements を入れる → IPA → IPA の entitlements の確かめ → App Store Connect（`develop` は Stg、`release/**` は Release）・dSYM を Crashlytics に |
+| `archive.yml`（→ `_archive.yml`） | 手動実行（`main` の push では動かさない） | Release（入力で Stg も選べる）で Archive → entitlements を入れる → IPA → IPA の entitlements の確かめ（アップロードしない） |
 | `verify-app-store-metadata.yml` | `AppStore/**`・`Tools/**`・撮影モードなどを変えた PR | 掲載情報の文字数・撮影の設定・撮影モードの scene の対応 |
 | `app-store-screenshots.yml`・`app-store-metadata.yml`・`app-store-creative-assets.yml` | 手動実行 | App Store のスクリーンショット・説明文・クリエイティブアセットの反映 |
 | `close-goal-discussion.yml` | `develop` 宛ての PR が閉じたとき | ralph-loop の epic の最終 PR がマージされたら、ゴールの Discussion を閉じる（ralph-kit が置く） |
@@ -212,6 +212,7 @@ xcrun simctl io <UDID> screenshot room.png
 - **Fork からの PR** は push で動かないので、更新を含むすべてのイベントで UI テストまで動きます。Secrets は渡りませんが、Build（Debug）は plist を使わないので通ります。Archive・Upload は Fork の PR では動きません
 - Upload に要る Secrets（`EXPORT_OPTIONS`・`APPLE_API_KEY_*`・`GOOGLE_SERVICE_INFO_PLIST_DEV` / `_PROD`・`TESTFLIGHT_INTERNAL_TESTERS`）と変数（`ENABLE_DELIVERY`）は [docs/setup-human.md](docs/setup-human.md) の 4 にあります
 - App Store Connect にアプリが無いと、Upload はアップロードの前に「新規アプリ」に入れる値を Job Summary に出して止まります（`.github/scripts/check-app-store-app.rb`）
+- Archive は署名せずに作るので、Archive の後に `Configs/Dokogacha.entitlements`（`$(DG_APS_ENVIRONMENT)` などを構成のビルドの設定で展開したもの）をアプリに入れ、書き出した IPA にすべて残ったかを確かめます。道具は [shilokuma-inc/app-kit](https://github.com/shilokuma-inc/app-kit) の `tools/embed_archive_entitlements.py` を、`_archive.yml` に書いたコミットで取り出して使います（#234）
 
 ## App Store の掲載情報
 

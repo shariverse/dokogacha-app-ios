@@ -57,7 +57,7 @@ Debug の Bundle ID（`Configs/Debug.xcconfig` の `jp.shilokuma.Dokogacha.dev`�
    - Sign in with Apple の「Configure」では、Primary App ID に本番の `jp.shilokuma.Dokogacha` を選ぶ
    - チームにすでに APNs の鍵があれば、APNs はその鍵を使い回してよい（チームあたりの本数に上限がある）。その場合、新しい鍵は Sign in with Apple だけにする
 
-**確かめ方**: 手順 4 の後の develop の Upload が、署名のエラーなく TestFlight まで通る（#22）。
+**確かめ方**: 手順 4 の後の develop の Upload が、署名のエラーなく TestFlight まで通る（#22）。Upload の「Verify entitlements of the exported IPA」に `aps-environment`・`com.apple.developer.associated-domains`・`com.apple.developer.applesignin` が出る。capability が無効だと、書き出しか、この確かめで止まる（#234）。手動実行の Archive（構成に Release か Stg を選ぶ）でも、アップロードせずに同じ確かめができる。
 
 ## 2. App Store Connect のアプリと課金アイテム
 
@@ -125,6 +125,7 @@ Debug 構成は Emulator の `demo-dokogacha` に繋ぐので、`dokogacha-dev` 
 - plist の Secret が無いとき、Stg は警告を出して Firebase に繋がらないアプリを Archive し、`release/**` の Upload（Release）は止まる。読めない値を入れると Archive の前に止まる
 - Archive の後に、アプリの `Info.plist` の `DGFirebaseEnvironment`（Stg は `dev`・Release は `prod`）と、入った plist が構成どおりかを確かめる（「Verify Firebase settings in the app」）
 - plist があるときは、Upload のワークフローで Archive と「Verify Firebase settings in the app」の後（Export・Upload の前）に dSYM を Crashlytics に上げる（「Upload dSYMs to Crashlytics」）
+- Archive の後に、`Configs/Dokogacha.entitlements` を構成のビルドの設定で展開してアプリに入れ（「Embed entitlements into the archive」）、書き出した IPA にすべて残ったかと `$(…)` が残っていないかを確かめる（「Verify entitlements of the exported IPA」）。Archive は署名せずに作るので、入れないと配信ビルドにプッシュ通知・Associated Domains・Sign in with Apple が付かない（#234）
 - 内部テスターのメールアドレスは、変数ではなく Secret に入れる。変数の値はステップの `env:` の表示で Actions のログにそのまま出る（public リポジトリのログは誰でも見られる。Issue #208）。
   Upload のログ・注釈・Job Summary では、メールアドレスを伏せて「書いた順の何件目か（`t***@example.com`）」で示す。Secret は登録した後に値を見られないので、書いた順は控えておく
 - 以前は変数 `TESTFLIGHT_INTERNAL_TESTERS` で渡していた。変数が残っていて Secret が無いと、Upload は内部テスターの設定を省いて警告を出す。Secret に移したら、Organization のほかのリポジトリが変数を使っていないかを確かめてから変数を消す
