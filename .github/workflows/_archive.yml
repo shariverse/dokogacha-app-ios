@@ -61,6 +61,20 @@ jobs:
       - name: Allow SwiftLint build tool plugin
         run: defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
 
+      - name: Get app-kit
+        # entitlements の道具（tools/embed_archive_entitlements.py）を、shilokuma-inc/app-kit から取り出して使う（#234）。
+        # リポジトリに写さないのは、道具のテストと直しが app-kit にあり、app-kit の再利用ワークフローに入れ替えるときにこの手順を消すだけで済むため。
+        # タグは付け替えられるので、40 桁のコミットで固定する（app-kit の app-archive.yml の取り出し方と同じ）
+        env:
+          # app-kit v1.4.0
+          APP_KIT_REF: b2982f07263d6bb528e805825d19206f521e4c05
+        run: |
+          dir="$RUNNER_TEMP/app-kit"
+          git init -q "$dir"
+          git -C "$dir" fetch -q --depth 1 https://github.com/shilokuma-inc/app-kit.git "$APP_KIT_REF"
+          git -C "$dir" checkout -q --detach FETCH_HEAD
+          echo "APP_KIT_DIR=$dir" >> "$GITHUB_ENV"
+
       - name: Set up environment
         # プロジェクト名と同名の共有スキームが存在することを前提にする。
         # ExportOptions.plist と API 秘密鍵はリポジトリ配下ではなく RUNNER_TEMP に置く
@@ -160,6 +174,19 @@ jobs:
             fi
           done
           echo "署名の識別子を直したフレームワーク: ${fixed} 個"
+
+      - name: Embed entitlements into the archive
+        # Export は Archive のアプリの署名にある entitlement だけを引き継ぎ、profile からは足さない。署名なしの Archive には
+        # Configs/Dokogacha.entitlements（CODE_SIGN_ENTITLEMENTS）が入らないので、そのままだと配信ビルドに基本の entitlement しか付かず、
+        # プッシュ通知・Universal Links・Sign in with Apple が動かない（#234）。
+        # $(DG_APS_ENVIRONMENT) などをこの構成のビルドの設定で展開した entitlements で、アプリをアドホック署名しておく（本番の署名は Export がする）。
+        # ビルドの設定は xcodebuild -showBuildSettings で読む（-derivedDataPath を渡せないので、既定の場所で Swift Package の解決をもう一度する）
+        run: |
+          python3 "$APP_KIT_DIR/tools/embed_archive_entitlements.py" embed "$RUNNER_TEMP/build.xcarchive" \
+            --project "$PROJECT_NAME.xcodeproj" \
+            --scheme "$SCHEME" \
+            --sdk iphoneos \
+            --configuration "$CONFIGURATION"
 
       - name: Verify Firebase settings in the app
         # 構成と Firebase の接続先の取り違え（Stg のつもりで prod に繋ぐなど）を、Export・アップロードの前に止める。
@@ -262,6 +289,12 @@ jobs:
             -authenticationKeyPath "$API_KEY_PATH" \
             -authenticationKeyID "$APPLE_API_KEY_ID" \
             -authenticationKeyIssuerID "$APPLE_API_ISSUER_ID"
+
+      - name: Verify entitlements of the exported IPA
+        # Archive のアプリの署名にある entitlement が、書き出した IPA のアプリにも残っているか、$(…) が残っていないかを確かめる。
+        # App ID の capability が無効などで、配布用の profile に無い entitlement を Export が落とすと、ビルドも Upload も通るのに
+        # 実機でその機能だけ動かない（App ID の capability は docs/setup-human.md の 1）。App Store Connect に上げる前に止める
+        run: python3 "$APP_KIT_DIR/tools/embed_archive_entitlements.py" check "$RUNNER_TEMP/build.xcarchive" "$RUNNER_TEMP/export"
 
       - name: Upload IPA to GitHub
         uses: actions/upload-artifact@v7
