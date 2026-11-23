@@ -4,12 +4,22 @@ name: Archive
 # main への push では動かさない（Build だけが動く）。develop / release/** は upload.yml が Archive を含むため、そちらで確かめられる。
 on:
   workflow_dispatch:
+    inputs:
+      configuration:
+        # 既定は App Store に出す内容と同じ Release（Firebase は prod）。TestFlight 用の Stg（Firebase は dev）も、アップロードせずに確かめられる
+        description: Archive するビルド構成（Release = App Store 用 / Stg = TestFlight 用。どちらもアップロードしない）
+        type: choice
+        options:
+          - Release
+          - Stg
+        default: Release
 
 permissions:
   contents: read
 
+# 同じブランチで Release と Stg を続けて実行しても、互いに取り消さないよう構成でグループを分ける
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.configuration }}
   cancel-in-progress: true
 
 jobs:
@@ -17,6 +27,5 @@ jobs:
     uses: ./.github/workflows/_archive.yml
     with:
       upload: false
-      # App Store に出す内容と同じ Release（Firebase は prod）で Archive できることを確かめる
-      configuration: Release
+      configuration: ${{ inputs.configuration }}
     secrets: inherit
