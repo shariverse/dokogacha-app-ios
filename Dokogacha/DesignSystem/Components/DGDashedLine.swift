@@ -42,7 +42,9 @@ struct DGDashedLine: View {
 }
 
 /// 枠の中央を通る 1 本の線の形。
-private struct DashedLineShape: Shape {
+///
+/// `Shape` の要件は隔離が無いので、既定の MainActor から外す（Xcode 27.1 では `#ConformanceIsolation` でビルドが止まる）。
+nonisolated private struct DashedLineShape: Shape {
     let axis: DGDashedLine.Axis
 
     func path(in rect: CGRect) -> Path {
