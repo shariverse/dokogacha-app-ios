@@ -110,6 +110,7 @@ npm run build           # Functions を functions/lib/ にビルドする
 - ずらした設定は `scripts/emulator-config.cjs` が `backend/firebase.emulators.local.json`（git 管理外）に書き出し、`scripts/test-emulator.sh` がそれを `emulators:exec --config` に渡す。
   テストは `emulators:exec` が渡す `FIRESTORE_EMULATOR_HOST`・`FIREBASE_EMULATOR_HUB` などの環境変数で接続先を読むので、ポートを直接書かない
 - プロジェクトは Emulator 専用の `demo-dokogacha`（`.firebaserc`）。`firebase deploy`・`firebase login` は人間がする
+- **AskHub の依頼では `backend/` を変えない。** backend（Functions・ルール・拡張の設定）の変更とデプロイは人間がする（2026-11-24 に決めた）。AskHub のワーカーは backend のテスト（npm・Emulator）を流さず、待つチェックも iOS の `build / build` だけなので、変えても確かめられない。backend の変更が要るときは、そう書いて人に回す
 - Functions は `functions/src/index.ts`（と各フォルダの `functions.ts`）で Callable・トリガー・スケジュールに包むだけにし、処理は `rooms/`・`users/`・`candidates/`・`unlock/`（準備OKの数え直しと解禁）・`settings/`（設定の変更）・`draw/`（抽選。重み付きの選択は `domain/draw.ts`、Swift は `Domain/Logic/GachaDraw.swift`）・
   `reroll/`（引き直し）・`close/`（決定と自動の終了・過去のアイデア）・`notifications/`（FCM）・`digest/`（まとめ通知）・`invite/`（前回のメンバーの招待）・`purchase/`（広告非表示の検証）・`reports/`（報告）・`account/`（アカウントの削除）の
   `service.ts`（Firestore）・`logic.ts`（判定）・`input.ts`（入力の検証）に置く。トリガーは `retry: true` にし、処理を冪等にする（今の値と同じなら書かない）。
