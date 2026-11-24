@@ -1,0 +1,32 @@
+{
+  "v": 1,
+  "project": "Dokogacha.xcodeproj",
+  "scheme": "Dokogacha",
+  "platforms": ["iOS"],
+  "generate": null,
+  "uiTests": "DokogachaUITests",
+  "xcodeVersion": null,
+  "archive": {
+    "platforms": ["iOS"],
+    "configurations": [
+      {
+        "name": "Release",
+        "branches": ["main", "release/*"],
+        "googleServiceInfo": {
+          "path": "Dokogacha/Resources/Firebase/GoogleService-Info-Prod.plist",
+          "secret": "GOOGLE_SERVICE_INFO_PLIST_PROD",
+          "required": true
+        }
+      },
+      {
+        "name": "Stg",
+        "googleServiceInfo": {
+          "path": "Dokogacha/Resources/Firebase/GoogleService-Info-Dev.plist",
+          "secret": "GOOGLE_SERVICE_INFO_PLIST_DEV"
+        }
+      }
+    ],
+    "crashlytics": true
+  },
+  "unmanaged": []
+}
